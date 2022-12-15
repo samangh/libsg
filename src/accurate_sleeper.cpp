@@ -29,12 +29,6 @@ void udaq::common::AccurateSleeper::set_interval(uint32_t interval_ns, Strategy 
     if ( strategy == Strategy::Auto)
     {
         /* Use tight loop if period is 1 ms or less */
-        uint32_t sleep_limit;
-#ifdef _WIN32
-        sleep_limit = 1000000; // 2 ms
-#else
-     sleep_limit = 1000000; // 1 ms
-#endif
         if (interval_ns > 1000000)
             m_strategy = Strategy::Sleep;
         else
