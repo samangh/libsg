@@ -2,5 +2,4 @@
 
 namespace udaq::common {
 
-
 } // namespace udaq::common
