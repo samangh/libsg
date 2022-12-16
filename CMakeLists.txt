@@ -40,7 +40,7 @@ target_link_libraries(${TARGET}
 
 include (GenerateExportHeader)
 generate_export_header(${TARGET}
-             EXPORT_FILE_NAME "${CMAKE_BINARY_DIR}/include/${PROJECT_NAME}/export/${TARGET}.h")
+             EXPORT_FILE_NAME "${CMAKE_BINARY_DIR}/include/udaq/export/${TARGET}.h")
 
 
 ##
