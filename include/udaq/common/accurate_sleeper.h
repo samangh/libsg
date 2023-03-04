@@ -36,7 +36,7 @@ class AccurateSleeper {
     void sleep();
 
   private:
-    uint64_t m_interval_ns;
+    uint64_t m_interval_ns = 1E9; //default: 1 second
     std::atomic<bool> m_realtime_enabled = false;
     Strategy m_strategy;
 
