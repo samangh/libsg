@@ -32,7 +32,7 @@ void background_timer::wait_for_stop() {
         if (m_thread.joinable())
             m_thread.join();
     } else {
-        throw std::logic_error("can't wait for background stop to stop within the worker itself");
+        throw std::logic_error("can't wait for background_timer stop to stop from within itself");
     }
 }
 
@@ -79,7 +79,7 @@ bool background_timer::is_running() const {
     return m_is_running;
 }
 
-uint64_t background_timer::get_interval() const {
+uint64_t background_timer::interval() const {
     std::lock_guard<std::mutex> lock(m_sleeper_mutex);
     return m_sleeper.interval();
 }

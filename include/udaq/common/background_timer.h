@@ -35,8 +35,10 @@ class COMMON_EXPORT background_timer {
     void wait_for_stop();
     bool is_running() const;
 
-    uint64_t get_interval() const;
-    void set_interval(uint32_t interval_ns, udaq::common::AccurateSleeper::Strategy strategy);
+    /* gets the interval in seconds */
+    uint64_t interval() const;
+    void set_interval(uint32_t interval_ns,
+                      udaq::common::AccurateSleeper::Strategy strategy = udaq::common::AccurateSleeper::Strategy::Auto);
 
     /* pointer to exchange data with the task, you must create this */
     std::shared_ptr<void> data;
