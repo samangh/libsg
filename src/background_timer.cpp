@@ -43,11 +43,18 @@ void background_timer::action() {
 
     std::exception_ptr ex;
     while (!is_stop_requested()) {
-        auto t = std::chrono::high_resolution_clock::now();
+        std::shared_lock lock(m_sleeper_mutex);
         try {
-            m_task(this);
-            std::lock_guard<std::mutex> lock(m_sleeper_mutex);
-            m_sleeper.sleep(std::chrono::high_resolution_clock::now() - t);
+            if (m_correct_for_task_delay)
+            {
+                auto t = std::chrono::high_resolution_clock::now();
+                m_task(this);
+                m_sleeper.sleep(std::chrono::high_resolution_clock::now() - t);
+            }
+            else{
+                m_task(this);
+                m_sleeper.sleep();
+            }
         } catch (...) {
             ex = std::current_exception();
             break;
@@ -80,13 +87,19 @@ bool background_timer::is_running() const {
 }
 
 uint64_t background_timer::interval() const {
-    std::lock_guard<std::mutex> lock(m_sleeper_mutex);
+    std::shared_lock lock(m_sleeper_mutex);
     return m_sleeper.interval();
 }
 
 void background_timer::set_interval(uint32_t interval_ns, AccurateSleeper::Strategy strategy) {
-    std::lock_guard<std::mutex> lock(m_sleeper_mutex);
+    std::unique_lock lock(m_sleeper_mutex);
     m_sleeper.set_interval(interval_ns, strategy);
+}
+
+void background_timer::correct_for_task_delay(bool correct)
+{
+    std::unique_lock lock(m_sleeper_mutex);
+    m_correct_for_task_delay = correct;
 }
 
 } // namespace udaq::common

@@ -21,7 +21,7 @@ class COMMON_EXPORT background_timer {
     typedef std::function<void(background_timer *, std::exception_ptr error)> stopped_cb_t;
     typedef std::function<void(background_timer *)> task_t;
 
-    /* encapsulates a threat that runs a provided task regualrly on a timer */
+    /* encapsulates a thread that runs a provided task regualrly on a timer */
     background_timer(const task_t &task, const started_cb_t &start_cb, const stopped_cb_t &stopped_cb);
     ~background_timer();
 
@@ -42,7 +42,7 @@ class COMMON_EXPORT background_timer {
 
     /* pointer to exchange data with the task, you must create this */
     std::shared_ptr<void> data;
-
+    void correct_for_task_delay(bool);
   private:
     task_t m_task;
     started_cb_t m_started_cb;
@@ -52,8 +52,9 @@ class COMMON_EXPORT background_timer {
     std::mutex m_stop_mutex;
     bool m_stop_requested = false;
 
-    mutable std::mutex m_sleeper_mutex;
+    mutable std::shared_mutex m_sleeper_mutex;
     AccurateSleeper m_sleeper;
+    bool m_correct_for_task_delay =false;
 
     mutable std::shared_mutex m_running_mutex;
     bool m_is_running = false;
