@@ -27,7 +27,7 @@ udaq::common::AccurateSleeper::~AccurateSleeper() {
     disable_realtime();
 }
 
-void udaq::common::AccurateSleeper::set_interval(uint32_t interval_ns, Strategy strategy) {
+void udaq::common::AccurateSleeper::set_interval(uint64_t interval_ns, Strategy strategy) {
     if (strategy == Strategy::Auto) {
         /* Use tight loop if period is 1 ms or less */
         if (interval_ns > 1000000)
@@ -101,13 +101,20 @@ void udaq::common::AccurateSleeper::disable_realtime() {
 }
 
 void udaq::common::AccurateSleeper::sleep() {
-    if (m_interval_ns == 0)
+    sleep_remove_lag(0);
+}
+
+void udaq::common::AccurateSleeper::sleep_remove_lag(uint64_t remove_ns)
+{
+    if (remove_ns > m_interval_ns)
         return;
+
+    uint64_t interval = m_interval_ns - remove_ns;
 
     /* Tight loop */
     if (m_strategy == Strategy::Spin) {
         auto s = std::chrono::high_resolution_clock::now();
-        while ((std::chrono::high_resolution_clock::now() - s) < std::chrono::nanoseconds(m_interval_ns))
+        while ((std::chrono::high_resolution_clock::now() - s) < std::chrono::nanoseconds(interval))
             ;
         return;
     }
@@ -116,8 +123,8 @@ void udaq::common::AccurateSleeper::sleep() {
 #if defined(__linux__) || defined(__unix__) || \
     (defined(__APPLE__) && defined(__MACH__))
     struct timespec ts;
-    ts.tv_sec = m_interval_ns / 1E9;
-    ts.tv_nsec = m_interval_ns % 1000000000;
+    ts.tv_sec = interval / 1E9;
+    ts.tv_nsec = interval % 1000000000;
 
     /* Call until the time is passed, see nanosleep() manual) */
     while (nanosleep(&ts, &ts) == -1 && errno == EINTR)

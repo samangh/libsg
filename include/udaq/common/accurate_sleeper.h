@@ -30,11 +30,22 @@ class AccurateSleeper {
 
         set_interval(std::chrono::duration_cast<std::chrono::nanoseconds>(duration).count(), strategy);
     }
-    void set_interval(uint32_t interval_ns, Strategy strategy);
+    void set_interval(uint64_t interval_ns, Strategy strategy);
     uint64_t interval() const;
     void enable_realtime();
     void disable_realtime();
+
     void sleep();
+    /* sleep for the usual interval, shorted by the given value. Intented for
+     * use by background_time or other process which use accurate_sleeper as a timer.*/
+    void sleep_remove_lag(uint64_t remove_from_interval_ns);
+
+    template <class _reprsenetation, class _value>
+    void sleep( const std::chrono::duration<_reprsenetation, _value> &duration) {
+        if (duration > std::chrono::nanoseconds::max())
+            throw std::invalid_argument("the provided time internval is too long");
+        sleep_remove_lag(std::chrono::duration_cast<std::chrono::nanoseconds>(duration).count());
+    }
 
   private:
     uint64_t m_interval_ns = 1E9; //default: 1 second
