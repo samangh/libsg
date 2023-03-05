@@ -31,6 +31,7 @@ class AccurateSleeper {
         set_interval(std::chrono::duration_cast<std::chrono::nanoseconds>(duration).count(), strategy);
     }
     void set_interval(uint32_t interval_ns, Strategy strategy);
+    uint64_t interval() const;
     void enable_realtime();
     void disable_realtime();
     void sleep();

@@ -45,6 +45,11 @@ void udaq::common::AccurateSleeper::set_interval(uint32_t interval_ns, Strategy 
     m_interval_ns = interval_ns;
 }
 
+uint64_t udaq::common::AccurateSleeper::interval() const
+{
+    return m_interval_ns;
+}
+
 void udaq::common::AccurateSleeper::enable_realtime() {
     if (!m_realtime_enabled) {
 #if defined(__linux__) || defined(__unix__) || \
