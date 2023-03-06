@@ -42,6 +42,14 @@ class COMMON_EXPORT background_timer {
 
     /* pointer to exchange data with the task, you must create this */
     std::shared_ptr<void> data;
+
+    /* mutex to use when using #data.
+     *
+     * This mutex is not used by #background_timer, and is purely for teh user's convenient. */
+    mutable std::shared_mutex data_mutex;
+
+    /* sets whether the time shouuld account for how long the action takes,
+     * and remove that from the wait interval */
     void correct_for_task_delay(bool);
   private:
     task_t m_task;
