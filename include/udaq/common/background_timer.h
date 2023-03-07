@@ -45,12 +45,8 @@ class COMMON_EXPORT background_timer {
     void set_interval(uint32_t interval_ns,
                       udaq::common::AccurateSleeper::Strategy strategy = udaq::common::AccurateSleeper::Strategy::Auto);
 
-    /* pointer to exchange data with the task, you must create this
-     *
-     * You can use the following to change this to another shared_ptr<T>:
-     *      std::reinterpret_pointer_cast<T>(timer.data);
-     */
-    std::shared_ptr<void> data;
+    /* pointer to exchange data with the task */
+    void* data;
 
     /* mutex to use when using #data.
      *
