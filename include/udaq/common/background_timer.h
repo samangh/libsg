@@ -77,7 +77,6 @@ class COMMON_EXPORT background_timer {
 
     void action();
     void set_exception(std::exception_ptr ptr);
-
     void set_is_running(bool);
 };
 

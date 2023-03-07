@@ -12,21 +12,29 @@ background_timer::background_timer(const background_timer::task_t &task, const b
                                    const background_timer::stopped_cb_t &stopped_cb)
     : m_task(task), m_started_cb(start_cb), m_stopped_cb(stopped_cb) {}
 
-background_timer::~background_timer() { wait_for_stop(); }
+background_timer::~background_timer() {
+    request_stop();
+    wait_for_stop();
+}
 
 void background_timer::start() {
     if (is_running())
         throw std::runtime_error("this worker is already running");
 
-    /* of the thread has finished executing code,but has not been joined yet */
+    /* if the thread has finished executing code,but has not been joined yet */
     wait_for_stop();
 
+    /* we set these here, as usually there is a delay before a thread gets going
+     * and so the user call call functions that use these variables before they are
+     * set in the new thread */
+
     m_stop_requested = false;
+    set_exception(nullptr);
+    set_is_running(true);
     m_thread = std::thread(&background_timer::action, this);
 }
 
 void background_timer::wait_for_stop() {
-    request_stop();
     if (m_thread.get_id() != std::this_thread::get_id()) {
         /* called from different thread */
         if (m_thread.joinable())
@@ -37,9 +45,6 @@ void background_timer::wait_for_stop() {
 }
 
 void background_timer::action() {
-    set_is_running(true);
-    set_exception(nullptr);
-
     if (m_started_cb)
         m_started_cb(this);
 
