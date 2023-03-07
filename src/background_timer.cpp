@@ -38,10 +38,11 @@ void background_timer::wait_for_stop() {
 
 void background_timer::action() {
     set_is_running(true);
+    set_exception(nullptr);
+
     if (m_started_cb)
         m_started_cb(this);
 
-    std::exception_ptr ex;
     while (!is_stop_requested()) {
         std::shared_lock lock(m_sleeper_mutex);
         try {
@@ -56,24 +57,42 @@ void background_timer::action() {
                 m_sleeper.sleep();
             }
         } catch (...) {
-            ex = std::current_exception();
+            set_exception(std::current_exception());
             break;
         }
     }
 
     set_is_running(false);
     if (m_stopped_cb)
-        m_stopped_cb(this, ex);
+        m_stopped_cb(this, get_exception());
 }
 
 void background_timer::request_stop() {
-    std::lock_guard lock(m_stop_mutex);
+    std::unique_lock lock(m_stop_mutex);
     m_stop_requested = true;
 }
 
-bool background_timer::is_stop_requested() {
-    std::lock_guard lock(m_stop_mutex);
+bool background_timer::is_stop_requested() const {
+    std::shared_lock lock(m_stop_mutex);
     return m_stop_requested;
+}
+
+bool background_timer::has_exception() const
+{
+    std::lock_guard lock(m_exception_mutex);
+    return (bool)m_exception;
+}
+
+void background_timer::set_exception(std::exception_ptr ptr)
+{
+    std::lock_guard lock(m_exception_mutex);
+    m_exception = ptr;
+}
+
+std::exception_ptr background_timer::get_exception() const
+{
+    std::lock_guard lock(m_exception_mutex);
+    return m_exception;
 }
 
 void background_timer::set_is_running(bool running) {

@@ -48,7 +48,7 @@ class AccurateSleeper {
     }
 
   private:
-    uint64_t m_interval_ns = 1E9; //default: 1 second
+    uint64_t m_interval_ns = 1000000000ULL; //default: 1 second
     std::atomic<bool> m_realtime_enabled = false;
     Strategy m_strategy;
 

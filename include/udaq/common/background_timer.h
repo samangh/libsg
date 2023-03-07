@@ -34,6 +34,11 @@ class COMMON_EXPORT background_timer {
     /* request stop and wait for the thread to finish */
     void wait_for_stop();
     bool is_running() const;
+    bool is_stop_requested() const;
+
+    /* gets the exception, if the task threw an exception*/
+    std::exception_ptr get_exception() const;
+    bool has_exception() const;
 
     /* gets the interval in seconds */
     uint64_t interval() const;
@@ -57,7 +62,10 @@ class COMMON_EXPORT background_timer {
     stopped_cb_t m_stopped_cb;
     std::thread m_thread;
 
-    std::mutex m_stop_mutex;
+    mutable std::mutex m_exception_mutex;
+    std::exception_ptr m_exception;
+
+    mutable std::shared_mutex m_stop_mutex;
     bool m_stop_requested = false;
 
     mutable std::shared_mutex m_sleeper_mutex;
@@ -68,7 +76,7 @@ class COMMON_EXPORT background_timer {
     bool m_is_running = false;
 
     void action();
-    bool is_stop_requested();
+    void set_exception(std::exception_ptr ptr);
 
     void set_is_running(bool);
 };
