@@ -48,9 +48,8 @@ class COMMON_EXPORT background_timer {
     /* pointer to exchange data with the task */
     void* data;
 
-    /* mutex to use when using #data.
-     *
-     * This mutex is not used by #background_timer, and is purely for teh user's convenient. */
+    /* mutex to use when using #data.This mutex is not used by
+     * #background_timer, and is purely for teh users' convenience. */
     mutable std::shared_mutex data_mutex;
 
     /* sets whether the time shouuld account for how long the action takes,
