@@ -48,7 +48,6 @@ class file_writer {
 
     bool m_stop_requested = false;
     bool m_write_pending = false;
-    ;
 
     uint64_t m_last_write_time;
     unsigned int buffer_write_interval;

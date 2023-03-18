@@ -3,6 +3,8 @@
 #include <udaq/common/file_writer.h>
 #include <uv.h>
 
+#define THROW_ON_ERROR(err) if (err<0) throw std::runtime_error(uv_strerror(err));
+
 namespace udaq::common {
 
 file_writer::file_writer() : m_buffer_in(std::make_unique<std::vector<char>>()) {
@@ -72,11 +74,10 @@ void file_writer::start(std::filesystem::path path, file_writer::error_cb_t on_e
     buffer_write_interval = write_interval;
 
     /* setup UV loop */
-    uv_loop_init(&m_loop);
+    THROW_ON_ERROR(uv_loop_init(&m_loop));
     m_loop.data = this;
 
-    int err = 0;
-    err = uv_fs_open(&m_loop, &open_req, path.string().c_str(), UV_FS_O_TRUNC | UV_FS_O_CREAT | UV_FS_O_WRONLY | UV_FS_O_SEQUENTIAL | UV_FS_O_EXLOCK, 0644, on_uv_open);
+    THROW_ON_ERROR(uv_fs_open(&m_loop, &open_req, path.string().c_str(), UV_FS_O_TRUNC | UV_FS_O_CREAT | UV_FS_O_WRONLY | UV_FS_O_SEQUENTIAL | UV_FS_O_EXLOCK, 0644, on_uv_open));
 
     /* Set the last time the file buffer was checked to 0.
      * Note: the idler is started by the on_uv_open cb 
@@ -86,6 +87,10 @@ void file_writer::start(std::filesystem::path path, file_writer::error_cb_t on_e
     m_thread = std::thread([&]() {
         m_started_cb();
         while (true) {
+            /*  Runs the event loop until there are no more active and referenced
+             *  handles or requests.  Returns non-zero if uv_stop() was called
+             *  and there are still active handles or  requests. Returns zero in
+             *  all other cases. */
             uv_run(&m_loop, UV_RUN_DEFAULT);
 
             /* The following loop closing logic is from guidance from
