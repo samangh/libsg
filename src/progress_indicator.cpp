@@ -1,6 +1,6 @@
 #include "udaq/common/progress_indicator.h"
 
-namespace udaq::common
+namespace sg
 {
 
 ProgressIndicator::Progress ProgressIndicator::progress() const

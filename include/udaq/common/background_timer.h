@@ -13,7 +13,7 @@
 #include <shared_mutex>
 #include <thread>
 
-namespace udaq::common {
+namespace sg {
 
 class COMMON_EXPORT background_timer {
   public:
@@ -43,7 +43,7 @@ class COMMON_EXPORT background_timer {
     /* gets the interval in seconds */
     uint64_t interval() const;
     void set_interval(uint32_t interval_ns,
-                      udaq::common::AccurateSleeper::Strategy strategy = udaq::common::AccurateSleeper::Strategy::Auto);
+                      sg::AccurateSleeper::Strategy strategy = sg::AccurateSleeper::Strategy::Auto);
 
     /* pointer to exchange data with the task */
     void* data;
@@ -79,4 +79,4 @@ class COMMON_EXPORT background_timer {
     void set_is_running(bool);
 };
 
-} // namespace udaq::common
+} // namespace sg

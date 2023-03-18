@@ -11,7 +11,7 @@
 #include <uv.h>
 #include <vector>
 
-namespace udaq::common {
+namespace sg {
 
 class file_writer {
   public:
@@ -69,4 +69,4 @@ class file_writer {
     uv_buf_t m_uv_buf;
 };
 
-} // namespace udaq::common
+} // namespace sg

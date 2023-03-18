@@ -6,7 +6,7 @@
  * still considered an active thread of execution and is therefore joinable.
  */
 
-namespace udaq::common {
+namespace sg {
 
 background_timer::background_timer(const background_timer::task_t &task, const background_timer::started_cb_t &start_cb,
                                    const background_timer::stopped_cb_t &stopped_cb)
@@ -126,4 +126,4 @@ void background_timer::correct_for_task_delay(bool correct)
     m_correct_for_task_delay = correct;
 }
 
-} // namespace udaq::common
+} // namespace sg

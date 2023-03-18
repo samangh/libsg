@@ -7,7 +7,7 @@
 #include <new>
 #include <stdexcept>
 
-namespace udaq::common::memory {
+namespace sg::memory {
 
 /* Allocated memory of specific size, runs the specified function, and then clears the memory.
  *
@@ -66,4 +66,4 @@ inline void CallocAndFree(size_t size, T **memory, std::function<void()> func) {
     }
 }
 
-} // namespace udaq::common::memory
+} // namespace sg::memory

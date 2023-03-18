@@ -5,7 +5,7 @@
 #include <map>
 #include <string>
 
-namespace udaq::common::map {
+namespace sg::map {
 
 template <typename T, typename K>
 inline static bool has_key(const std::map<T, K>& map, const T& key) {

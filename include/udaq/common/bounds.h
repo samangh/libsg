@@ -6,7 +6,7 @@
 #include <type_traits>
 #include <vector>
 
-namespace udaq::common::bounds {
+namespace sg::bounds {
 
 /**
  * @brief returns the index of the first element with a value higher than the specified value.
@@ -75,4 +75,4 @@ size_t lower_bound_index(const Container<Value, Allocator> &data, const Value &t
         return std::distance(data.begin(), upper);
 }
 
-} // namespace udaq::common::upper
+} // namespace sg::upper

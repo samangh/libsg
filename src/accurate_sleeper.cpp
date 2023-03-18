@@ -22,12 +22,12 @@
     #include <sched.h>
 #endif
 
-udaq::common::AccurateSleeper::AccurateSleeper() {}
-udaq::common::AccurateSleeper::~AccurateSleeper() {
+sg::AccurateSleeper::AccurateSleeper() {}
+sg::AccurateSleeper::~AccurateSleeper() {
     disable_realtime();
 }
 
-void udaq::common::AccurateSleeper::set_interval(uint64_t interval_ns, Strategy strategy) {
+void sg::AccurateSleeper::set_interval(uint64_t interval_ns, Strategy strategy) {
     if (strategy == Strategy::Auto) {
         /* Use tight loop if period is 1 ms or less */
         if (interval_ns > 1000000)
@@ -45,12 +45,12 @@ void udaq::common::AccurateSleeper::set_interval(uint64_t interval_ns, Strategy 
     m_interval_ns = interval_ns;
 }
 
-uint64_t udaq::common::AccurateSleeper::interval() const
+uint64_t sg::AccurateSleeper::interval() const
 {
     return m_interval_ns;
 }
 
-void udaq::common::AccurateSleeper::enable_realtime() {
+void sg::AccurateSleeper::enable_realtime() {
     if (!m_realtime_enabled) {
 #if defined(__linux__) || defined(__unix__) || \
     (defined(__APPLE__) && defined(__MACH__))
@@ -86,7 +86,7 @@ void udaq::common::AccurateSleeper::enable_realtime() {
     }
 }
 
-void udaq::common::AccurateSleeper::disable_realtime() {
+void sg::AccurateSleeper::disable_realtime() {
     if (m_realtime_enabled) {
 #if defined(__linux__) || defined(__unix__) || \
     (defined(__APPLE__) && defined(__MACH__))
@@ -100,11 +100,11 @@ void udaq::common::AccurateSleeper::disable_realtime() {
     }
 }
 
-void udaq::common::AccurateSleeper::sleep() {
+void sg::AccurateSleeper::sleep() {
     sleep_remove_lag(0);
 }
 
-void udaq::common::AccurateSleeper::sleep_remove_lag(uint64_t remove_ns)
+void sg::AccurateSleeper::sleep_remove_lag(uint64_t remove_ns)
 {
     if (remove_ns > m_interval_ns)
         return;

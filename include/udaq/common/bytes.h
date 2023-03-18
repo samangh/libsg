@@ -4,7 +4,7 @@
 #include <cstdint>
 #include <type_traits>
 
-namespace udaq::common::bytes {
+namespace sg::bytes {
 
 enum class Endianess
 {
@@ -20,7 +20,7 @@ int64_t to_int64(const uint8_t *buff, Endianess endian = Endianess::LittleEndian
 double to_double(const uint8_t *buff, Endianess endian = Endianess::LittleEndian);
 
 template<typename T>
-std::vector<uint8_t> to_bytes(T input, udaq::common::bytes::Endianess endian,
+std::vector<uint8_t> to_bytes(T input, sg::bytes::Endianess endian,
                                       typename std::enable_if<std::is_integral<T>::value, std::nullptr_t>::type = nullptr)
 {
     /* Defined in header as this is a template, and so if defined in the
@@ -28,7 +28,7 @@ std::vector<uint8_t> to_bytes(T input, udaq::common::bytes::Endianess endian,
 
    auto no_bytes = sizeof(T);
    std::vector<uint8_t> result(no_bytes);
-   if (endian == udaq::common::bytes::Endianess::BigEndian)
+   if (endian == sg::bytes::Endianess::BigEndian)
        for (unsigned int i = 0; i < no_bytes; i++)
            result[no_bytes-1-i] = (uint8_t)(input >> (i*8));
    else
@@ -55,5 +55,5 @@ std::vector<uint8_t> to_bytes(T input, typename std::enable_if<std::is_trivially
     return result;
 }
 
-std::vector<uint8_t> to_bytes(double input, udaq::common::bytes::Endianess endian);
+std::vector<uint8_t> to_bytes(double input, sg::bytes::Endianess endian);
 }

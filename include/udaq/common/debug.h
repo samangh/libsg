@@ -1,6 +1,6 @@
 #include <string_view>
 
-namespace udaq::common {
+namespace sg {
 
 /// Returns the type of the passed object as a string.
 ///
@@ -16,15 +16,15 @@ constexpr auto type_name() noexcept {
     std::string_view name = "Error: unsupported compiler", prefix, suffix;
 #ifdef __clang__
     name = __PRETTY_FUNCTION__;
-    prefix = "auto udaq::common::type_name() [T = ";
+    prefix = "auto sg::type_name() [T = ";
     suffix = "]";
 #elif defined(__GNUC__)
     name = __PRETTY_FUNCTION__;
-    prefix = "constexpr auto udaq::common::type_name() [with T = ";
+    prefix = "constexpr auto sg::type_name() [with T = ";
     suffix = "]";
 #elif defined(_MSC_VER)
     name = __FUNCSIG__;
-    prefix = "auto __cdecl udaq::common::type_name<";
+    prefix = "auto __cdecl sg::type_name<";
     suffix = ">(void) noexcept";
 #endif
     name.remove_prefix(prefix.size());
@@ -32,4 +32,4 @@ constexpr auto type_name() noexcept {
     return name;
 }
 
-} // namespace udaq::common
+} // namespace sg

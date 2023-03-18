@@ -3,7 +3,7 @@
 #include <memory>
 #include <experimental/propagate_const>
 
-namespace udaq::common {
+namespace sg {
 
 /**
  * @brief   Implements pimpl algorithm.
@@ -12,7 +12,7 @@ namespace udaq::common {
  *
  *      class public_facing_class {
  *        struct impl;
- *        udaq::common::pimpl<impl> pimpl;
+ *        sg::pimpl<impl> pimpl;
  *
  *        ~public_facing_class();
  *      }

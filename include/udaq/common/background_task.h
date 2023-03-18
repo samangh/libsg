@@ -13,7 +13,7 @@
 #include <shared_mutex>
 #include <thread>
 
-namespace udaq::common {
+namespace sg {
 
 class COMMON_EXPORT background_task {
   public:
@@ -62,4 +62,4 @@ class COMMON_EXPORT background_task {
     void set_is_running(bool);
 };
 
-} // namespace udaq::common
+} // namespace sg

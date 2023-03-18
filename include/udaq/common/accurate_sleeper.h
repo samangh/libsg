@@ -9,7 +9,7 @@
     #include <pthread.h>
 #endif
 
-namespace udaq::common {
+namespace sg {
 
 class AccurateSleeper {
   public:
@@ -59,4 +59,4 @@ class AccurateSleeper {
 #endif
 };
 
-} // namespace udaq::common
+} // namespace sg

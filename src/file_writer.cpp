@@ -5,7 +5,7 @@
 
 #define THROW_ON_ERROR(err) if (err<0) throw std::runtime_error(uv_strerror(err));
 
-namespace udaq::common {
+namespace sg {
 
 file_writer::file_writer() : m_buffer_in(std::make_unique<std::vector<char>>()) {
 }
@@ -181,4 +181,4 @@ void file_writer::on_uv_on_file_close(uv_fs_t *req) {
         a->on_error(uv_strerror(static_cast<int>(res)));
 }
 
-} // namespace udaq::common
+} // namespace sg

@@ -6,7 +6,7 @@
  * still considered an active thread of execution and is therefore joinable.
  */
 
-namespace udaq::common {
+namespace sg {
 
 background_task::background_task(const background_task::task_t &task, const background_task::started_cb_t &start_cb,
                                    const background_task::stopped_cb_t &stopped_cb)
@@ -101,4 +101,4 @@ bool background_task::is_running() const {
 }
 
 
-} // namespace udaq::common
+} // namespace sg

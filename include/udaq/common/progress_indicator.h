@@ -2,7 +2,7 @@
 
 #include <shared_mutex>
 
-namespace udaq::common {
+namespace sg {
 
 /**
  * @brief Provides thread-safe methods for indicating progress
