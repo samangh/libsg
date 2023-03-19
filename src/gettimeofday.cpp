@@ -1,4 +1,4 @@
-#include <udaq/common/gettimeofday.h>
+#include <sg/gettimeofday.h>
 
 #ifdef _WIN32
 int gettimeofday(struct timeval *tp, struct timezone *tzp) {

@@ -6,7 +6,7 @@
 
 #ifdef _WIN32
     #include <Winsock2.h>
-    #include <udaq/common/extern_c.h>
+    #include <sg/extern_c.h>
     #include <udaq/export/common.h>
 EXTERN_C COMMON_EXPORT int gettimeofday(struct timeval *tp,
                                         struct timezone *tzp);

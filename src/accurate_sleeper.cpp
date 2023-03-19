@@ -1,4 +1,4 @@
-#include "udaq/common/accurate_sleeper.h"
+#include "sg/accurate_sleeper.h"
 
 #include <chrono>
 #include <iostream>

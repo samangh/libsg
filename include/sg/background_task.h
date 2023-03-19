@@ -1,6 +1,6 @@
 #pragma once
 
-#include "udaq/export/common.h"
+#include "sg/export/common.h"
 
 #include "accurate_sleeper.h"
 

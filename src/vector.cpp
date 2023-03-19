@@ -1,1 +1,1 @@
-#include <udaq/common/vector.h>
+#include <sg/vector.h>

@@ -1,6 +1,6 @@
 #include <functional>
 #include <stdexcept>
-#include <udaq/common/file_writer.h>
+#include <sg/file_writer.h>
 #include <uv.h>
 
 #define THROW_ON_ERROR(err) if (err<0) throw std::runtime_error(uv_strerror(err));

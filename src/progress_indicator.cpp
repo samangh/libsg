@@ -1,4 +1,4 @@
-#include "udaq/common/progress_indicator.h"
+#include "sg/progress_indicator.h"
 
 namespace sg
 {

@@ -1,4 +1,4 @@
-#include "udaq/common/debug.h"
+#include "sg/debug.h"
 
 namespace sg {
 

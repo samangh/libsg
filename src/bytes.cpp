@@ -1,4 +1,4 @@
-#include "udaq/common/bytes.h"
+#include "sg/bytes.h"
 
 #include <algorithm>
 #include <array>
