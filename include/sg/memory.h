@@ -1,7 +1,5 @@
 #pragma once
 
-#include "udaq/export/common.h"
-
 #include <exception>
 #include <functional>
 #include <new>
