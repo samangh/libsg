@@ -1,4 +1,6 @@
-set(TARGET "sg_common")
+set(SG_TARGET_NANE "common")
+set(TARGET "sg_${SG_TARGET_NANE}")
+
 set_property(GLOBAL APPEND PROPERTY ${PROJECT_NAME}_TARGETS ${TARGET})
 
 find_package(Threads REQUIRED)
@@ -14,6 +16,7 @@ file(GLOB_RECURSE SRC_FILES
   ${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp)
 
 add_library(${TARGET} ${SRC_FILES})
+add_library(SG::${SG_TARGET_NANE} ALIAS ${TARGET})
 
 ##
 ## Includes
