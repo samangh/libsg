@@ -1,6 +1,6 @@
 #pragma once
 
-#include "sg/export/common.h"
+#include "sg/export/sg_common.h"
 
 #include "accurate_sleeper.h"
 
@@ -15,7 +15,7 @@
 
 namespace sg {
 
-class COMMON_EXPORT background_timer {
+class SG_COMMON_EXPORT background_timer {
   public:
     typedef std::function<void(background_timer *)> started_cb_t;
     typedef std::function<void(background_timer *, std::exception_ptr error)> stopped_cb_t;

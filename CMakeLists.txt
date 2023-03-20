@@ -1,4 +1,4 @@
-set(TARGET "common")
+set(TARGET "sg_common")
 set_property(GLOBAL APPEND PROPERTY ${PROJECT_NAME}_TARGETS ${TARGET})
 
 find_package(Threads REQUIRED)

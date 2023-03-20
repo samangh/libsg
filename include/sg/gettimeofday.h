@@ -8,7 +8,7 @@
     #include <Winsock2.h>
     #include <sg/extern_c.h>
     #include <udaq/export/common.h>
-EXTERN_C COMMON_EXPORT int gettimeofday(struct timeval *tp,
+EXTERN_C SG_COMMON_EXPORT int gettimeofday(struct timeval *tp,
                                         struct timezone *tzp);
 #else
     #include <sys/time.h>
