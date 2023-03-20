@@ -25,7 +25,7 @@ class AccurateSleeper {
     template <class _reprsenetation, class _value>
     void set_interval(
         const std::chrono::duration<_reprsenetation, _value> &duration, Strategy strategy) {
-        if (duration > std::chrono::nanoseconds::max())
+        if (duration > (std::chrono::nanoseconds::max)())
             throw std::invalid_argument("The provided time internval is too long");
 
         set_interval(std::chrono::duration_cast<std::chrono::nanoseconds>(duration).count(), strategy);
@@ -42,7 +42,7 @@ class AccurateSleeper {
 
     template <class _reprsenetation, class _value>
     void sleep( const std::chrono::duration<_reprsenetation, _value> &duration) {
-        if (duration > std::chrono::nanoseconds::max())
+        if (duration > (std::chrono::nanoseconds::max)())
             throw std::invalid_argument("the provided time internval is too long");
         sleep_remove_lag(std::chrono::duration_cast<std::chrono::nanoseconds>(duration).count());
     }
