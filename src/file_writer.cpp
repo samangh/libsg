@@ -1,18 +1,77 @@
+#include <sg/file_writer.h>
+
+
+#include <uv.h>
+
+#include <cstdint>
+#include <filesystem>
+#include <functional>
+#include <memory>
+#include <mutex>
+#include <shared_mutex>
+#include <thread>
+#include <type_traits>
+#include <vector>
 #include <functional>
 #include <stdexcept>
-#include <sg/file_writer.h>
-#include <uv.h>
 
 #define THROW_ON_ERROR(err) if (err<0) throw std::runtime_error(uv_strerror(err));
 
 namespace sg {
 
-file_writer::file_writer() : m_buffer_in(std::make_unique<std::vector<char>>()) {
-}
+class file_writer::impl {
+  public:
+    impl();
+    ~impl();
+    void start(std::filesystem::path _path,
+               error_cb_t on_error_cb,
+               started_cb_t on_client_connected_cb,
+               stopped_cb_t on_client_disconnected_cb,
+               unsigned int write_interval = 1000);
+    void stop();
+    bool is_running() const;
 
-void file_writer::on_uv_timer_tick(uv_idle_t *handle) {
+    void write(const char *data, size_t length);
+
+    std::filesystem::path path() const;
+
+  private:
+    void on_error(const std::string &message);
+
+    static void on_uv_open(uv_fs_t *req);
+    static void on_uv_on_write(uv_fs_t *req);
+    static void on_uv_on_file_close(uv_fs_t *req);
+    static void on_uv_timer_tick(uv_idle_t *handle);
+
+    std::unique_ptr<std::vector<char>> m_buffer_in;
+    std::unique_ptr<std::vector<char>> m_buffer_out;
+
+    bool m_stop_requested = false;
+    bool m_write_pending = false;
+
+    uint64_t m_last_write_time;
+    unsigned int buffer_write_interval;
+
+    uv_loop_t m_loop;
+    uv_idle_t m_idler;
+    std::thread m_thread;
+
+    std::shared_mutex m_mutex; /* Mutex for operations*/
+    std::shared_mutex m_stop_mutex;
+
+    error_cb_t m_error_cb;
+    started_cb_t m_started_cb;
+    stopped_cb_t m_stopped_cb;
+
+    uv_fs_t open_req;
+    uv_fs_t write_req;
+    uv_fs_t close_req;
+    uv_buf_t m_uv_buf;
+};
+
+void file_writer::impl::on_uv_timer_tick(uv_idle_t *handle) {
     /* Only called on UV event loop, so we don't need to lock for some things*/
-    auto a = (file_writer *)handle->loop->data;
+    auto a = (file_writer::impl *)handle->loop->data;
 
     /* If a write is already requested, then RETURN*/
     if (a->m_write_pending)
@@ -42,28 +101,29 @@ void file_writer::on_uv_timer_tick(uv_idle_t *handle) {
     * We only check for this after there is not further data to write. */
     std::shared_lock lock(a->m_stop_mutex);
     if (a->m_stop_requested) {
-        uv_fs_close(&a->m_loop, &a->close_req, static_cast<uv_file>(a->open_req.result), &file_writer::on_uv_on_file_close);
+        uv_fs_close(&a->m_loop, &a->close_req, static_cast<uv_file>(a->open_req.result), &file_writer::impl::on_uv_on_file_close);
         uv_idle_stop(handle);
         uv_stop(&a->m_loop);
     }
 }
 
-void file_writer::write(const char *data, size_t length) {
+void file_writer::impl::write(const char *data, size_t length) {
     std::lock_guard lock(m_mutex);
     m_buffer_in.get()->insert(m_buffer_in.get()->end(), data, data + length);
 }
 
-void file_writer::write(const std::string &msg) {
-    write(msg.c_str(), msg.size());
+
+file_writer::impl::impl():m_buffer_in(std::make_unique<std::vector<char>>()){}
+
+file_writer::impl::~impl()
+{
+    if (is_running())
+        stop();
 }
 
-void file_writer::write_line(const std::string &msg) {
-    write(msg + "\n");
-}
-
-void file_writer::start(std::filesystem::path path, file_writer::error_cb_t on_error_cb,
-                        file_writer::started_cb_t on_client_connected_cb,
-                        file_writer::stopped_cb_t on_client_disconnected_cb,
+void file_writer::impl::start(std::filesystem::path path, error_cb_t on_error_cb,
+                              started_cb_t on_client_connected_cb,
+                        stopped_cb_t on_client_disconnected_cb,
                         unsigned int write_interval) {
     if (is_running())
         throw std::logic_error("this file writer is currently running");
@@ -85,7 +145,8 @@ void file_writer::start(std::filesystem::path path, file_writer::error_cb_t on_e
     m_last_write_time = 0;
 
     m_thread = std::thread([&]() {
-        m_started_cb();
+        if (m_started_cb)
+            m_started_cb();
         while (true) {
             /*  Runs the event loop until there are no more active and referenced
              *  handles or requests.  Returns non-zero if uv_stop() was called
@@ -112,20 +173,16 @@ void file_writer::start(std::filesystem::path path, file_writer::error_cb_t on_e
             if (uv_loop_close(&m_loop) != UV_EBUSY)
                 break;
         }
-        m_stopped_cb();
+        if (m_stopped_cb)
+            m_stopped_cb();
     });
 }
 
-file_writer::~file_writer() {
-    if (is_running())
-        stop();
-}
-
-std::filesystem::path file_writer::path() {
+std::filesystem::path file_writer::impl::path() const {
     return open_req.path;
 }
 
-void file_writer::stop() {
+void file_writer::impl::stop() {
     {
         std::lock_guard lock(m_mutex);
         m_stop_requested = true;
@@ -138,19 +195,19 @@ void file_writer::stop() {
         m_thread.join();
 }
 
-bool file_writer::is_running() {
+bool file_writer::impl::is_running() const {
     return m_thread.joinable() && (uv_loop_alive(&m_loop) != 0);
 }
 
-void file_writer::on_error(const std::string &message) {
-    if (m_error_cb != nullptr)
+void file_writer::impl::on_error(const std::string &message) {
+    if (m_error_cb)
         m_error_cb(message);
 }
 
-void file_writer::on_uv_open(uv_fs_t *req) {
+void file_writer::impl::on_uv_open(uv_fs_t *req) {
     auto res = req->result;
     uv_fs_req_cleanup(req);
-    auto a = (file_writer *)req->loop->data;
+    auto a = (file_writer::impl *)req->loop->data;
 
     if (res < 0) {
         a->on_error(uv_strerror(static_cast<int>(res)));
@@ -162,23 +219,52 @@ void file_writer::on_uv_open(uv_fs_t *req) {
     uv_idle_start(&a->m_idler, &on_uv_timer_tick);
 }
 
-void file_writer::on_uv_on_write(uv_fs_t *req) {
+void file_writer::impl::on_uv_on_write(uv_fs_t *req) {
     auto res = req->result;
     uv_fs_req_cleanup(req);
 
-    auto a = (file_writer *)req->loop->data;
+    auto a = (file_writer::impl *)req->loop->data;
     a->m_write_pending = false;
     if (res < 0)
         a->on_error(uv_strerror(static_cast<int>(res)));
 }
 
-void file_writer::on_uv_on_file_close(uv_fs_t *req) {
+void file_writer::impl::on_uv_on_file_close(uv_fs_t *req) {
     auto res = req->result;
     uv_fs_req_cleanup(req);
 
-    auto a = (file_writer *)req->loop->data;
+    auto a = (file_writer::impl *)req->loop->data;
     if (res < 0)
         a->on_error(uv_strerror(static_cast<int>(res)));
+}
+
+file_writer::file_writer() = default;
+file_writer::~file_writer() = default;
+
+void file_writer::start(std::filesystem::__cxx11::path _path, file_writer::error_cb_t on_error_cb, file_writer::started_cb_t on_client_connected_cb, file_writer::stopped_cb_t on_client_disconnected_cb, unsigned int write_interval)
+{
+    pimpl->start(_path, on_error_cb, on_client_connected_cb, on_client_disconnected_cb,write_interval);
+}
+
+void file_writer::stop()
+{
+    pimpl->stop();
+}
+
+bool file_writer::is_running() const
+{
+    return pimpl->is_running();
+}
+
+void file_writer::write(const char *data, size_t length)
+{
+    pimpl->write(data, length);
+}
+
+
+std::filesystem::__cxx11::path file_writer::path() const
+{
+    return pimpl->path();
 }
 
 } // namespace sg
