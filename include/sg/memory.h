@@ -22,15 +22,14 @@ namespace sg::memory {
 template <typename T>
 inline void MallocAndFree(size_t size, T **memory, std::function<void()> func) {
     try {
-        *memory = 0;
         *memory = (T *)malloc(size);
-        if (*memory == 0)
+        if (!*memory)
             throw new std::bad_alloc();
 
         func();
         free(*memory);
     } catch (...) {
-        if (*memory != 0)
+        if (*memory)
             free(*memory);
         throw;
     }
@@ -51,14 +50,13 @@ inline void MallocAndFree(size_t size, T **memory, std::function<void()> func) {
 template <typename T>
 inline void CallocAndFree(size_t size, T **memory, std::function<void()> func) {
     try {
-        *memory = 0;
         *memory = (T *)malloc(size);
-        if (*memory == 0)
+        if (!*memory)
             throw new std::bad_alloc();
         func();
         free(*memory);
     } catch (...) {
-        if (*memory != 0)
+        if (*memory)
             free(*memory);
         throw;
     }
