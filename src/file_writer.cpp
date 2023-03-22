@@ -1,6 +1,5 @@
 #include <sg/file_writer.h>
 
-
 #include <uv.h>
 
 #include <cstdint>
@@ -241,7 +240,7 @@ void file_writer::impl::on_uv_on_file_close(uv_fs_t *req) {
 file_writer::file_writer() = default;
 file_writer::~file_writer() = default;
 
-void file_writer::start(std::filesystem::__cxx11::path _path, file_writer::error_cb_t on_error_cb, file_writer::started_cb_t on_client_connected_cb, file_writer::stopped_cb_t on_client_disconnected_cb, unsigned int write_interval)
+void file_writer::start(std::filesystem::path _path, file_writer::error_cb_t on_error_cb, file_writer::started_cb_t on_client_connected_cb, file_writer::stopped_cb_t on_client_disconnected_cb, unsigned int write_interval)
 {
     pimpl->start(_path, on_error_cb, on_client_connected_cb, on_client_disconnected_cb,write_interval);
 }
@@ -262,7 +261,7 @@ void file_writer::write(const char *data, size_t length)
 }
 
 
-std::filesystem::__cxx11::path file_writer::path() const
+std::filesystem::path file_writer::path() const
 {
     return pimpl->path();
 }
