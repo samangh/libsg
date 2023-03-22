@@ -1,7 +1,11 @@
 #pragma once
 
 #include <memory>
-#include <experimental/propagate_const>
+#if __has_include(<experimental/propagate_const>)
+    #include <experimental/propagate_const>
+#else
+    #include "internal/propagate_const.h"
+#endif
 
 namespace sg {
 
