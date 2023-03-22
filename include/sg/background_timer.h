@@ -1,6 +1,7 @@
 #pragma once
 
 #include "sg/export/sg_common.h"
+#include "pimpl.h"
 
 #include "accurate_sleeper.h"
 
@@ -16,6 +17,8 @@
 namespace sg {
 
 class SG_COMMON_EXPORT background_timer {
+    class impl;
+    sg::pimpl<impl> pimpl;
   public:
     typedef std::function<void(background_timer *)> started_cb_t;
     typedef std::function<void(background_timer *, std::exception_ptr error)> stopped_cb_t;
@@ -45,38 +48,16 @@ class SG_COMMON_EXPORT background_timer {
     void set_interval(uint32_t interval_ns,
                       sg::AccurateSleeper::Strategy strategy = sg::AccurateSleeper::Strategy::Auto);
 
+    /* sets whether the time shouuld account for how long the action takes,
+     * and remove that from the wait interval */
+    void correct_for_task_delay(bool);
+
     /* pointer to exchange data with the task */
-    void* data;
+    void *data;
 
     /* mutex to use when using #data.This mutex is not used by
      * #background_timer, and is purely for teh users' convenience. */
     mutable std::shared_mutex data_mutex;
-
-    /* sets whether the time shouuld account for how long the action takes,
-     * and remove that from the wait interval */
-    void correct_for_task_delay(bool);
-  private:
-    task_t m_task;
-    started_cb_t m_started_cb;
-    stopped_cb_t m_stopped_cb;
-    std::thread m_thread;
-
-    mutable std::mutex m_exception_mutex;
-    std::exception_ptr m_exception;
-
-    mutable std::shared_mutex m_stop_mutex;
-    bool m_stop_requested = false;
-
-    mutable std::shared_mutex m_sleeper_mutex;
-    AccurateSleeper m_sleeper;
-    bool m_correct_for_task_delay =false;
-
-    mutable std::shared_mutex m_running_mutex;
-    bool m_is_running = false;
-
-    void action();
-    void set_exception(std::exception_ptr ptr);
-    void set_is_running(bool);
 };
 
 } // namespace sg
