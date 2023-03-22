@@ -39,6 +39,8 @@ namespace sg {
     void correct_for_task_delay(bool);
 
   private:
+    background_timer *m_timer_ref;
+
     task_t m_task;
     started_cb_t m_started_cb;
     stopped_cb_t m_stopped_cb;
@@ -60,8 +62,6 @@ namespace sg {
     void action();
     void set_exception(std::exception_ptr ptr);
     void set_is_running(bool);
-
-    background_timer *m_timer_ref;
  };
 
 
