@@ -19,7 +19,7 @@ public:
     Progress progress() const;
 
     void set_progress(float progress, const std::string& msg);
-    void set_percentage(float);
+    void set_progress(float);
     void set_max_val(float);
     void set_message(const std::string&);
     void reset();

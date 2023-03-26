@@ -16,7 +16,7 @@ void ProgressSource::set_progress(float progress, const std::string &msg)
     m_progress.message = msg;
 }
 
-void ProgressSource::set_percentage(float progress)
+void ProgressSource::set_progress(float progress)
 {
     std::unique_lock lock(m_progress_mutex);
     m_progress.progress = progress;
