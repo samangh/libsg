@@ -24,7 +24,7 @@ inline void MallocAndFree(size_t size, T **memory, std::function<void()> func) {
     try {
         *memory = (T *)malloc(size);
         if (!*memory)
-            throw new std::bad_alloc();
+            throw std::bad_alloc();
 
         func();
         free(*memory);
@@ -52,7 +52,7 @@ inline void CallocAndFree(size_t size, T **memory, std::function<void()> func) {
     try {
         *memory = (T *)malloc(size);
         if (!*memory)
-            throw new std::bad_alloc();
+            throw std::bad_alloc();
         func();
         free(*memory);
     } catch (...) {
