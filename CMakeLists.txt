@@ -5,6 +5,7 @@ set_property(GLOBAL APPEND PROPERTY ${PROJECT_NAME}_TARGETS ${TARGET})
 
 find_package(Threads REQUIRED)
 find_package(LibUV REQUIRED)
+find_package(fmt REQUIRED)
 
 ##
 ## Source files
