@@ -2,6 +2,7 @@
 
 namespace sg
 {
+#include <mutex>
 
 Progress ProgressSource::progress() const
 {
