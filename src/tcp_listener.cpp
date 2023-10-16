@@ -9,7 +9,6 @@
 #include <uv.h>
 #include <vector>
 
-#include "sg/bytes.h"
 #include "sg/tcp_listener.h"
 
 namespace sg {
@@ -25,9 +24,14 @@ void close_handle(uv_handle_s *handle, void *) { uv_close(handle, nullptr); }
 tcp_listener::tcp_listener(on_error_cb_t on_error_cb, on_client_connected_cb_t on_client_connected_cb,
                            on_client_disconnected_cb_t on_client_disconnected_cb, on_start_cb_t on_start,
                            on_stop_cb_t on_stop, on_data_available_cb_t on_data_available_cb)
-    : m_on_error_cb(on_error_cb), m_on_client_connected_cb(on_client_connected_cb),
-      m_on_client_disconnected_cb(on_client_disconnected_cb), m_on_start_cb(on_start), m_on_stop_cb(on_stop),
-      m_on_data_available(on_data_available_cb), m_number_of_connected_clients(0) {}
+    : m_on_error_cb(on_error_cb),
+      m_on_client_connected_cb(on_client_connected_cb),
+      m_on_client_disconnected_cb(on_client_disconnected_cb),
+      m_on_start_cb(on_start),
+      m_on_stop_cb(on_stop),
+      m_on_data_available(on_data_available_cb),
+      m_number_of_connected_clients(0),
+      m_client_counter(0) {}
 
 void tcp_listener::start(const int port) {
     /* setup UV loop */
@@ -105,7 +109,7 @@ void tcp_listener::stop() {
 
 bool tcp_listener::is_running() const { return m_thread.joinable() && (uv_loop_alive(&m_loop) != 0); }
 
-int tcp_listener::number_of_clients() const {
+uint tcp_listener::number_of_clients() const {
     std::shared_lock lock(m_mutex);
     return m_number_of_connected_clients;
 }
@@ -163,15 +167,21 @@ void tcp_listener::on_new_connection(uv_stream_t *server, int status) {
         return;
     }
 
-    {
-        std::lock_guard lock(a->m_mutex);
-        a->m_number_of_connected_clients++;
-    }
-    if (a->m_on_client_connected_cb != nullptr)
-        a->m_on_client_connected_cb(a);
-
     uv_tcp_t *client = (uv_tcp_t *)malloc(sizeof(uv_tcp_t));
     uv_tcp_init(&(a->m_loop), client);
+
+    auto _client_data = new client_data();
+    client->data = _client_data;
+
+    {
+        std::lock_guard lock(a->m_mutex);
+        _client_data->id= a->m_client_counter;
+
+        a->m_number_of_connected_clients++;
+        a->m_client_counter++;
+    }
+    if (a->m_on_client_connected_cb != nullptr)
+        a->m_on_client_connected_cb(a, _client_data->id);
 
     if (uv_accept(server, (uv_stream_t *)client) == 0) {
         uv_read_start((uv_stream_t *)client, alloc_cb, on_read);
@@ -189,6 +199,9 @@ void tcp_listener:: alloc_cb(uv_handle_t *, size_t size, uv_buf_t *buf) {
 
 void tcp_listener::on_client_disconnected(uv_handle_t *handle) {
     auto a = (tcp_listener *)(handle->loop->data);
+    auto id = ((client_data*)handle->data)->id;
+
+    delete (client_data*)handle->data;
     free_handle_on_close(handle);
 
     {
@@ -196,7 +209,7 @@ void tcp_listener::on_client_disconnected(uv_handle_t *handle) {
         a->m_number_of_connected_clients--;
     }
     if (a->m_on_client_disconnected_cb != nullptr)
-        a->m_on_client_disconnected_cb(a);
+        a->m_on_client_disconnected_cb(a, id);
 }
 
 void tcp_listener::on_error(const std::string &message) {

@@ -13,9 +13,10 @@ namespace sg {
 
 class tcp_listener {
 public:
+    typedef uint client_id;
     typedef std::function<void(tcp_listener*, const std::string &msg)> on_error_cb_t;
-    typedef std::function<void(tcp_listener*)> on_client_connected_cb_t;
-    typedef std::function<void(tcp_listener*)> on_client_disconnected_cb_t;
+    typedef std::function<void(tcp_listener*, client_id)> on_client_connected_cb_t;
+    typedef std::function<void(tcp_listener*, client_id)> on_client_disconnected_cb_t;
     typedef std::function<void(tcp_listener*)> on_start_cb_t;
     typedef std::function<void(tcp_listener*)> on_stop_cb_t;
     typedef std::function<void(tcp_listener*, size_t length)> on_data_available_cb_t; /* Callback should NOT free the buffer */
@@ -30,7 +31,7 @@ public:
     void start(const int port);
     void stop();
     bool is_running() const;
-    int  number_of_clients() const;
+    uint  number_of_clients() const;
     ~tcp_listener();
 
 private:
@@ -38,6 +39,11 @@ private:
        std::unique_ptr<uint8_t> data;
        size_t length;
     };
+
+    typedef struct client_data {
+        client_id id;
+    } client_data;
+
 
     static void on_read(uv_stream_t* tcp, ssize_t nread, const uv_buf_t* buf);
     static void on_new_connection(uv_stream_t *stream, int status);
@@ -47,6 +53,7 @@ private:
 
     uv_loop_t m_loop;
     std::thread m_thread;
+
     mutable std::shared_mutex m_mutex;          /* Mutex for getting data*/
     std::vector<buff> m_buffer;
 
@@ -57,7 +64,8 @@ private:
     on_stop_cb_t m_on_stop_cb;
     on_data_available_cb_t m_on_data_available;
 
-    int m_number_of_connected_clients;
+    uint m_number_of_connected_clients;
+    uint m_client_counter;
 
     std::unique_ptr<uv_tcp_t> m_sock; /* Socket used for connection */
     std::unique_ptr<uv_connect_t> m_conn; /* UV connection object */
