@@ -8,6 +8,7 @@
 #include <functional>
 #include <memory>
 #include <cstdint>
+#include <map>
 
 namespace sg {
 
@@ -19,7 +20,7 @@ public:
     typedef std::function<void(tcp_listener*, client_id)> on_client_disconnected_cb_t;
     typedef std::function<void(tcp_listener*)> on_start_cb_t;
     typedef std::function<void(tcp_listener*)> on_stop_cb_t;
-    typedef std::function<void(tcp_listener*, size_t length)> on_data_available_cb_t; /* Callback should NOT free the buffer */
+    typedef std::function<void(tcp_listener*, client_id, size_t length)> on_data_available_cb_t; /* Callback should NOT free the buffer */
 
     tcp_listener(on_error_cb_t on_error_cb,
                        on_client_connected_cb_t on_client_connected_cb,
@@ -27,7 +28,10 @@ public:
                        on_start_cb_t on_start,
                        on_stop_cb_t on_stop,
                        on_data_available_cb_t on_data_available_cb);
-    std::vector<uint8_t> get_buffer();
+
+    std::vector<uint8_t> get_buffer(client_id);
+    std::map<client_id, std::vector<uint8_t>> get_buffers();
+
     void start(const int port);
     void stop();
     bool is_running() const;
@@ -40,10 +44,10 @@ private:
        size_t length;
     };
 
+    /* this is store in the data pointer of client uv_tcp_t */
     typedef struct client_data {
         client_id id;
     } client_data;
-
 
     static void on_read(uv_stream_t* tcp, ssize_t nread, const uv_buf_t* buf);
     static void on_new_connection(uv_stream_t *stream, int status);
@@ -55,7 +59,6 @@ private:
     std::thread m_thread;
 
     mutable std::shared_mutex m_mutex;          /* Mutex for getting data*/
-    std::vector<buff> m_buffer;
 
     on_error_cb_t m_on_error_cb; /* Called in case of errors after connect(...) */
     on_client_connected_cb_t m_on_client_connected_cb;
@@ -66,6 +69,8 @@ private:
 
     uint m_number_of_connected_clients;
     uint m_client_counter;
+
+    std::map<client_id, std::vector<buff>> m_client_buffers;
 
     std::unique_ptr<uv_tcp_t> m_sock; /* Socket used for connection */
     std::unique_ptr<uv_connect_t> m_conn; /* UV connection object */
