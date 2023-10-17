@@ -41,9 +41,14 @@ private:
     };
     struct client_data {
         client_data(client_id _id) :
-            id_ptr(std::make_unique<client_id>(_id)){}
+            id_ptr(std::make_unique<client_id>(_id)),
+            uv_tcp_handle(std::make_unique<uv_tcp_t>())
+        {
+            uv_tcp_handle->data=id_ptr.get();
+        }
 
         std::unique_ptr<client_id> id_ptr;
+        std::unique_ptr<uv_tcp_t> uv_tcp_handle;
         std::vector<buff> data;
     };
 
@@ -75,12 +80,6 @@ private:
     std::unique_ptr<uv_connect_t> m_conn; /* UV connection object */
     std::unique_ptr<uv_async_t> m_async; /* For stopping the loop */
 };
-
-/* Call back for freeing handles after they are closed */
-void free_handle_on_close(uv_handle_t *handle) {
-    if (handle != nullptr)
-        delete handle;
-}
 
 void close_handle(uv_handle_s *handle, void *) { uv_close(handle, nullptr); }
 
@@ -258,17 +257,16 @@ void tcp_listener::impl::on_new_connection(uv_stream_t *server, int status) {
         return;
     }
 
-    uv_tcp_t *client = (uv_tcp_t *)malloc(sizeof(uv_tcp_t));
-    uv_tcp_init(&(a->m_loop), client);
-
+    client_id id;
     {
         std::lock_guard lock(a->m_mutex);
         a->m_client_counter++;
-
-        auto _d = client_data(a->m_client_counter);
-        client->data=_d.id_ptr.get();
-        a->m_clients.emplace(a->m_client_counter, std::move(_d));
+        id = a->m_client_counter;
+        a->m_clients.emplace(a->m_client_counter, client_data(id));
     }
+
+    uv_tcp_t* client = a->m_clients.at(id).uv_tcp_handle.get();
+    uv_tcp_init(&(a->m_loop), client);
 
     if (a->m_on_client_connected_cb != nullptr)
         a->m_on_client_connected_cb(a->m_parent_listener, *((client_id*)client->data));
@@ -290,8 +288,6 @@ void tcp_listener::impl:: alloc_cb(uv_handle_t *, size_t size, uv_buf_t *buf) {
 void tcp_listener::impl::on_client_disconnected(uv_handle_t *handle) {
     auto a = (impl *)(handle->loop->data);
     auto id = *((client_id*)handle->data);
-
-    free_handle_on_close(handle);
 
     if (a->m_on_client_disconnected_cb != nullptr)
         a->m_on_client_disconnected_cb(a->m_parent_listener, id);
