@@ -1,5 +1,7 @@
 #pragma once
 
+#include "sg/export/sg_common.h"
+
 #include <uv.h>
 #include <vector>
 #include <mutex>
@@ -12,7 +14,7 @@
 
 namespace sg {
 
-class tcp_listener {
+class SG_COMMON_EXPORT tcp_listener {
 public:
     typedef uint client_id;
     typedef std::function<void(tcp_listener*, const std::string &msg)> on_error_cb_t;
@@ -35,19 +37,12 @@ public:
     void start(const int port);
     void stop();
     bool is_running() const;
-    uint  number_of_clients() const;
+    size_t number_of_clients() const;
     ~tcp_listener();
 
 private:
-    struct buff {
-       std::unique_ptr<uint8_t> data;
-       size_t length;
-    };
-
-    /* this is store in the data pointer of client uv_tcp_t */
-    typedef struct client_data {
-        client_id id;
-    } client_data;
+    struct buff;
+    struct client_data;
 
     static void on_read(uv_stream_t* tcp, ssize_t nread, const uv_buf_t* buf);
     static void on_new_connection(uv_stream_t *stream, int status);
@@ -67,10 +62,9 @@ private:
     on_stop_cb_t m_on_stop_cb;
     on_data_available_cb_t m_on_data_available;
 
-    uint m_number_of_connected_clients;
     uint m_client_counter;
 
-    std::map<client_id, std::vector<buff>> m_client_buffers;
+    std::map<client_id, client_data> m_clients;
 
     std::unique_ptr<uv_tcp_t> m_sock; /* Socket used for connection */
     std::unique_ptr<uv_connect_t> m_conn; /* UV connection object */

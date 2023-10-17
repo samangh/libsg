@@ -13,6 +13,21 @@
 
 namespace sg {
 
+struct tcp_listener::buff {
+   std::unique_ptr<uint8_t> data;
+   size_t length;
+};
+
+/* this is store in the data pointer of client uv_tcp_t */
+struct tcp_listener::client_data {
+    client_data(client_id _id) :
+        id_ptr(std::make_unique<client_id>(_id)){}
+
+    std::unique_ptr<client_id> id_ptr;
+    std::vector<buff> data;
+};
+
+
 /* Call back for freeing handles after they are closed */
 void free_handle_on_close(uv_handle_t *handle) {
     if (handle != nullptr)
@@ -30,7 +45,6 @@ tcp_listener::tcp_listener(on_error_cb_t on_error_cb, on_client_connected_cb_t o
       m_on_start_cb(on_start),
       m_on_stop_cb(on_stop),
       m_on_data_available(on_data_available_cb),
-      m_number_of_connected_clients(0),
       m_client_counter(0) {}
 
 void tcp_listener::start(const int port) {
@@ -109,9 +123,9 @@ void tcp_listener::stop() {
 
 bool tcp_listener::is_running() const { return m_thread.joinable() && (uv_loop_alive(&m_loop) != 0); }
 
-uint tcp_listener::number_of_clients() const {
+size_t tcp_listener::number_of_clients() const {
     std::shared_lock lock(m_mutex);
-    return m_number_of_connected_clients;
+    return m_clients.size();
 }
 
 tcp_listener::~tcp_listener() {
@@ -125,7 +139,7 @@ std::vector<uint8_t> tcp_listener::get_buffer(client_id id) {
     /* swap buffers, do this to minimise locking time*/
     {
         std::lock_guard lock(m_mutex);
-        m_client_buffers[id].swap(buffers);
+        m_clients.at(id).data.swap(buffers);
     }
 
     std::vector<uint8_t> result;
@@ -136,21 +150,27 @@ std::vector<uint8_t> tcp_listener::get_buffer(client_id id) {
 }
 
 std::map<tcp_listener::client_id, std::vector<uint8_t>> tcp_listener::get_buffers() {
-    /* swap buffers, do this to minimise locking time*/
     std::map<tcp_listener::client_id, std::vector<buff>> buffer_map;
+
+    /* swap buffers, do this to minimise locking time*/
     {
         std::lock_guard lock(m_mutex);
-        buffer_map.merge(m_client_buffers);
+        for (auto& [id, val]: m_clients)
+            if (!val.data.empty())
+            {
+                std::vector<buff> _client_buffers;
+                val.data.swap(_client_buffers);
+                buffer_map.emplace(id, std::move(_client_buffers));
+            }
     }
 
     std::map<tcp_listener::client_id, std::vector<uint8_t>> result;
     for (auto& [id, buffers]: buffer_map)
-        if (!buffers.empty())
         {
             std::vector<uint8_t> merged_buffer;
             for (const auto &buf : buffers)
                 merged_buffer.insert(merged_buffer.end(), buf.data.get(), buf.data.get() + buf.length);
-            result.emplace(id, merged_buffer);
+            result.emplace(id, std::move(merged_buffer));
         }
 
     return result;
@@ -158,7 +178,7 @@ std::map<tcp_listener::client_id, std::vector<uint8_t>> tcp_listener::get_buffer
 
 void tcp_listener::on_read(uv_stream_t *client, ssize_t nread, const uv_buf_t *buf) {
     auto a = (tcp_listener *)client->loop->data;
-    auto id = ((client_data*)a)->id;
+    auto id = *((client_id*)client->data);
 
     /* Check for disconnection*/
     if (nread < 0) {
@@ -175,7 +195,7 @@ void tcp_listener::on_read(uv_stream_t *client, ssize_t nread, const uv_buf_t *b
         buff b;
         b.data = std::unique_ptr<uint8_t>((uint8_t *)buf->base);
         b.length = nread;
-        a->m_client_buffers[id].emplace_back(std::move(b));
+        a->m_clients.at(id).data.emplace_back(std::move(b));
     }
 
     a->m_on_data_available(a, id, nread);
@@ -192,20 +212,17 @@ void tcp_listener::on_new_connection(uv_stream_t *server, int status) {
     uv_tcp_t *client = (uv_tcp_t *)malloc(sizeof(uv_tcp_t));
     uv_tcp_init(&(a->m_loop), client);
 
-    auto _client_data = new client_data();
-    client->data = _client_data;
-
     {
         std::lock_guard lock(a->m_mutex);
-        _client_data->id= a->m_client_counter;
-
-        a->m_client_buffers[_client_data->id] = std::vector<sg::tcp_listener::buff>();
-
-        a->m_number_of_connected_clients++;
         a->m_client_counter++;
+
+        auto _d = client_data(a->m_client_counter);
+        client->data=_d.id_ptr.get();
+        a->m_clients.emplace(a->m_client_counter, std::move(_d));
     }
+
     if (a->m_on_client_connected_cb != nullptr)
-        a->m_on_client_connected_cb(a, _client_data->id);
+        a->m_on_client_connected_cb(a, *((client_id*)client->data));
 
     if (uv_accept(server, (uv_stream_t *)client) == 0) {
         uv_read_start((uv_stream_t *)client, alloc_cb, on_read);
@@ -223,17 +240,18 @@ void tcp_listener:: alloc_cb(uv_handle_t *, size_t size, uv_buf_t *buf) {
 
 void tcp_listener::on_client_disconnected(uv_handle_t *handle) {
     auto a = (tcp_listener *)(handle->loop->data);
-    auto id = ((client_data*)handle->data)->id;
+    auto id = *((client_id*)handle->data);
 
-    delete (client_data*)handle->data;
     free_handle_on_close(handle);
 
-    {
-        std::lock_guard lock(a->m_mutex);
-        a->m_number_of_connected_clients--;
-    }
     if (a->m_on_client_disconnected_cb != nullptr)
         a->m_on_client_disconnected_cb(a, id);
+
+    /* this releases all memory associated with the client*/
+    {
+        std::lock_guard lock(a->m_mutex);
+        a->m_clients.erase(id);
+    }
 }
 
 void tcp_listener::on_error(const std::string &message) {
