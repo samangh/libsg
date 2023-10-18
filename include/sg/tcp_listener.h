@@ -13,10 +13,11 @@ namespace sg {
 class SG_COMMON_EXPORT tcp_listener {
     class impl;
     sg::pimpl<impl> pimpl;
-
   public:
     typedef uint client_id;
-    typedef std::function<void(tcp_listener *, const std::string &msg)> on_error_cb_t;
+    typedef uint write_req_id;
+
+    typedef std::function<void(tcp_listener *, client_id, const std::string &msg)> on_error_cb_t;
     typedef std::function<void(tcp_listener *, client_id)> on_client_connected_cb_t;
     typedef std::function<void(tcp_listener *, client_id)> on_client_disconnected_cb_t;
     typedef std::function<void(tcp_listener *)> on_start_cb_t;
@@ -32,6 +33,8 @@ class SG_COMMON_EXPORT tcp_listener {
     void stop();
     bool is_running() const;
     size_t number_of_clients() const;
+
+    void write(client_id, std::vector<uint8_t> bytes);
 
     std::vector<uint8_t> get_buffer(client_id);
     std::map<client_id, std::vector<uint8_t>> get_buffers();
