@@ -38,7 +38,20 @@ class SG_COMMON_EXPORT tcp_listener::impl {
 
   private:
     struct buff {
-        std::unique_ptr<uint8_t> data;
+        buff(uint8_t* _data, size_t _length): data(_data), length(_length){}
+        buff(const buff&) = delete;
+        buff(buff&& b) noexcept :
+            data(b.data), length(b.length)
+        {
+            b.data=nullptr;
+        }
+        ~buff()
+        {
+            if (data !=nullptr)
+                free(data);
+        }
+
+        uint8_t* data;
         size_t length;
     };
     struct client_data {
@@ -234,7 +247,7 @@ std::vector<uint8_t> tcp_listener::impl::get_buffer(client_id id) {
     std::vector<uint8_t> result;
     result.reserve(size);
     for (const auto &buf : buffers)
-        result.insert(result.end(), buf.data.get(), buf.data.get() + buf.length);
+        result.insert(result.end(), buf.data, buf.data + buf.length);
 
     return result;
 }
@@ -262,7 +275,7 @@ std::map<tcp_listener::client_id, std::vector<uint8_t>> tcp_listener::impl::get_
         std::vector<uint8_t> merged_buffer;
         merged_buffer.reserve(size);
         for (const auto &buf : buffers)
-            merged_buffer.insert(merged_buffer.end(), buf.data.get(), buf.data.get() + buf.length);
+            merged_buffer.insert(merged_buffer.end(), buf.data, buf.data + buf.length);
         result.emplace(id, std::move(merged_buffer));
     }
 
@@ -285,9 +298,7 @@ void tcp_listener::impl::on_read(uv_stream_t *client, ssize_t nread, const uv_bu
     /* Take ownership of the buffer, as it is now ours. */
     {
         std::lock_guard lock(a->m_mutex);
-        buff b;
-        b.data = std::unique_ptr<uint8_t>((uint8_t *)buf->base);
-        b.length = nread;
+        auto b = buff((uint8_t*)buf->base, nread);
         a->m_clients.at(id)->data.emplace_back(std::move(b));
     }
 
