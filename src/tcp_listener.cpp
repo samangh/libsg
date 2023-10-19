@@ -56,7 +56,6 @@ class SG_COMMON_EXPORT tcp_listener::impl {
         std::unique_ptr<uv_tcp_t> uv_tcp_handle;
         std::vector<buff> data;
     };
-
     struct write_request {
         write_request(std::shared_ptr<client_data> _client, write_req_id _write_id):
             write_id(_write_id),
@@ -71,6 +70,13 @@ class SG_COMMON_EXPORT tcp_listener::impl {
         std::unique_ptr<uv_write_t> uv_write_req_handle;
     };
 
+    void remove_write_request(write_req_id);
+    write_request* add_write_request(client_id id);
+
+    std::thread m_thread;
+    tcp_listener *m_parent_listener;
+
+    /* libuv callbacks */
     static void on_read(uv_stream_t *tcp, ssize_t nread, const uv_buf_t *buf);
     static void on_new_connection(uv_stream_t *stream, int status);
     static void alloc_cb(uv_handle_t *handle, size_t size, uv_buf_t *buf);
@@ -78,14 +84,7 @@ class SG_COMMON_EXPORT tcp_listener::impl {
     static void on_write(uv_write_s* req, int status);
     void on_error(client_id, const std::string &message);
 
-    void remove_write_request(write_req_id);
-    write_request* add_write_request(client_id id);
-
-    uv_loop_t m_loop;
-    std::thread m_thread;
-
-    tcp_listener *m_parent_listener;
-
+    /* call backs to user */
     on_error_cb_t m_on_error_cb; /* Called in case of errors after connect(...) */
     on_client_connected_cb_t m_on_client_connected_cb;
     on_client_disconnected_cb_t m_on_client_disconnected_cb;
@@ -93,14 +92,18 @@ class SG_COMMON_EXPORT tcp_listener::impl {
     on_stop_cb_t m_on_stop_cb;
     on_data_available_cb_t m_on_data_available;
 
-    mutable std::shared_mutex m_mutex; /* Mutex for getting data*/
+    /* clients*/
+    mutable std::shared_mutex m_mutex; /* Mutex for getting modifying m_clients*/
     uint m_client_counter;
     std::map<client_id, std::shared_ptr<client_data>> m_clients;
 
+    /* write requets*/
     mutable std::shared_mutex m_write_req_mutex; /* Mutex for getting data*/
     write_req_id m_write_request_counter;
     std::map<write_req_id, std::unique_ptr<write_request>> m_write_requests;
 
+    /* libuv stuff*/
+    uv_loop_t m_loop;
     std::unique_ptr<uv_tcp_t> m_sock;     /* Socket used for connection */
     std::unique_ptr<uv_connect_t> m_conn; /* UV connection object */
     std::unique_ptr<uv_async_t> m_async;  /* For stopping the loop */
