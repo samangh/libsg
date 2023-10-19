@@ -227,7 +227,12 @@ std::vector<uint8_t> tcp_listener::impl::get_buffer(client_id id) {
         m_clients.at(id)->data.swap(buffers);
     }
 
+    size_t size=0;
+    for (const auto &buf : buffers)
+        size += buf.length;
+
     std::vector<uint8_t> result;
+    result.reserve(size);
     for (const auto &buf : buffers)
         result.insert(result.end(), buf.data.get(), buf.data.get() + buf.length);
 
@@ -250,7 +255,12 @@ std::map<tcp_listener::client_id, std::vector<uint8_t>> tcp_listener::impl::get_
 
     std::map<tcp_listener::client_id, std::vector<uint8_t>> result;
     for (auto &[id, buffers] : buffer_map) {
+        size_t size=0;
+        for (const auto &buf : buffers)
+            size += buf.length;
+
         std::vector<uint8_t> merged_buffer;
+        merged_buffer.reserve(size);
         for (const auto &buf : buffers)
             merged_buffer.insert(merged_buffer.end(), buf.data.get(), buf.data.get() + buf.length);
         result.emplace(id, std::move(merged_buffer));
