@@ -1,4 +1,5 @@
 #include "sg/tcp_listener.h"
+#include "sg/buffer.h"
 
 #include <uv.h>
 
@@ -37,23 +38,8 @@ class SG_COMMON_EXPORT tcp_listener::impl {
     std::map<client_id, std::vector<uint8_t>> get_buffers();
 
   private:
-    struct buff {
-        buff(uint8_t* _data, size_t _length): data(_data), length(_length){}
-        buff(const buff&) = delete;
-        buff(buff&& b) noexcept :
-            data(b.data), length(b.length)
-        {
-            b.data=nullptr;
-        }
-        ~buff()
-        {
-            if (data !=nullptr)
-                free(data);
-        }
+    typedef sg::unique_buffer<uint8_t> buff;
 
-        uint8_t* data;
-        size_t length;
-    };
     struct client_data {
         client_data(impl* _listener, client_id _id)
             : listener(_listener),
