@@ -73,7 +73,7 @@ struct buffer {
  *
  */
 template <typename T>
-struct unique_buffer : buffer<T> {
+    struct unique_buffer : buffer<T> {
     unique_buffer(T* _data, size_t _length): buffer<T>(_data, _length){}
     ~unique_buffer()
     {

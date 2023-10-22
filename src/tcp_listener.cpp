@@ -38,7 +38,7 @@ class SG_COMMON_EXPORT tcp_listener::impl {
     std::map<client_id, std::vector<uint8_t>> get_buffers();
 
   private:
-    typedef sg::unique_buffer<uint8_t> buff;
+    typedef sg::unique_ptr_array<uint8_t> buff;
 
     struct client_data {
         client_data(impl* _listener, client_id _id)
@@ -228,12 +228,12 @@ std::vector<uint8_t> tcp_listener::impl::get_buffer(client_id id) {
 
     size_t size=0;
     for (const auto &buf : buffers)
-        size += buf.length;
+        size += buf.size();
 
     std::vector<uint8_t> result;
     result.reserve(size);
     for (const auto &buf : buffers)
-        result.insert(result.end(), buf.data, buf.data + buf.length);
+        result.insert(result.end(), buf.begin(), buf.end());
 
     return result;
 }
@@ -256,12 +256,12 @@ std::map<tcp_listener::client_id, std::vector<uint8_t>> tcp_listener::impl::get_
     for (auto &[id, buffers] : buffer_map) {
         size_t size=0;
         for (const auto &buf : buffers)
-            size += buf.length;
+            size += buf.size();
 
         std::vector<uint8_t> merged_buffer;
         merged_buffer.reserve(size);
         for (const auto &buf : buffers)
-            merged_buffer.insert(merged_buffer.end(), buf.data, buf.data + buf.length);
+            merged_buffer.insert(merged_buffer.end(), buf.begin(), buf.end());
         result.emplace(id, std::move(merged_buffer));
     }
 
