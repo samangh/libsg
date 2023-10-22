@@ -6,15 +6,14 @@
 namespace sg
 {
 
-
-template<typename T>
+template<typename T, typename del=std::default_delete<T>>
 class unique_ptr_array {
-    std::unique_ptr<T[]> ptr;
+    std::unique_ptr<T, del> ptr;
     size_t length;
 public:
     unique_ptr_array(T* _ptr, size_t _length) noexcept:
-        ptr(std::unique_ptr<T[]>(_ptr)), length(_length) {}
-    unique_ptr_array(std::unique_ptr<T[]> _ptr, size_t _length) noexcept:
+        ptr(std::unique_ptr<T, del>(_ptr)), length(_length) {}
+    unique_ptr_array(std::unique_ptr<T, del> _ptr, size_t _length) noexcept:
         ptr(_ptr), length(_length) {}
 
     // Move constrcutor
@@ -32,7 +31,7 @@ public:
     }
 
     /* Exchange the pointer and the associated length */
-    T* swap(unique_ptr_array<T>& other) noexcept {
+    T* swap(unique_ptr_array<T, del>& other) noexcept {
         ptr.swap(other.ptr);
 
         auto other_length = other.length;
@@ -59,49 +58,4 @@ public:
     }
 };
 
-/* represents a buffer */
-template <typename T>
-struct buffer {
-    buffer(T* _data, size_t _length): data(_data), length(_length){};
-    T* data;
-    size_t length;
-};
-
-/* Represents a buffer with 'unique' ownership.
- *
- * The underlying pointer will be freed when this buffer isdestructed.
- *
- */
-template <typename T>
-    struct unique_buffer : buffer<T> {
-    unique_buffer(T* _data, size_t _length): buffer<T>(_data, _length){}
-    ~unique_buffer()
-    {
-        if (this->data !=nullptr)
-        {
-            free(this->data);
-            this->length =0;
-        }
-    }
-
-    unique_buffer(unique_buffer&& b) noexcept : buffer<T>(b.data, b.length)
-    {
-        b.data=nullptr;
-        b.length=0;
-    }
-    unique_buffer& operator=(unique_buffer&& b) noexcept
-    {
-        this->data=b.data;
-        this->length=b.length;
-
-        b.data=nullptr;
-        b.length=0;
-
-        return *this;
-    }
-
-    unique_buffer(const unique_buffer&) = delete;
-    unique_buffer& operator=(unique_buffer& b) = delete;
-
-};
 }
