@@ -10,6 +10,10 @@ class unique_ptr_with_size {
     size_t length;
 
   public:
+    /* Default constructor, creates a unique_ptr that owns nothing.*/
+    unique_ptr_with_size() noexcept //
+        : length(0){};
+
     /* Constrcts from bare pointer */
     unique_ptr_with_size(T *_ptr, size_t _length) noexcept //
         : ptr(std::unique_ptr<T, deleter>(_ptr)), length(_length) {}
@@ -49,6 +53,24 @@ class unique_ptr_with_size {
     /* returns the number of elements in the array */
     size_t size() const noexcept { return length; }
 
+    /** Replace the stored pointer.
+     *
+     * The deleter will be invoked if a pointer is already owned.
+     */
+    void reset(T *_ptr, size_t _length) noexcept {
+        ptr.reset(_ptr);
+        this->length = _length;
+    }
+
+    /** Replace the stored pointer.
+     *
+     * The deleter will be invoked if a pointer is already owned.
+     */
+    void reset(unique_ptr_with_size<T, deleter> other = unique_ptr_with_size<T, deleter>()) noexcept {
+        ptr.reset(other.ptr);
+        this->length = other.length;
+    }
+
     T *begin() const noexcept { return ptr.get(); }
 
     T *end() const noexcept { return ptr.get() + length; }
@@ -58,8 +80,7 @@ class unique_ptr_with_size {
  *
  * Can be passed to std::unique_ptr etc. */
 template <typename T> struct deleter_free {
-    constexpr deleter_free() noexcept = default;
-    constexpr void operator()(T *p) const { free(p); }
+    constexpr void operator()(T *p) const noexcept { free(p); }
 };
 
 /* Provides a version of unique_ptr_with_size that uses C-style free as deleter
