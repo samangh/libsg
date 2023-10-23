@@ -38,7 +38,7 @@ class SG_COMMON_EXPORT tcp_listener::impl {
     std::map<client_id, std::vector<uint8_t>> get_buffers();
 
   private:
-    typedef sg::unique_ptr_array<uint8_t> buff;
+    typedef sg::unique_ptr_with_size_free<uint8_t> buff;
 
     struct client_data {
         client_data(impl* _listener, client_id _id)
