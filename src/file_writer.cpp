@@ -76,6 +76,16 @@ void file_writer::impl::on_uv_timer_tick(uv_idle_t *handle) {
     if (a->m_write_pending)
         return;
 
+    /* Note (from https://stackoverflow.com/questions/47401833/is-uv-write-actually-asynchronous):
+     *
+     * Filesysme IO operations run on thread pool. This is because there is no good and portable way
+     * to do non-blocking IO for files. Because we use a thread pool, write operations can run in
+     * parallel. That's why uv_fs_write takes an offset parameter, so multiple threas can write
+     * without stepping on top of each other.
+     *
+     * Because I don't want to maintain the offset paramemter I have one single buffer that I write
+     * at a time. */
+
     /* If data is available, send write request and RETURN*/
     if (uv_now(handle->loop) >= a->m_last_write_time + a->buffer_write_interval) {
         a->m_last_write_time = uv_now(handle->loop);
