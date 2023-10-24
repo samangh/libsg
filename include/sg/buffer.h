@@ -6,32 +6,32 @@
 namespace sg {
 
 template <typename T, typename deleter = std::default_delete<T>> //
-class unique_ptr_with_size {
+class unique_buffer {
     std::unique_ptr<T, deleter> ptr;
     size_t length;
 
   public:
     /* Default constructor, creates a unique_ptr that owns nothing.*/
-    unique_ptr_with_size() noexcept //
+    unique_buffer() noexcept //
         : length(0){};
 
     /* Constrcts from bare pointer */
-    unique_ptr_with_size(T *_ptr, size_t _length) noexcept //
+    unique_buffer(T *_ptr, size_t _length) noexcept //
         : ptr(std::unique_ptr<T, deleter>(_ptr)), length(_length) {}
 
     /* Take owenership of bare pointer with custom deleter */
-    unique_ptr_with_size(T *_ptr, size_t _length, const deleter &del) noexcept //
+    unique_buffer(T *_ptr, size_t _length, const deleter &del) noexcept //
         : ptr(std::unique_ptr<T, deleter>(_ptr, del)), length(_length) {}
 
     /* Takes ownership of a unique-pointer */
-    unique_ptr_with_size(std::unique_ptr<T, deleter> _ptr, size_t _length) noexcept //
+    unique_buffer(std::unique_ptr<T, deleter> _ptr, size_t _length) noexcept //
         : ptr(_ptr), length(_length) {}
 
     // Move constrcutor
-    unique_ptr_with_size(unique_ptr_with_size &&) = default;
-    unique_ptr_with_size &operator=(unique_ptr_with_size &&data) = default;
+    unique_buffer(unique_buffer &&) = default;
+    unique_buffer &operator=(unique_buffer &&data) = default;
 
-    virtual ~unique_ptr_with_size() = default;
+    virtual ~unique_buffer() = default;
 
     // Implicit cast
     operator T *() const noexcept { return ptr; }
@@ -40,7 +40,7 @@ class unique_ptr_with_size {
     T *get() const noexcept { return ptr.get(); }
 
     /* Exchange the pointer and the associated length */
-    T *swap(unique_ptr_with_size<T, deleter> &other) noexcept {
+    T *swap(unique_buffer<T, deleter> &other) noexcept {
         ptr.swap(other.ptr);
 
         auto other_length = other.length;
@@ -76,28 +76,22 @@ class unique_ptr_with_size {
     T *end() const noexcept { return ptr.get() + length; }
 };
 
+/* A version of unique_buffer that uses C-style free() to delete the base pointer */
+template <typename T>
+using unique_c_buffer= unique_buffer<T, deleter_free<T>>;
 
-/* Provides a version of unique_ptr_with_size that uses C-style free as deleter */
-template <typename T> //
-class unique_ptr_with_size_free : public unique_ptr_with_size<T, deleter_free<T>> {
-  public:
+/* Allocates memoery and creates a unique_buffer that uses C-style free as deleter */
+template <typename T>
+unique_c_buffer<T> make_unique_c_buffer(size_t length)
+{
+    T* ptr = (T*)malloc(sizeof(T)*length);
+    return unique_c_buffer<T>(ptr, length);
+
     /* Note: this could also be done by doing
      *
-     *     unique_ptr_with_size<T, declfree(&free) (T *_ptr, size_t _length, free)
+     *     return unique_buffer<T, decltype(&free)>(ptr, length, free);
      *
      * but that uses an additional 8-bytes of memory. */
-
-    /* Constrcts from bare pointer */
-    unique_ptr_with_size_free(T *_ptr, size_t _length) noexcept
-        : unique_ptr_with_size<T, deleter_free<T>>(_ptr, _length) {}
-
-    /* Takes ownership of a unique-pointer */
-    unique_ptr_with_size_free(std::unique_ptr<T> _ptr, size_t _length) noexcept
-        : unique_ptr_with_size<T, deleter_free<T>>(_ptr.release(), _length) {}
-
-    // Move constrcutor
-    unique_ptr_with_size_free(unique_ptr_with_size_free &&) = default;
-    unique_ptr_with_size_free &operator=(unique_ptr_with_size_free &&data) = default;
-};
+}
 
 } // namespace sg
