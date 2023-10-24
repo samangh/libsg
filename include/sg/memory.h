@@ -5,6 +5,17 @@
 #include <new>
 #include <stdexcept>
 
+namespace sg {
+
+/* Deleter that uses C-style free for freeing a pointer.
+ *
+ * Can be passed to std::unique_ptr etc. */
+template <typename T> struct deleter_free {
+    constexpr void operator()(T *p) const noexcept { free(p); }
+};
+
+} // namespace sg
+
 namespace sg::memory {
 
 /* Allocated memory of specific size, runs the specified function, and then clears the memory.

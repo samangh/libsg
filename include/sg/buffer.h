@@ -1,5 +1,6 @@
 #pragma once
 
+#include "sg/memory.h"
 #include <memory>
 
 namespace sg {
@@ -75,12 +76,6 @@ class unique_ptr_with_size {
     T *end() const noexcept { return ptr.get() + length; }
 };
 
-/* Deleter that uses C-style free for freeing a pointer.
- *
- * Can be passed to std::unique_ptr etc. */
-template <typename T> struct deleter_free {
-    constexpr void operator()(T *p) const noexcept { free(p); }
-};
 
 /* Provides a version of unique_ptr_with_size that uses C-style free as deleter */
 template <typename T> //
