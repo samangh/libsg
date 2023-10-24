@@ -50,7 +50,7 @@ class unique_ptr_with_size {
     /* Release ownership of any stored pointer. */
     void release() noexcept { ptr.release(); }
 
-    /* returns the number of elements in the array */
+    /* Returns the number of elements */
     size_t size() const noexcept { return length; }
 
     /** Replace the stored pointer.
@@ -62,13 +62,12 @@ class unique_ptr_with_size {
         this->length = _length;
     }
 
-    /** Replace the stored pointer.
+    /** Frees the stored pointer.
      *
      * The deleter will be invoked if a pointer is already owned.
      */
-    void reset(unique_ptr_with_size<T, deleter> other = unique_ptr_with_size<T, deleter>()) noexcept {
-        ptr.reset(other.ptr);
-        this->length = other.length;
+    void reset() noexcept {
+        reset(nullptr, 0);
     }
 
     T *begin() const noexcept { return ptr.get(); }
@@ -83,15 +82,16 @@ template <typename T> struct deleter_free {
     constexpr void operator()(T *p) const noexcept { free(p); }
 };
 
-/* Provides a version of unique_ptr_with_size that uses C-style free as deleter
- *
- * Could also be done by doing:
- *  unique_ptr_with_size<T, declfree(&free) (T *_ptr, size_t _length, free)
- * but that uses an additional 8-bytes of memory.
- */
+/* Provides a version of unique_ptr_with_size that uses C-style free as deleter */
 template <typename T> //
 class unique_ptr_with_size_free : public unique_ptr_with_size<T, deleter_free<T>> {
   public:
+    /* Note: this could also be done by doing
+     *
+     *     unique_ptr_with_size<T, declfree(&free) (T *_ptr, size_t _length, free)
+     *
+     * but that uses an additional 8-bytes of memory. */
+
     /* Constrcts from bare pointer */
     unique_ptr_with_size_free(T *_ptr, size_t _length) noexcept
         : unique_ptr_with_size<T, deleter_free<T>>(_ptr, _length) {}
