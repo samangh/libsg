@@ -40,7 +40,7 @@ target_link_libraries(${TARGET}
     $<$<AND:$<CXX_COMPILER_ID:Clang>,$<VERSION_LESS:$<CXX_COMPILER_VERSION>,9.0>>:${STANDARD_LIBRARY}fs>
   PRIVATE
     Threads::Threads
-    "$<$<BOOL:${WIN32}>:Winmm>"
+    $<$<BOOL:${WIN32}>:Winmm>
     fmt::fmt)
 
 include (GenerateExportHeader)

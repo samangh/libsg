@@ -1,6 +1,6 @@
 #pragma once
 
-#include "pimpl.h"
+#include "sg/pimpl.h"
 #include "sg/export/sg_common.h"
 
 #include <cstdint>
