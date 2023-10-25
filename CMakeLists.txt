@@ -53,13 +53,3 @@ generate_export_header(${TARGET}
 ##
 
 target_compile_features(${TARGET} PUBLIC cxx_std_20)
-
-##
-## Version
-##
-
-configure_file (
-  "${PROJECT_SOURCE_DIR}/cmake/version.h.in"
-  "${CMAKE_CURRENT_BINARY_DIR}/version.h"
-  )
-
