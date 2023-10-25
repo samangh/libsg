@@ -7,6 +7,7 @@
 #include <functional>
 #include <map>
 #include <vector>
+#include <string>
 
 namespace sg {
 
@@ -14,8 +15,8 @@ class SG_COMMON_EXPORT tcp_listener {
     class impl;
     sg::pimpl<impl> pimpl;
   public:
-    typedef uint client_id;
-    typedef uint write_req_id;
+    typedef size_t client_id;
+    typedef size_t write_req_id;
 
     typedef std::function<void(tcp_listener *, client_id, const std::string &msg)> on_error_cb_t;
     typedef std::function<void(tcp_listener *, client_id)> on_client_connected_cb_t;

@@ -93,7 +93,7 @@ class SG_COMMON_EXPORT tcp_listener::impl {
 
     /* clients*/
     mutable std::shared_mutex m_mutex; /* Mutex for getting modifying m_clients*/
-    uint m_client_counter;
+    size_t m_client_counter;
     std::map<client_id, std::shared_ptr<client_data>> m_clients;
 
     /* write requets*/
