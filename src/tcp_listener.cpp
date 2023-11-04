@@ -32,14 +32,12 @@ class SG_COMMON_EXPORT tcp_listener::impl {
     bool is_running() const;
     size_t number_of_clients() const;
 
-    void write(client_id, sg::buffer<uint8_t> buffer);
+    void write(client_id, sg::shared_opaque_buffer<uint8_t> buffer);
 
-    std::vector<uint8_t> get_buffer(client_id);
-    std::map<client_id, std::vector<uint8_t>> get_buffers();
+    std::vector<sg::tcp_listener::buffer> get_buffer(client_id);
+    std::map<client_id, std::vector<tcp_listener::buffer>> get_buffers();
 
   private:
-    typedef sg::unique_c_buffer<uint8_t> buff;
-
     struct client_data {
         client_data(impl* _listener, client_id _id)
             : listener(_listener),
@@ -53,23 +51,23 @@ class SG_COMMON_EXPORT tcp_listener::impl {
 
         client_id id;
         std::unique_ptr<uv_tcp_t> uv_tcp_handle;
-        std::vector<buff> data;
+        std::vector<sg::tcp_listener::buffer> data;
     };
 
     struct write_request {
-        write_request(std::shared_ptr<client_data> _client, write_req_id _write_id, sg::buffer<uint8_t> buffer)
-            : write_id(_write_id), buffer(std::move(buffer)), client_data_ptr(_client),
+        write_request(std::shared_ptr<client_data> _client, write_req_id _write_id, sg::shared_opaque_buffer<uint8_t> buffer)
+            : write_id(_write_id), buffer(buffer), client_data_ptr(_client),
               uv_write_req_handle(std::make_unique<uv_write_t>()) {
             uv_write_req_handle->data = this;
         }
         write_req_id write_id;
-        sg::buffer<uint8_t> buffer;
+        sg::shared_opaque_buffer<uint8_t> buffer;
         std::shared_ptr<client_data> client_data_ptr;
         std::unique_ptr<uv_write_t> uv_write_req_handle;
     };
 
     void remove_write_request(write_req_id);
-    write_request* add_write_request(client_id id, sg::buffer<uint8_t>);
+    write_request* add_write_request(client_id id, sg::shared_opaque_buffer<uint8_t>);
 
     std::thread m_thread;
     tcp_listener *m_parent_listener;
@@ -198,7 +196,7 @@ size_t tcp_listener::impl::number_of_clients() const {
     return m_clients.size();
 }
 
-void tcp_listener::impl::write(client_id id, sg::buffer<uint8_t> bytes)
+void tcp_listener::impl::write(client_id id, sg::shared_opaque_buffer<uint8_t> bytes)
 {
     /* we must move or copy the bytes, as the buffer must be kept until the callback is called */
     auto write_req = add_write_request(id, std::move(bytes));
@@ -215,8 +213,8 @@ tcp_listener::impl::~impl() {
         stop();
 }
 
-std::vector<uint8_t> tcp_listener::impl::get_buffer(client_id id) {
-    std::vector<buff> buffers;
+std::vector<sg::tcp_listener::buffer> tcp_listener::impl::get_buffer(client_id id) {
+    std::vector<sg::tcp_listener::buffer> buffers;
 
     /* swap buffers, do this to minimise locking time*/
     {
@@ -224,46 +222,24 @@ std::vector<uint8_t> tcp_listener::impl::get_buffer(client_id id) {
         m_clients.at(id)->data.swap(buffers);
     }
 
-    size_t size=0;
-    for (const auto &buf : buffers)
-        size += buf.size();
-
-    std::vector<uint8_t> result;
-    result.reserve(size);
-    for (const auto &buf : buffers)
-        result.insert(result.end(), buf.begin(), buf.end());
-
-    return result;
+    return buffers;
 }
 
-std::map<tcp_listener::client_id, std::vector<uint8_t>> tcp_listener::impl::get_buffers() {
-    std::map<tcp_listener::client_id, std::vector<buff>> buffer_map;
+std::map<tcp_listener::client_id, std::vector<tcp_listener::buffer>> tcp_listener::impl::get_buffers() {
+    std::map<tcp_listener::client_id, std::vector<sg::tcp_listener::buffer>> buffer_map;
 
     /* swap buffers, do this to minimise locking time*/
     {
         std::lock_guard lock(m_mutex);
         for (auto &[id, val] : m_clients)
             if (!val->data.empty()) {
-                std::vector<buff> _client_buffers;
+                std::vector<sg::tcp_listener::buffer> _client_buffers;
                 val->data.swap(_client_buffers);
                 buffer_map.emplace(id, std::move(_client_buffers));
             }
     }
 
-    std::map<tcp_listener::client_id, std::vector<uint8_t>> result;
-    for (auto &[id, buffers] : buffer_map) {
-        size_t size=0;
-        for (const auto &buf : buffers)
-            size += buf.size();
-
-        std::vector<uint8_t> merged_buffer;
-        merged_buffer.reserve(size);
-        for (const auto &buf : buffers)
-            merged_buffer.insert(merged_buffer.end(), buf.begin(), buf.end());
-        result.emplace(id, std::move(merged_buffer));
-    }
-
-    return result;
+    return buffer_map;
 }
 
 void tcp_listener::impl::on_read(uv_stream_t *client, ssize_t nread, const uv_buf_t *buf) {
@@ -282,7 +258,7 @@ void tcp_listener::impl::on_read(uv_stream_t *client, ssize_t nread, const uv_bu
     /* Take ownership of the buffer, as it is now ours. */
     {
         std::lock_guard lock(a->m_mutex);
-        auto b = buff((uint8_t*)buf->base, nread);
+        auto b = sg::tcp_listener::buffer((uint8_t*)buf->base, nread);
         a->m_clients.at(id)->data.emplace_back(std::move(b));
     }
 
@@ -358,11 +334,11 @@ void tcp_listener::impl::remove_write_request(write_req_id id)
     m_write_requests.erase(id);
 }
 
-tcp_listener::impl::write_request* tcp_listener::impl::add_write_request(client_id id,  sg::buffer<uint8_t> buffer){
+tcp_listener::impl::write_request* tcp_listener::impl::add_write_request(client_id id,  sg::shared_opaque_buffer<uint8_t> buffer){
     std::lock_guard lock(m_mutex);
 
     auto req_number = m_write_request_counter++;
-    auto req = std::make_unique<write_request>(m_clients.at(id), req_number, std::move(buffer));
+    auto req = std::make_unique<write_request>(m_clients.at(id), req_number, buffer);
     m_write_requests.emplace(req_number, std::move(req));
 
     return m_write_requests.at(req_number).get();
@@ -393,13 +369,31 @@ bool tcp_listener::is_running() const { return pimpl->is_running(); }
 
 size_t tcp_listener::number_of_clients() const { return pimpl->number_of_clients(); }
 
-void tcp_listener::write(client_id id, sg::buffer<uint8_t> bytes)
+void tcp_listener::write(client_id id, sg::shared_opaque_buffer<uint8_t> bytes)
 {
     pimpl->write(id, std::move(bytes));
 }
 
-std::vector<uint8_t> tcp_listener::get_buffer(client_id id) { return pimpl->get_buffer(id); }
+std::vector<tcp_listener::buffer> tcp_listener::get_buffers(client_id id) { return pimpl->get_buffer(id); }
 
-std::map<tcp_listener::client_id, std::vector<uint8_t>> tcp_listener::get_buffers() { return pimpl->get_buffers(); }
+std::vector<uint8_t> tcp_listener::get_buffers_as_vector(client_id id)
+{
+    auto client_buffers = this->get_buffers(id);
+    return sg::buffers_to_vector(client_buffers.data(), client_buffers.size());
+}
+
+std::map<tcp_listener::client_id, std::vector<uint8_t> > tcp_listener::get_buffers_as_vector()
+{
+    auto buffer_map = this->get_buffers();
+    std::map<tcp_listener::client_id, std::vector<uint8_t>> result;
+    for (auto &[id, buffers] : buffer_map) {
+        auto vec = sg::buffers_to_vector(buffers.data(), buffers.size());
+        result.emplace(id, std::move(vec));
+    }
+
+    return result;
+}
+
+std::map<tcp_listener::client_id, std::vector<tcp_listener::buffer>> tcp_listener::get_buffers() { return pimpl->get_buffers(); }
 
 } // namespace sg

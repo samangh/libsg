@@ -1,7 +1,9 @@
 #pragma once
 
 #include "sg/memory.h"
+
 #include <memory>
+#include <type_traits>
 
 namespace sg {
 
@@ -10,9 +12,8 @@ namespace sg {
  *  IBuffer<T>: interface class for a generic buffer
  *  unique_buffer<T, deleter>: a buffer that uses a std::unique_ptr to hold the raw buffer, with a specific deleter.
  *  shared_buffer<T, deleter>: a buffer that uses a std::shared_ptr to hold the raw buffer, with a specific deleter.
- *
- *  unique_opaque_buffer<IBuffer<T>>
- *  shared_opaque_buffer<IBuffer<T>>
+ *  unique_opaque_buffer<IBuffer<T>>: opaque version of unique_buffer
+ *  shared_opaque_buffer<IBuffer<T>>: opaque version of shared_buffer
  *
  * The deleter in the above classes allow you to specify how the object should be deleted, for example using free(),
  * delete, delete[], or some other function. By default, if no deleter is specified then delete or delete[] is called
@@ -36,7 +37,7 @@ template <typename T> class IBuffer {
     virtual ~IBuffer() = default;
 
     // Implicit cast
-    virtual operator T*() const noexcept = 0;
+    virtual operator T *() const noexcept = 0;
 
     /* Return the stored pointer.*/
     virtual T *get() const noexcept = 0;
@@ -53,40 +54,41 @@ template <typename T> class IBuffer {
      *
      * The deleter will be invoked if a pointer is already owned.
      */
-    virtual void reset(T*, size_t) noexcept = 0;
+    virtual void reset(T *, size_t) noexcept = 0;
 
     virtual T *begin() const noexcept = 0;
     virtual T *end() const noexcept = 0;
 
-    virtual T operator [](int i) const = 0;
-    virtual T& operator [](int i) = 0;
+    virtual T operator[](int i) const = 0;
+    virtual T &operator[](int i) = 0;
 };
 
 template <typename T> class buffer_base : IBuffer<T> {
   protected:
-    IBuffer<T>* ptr;
-    buffer_base(IBuffer<T>* buff) : ptr(buff) {}
+    IBuffer<T> *ptr;
+    buffer_base(IBuffer<T> *buff) : ptr(buff) {}
 
   public:
     T *operator->() const noexcept { return ptr->get(); }
 
-    virtual operator T*() const noexcept override {return this->get();};
+    virtual operator T *() const noexcept override { return this->get(); };
     virtual T *get() const noexcept override { return ptr->get(); }
-    virtual size_t size() const noexcept override { return ptr->size();}
+    virtual size_t size() const noexcept override { return ptr->size(); }
     virtual void reset() noexcept override { ptr->reset(); }
     virtual void reset(T *_ptr, size_t _length) noexcept override { return ptr->reset(_ptr, _length); }
 
-    virtual T *begin() const noexcept override  {return ptr->begin(); };
-    virtual T *end() const noexcept override {return ptr->end(); };
+    virtual T *begin() const noexcept override { return ptr->begin(); };
+    virtual T *end() const noexcept override { return ptr->end(); };
 
-    virtual T operator [](int i) const override {return ptr->get()[i]; };
-    virtual T& operator [](int i) override {return ptr->get()[i]; };
+    virtual T operator[](int i) const override { return ptr->get()[i]; };
+    virtual T &operator[](int i) override { return ptr->get()[i]; };
 };
 
 /* Creates unique opaque buffer */
 template <typename T> class unique_opaque_buffer : public buffer_base<T> {
   private:
     std::unique_ptr<IBuffer<T>> buffer;
+
   public:
     /* Constructs opaque unique buffer, only passing objects of type unique_buffer<T> makes sense here */
     unique_opaque_buffer(IBuffer<T> *buff) : buffer_base<T>(buff), buffer(std::unique_ptr<IBuffer<T>>(buff)) {}
@@ -96,13 +98,14 @@ template <typename T> class unique_opaque_buffer : public buffer_base<T> {
 template <typename T> class shared_opaque_buffer : public buffer_base<T> {
   private:
     std::shared_ptr<IBuffer<T>> buffer;
+
   public:
     /* Constructs opaque unique buffer, only passing objects of type shared_buffer<T> makes sense here */
     shared_opaque_buffer(IBuffer<T> *buff) : buffer_base<T>(buff), buffer(std::shared_ptr<IBuffer<T>>(buff)) {}
 };
 
 template <typename T, typename deleter = std::default_delete<T>> //
-class unique_buffer : public IBuffer<T>{
+class unique_buffer : public IBuffer<T> {
     std::unique_ptr<T, deleter> ptr;
     size_t length;
 
@@ -113,9 +116,7 @@ class unique_buffer : public IBuffer<T>{
 
     /* Constrcts from bare pointer */
     unique_buffer(T *_ptr, size_t _length) noexcept //
-        : ptr(std::unique_ptr<T, deleter>(_ptr)), length(_length)
-    {
-    }
+        : ptr(std::unique_ptr<T, deleter>(_ptr)), length(_length) {}
 
     /* Take owenership of bare pointer with custom deleter */
     unique_buffer(T *_ptr, size_t _length, const deleter &del) noexcept //
@@ -152,19 +153,17 @@ class unique_buffer : public IBuffer<T>{
         ptr.reset(_ptr);
         this->length = _length;
     }
-    void reset() noexcept override {
-        reset(nullptr, 0);
-    }
+    void reset() noexcept override { reset(nullptr, 0); }
 
     T *begin() const noexcept override { return ptr.get(); }
     T *end() const noexcept override { return ptr.get() + length; }
 
-    T operator [](int i) const override {return (ptr.get())[i]; };
-    T& operator [](int i) override {return (ptr.get())[i]; };
+    T operator[](int i) const override { return (ptr.get())[i]; };
+    T &operator[](int i) override { return (ptr.get())[i]; };
 };
 
 template <typename T, typename deleter = std::default_delete<T>> //
-class shared_buffer :public IBuffer<T>{
+class shared_buffer : public IBuffer<T> {
     std::shared_ptr<T> ptr;
     size_t length;
 
@@ -206,30 +205,24 @@ class shared_buffer :public IBuffer<T>{
         ptr.reset(_ptr);
         this->length = _length;
     }
-    void reset() noexcept override {
-        reset(nullptr, 0);
-    }
+    void reset() noexcept override { reset(nullptr, 0); }
 
     virtual T *begin() const noexcept override { return ptr.get(); }
     virtual T *end() const noexcept override { return ptr.get() + length; }
 
-    virtual T operator [](int i) const override {return (ptr.get())[i]; };
-    virtual T& operator [](int i) override {return (ptr.get())[i]; };
+    virtual T operator[](int i) const override { return (ptr.get())[i]; };
+    virtual T &operator[](int i) override { return (ptr.get())[i]; };
 };
 
 /* A version of unique_buffer that uses C-style free() to delete the base pointer */
-template <typename T>
-using unique_c_buffer= unique_buffer<T, deleter_free<T>>;
+template <typename T> using unique_c_buffer = unique_buffer<T, deleter_free<T>>;
 
 /* A version of shared_buffer that uses C-style free() to delete the base pointer */
-template <typename T>
-using shared_c_buffer= shared_buffer<T, deleter_free<T>>;
+template <typename T> using shared_c_buffer = shared_buffer<T, deleter_free<T>>;
 
 /* Allocates memoery and creates a unique_buffer that uses C-style free as deleter */
-template <typename T>
-unique_opaque_buffer<T> make_unique_c_buffer(size_t length)
-{
-    T* ptr = (T*)malloc(sizeof(T)*length);
+template <typename T> unique_opaque_buffer<T> make_unique_c_buffer(size_t length) {
+    T *ptr = (T *)malloc(sizeof(T) * length);
     auto base = new unique_buffer<T, deleter_free<T>>(ptr, length);
     return unique_opaque_buffer<T>(base);
 
@@ -241,10 +234,8 @@ unique_opaque_buffer<T> make_unique_c_buffer(size_t length)
 }
 
 /* Allocates memoery and creates a unique_buffer that uses C-style free as deleter */
-template <typename T>
-shared_opaque_buffer<T> make_shared_c_buffer(size_t length)
-{
-    T* ptr = (T*)malloc(sizeof(T)*length);
+template <typename T> shared_opaque_buffer<T> make_shared_c_buffer(size_t length) {
+    T *ptr = (T *)malloc(sizeof(T) * length);
     auto base = new shared_buffer<T, deleter_free<T>>(ptr, length);
     return shared_opaque_buffer<T>(base);
 
@@ -255,6 +246,20 @@ shared_opaque_buffer<T> make_shared_c_buffer(size_t length)
      * but that uses an additional 8-bytes of memory. */
 }
 
+/* Convers an array of buffer to a vector that contains all buffer elements */
+template <typename T> std::vector<T> buffers_to_vector(IBuffer<T> *begin, size_t no_of_buffers) {
+    size_t total_size = 0;
 
+    for (size_t i = 0; i < no_of_buffers; i++)
+        total_size += begin[i].size();
+
+    std::vector<T> result;
+    result.reserve(total_size);
+
+    for (size_t i = 0; i < no_of_buffers; i++)
+        result.insert(result.end(), begin[i].begin(), begin[i].end());
+
+    return result;
+}
 
 } // namespace sg
