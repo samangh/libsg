@@ -28,6 +28,7 @@ class SG_COMMON_EXPORT tcp_listener {
     typedef std::function<void(tcp_listener *)> on_stop_cb_t;
     typedef std::function<void(tcp_listener *, client_id, size_t length)> on_data_available_cb_t;
 
+    /* Consructs a TCP listener, callbacks can be nullptr */
     tcp_listener(on_error_cb_t on_error_cb,
                  on_client_connected_cb_t on_client_connected_cb,
                  on_client_disconnected_cb_t on_client_disconnected_cb,

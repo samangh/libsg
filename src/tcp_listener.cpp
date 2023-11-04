@@ -275,7 +275,8 @@ void tcp_listener::impl::on_read(uv_stream_t *client, ssize_t nread, const uv_bu
         a->m_clients.at(id)->data.emplace_back(std::move(b));
     }
 
-    a->m_on_data_available(a->m_parent_listener, id, nread);
+    if (a->m_on_data_available !=nullptr)
+        a->m_on_data_available(a->m_parent_listener, id, nread);
 }
 
 void tcp_listener::impl::on_new_connection(uv_stream_t *server, int status) {
