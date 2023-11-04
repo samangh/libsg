@@ -103,8 +103,12 @@ template <typename T> class unique_opaque_buffer : public buffer_base<T> {
     std::unique_ptr<IBuffer<T>> buffer;
 
   public:
-    /* Constructs opaque unique buffer, only passing objects of type unique_buffer<T> makes sense
-     * here */
+    /* Constructs opaque unique buffer.
+     *
+     * Notes:
+     *
+     *  - only passing objects of type unique_buffer<T> makes sense
+     *  - the buffer MUST be generated on the heap */
     unique_opaque_buffer(IBuffer<T> *buff)
         : buffer_base<T>(buff),
           buffer(std::unique_ptr<IBuffer<T>>(buff)) {}
@@ -116,8 +120,12 @@ template <typename T> class shared_opaque_buffer : public buffer_base<T> {
     std::shared_ptr<IBuffer<T>> buffer;
 
   public:
-    /* Constructs opaque unique buffer, only passing objects of type shared_buffer<T> makes sense
-     * here */
+    /* Constructs opaque unique buffer.
+     *
+     * Notes:
+     *
+     *  - only passing objects of type shared_buffer<T> makes sense
+     *  - the buffer MUST be generated on the heap */
     shared_opaque_buffer(IBuffer<T> *buff)
         : buffer_base<T>(buff),
           buffer(std::shared_ptr<IBuffer<T>>(buff)) {}
