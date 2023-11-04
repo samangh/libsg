@@ -1,6 +1,7 @@
 #pragma once
 
 #include "sg/pimpl.h"
+#include "sg/buffer.h"
 #include "sg/export/sg_common.h"
 
 #include <cstdint>
@@ -35,7 +36,7 @@ class SG_COMMON_EXPORT tcp_listener {
     bool is_running() const;
     size_t number_of_clients() const;
 
-    void write(client_id, std::vector<uint8_t> bytes);
+    void write(client_id, sg::buffer<uint8_t>);
 
     std::vector<uint8_t> get_buffer(client_id);
     std::map<client_id, std::vector<uint8_t>> get_buffers();

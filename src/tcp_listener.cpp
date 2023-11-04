@@ -32,7 +32,7 @@ class SG_COMMON_EXPORT tcp_listener::impl {
     bool is_running() const;
     size_t number_of_clients() const;
 
-    void write(client_id, std::vector<uint8_t> bytes);
+    void write(client_id, sg::buffer<uint8_t> buffer);
 
     std::vector<uint8_t> get_buffer(client_id);
     std::map<client_id, std::vector<uint8_t>> get_buffers();
@@ -55,22 +55,21 @@ class SG_COMMON_EXPORT tcp_listener::impl {
         std::unique_ptr<uv_tcp_t> uv_tcp_handle;
         std::vector<buff> data;
     };
+
     struct write_request {
-        write_request(std::shared_ptr<client_data> _client, write_req_id _write_id):
-            write_id(_write_id),
-            client_data_ptr(_client),
-            uv_write_req_handle(std::make_unique<uv_write_t>())
-        {
-            uv_write_req_handle->data=this;
+        write_request(std::shared_ptr<client_data> _client, write_req_id _write_id, sg::buffer<uint8_t> buffer)
+            : write_id(_write_id), buffer(std::move(buffer)), client_data_ptr(_client),
+              uv_write_req_handle(std::make_unique<uv_write_t>()) {
+            uv_write_req_handle->data = this;
         }
         write_req_id write_id;
-        std::vector<uint8_t> buffer;
+        sg::buffer<uint8_t> buffer;
         std::shared_ptr<client_data> client_data_ptr;
         std::unique_ptr<uv_write_t> uv_write_req_handle;
     };
 
     void remove_write_request(write_req_id);
-    write_request* add_write_request(client_id id);
+    write_request* add_write_request(client_id id, sg::buffer<uint8_t>);
 
     std::thread m_thread;
     tcp_listener *m_parent_listener;
@@ -199,13 +198,12 @@ size_t tcp_listener::impl::number_of_clients() const {
     return m_clients.size();
 }
 
-void tcp_listener::impl::write(client_id id, std::vector<uint8_t> bytes)
+void tcp_listener::impl::write(client_id id, sg::buffer<uint8_t> bytes)
 {
-    /* we must move or copy teh bytes, as the buffer must be kept until the callback is called */
-    auto write_req = add_write_request(id);
-    write_req->buffer = bytes;
+    /* we must move or copy the bytes, as the buffer must be kept until the callback is called */
+    auto write_req = add_write_request(id, std::move(bytes));
 
-    uv_buf_t wrbuf = uv_buf_init((char*) write_req->buffer.data(), write_req->buffer.size());
+    uv_buf_t wrbuf = uv_buf_init((char*) write_req->buffer.get(), write_req->buffer.size());
 
     auto req=write_req->uv_write_req_handle.get();
     auto stream = (uv_stream_t*)write_req->client_data_ptr->uv_tcp_handle.get();
@@ -360,11 +358,11 @@ void tcp_listener::impl::remove_write_request(write_req_id id)
     m_write_requests.erase(id);
 }
 
-tcp_listener::impl::write_request* tcp_listener::impl::add_write_request(client_id id){
+tcp_listener::impl::write_request* tcp_listener::impl::add_write_request(client_id id,  sg::buffer<uint8_t> buffer){
     std::lock_guard lock(m_mutex);
 
     auto req_number = m_write_request_counter++;
-    auto req = std::make_unique<write_request>(m_clients.at(id), req_number);
+    auto req = std::make_unique<write_request>(m_clients.at(id), req_number, std::move(buffer));
     m_write_requests.emplace(req_number, std::move(req));
 
     return m_write_requests.at(req_number).get();
@@ -395,9 +393,9 @@ bool tcp_listener::is_running() const { return pimpl->is_running(); }
 
 size_t tcp_listener::number_of_clients() const { return pimpl->number_of_clients(); }
 
-void tcp_listener::write(client_id id, std::vector<uint8_t> bytes)
+void tcp_listener::write(client_id id, sg::buffer<uint8_t> bytes)
 {
-    pimpl->write(id, bytes);
+    pimpl->write(id, std::move(bytes));
 }
 
 std::vector<uint8_t> tcp_listener::get_buffer(client_id id) { return pimpl->get_buffer(id); }
