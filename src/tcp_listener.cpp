@@ -244,15 +244,13 @@ tcp_listener::impl::get_buffers() {
     std::map<tcp_listener::client_id, std::vector<sg::tcp_listener::buffer>> buffer_map;
 
     /* swap buffers, do this to minimise locking time*/
-    {
-        std::lock_guard lock(m_mutex);
-        for (auto &[id, val] : m_clients)
-            if (!val->data.empty()) {
-                std::vector<sg::tcp_listener::buffer> _client_buffers;
-                val->data.swap(_client_buffers);
-                buffer_map.emplace(id, std::move(_client_buffers));
-            }
-    }
+    std::lock_guard lock(m_mutex);
+    for (auto &[id, val] : m_clients)
+        if (!val->data.empty()) {
+            std::vector<sg::tcp_listener::buffer> _client_buffers;
+            val->data.swap(_client_buffers);
+            buffer_map.emplace(id, std::move(_client_buffers));
+        }
 
     return buffer_map;
 }
@@ -400,16 +398,32 @@ std::vector<tcp_listener::buffer> tcp_listener::get_buffers(client_id id) {
 
 std::vector<uint8_t> tcp_listener::get_buffers_as_vector(client_id id) {
     auto client_buffers = this->get_buffers(id);
-    return sg::buffers_to_vector(client_buffers.data(), client_buffers.size());
+    return tcp_listener::buffers_to_vector(std::move(client_buffers));
 }
 
 std::map<tcp_listener::client_id, std::vector<uint8_t>> tcp_listener::get_buffers_as_vector() {
     auto buffer_map = this->get_buffers();
     std::map<tcp_listener::client_id, std::vector<uint8_t>> result;
+
     for (auto &[id, buffers] : buffer_map) {
-        auto vec = sg::buffers_to_vector(buffers.data(), buffers.size());
+        auto vec = tcp_listener::buffers_to_vector(std::move(buffers));
         result.emplace(id, std::move(vec));
     }
+
+    return result;
+}
+
+std::vector<uint8_t> tcp_listener::buffers_to_vector(std::vector<buffer> buffers)
+{
+    size_t total_size = 0;
+    for (const auto& buf : buffers)
+        total_size += buf.size();
+
+    std::vector<uint8_t> result;
+    result.reserve(total_size);
+
+    for ( auto& buf : buffers)
+        result.insert(result.end(), buf.begin(), buf.end());
 
     return result;
 }

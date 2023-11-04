@@ -277,20 +277,4 @@ template <typename T> shared_opaque_buffer<T> make_shared_c_buffer(size_t length
      * but that uses an additional 8-bytes of memory. */
 }
 
-/* Convers an array of buffer to a vector that contains all buffer elements */
-template <typename T> std::vector<T> buffers_to_vector(IBuffer<T> *begin, size_t no_of_buffers) {
-    size_t total_size = 0;
-
-    for (size_t i = 0; i < no_of_buffers; i++)
-        total_size += begin[i].size();
-
-    std::vector<T> result;
-    result.reserve(total_size);
-
-    for (size_t i = 0; i < no_of_buffers; i++)
-        result.insert(result.end(), begin[i].begin(), begin[i].end());
-
-    return result;
-}
-
 } // namespace sg

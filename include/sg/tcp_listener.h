@@ -54,6 +54,8 @@ class SG_COMMON_EXPORT tcp_listener {
 
     /* Combines all data read from all client as a set of vector */
     std::map<client_id, std::vector<uint8_t>> get_buffers_as_vector();
+
+    std::vector<uint8_t> buffers_to_vector(std::vector<buffer>);
 };
 
 } // namespace sg
