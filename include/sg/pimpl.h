@@ -26,8 +26,7 @@ namespace sg {
  *
  * @tparam  T   the impl object type
  */
-template <typename T>
-class pimpl {
+template <typename T> class pimpl {
     /**
      * @brief The implementation pointer, wrapped in propogage_const.
      *
@@ -43,19 +42,19 @@ class pimpl {
      * https://www.open-std.org/jtc1/sc22/wg21/docs/papers/2015/n4388.html
      */
     std::experimental::propagate_const<std::unique_ptr<T>> impl_ptr;
+
   public:
     pimpl() : impl_ptr(std::make_unique<T>()) {}
 
     template <typename... Args>
-    pimpl(Args&&... args):impl_ptr(std::make_unique<T>(std::forward<Args>(args)...)) {}
+    pimpl(Args &&...args) : impl_ptr(std::make_unique<T>(std::forward<Args>(args)...)) {}
 
-    T* operator->() { return impl_ptr.get(); }
-    T& operator*() { return *impl_ptr.get(); }
+    T *operator->() { return impl_ptr.get(); }
+    T &operator*() { return *impl_ptr.get(); }
 
-    const std::experimental::propagate_const<std::unique_ptr<T>>& operator->() const
-    {
+    const std::experimental::propagate_const<std::unique_ptr<T>> &operator->() const {
         return impl_ptr;
-    }    
+    }
 };
 
-}
+} // namespace sg

@@ -10,35 +10,35 @@ struct Progress {
     /** @brief current progress */
     float progress;
     /** @brief max value that @ref progress can take */
-    float max_val=1;
+    float max_val = 1;
 };
 
 /** @brief Source for @ref ProgressIndicator */
 class ProgressSource {
-public:
+  public:
     Progress progress() const;
 
-    void set_progress(float progress, const std::string& msg);
+    void set_progress(float progress, const std::string &msg);
     void set_progress(float);
     void set_max_val(float);
-    void set_message(const std::string&);
+    void set_message(const std::string &);
     void reset();
-private:
+
+  private:
     Progress m_progress;
     mutable std::shared_mutex m_progress_mutex;
 };
 
 /** @brief Returns the progresss of a progress source */
 class ProgressIndicator {
-public:
-    ProgressIndicator (const ProgressSource& source);
+  public:
+    ProgressIndicator(const ProgressSource &source);
 
     /** @brief current progress */
     Progress progress() const;
-private:
-    const ProgressSource& m_source;
+
+  private:
+    const ProgressSource &m_source;
 };
 
-
-
-}
+} // namespace sg

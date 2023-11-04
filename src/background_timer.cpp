@@ -8,10 +8,13 @@
 
 namespace sg {
 
- class SG_COMMON_EXPORT background_timer::impl {
+class SG_COMMON_EXPORT background_timer::impl {
   public:
     /* encapsulates a thread that runs a provided task regualrly on a timer */
-    impl(background_timer* timer_ref, const task_t &task, const started_cb_t &start_cb, const stopped_cb_t &stopped_cb);
+    impl(background_timer *timer_ref,
+         const task_t &task,
+         const started_cb_t &start_cb,
+         const stopped_cb_t &stopped_cb);
     ~impl();
 
     /* start */
@@ -31,8 +34,7 @@ namespace sg {
 
     /* gets the interval in seconds */
     uint64_t interval() const;
-    void set_interval(uint32_t interval_ns,
-                      sg::AccurateSleeper::Strategy strategy);
+    void set_interval(uint32_t interval_ns, sg::AccurateSleeper::Strategy strategy);
 
     /* sets whether the time shouuld account for how long the action takes,
      * and remove that from the wait interval */
@@ -62,13 +64,16 @@ namespace sg {
     void action();
     void set_exception(std::exception_ptr ptr);
     void set_is_running(bool);
- };
+};
 
-
-background_timer::impl::impl(background_timer *timer_ref, const background_timer::task_t &task,
-                              const background_timer::started_cb_t &start_cb,
-                              const background_timer::stopped_cb_t &stopped_cb)
-    :m_timer_ref(timer_ref), m_task(task), m_started_cb(start_cb), m_stopped_cb(stopped_cb) {}
+background_timer::impl::impl(background_timer *timer_ref,
+                             const background_timer::task_t &task,
+                             const background_timer::started_cb_t &start_cb,
+                             const background_timer::stopped_cb_t &stopped_cb)
+    : m_timer_ref(timer_ref),
+      m_task(task),
+      m_started_cb(start_cb),
+      m_stopped_cb(stopped_cb) {}
 
 background_timer::impl::~impl() {
     request_stop();
@@ -109,13 +114,11 @@ void background_timer::impl::action() {
     while (!is_stop_requested()) {
         std::shared_lock lock(m_sleeper_mutex);
         try {
-            if (m_correct_for_task_delay)
-            {
+            if (m_correct_for_task_delay) {
                 auto t = std::chrono::high_resolution_clock::now();
                 m_task(m_timer_ref);
                 m_sleeper.sleep(std::chrono::high_resolution_clock::now() - t);
-            }
-            else{
+            } else {
                 m_task(m_timer_ref);
                 m_sleeper.sleep();
             }
@@ -140,20 +143,17 @@ bool background_timer::impl::is_stop_requested() const {
     return m_stop_requested;
 }
 
-bool background_timer::impl::has_exception() const
-{
+bool background_timer::impl::has_exception() const {
     std::lock_guard lock(m_exception_mutex);
     return (bool)m_exception;
 }
 
-void background_timer::impl::set_exception(std::exception_ptr ptr)
-{
+void background_timer::impl::set_exception(std::exception_ptr ptr) {
     std::lock_guard lock(m_exception_mutex);
     m_exception = ptr;
 }
 
-std::exception_ptr background_timer::impl::get_exception() const
-{
+std::exception_ptr background_timer::impl::get_exception() const {
     std::lock_guard lock(m_exception_mutex);
     return m_exception;
 }
@@ -173,19 +173,20 @@ uint64_t background_timer::impl::interval() const {
     return m_sleeper.interval();
 }
 
-void background_timer::impl::set_interval(uint32_t interval_ns, AccurateSleeper::Strategy strategy) {
+void background_timer::impl::set_interval(uint32_t interval_ns,
+                                          AccurateSleeper::Strategy strategy) {
     std::unique_lock lock(m_sleeper_mutex);
     m_sleeper.set_interval(interval_ns, strategy);
 }
 
-void background_timer::impl::correct_for_task_delay(bool correct)
-{
+void background_timer::impl::correct_for_task_delay(bool correct) {
     std::unique_lock lock(m_sleeper_mutex);
     m_correct_for_task_delay = correct;
 }
 
-
-background_timer::background_timer(const task_t &task, const started_cb_t &start_cb, const stopped_cb_t &stopped_cb)
+background_timer::background_timer(const task_t &task,
+                                   const started_cb_t &start_cb,
+                                   const stopped_cb_t &stopped_cb)
     : pimpl(sg::pimpl<impl>(this, task, start_cb, stopped_cb)) {}
 
 background_timer::~background_timer() = default;
@@ -200,8 +201,7 @@ std::exception_ptr background_timer::get_exception() const { return pimpl->get_e
 bool background_timer::has_exception() const { return pimpl->has_exception(); }
 
 uint64_t background_timer::interval() const { return pimpl->interval(); }
-void background_timer::set_interval(uint32_t interval_ns,
-                                    sg::AccurateSleeper::Strategy strategy) {
+void background_timer::set_interval(uint32_t interval_ns, sg::AccurateSleeper::Strategy strategy) {
     return pimpl->set_interval(interval_ns, strategy);
 }
 

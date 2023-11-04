@@ -1,5 +1,3 @@
 #include "sg/debug.h"
 
-namespace sg {
-
-} // namespace sg
+namespace sg {} // namespace sg

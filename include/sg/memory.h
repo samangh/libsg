@@ -20,8 +20,8 @@ namespace sg::memory {
 
 /* Allocated memory of specific size, runs the specified function, and then clears the memory.
  *
- * On allocation error, throws std::bad_alloc aand clears the memory. If #func throws an an exception,
- * the memory is clear and the exception in re-thrown.
+ * On allocation error, throws std::bad_alloc aand clears the memory. If #func throws an an
+ * exception, the memory is clear and the exception in re-thrown.
  *
  * @param[in]       size    amount of memory to allocation
  * @param[in,out]   memory  point to pointer to allocate
@@ -29,7 +29,7 @@ namespace sg::memory {
  *
  * @throw std::bad_alloc on failure to allocate storate.
  * @throw any other exceptons that @
-*/
+ */
 template <typename T>
 inline void MallocAndFree(size_t size, T **memory, std::function<void()> func) {
     try {
@@ -48,8 +48,8 @@ inline void MallocAndFree(size_t size, T **memory, std::function<void()> func) {
 
 /* Allocated memory of specific size, runs the specified function, and then clears the memory.
  *
- * On allocation error, throws std::bad_alloc aand clears the memory. If #func throws an an exception,
- * the memory is clear and the exception in re-thrown.
+ * On allocation error, throws std::bad_alloc aand clears the memory. If #func throws an an
+ * exception, the memory is clear and the exception in re-thrown.
  *
  * @param[in]       size    amount of memory to allocation
  * @param[in,out]   memory  point to pointer to allocate
@@ -57,7 +57,7 @@ inline void MallocAndFree(size_t size, T **memory, std::function<void()> func) {
  *
  * @throw std::bad_alloc on failure to allocate storate.
  * @throw any other exceptons that @
-*/
+ */
 template <typename T>
 inline void CallocAndFree(size_t size, T **memory, std::function<void()> func) {
     try {

@@ -8,13 +8,14 @@
 #include <memory>
 #include <mutex>
 #include <shared_mutex>
+#include <stdexcept>
 #include <thread>
 #include <type_traits>
 #include <vector>
-#include <functional>
-#include <stdexcept>
 
-#define THROW_ON_ERROR(err) if (err<0) throw std::runtime_error(uv_strerror(err));
+#define THROW_ON_ERROR(err)                                                                        \
+    if (err < 0)                                                                                   \
+        throw std::runtime_error(uv_strerror(err));
 
 namespace sg {
 
@@ -100,17 +101,26 @@ void file_writer::impl::on_uv_timer_tick(uv_idle_t *handle) {
             a->m_uv_buf = uv_buf_init(buff_ptr, static_cast<unsigned int>(size));
 
             a->m_write_pending = true;
-            uv_fs_write(&a->m_loop, &a->write_req, static_cast<uv_file>(a->open_req.result), &a->m_uv_buf, 1, -1, on_uv_on_write);
+            uv_fs_write(&a->m_loop,
+                        &a->write_req,
+                        static_cast<uv_file>(a->open_req.result),
+                        &a->m_uv_buf,
+                        1,
+                        -1,
+                        on_uv_on_write);
 
             return;
         }
     }
 
     /* Stop requested.
-    * We only check for this after there is not further data to write. */
+     * We only check for this after there is not further data to write. */
     std::shared_lock lock(a->m_stop_mutex);
     if (a->m_stop_requested) {
-        uv_fs_close(&a->m_loop, &a->close_req, static_cast<uv_file>(a->open_req.result), &file_writer::impl::on_uv_on_file_close);
+        uv_fs_close(&a->m_loop,
+                    &a->close_req,
+                    static_cast<uv_file>(a->open_req.result),
+                    &file_writer::impl::on_uv_on_file_close);
         uv_idle_stop(handle);
         uv_stop(&a->m_loop);
     }
@@ -121,19 +131,18 @@ void file_writer::impl::write(const char *data, size_t length) {
     m_buffer_in.get()->insert(m_buffer_in.get()->end(), data, data + length);
 }
 
+file_writer::impl::impl() : m_buffer_in(std::make_unique<std::vector<char>>()) {}
 
-file_writer::impl::impl():m_buffer_in(std::make_unique<std::vector<char>>()){}
-
-file_writer::impl::~impl()
-{
+file_writer::impl::~impl() {
     if (is_running())
         stop();
 }
 
-void file_writer::impl::start(std::filesystem::path path, error_cb_t on_error_cb,
+void file_writer::impl::start(std::filesystem::path path,
+                              error_cb_t on_error_cb,
                               started_cb_t on_client_connected_cb,
-                        stopped_cb_t on_client_disconnected_cb,
-                        unsigned int write_interval) {
+                              stopped_cb_t on_client_disconnected_cb,
+                              unsigned int write_interval) {
     if (is_running())
         throw std::logic_error("this file writer is currently running");
 
@@ -146,10 +155,16 @@ void file_writer::impl::start(std::filesystem::path path, error_cb_t on_error_cb
     THROW_ON_ERROR(uv_loop_init(&m_loop));
     m_loop.data = this;
 
-    THROW_ON_ERROR(uv_fs_open(&m_loop, &open_req, path.string().c_str(), UV_FS_O_TRUNC | UV_FS_O_CREAT | UV_FS_O_WRONLY | UV_FS_O_SEQUENTIAL | UV_FS_O_EXLOCK, 0644, on_uv_open));
+    THROW_ON_ERROR(uv_fs_open(&m_loop,
+                              &open_req,
+                              path.string().c_str(),
+                              UV_FS_O_TRUNC | UV_FS_O_CREAT | UV_FS_O_WRONLY | UV_FS_O_SEQUENTIAL |
+                                  UV_FS_O_EXLOCK,
+                              0644,
+                              on_uv_open));
 
     /* Set the last time the file buffer was checked to 0.
-     * Note: the idler is started by the on_uv_open cb 
+     * Note: the idler is started by the on_uv_open cb
      */
     m_last_write_time = 0;
 
@@ -174,9 +189,7 @@ void file_writer::impl::start(std::filesystem::path path, error_cb_t on_error_cb
 
             /* Close callbacks */
             uv_walk(
-                &m_loop,
-                [](uv_handle_s *handle, void *) { uv_close(handle, nullptr); },
-                nullptr);
+                &m_loop, [](uv_handle_s *handle, void *) { uv_close(handle, nullptr); }, nullptr);
 
             /* Check if there are any remaining callbacks*/
             if (uv_loop_close(&m_loop) != UV_EBUSY)
@@ -187,9 +200,7 @@ void file_writer::impl::start(std::filesystem::path path, error_cb_t on_error_cb
     });
 }
 
-std::filesystem::path file_writer::impl::path() const {
-    return open_req.path;
-}
+std::filesystem::path file_writer::impl::path() const { return open_req.path; }
 
 void file_writer::impl::stop() {
     {
@@ -250,30 +261,21 @@ void file_writer::impl::on_uv_on_file_close(uv_fs_t *req) {
 file_writer::file_writer() = default;
 file_writer::~file_writer() = default;
 
-void file_writer::start(std::filesystem::path _path, file_writer::error_cb_t on_error_cb, file_writer::started_cb_t on_client_connected_cb, file_writer::stopped_cb_t on_client_disconnected_cb, unsigned int write_interval)
-{
-    pimpl->start(_path, on_error_cb, on_client_connected_cb, on_client_disconnected_cb,write_interval);
+void file_writer::start(std::filesystem::path _path,
+                        file_writer::error_cb_t on_error_cb,
+                        file_writer::started_cb_t on_client_connected_cb,
+                        file_writer::stopped_cb_t on_client_disconnected_cb,
+                        unsigned int write_interval) {
+    pimpl->start(
+        _path, on_error_cb, on_client_connected_cb, on_client_disconnected_cb, write_interval);
 }
 
-void file_writer::stop()
-{
-    pimpl->stop();
-}
+void file_writer::stop() { pimpl->stop(); }
 
-bool file_writer::is_running() const
-{
-    return pimpl->is_running();
-}
+bool file_writer::is_running() const { return pimpl->is_running(); }
 
-void file_writer::write(const char *data, size_t length)
-{
-    pimpl->write(data, length);
-}
+void file_writer::write(const char *data, size_t length) { pimpl->write(data, length); }
 
-
-std::filesystem::path file_writer::path() const
-{
-    return pimpl->path();
-}
+std::filesystem::path file_writer::path() const { return pimpl->path(); }
 
 } // namespace sg

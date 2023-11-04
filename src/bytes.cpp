@@ -22,7 +22,9 @@ T shift(const uint8_t *buff, unsigned int no_bytes, sg::bytes::Endianess endian)
 }
 
 template <typename T>
-T swap_endian(const T val, typename std::enable_if<std::is_arithmetic<T>::value, std::nullptr_t>::type = nullptr) {
+T swap_endian(
+    const T val,
+    typename std::enable_if<std::is_arithmetic<T>::value, std::nullptr_t>::type = nullptr) {
     // Taken from
     // https://mklimenko.github.io/english/2018/08/22/robust-endian-swap/
 

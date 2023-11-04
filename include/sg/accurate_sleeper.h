@@ -23,12 +23,13 @@ class AccurateSleeper {
     AccurateSleeper();
     ~AccurateSleeper();
     template <class _reprsenetation, class _value>
-    void set_interval(
-        const std::chrono::duration<_reprsenetation, _value> &duration, Strategy strategy) {
+    void set_interval(const std::chrono::duration<_reprsenetation, _value> &duration,
+                      Strategy strategy) {
         if (duration > (std::chrono::nanoseconds::max)())
             throw std::invalid_argument("The provided time internval is too long");
 
-        set_interval(std::chrono::duration_cast<std::chrono::nanoseconds>(duration).count(), strategy);
+        set_interval(std::chrono::duration_cast<std::chrono::nanoseconds>(duration).count(),
+                     strategy);
     }
     void set_interval(uint64_t interval_ns, Strategy strategy);
     uint64_t interval() const;
@@ -41,14 +42,14 @@ class AccurateSleeper {
     void sleep_remove_lag(uint64_t remove_from_interval_ns);
 
     template <class _reprsenetation, class _value>
-    void sleep( const std::chrono::duration<_reprsenetation, _value> &duration) {
+    void sleep(const std::chrono::duration<_reprsenetation, _value> &duration) {
         if (duration > (std::chrono::nanoseconds::max)())
             throw std::invalid_argument("the provided time internval is too long");
         sleep_remove_lag(std::chrono::duration_cast<std::chrono::nanoseconds>(duration).count());
     }
 
   private:
-    uint64_t m_interval_ns = 1000000000ULL; //default: 1 second
+    uint64_t m_interval_ns = 1000000000ULL; // default: 1 second
     std::atomic<bool> m_realtime_enabled = false;
     Strategy m_strategy;
 

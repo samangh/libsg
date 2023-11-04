@@ -2,9 +2,9 @@
 
 #include <sg/export/sg_common.h>
 
+#include <iostream>
 #include <string>
 #include <vector>
-#include <iostream>
 
 namespace sg {
 
@@ -15,17 +15,18 @@ class SG_COMMON_EXPORT version {
 
     std::vector<unsigned int> versions;
 
-    operator std::string () const;
-    bool operator <(const version& rhs) const;
-    bool operator <=(const version& rhs) const;
-    bool operator >(const version& rhs) const;
-    bool operator >=(const version& rhs) const;
-    bool operator ==(const version& rhs) const;
-    bool operator !=(const version& rhs) const;
+    operator std::string() const;
+    bool operator<(const version &rhs) const;
+    bool operator<=(const version &rhs) const;
+    bool operator>(const version &rhs) const;
+    bool operator>=(const version &rhs) const;
+    bool operator==(const version &rhs) const;
+    bool operator!=(const version &rhs) const;
 
-    friend std::ostream& operator <<(std::ostream& os, const version& t);
+    friend std::ostream &operator<<(std::ostream &os, const version &t);
 };
 
-std::ostream& operator <<(std::ostream& os, const version& t);;
+std::ostream &operator<<(std::ostream &os, const version &t);
+;
 
-}
+} // namespace sg

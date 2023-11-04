@@ -4,8 +4,7 @@
 
 namespace sg::vector {
 
-template <typename T>
-void append(std::vector<T> &base, const std::vector<T>& to_add) {
+template <typename T> void append(std::vector<T> &base, const std::vector<T> &to_add) {
     base.insert(std::end(base), std::begin(to_add), std::end(to_add));
 }
 
@@ -16,9 +15,9 @@ void append(std::vector<T> &base, const std::vector<T>& to_add) {
  * equivalnet to copy (e.g. ini, double). But for more complex types
  * this is useful.
  */
-template <typename T>
-void append(std::vector<T> &base, std::vector<T>&& to_add) {
-    base.insert(std::end(base), make_move_iterator(to_add.begin()), make_move_iterator(to_add.end()));
+template <typename T> void append(std::vector<T> &base, std::vector<T> &&to_add) {
+    base.insert(
+        std::end(base), make_move_iterator(to_add.begin()), make_move_iterator(to_add.end()));
 }
 
 } // namespace sg::vector

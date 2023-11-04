@@ -1,20 +1,21 @@
 #pragma once
 
-#include "sg/pimpl.h"
 #include "sg/buffer.h"
 #include "sg/export/sg_common.h"
+#include "sg/pimpl.h"
 
 #include <cstdint>
 #include <functional>
 #include <map>
-#include <vector>
 #include <string>
+#include <vector>
 
 namespace sg {
 
 class SG_COMMON_EXPORT tcp_listener {
     class impl;
     sg::pimpl<impl> pimpl;
+
   public:
     typedef size_t client_id;
     typedef size_t write_req_id;
@@ -27,8 +28,11 @@ class SG_COMMON_EXPORT tcp_listener {
     typedef std::function<void(tcp_listener *)> on_stop_cb_t;
     typedef std::function<void(tcp_listener *, client_id, size_t length)> on_data_available_cb_t;
 
-    tcp_listener(on_error_cb_t on_error_cb, on_client_connected_cb_t on_client_connected_cb,
-                 on_client_disconnected_cb_t on_client_disconnected_cb, on_start_cb_t on_start, on_stop_cb_t on_stop,
+    tcp_listener(on_error_cb_t on_error_cb,
+                 on_client_connected_cb_t on_client_connected_cb,
+                 on_client_disconnected_cb_t on_client_disconnected_cb,
+                 on_start_cb_t on_start,
+                 on_stop_cb_t on_stop,
                  on_data_available_cb_t on_data_available_cb);
     ~tcp_listener();
 

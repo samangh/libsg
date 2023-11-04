@@ -6,8 +6,7 @@ namespace sg {
 ///
 /// Use decltype() on the input variable. As an example,
 /// `type_name(decltype<i>)`will retrun 'int' if 'i' is an int.
-template <typename T>
-constexpr auto type_name() noexcept {
+template <typename T> constexpr auto type_name() noexcept {
     // This is from
     // https://stackoverflow.com/questions/81870/is-it-possible-to-print-a-variables-type-in-standard-c/56766138#56766138
 

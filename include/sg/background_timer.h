@@ -1,7 +1,7 @@
 #pragma once
 
-#include "sg/export/sg_common.h"
 #include "pimpl.h"
+#include "sg/export/sg_common.h"
 
 #include "accurate_sleeper.h"
 
@@ -19,13 +19,16 @@ namespace sg {
 class SG_COMMON_EXPORT background_timer {
     class impl;
     sg::pimpl<impl> pimpl;
+
   public:
     typedef std::function<void(background_timer *)> started_cb_t;
     typedef std::function<void(background_timer *, std::exception_ptr error)> stopped_cb_t;
     typedef std::function<void(background_timer *)> task_t;
 
     /* encapsulates a thread that runs a provided task regualrly on a timer */
-    background_timer(const task_t &task, const started_cb_t &start_cb, const stopped_cb_t &stopped_cb);
+    background_timer(const task_t &task,
+                     const started_cb_t &start_cb,
+                     const stopped_cb_t &stopped_cb);
     ~background_timer();
 
     /* start */
