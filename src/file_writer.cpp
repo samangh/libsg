@@ -19,8 +19,8 @@ class file_writer::impl : public sg::libuv_wrapper {
     impl();
     void start(std::filesystem::path _path,
                error_cb_t on_error_cb,
-               started_cb_t on_client_connected_cb,
-               stopped_cb_t on_client_disconnected_cb,
+               libuv_on_start_cb_t on_client_connected_cb,
+               libuv_on_stop_cb_t on_client_disconnected_cb,
                unsigned int write_interval = 1000);
 
     void write(const char *data, size_t length);
@@ -142,8 +142,8 @@ file_writer::impl::impl() : m_buffer_in(std::make_unique<std::vector<char>>()) {
 
 void file_writer::impl::start(std::filesystem::path path,
                               error_cb_t on_error_cb,
-                              started_cb_t on_client_connected_cb,
-                              stopped_cb_t on_client_disconnected_cb,
+                              libuv_on_start_cb_t on_client_connected_cb,
+                              libuv_on_stop_cb_t on_client_disconnected_cb,
                               unsigned int write_interval) {
 
     m_path = path;

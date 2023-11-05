@@ -25,8 +25,8 @@ class SG_COMMON_EXPORT tcp_listener::impl : public sg::libuv_wrapper {
                on_error_cb_t on_error_cb,
                on_client_connected_cb_t on_client_connected_cb,
                on_client_disconnected_cb_t on_client_disconnected_cb,
-               started_cb_t on_start,
-               stopped_cb_t on_stop,
+               libuv_on_start_cb_t on_start,
+               libuv_on_stop_cb_t on_stop,
                on_data_available_cb_t on_data_available_cb);
     size_t number_of_clients() const;
 
@@ -114,8 +114,8 @@ void tcp_listener::impl::start(const int port,
                                on_error_cb_t on_error_cb,
                                on_client_connected_cb_t on_client_connected_cb,
                                on_client_disconnected_cb_t on_client_disconnected_cb,
-                               started_cb_t on_start,
-                               stopped_cb_t on_stop,
+                               libuv_on_start_cb_t on_start,
+                               libuv_on_stop_cb_t on_stop,
                                on_data_available_cb_t on_data_available_cb) {
 
     if (is_running())

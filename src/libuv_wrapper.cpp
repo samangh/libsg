@@ -23,7 +23,7 @@ bool libuv_wrapper::is_running() const
     return m_thread.joinable() && (uv_loop_alive(&m_loop) != 0);
 }
 
-void libuv_wrapper::start_libuv(started_cb_t on_start_cb, stopped_cb_t on_stop_cb){
+void libuv_wrapper::start_libuv(libuv_on_start_cb_t on_start_cb, libuv_on_stop_cb_t on_stop_cb){
     if (is_running())
         throw std::logic_error("this libuv loop is currently running");
 
