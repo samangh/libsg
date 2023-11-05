@@ -29,15 +29,16 @@ class SG_COMMON_EXPORT tcp_listener {
     typedef std::function<void(tcp_listener *, client_id, size_t length)> on_data_available_cb_t;
 
     /* Consructs a TCP listener, callbacks can be nullptr */
-    tcp_listener(on_error_cb_t on_error_cb,
-                 on_client_connected_cb_t on_client_connected_cb,
-                 on_client_disconnected_cb_t on_client_disconnected_cb,
-                 on_start_cb_t on_start,
-                 on_stop_cb_t on_stop,
-                 on_data_available_cb_t on_data_available_cb);
+    tcp_listener();
     ~tcp_listener();
 
-    void start(const int port);
+    void start(const int port,
+               on_error_cb_t on_error_cb,
+               on_client_connected_cb_t on_client_connected_cb,
+               on_client_disconnected_cb_t on_client_disconnected_cb,
+               on_start_cb_t on_start,
+               on_stop_cb_t on_stop,
+               on_data_available_cb_t on_data_available_cb);
     void stop();
     bool is_running() const;
     size_t number_of_clients() const;

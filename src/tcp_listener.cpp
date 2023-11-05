@@ -19,15 +19,15 @@ namespace sg {
 
 class SG_COMMON_EXPORT tcp_listener::impl : public sg::libuv_wrapper {
   public:
-    impl(tcp_listener *parent_listener,
-         on_error_cb_t on_error_cb,
-         on_client_connected_cb_t on_client_connected_cb,
-         on_client_disconnected_cb_t on_client_disconnected_cb,
-         on_start_cb_t on_start,
-         on_stop_cb_t on_stop,
-         on_data_available_cb_t on_data_available_cb);
+    impl(tcp_listener *parent_listener);
 
-    void start(const int port);
+    void start(const int port,
+               on_error_cb_t on_error_cb,
+               on_client_connected_cb_t on_client_connected_cb,
+               on_client_disconnected_cb_t on_client_disconnected_cb,
+               started_cb_t on_start,
+               stopped_cb_t on_stop,
+               on_data_available_cb_t on_data_available_cb);
     size_t number_of_clients() const;
 
     void write(client_id, sg::shared_opaque_buffer<uint8_t> buffer);
@@ -75,7 +75,6 @@ class SG_COMMON_EXPORT tcp_listener::impl : public sg::libuv_wrapper {
 
     int port;
     void setup_libuv_operations() override;
-
     void stop_libuv_operations() override {}
 
     /* libuv callbacks */
@@ -109,38 +108,26 @@ class SG_COMMON_EXPORT tcp_listener::impl : public sg::libuv_wrapper {
 
 void close_handle(uv_handle_s *handle, void *) { uv_close(handle, nullptr); }
 
-tcp_listener::impl::impl(tcp_listener *parent_listener,
-                         on_error_cb_t on_error_cb,
-                         on_client_connected_cb_t on_client_connected_cb,
-                         on_client_disconnected_cb_t on_client_disconnected_cb,
-                         on_start_cb_t on_start,
-                         on_stop_cb_t on_stop,
-                         on_data_available_cb_t on_data_available_cb)
-    : m_parent_listener(parent_listener),
-      m_on_error_cb(on_error_cb),
-      m_on_client_connected_cb(on_client_connected_cb),
-      m_on_client_disconnected_cb(on_client_disconnected_cb),
-      m_on_data_available(on_data_available_cb),
-      m_client_counter(0),
-      m_write_request_counter(0)
-{
-    // We must copy on_start and on_stop, as the reference will go
-    // out of memory as it's a rhs object
+tcp_listener::impl::impl(tcp_listener *parent_listener) : m_parent_listener(parent_listener) {}
 
-    this->m_started_cb = [&,on_start](libuv_wrapper *) {
-        if (on_start)
-            on_start(this->m_parent_listener);
-    };
+void tcp_listener::impl::start(const int port,
+                               on_error_cb_t on_error_cb,
+                               on_client_connected_cb_t on_client_connected_cb,
+                               on_client_disconnected_cb_t on_client_disconnected_cb,
+                               started_cb_t on_start,
+                               stopped_cb_t on_stop,
+                               on_data_available_cb_t on_data_available_cb) {
 
-    this->m_stopped_cb = [&,on_stop](libuv_wrapper *) {
-        if (on_stop)
-            on_stop(this->m_parent_listener);
-    };
-}
+    if (is_running())
+        throw std::logic_error("this tcplistener is currently running");
 
-void tcp_listener::impl::start(const int port) {
     this->port = port;
-    start_libuv();
+    m_on_error_cb = on_error_cb;
+    m_on_client_connected_cb = on_client_connected_cb;
+    m_on_client_disconnected_cb = on_client_disconnected_cb;
+    m_on_data_available = on_data_available_cb;
+
+    start_libuv(on_start, on_stop);
 }
 
 size_t tcp_listener::impl::number_of_clients() const {
@@ -289,6 +276,15 @@ tcp_listener::impl::add_write_request(client_id id, sg::shared_opaque_buffer<uin
 }
 
 void tcp_listener::impl::setup_libuv_operations() {
+    // Clean previous use data
+    {
+        std::lock_guard lock(m_mutex);
+        m_write_request_counter = 0;
+        m_client_counter = 0;
+        m_clients.clear();
+        m_write_requests.clear();
+    }
+
     /* Create address */
     struct sockaddr_in dest;
     THROW_ON_LIBUV_ERROR(uv_ip4_addr("0.0.0.0", port, &dest));
@@ -313,23 +309,37 @@ void tcp_listener::impl::on_error(client_id id, const std::string &message) {
         m_on_error_cb(m_parent_listener, id, message);
 }
 
-tcp_listener::tcp_listener(on_error_cb_t on_error_cb,
-                           on_client_connected_cb_t on_client_connected_cb,
-                           on_client_disconnected_cb_t on_client_disconnected_cb,
-                           on_start_cb_t on_start,
-                           on_stop_cb_t on_stop,
-                           on_data_available_cb_t on_data_available_cb)
-    : pimpl(sg::pimpl<impl>(this,
-                            on_error_cb,
-                            on_client_connected_cb,
-                            on_client_disconnected_cb,
-                            on_start,
-                            on_stop,
-                            on_data_available_cb)) {}
+tcp_listener::tcp_listener()
+    : pimpl(sg::pimpl<impl>(this)) {}
 
 tcp_listener::~tcp_listener() = default;
 
-void tcp_listener::start(const int port) { pimpl->start(port); }
+void tcp_listener::start(const int port,
+                         on_error_cb_t on_error_cb,
+                         on_client_connected_cb_t on_client_connected_cb,
+                         on_client_disconnected_cb_t on_client_disconnected_cb,
+                         on_start_cb_t on_start,
+                         on_stop_cb_t on_stop,
+                         on_data_available_cb_t on_data_available_cb) {
+
+    auto started_cb = [&, on_start](libuv_wrapper *){
+        if (on_start)
+            on_start(this);
+    };
+
+    auto stopped_cb = [&, on_stop](libuv_wrapper *){
+        if (on_stop)
+            on_stop(this);
+    };
+
+    pimpl->start(port,
+                 on_error_cb,
+                 on_client_connected_cb,
+                 on_client_disconnected_cb,
+                 started_cb,
+                 stopped_cb,
+                 on_data_available_cb);
+}
 
 void tcp_listener::stop() { pimpl->stop(); }
 
