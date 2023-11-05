@@ -209,9 +209,8 @@ void tcp_listener::impl::on_new_connection(uv_stream_t *server, int status) {
     client_id id;
     {
         std::lock_guard lock(a->m_mutex);
-        a->m_client_counter++;
-        id = a->m_client_counter;
-        a->m_clients.emplace(a->m_client_counter, std::make_unique<client_data>(a, id));
+        id = a->m_client_counter++;
+        a->m_clients.emplace(id, std::make_unique<client_data>(a, id));
     }
 
     uv_tcp_t *client = a->m_clients.at(id)->uv_tcp_handle.get();
