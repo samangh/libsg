@@ -103,8 +103,7 @@ void file_writer::impl::on_uv_timer_tick(uv_idle_t *handle) {
     }
 }
 
-void file_writer::impl::setup_libuv_operations()
-{
+void file_writer::impl::setup_libuv_operations() {
     {
         std::lock_guard lock(m_mutex);
         m_buffer_in->clear();
@@ -117,16 +116,15 @@ void file_writer::impl::setup_libuv_operations()
     }
 
     THROW_ON_LIBUV_ERROR(uv_fs_open(&m_loop,
-                              &open_req,
-                              m_path.string().c_str(),
-                              UV_FS_O_TRUNC | UV_FS_O_CREAT | UV_FS_O_WRONLY | UV_FS_O_SEQUENTIAL |
-                                  UV_FS_O_EXLOCK,
-                              0644,
-                              on_uv_open));
+                                    &open_req,
+                                    m_path.string().c_str(),
+                                    UV_FS_O_TRUNC | UV_FS_O_CREAT | UV_FS_O_WRONLY |
+                                        UV_FS_O_SEQUENTIAL | UV_FS_O_EXLOCK,
+                                    0644,
+                                    on_uv_open));
 }
 
-void file_writer::impl::stop_libuv_operations()
-{
+void file_writer::impl::stop_libuv_operations() {
     uv_fs_close(&m_loop,
                 &close_req,
                 static_cast<uv_file>(open_req.result),
@@ -203,18 +201,17 @@ void file_writer::start(std::filesystem::path _path,
                         file_writer::stopped_cb_t on_client_disconnected_cb,
                         unsigned int write_interval) {
 
-    auto started_cb = [&,on_client_connected_cb](libuv_wrapper *) {
+    auto started_cb = [&, on_client_connected_cb](libuv_wrapper *) {
         if (on_client_connected_cb)
             on_client_connected_cb(this);
     };
 
-    auto stoped_cb = [&,on_client_disconnected_cb](libuv_wrapper *) {
+    auto stoped_cb = [&, on_client_disconnected_cb](libuv_wrapper *) {
         if (on_client_disconnected_cb)
             on_client_disconnected_cb(this);
     };
 
-    pimpl->start(
-        _path, on_error_cb, started_cb, stoped_cb, write_interval);
+    pimpl->start(_path, on_error_cb, started_cb, stoped_cb, write_interval);
 }
 
 void file_writer::stop() { pimpl->stop(); }

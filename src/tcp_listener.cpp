@@ -308,8 +308,7 @@ void tcp_listener::impl::on_error(client_id id, const std::string &message) {
         m_on_error_cb(m_parent_listener, id, message);
 }
 
-tcp_listener::tcp_listener()
-    : pimpl(sg::pimpl<impl>(this)) {}
+tcp_listener::tcp_listener() : pimpl(sg::pimpl<impl>(this)) {}
 
 tcp_listener::~tcp_listener() = default;
 
@@ -321,12 +320,12 @@ void tcp_listener::start(const int port,
                          on_stop_cb_t on_stop,
                          on_data_available_cb_t on_data_available_cb) {
 
-    auto started_cb = [&, on_start](libuv_wrapper *){
+    auto started_cb = [&, on_start](libuv_wrapper *) {
         if (on_start)
             on_start(this);
     };
 
-    auto stopped_cb = [&, on_stop](libuv_wrapper *){
+    auto stopped_cb = [&, on_stop](libuv_wrapper *) {
         if (on_stop)
             on_stop(this);
     };

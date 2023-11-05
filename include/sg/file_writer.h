@@ -14,8 +14,8 @@ class file_writer {
 
   public:
     typedef std::function<void(const std::string &msg)> error_cb_t;
-    typedef std::function<void(file_writer*)> started_cb_t;
-    typedef std::function<void(file_writer*)> stopped_cb_t;
+    typedef std::function<void(file_writer *)> started_cb_t;
+    typedef std::function<void(file_writer *)> stopped_cb_t;
 
     file_writer();
     ~file_writer();
