@@ -19,16 +19,10 @@ class libuv_wrapper {
     void stop();
     bool is_running() const;
 
-  protected:
     typedef std::function<void(libuv_wrapper *)> started_cb_t;
     typedef std::function<void(libuv_wrapper *)> stopped_cb_t;
 
-    /* This call back will be called right before libuv is started */
-    started_cb_t m_started_cb;
-
-    /* This call back will be called right after libuv is stopped */
-    stopped_cb_t m_stopped_cb;
-
+  protected:
     uv_loop_t m_loop;
 
     /* Function that will be called to setup libuv operations
@@ -48,11 +42,15 @@ class libuv_wrapper {
      *  - This will be called in the libuv event loop thread. */
     virtual void stop_libuv_operations() = 0;
 
-    void start_libuv();
+    /* Starts libuv loop, the callbacks can be nullptr */
+    void start_libuv(started_cb_t, stopped_cb_t);
 
   private:
     std::thread m_thread;
     std::unique_ptr<uv_async_t> m_async; /* For stopping the loop */
+
+    started_cb_t m_started_cb;
+    stopped_cb_t m_stopped_cb;
 };
 
 } // namespace sg

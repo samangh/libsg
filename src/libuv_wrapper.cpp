@@ -23,10 +23,19 @@ bool libuv_wrapper::is_running() const
     return m_thread.joinable() && (uv_loop_alive(&m_loop) != 0);
 }
 
-void libuv_wrapper::start_libuv(){
+void libuv_wrapper::start_libuv(started_cb_t on_start_cb, stopped_cb_t on_stop_cb){
+    if (is_running())
+        throw std::logic_error("this libuv loop is currently running");
+
+    m_started_cb = on_start_cb;
+    m_stopped_cb = on_stop_cb;
+
     /* setup UV loop */
     THROW_ON_LIBUV_ERROR(uv_loop_init(&m_loop));
     m_loop.data = this;
+
+    /* call derived class operations */
+    setup_libuv_operations();
 
     /* Setup handle for stopping the loop */
     m_async = std::make_unique<uv_async_t>();
@@ -34,9 +43,6 @@ void libuv_wrapper::start_libuv(){
         ((libuv_wrapper*)handle->loop->data)->stop_libuv_operations();
         uv_stop(handle->loop);
     });
-
-    /* call derived class operations */
-    setup_libuv_operations();
 
     m_thread = std::thread([&]() {
         if (m_started_cb)
