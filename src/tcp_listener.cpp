@@ -1,5 +1,6 @@
 #include "sg/tcp_listener.h"
 #include "sg/buffer.h"
+#include "sg/libuv_wrapper.h"
 
 #include <uv.h>
 
@@ -14,13 +15,9 @@
 #include <thread>
 #include <vector>
 
-#define THROW_ON_ERROR(err)                                                                        \
-    if (err < 0)                                                                                   \
-        throw std::runtime_error(uv_strerror(err));
-
 namespace sg {
 
-class SG_COMMON_EXPORT tcp_listener::impl {
+class SG_COMMON_EXPORT tcp_listener::impl : public sg::libuv_wrapper {
   public:
     impl(tcp_listener *parent_listener,
          on_error_cb_t on_error_cb,
@@ -29,11 +26,8 @@ class SG_COMMON_EXPORT tcp_listener::impl {
          on_start_cb_t on_start,
          on_stop_cb_t on_stop,
          on_data_available_cb_t on_data_available_cb);
-    ~impl();
 
     void start(const int port);
-    void stop();
-    bool is_running() const;
     size_t number_of_clients() const;
 
     void write(client_id, sg::shared_opaque_buffer<uint8_t> buffer);
@@ -77,8 +71,12 @@ class SG_COMMON_EXPORT tcp_listener::impl {
     void remove_write_request(write_req_id);
     write_request *add_write_request(client_id id, sg::shared_opaque_buffer<uint8_t>);
 
-    std::thread m_thread;
     tcp_listener *m_parent_listener;
+
+    int port;
+    void setup_libuv_operations() override;
+
+    void stop_libuv_operations() override {}
 
     /* libuv callbacks */
     static void on_read(uv_stream_t *tcp, ssize_t nread, const uv_buf_t *buf);
@@ -92,8 +90,6 @@ class SG_COMMON_EXPORT tcp_listener::impl {
     on_error_cb_t m_on_error_cb; /* Called in case of errors after connect(...) */
     on_client_connected_cb_t m_on_client_connected_cb;
     on_client_disconnected_cb_t m_on_client_disconnected_cb;
-    on_start_cb_t m_on_start_cb;
-    on_stop_cb_t m_on_stop_cb;
     on_data_available_cb_t m_on_data_available;
 
     /* clients*/
@@ -107,10 +103,8 @@ class SG_COMMON_EXPORT tcp_listener::impl {
     std::map<write_req_id, std::unique_ptr<write_request>> m_write_requests;
 
     /* libuv stuff*/
-    uv_loop_t m_loop;
     std::unique_ptr<uv_tcp_t> m_sock;     /* Socket used for connection */
     std::unique_ptr<uv_connect_t> m_conn; /* UV connection object */
-    std::unique_ptr<uv_async_t> m_async;  /* For stopping the loop */
 };
 
 void close_handle(uv_handle_s *handle, void *) { uv_close(handle, nullptr); }
@@ -126,78 +120,27 @@ tcp_listener::impl::impl(tcp_listener *parent_listener,
       m_on_error_cb(on_error_cb),
       m_on_client_connected_cb(on_client_connected_cb),
       m_on_client_disconnected_cb(on_client_disconnected_cb),
-      m_on_start_cb(on_start),
-      m_on_stop_cb(on_stop),
       m_on_data_available(on_data_available_cb),
       m_client_counter(0),
-      m_write_request_counter(0) {}
+      m_write_request_counter(0)
+{
+    // We must copy on_start and on_stop, as the reference will go
+    // out of memory as it's a rhs object
+
+    this->m_started_cb = [&,on_start](libuv_wrapper *) {
+        if (on_start)
+            on_start(this->m_parent_listener);
+    };
+
+    this->m_stopped_cb = [&,on_stop](libuv_wrapper *) {
+        if (on_stop)
+            on_stop(this->m_parent_listener);
+    };
+}
 
 void tcp_listener::impl::start(const int port) {
-    /* setup UV loop */
-    uv_loop_init(&m_loop);
-    m_loop.data = this;
-
-    /* Setup handle for stopping the loop */
-    m_async = std::make_unique<uv_async_t>();
-    uv_async_init(&m_loop, m_async.get(), [](uv_async_t *handle) { uv_stop(handle->loop); });
-
-    /* Create address */
-    struct sockaddr_in dest;
-    THROW_ON_ERROR(uv_ip4_addr("0.0.0.0", port, &dest));
-
-    /* Create socket */
-    m_sock = std::make_unique<uv_tcp_t>();
-    THROW_ON_ERROR(uv_tcp_init(&m_loop, m_sock.get()));
-
-    /* Bind socket and address */
-    THROW_ON_ERROR(uv_tcp_bind(m_sock.get(), (const struct sockaddr *)&dest, 0));
-
-    /* Start listening */
-    THROW_ON_ERROR(uv_listen((uv_stream_t *)m_sock.get(), 20, on_new_connection));
-
-    m_thread = std::thread([&]() {
-        if (m_on_start_cb != nullptr)
-            m_on_start_cb(m_parent_listener);
-        while (true) {
-            uv_run(&m_loop, UV_RUN_DEFAULT);
-
-            /* The following loop closing logic is from guidance from
-             * https://stackoverflow.com/questions/25615340/closing-libuv-handles-correctly
-             *
-             *  If there are any loops that are not closing:
-             *
-             *  - Use uv_walk and call uv_close on the handles;
-             *  - Run the loop again with uv_run so all close callbacks are
-             *    called and you can free the memory in the callbacks */
-
-            /* Close callbacks */
-            uv_walk(&m_loop, &close_handle, nullptr);
-
-            /* Check if there are any remaining call backs*/
-            if (uv_loop_close(&m_loop) != UV_EBUSY)
-                break;
-        }
-        if (m_on_stop_cb != nullptr)
-            m_on_stop_cb(m_parent_listener);
-    });
-}
-
-void tcp_listener::impl::stop() {
-    // Signal the thread that it should stop
-    // m_end = true;
-
-    if (uv_loop_alive(&m_loop))
-        uv_async_send(m_async.get());
-
-    // join and wait for the thread to end.
-    // Note: A thread that has finished executing code, but has not yet been joined
-    //        is still considered an active thread of execution and is therefore joinable.
-    if (m_thread.joinable())
-        m_thread.join();
-}
-
-bool tcp_listener::impl::is_running() const {
-    return m_thread.joinable() && (uv_loop_alive(&m_loop) != 0);
+    this->port = port;
+    start_libuv();
 }
 
 size_t tcp_listener::impl::number_of_clients() const {
@@ -214,11 +157,6 @@ void tcp_listener::impl::write(client_id id, sg::shared_opaque_buffer<uint8_t> b
     auto req = write_req->uv_write_req_handle.get();
     auto stream = (uv_stream_t *)write_req->client_data_ptr->uv_tcp_handle.get();
     uv_write(req, stream, &wrbuf, 1, &on_write);
-}
-
-tcp_listener::impl::~impl() {
-    if (is_running())
-        stop();
 }
 
 std::vector<sg::tcp_listener::buffer> tcp_listener::impl::get_buffer(client_id id) {
@@ -269,7 +207,7 @@ void tcp_listener::impl::on_read(uv_stream_t *client, ssize_t nread, const uv_bu
         a->m_clients.at(id)->data.emplace_back(std::move(b));
     }
 
-    if (a->m_on_data_available !=nullptr)
+    if (a->m_on_data_available != nullptr)
         a->m_on_data_available(a->m_parent_listener, id, nread);
 }
 
@@ -350,6 +288,22 @@ tcp_listener::impl::add_write_request(client_id id, sg::shared_opaque_buffer<uin
     return m_write_requests.at(req_number).get();
 }
 
+void tcp_listener::impl::setup_libuv_operations() {
+    /* Create address */
+    struct sockaddr_in dest;
+    THROW_ON_LIBUV_ERROR(uv_ip4_addr("0.0.0.0", port, &dest));
+
+    /* Create socket */
+    m_sock = std::make_unique<uv_tcp_t>();
+    THROW_ON_LIBUV_ERROR(uv_tcp_init(&m_loop, m_sock.get()));
+
+    /* Bind socket and address */
+    THROW_ON_LIBUV_ERROR(uv_tcp_bind(m_sock.get(), (const struct sockaddr *)&dest, 0));
+
+    /* Start listening */
+    THROW_ON_LIBUV_ERROR(uv_listen((uv_stream_t *)m_sock.get(), 20, on_new_connection));
+}
+
 /************************************************************
  *  PUBLIC INTERFACE
  ***********************************************************/
@@ -408,16 +362,15 @@ std::map<tcp_listener::client_id, std::vector<uint8_t>> tcp_listener::get_buffer
     return result;
 }
 
-std::vector<uint8_t> tcp_listener::buffers_to_vector(std::vector<buffer> buffers)
-{
+std::vector<uint8_t> tcp_listener::buffers_to_vector(std::vector<buffer> buffers) {
     size_t total_size = 0;
-    for (const auto& buf : buffers)
+    for (const auto &buf : buffers)
         total_size += buf.size();
 
     std::vector<uint8_t> result;
     result.reserve(total_size);
 
-    for ( auto& buf : buffers)
+    for (auto &buf : buffers)
         result.insert(result.end(), buf.begin(), buf.end());
 
     return result;
