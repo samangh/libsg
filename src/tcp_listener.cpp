@@ -14,6 +14,10 @@
 #include <thread>
 #include <vector>
 
+#define THROW_ON_ERROR(err)                                                                        \
+    if (err < 0)                                                                                   \
+        throw std::runtime_error(uv_strerror(err));
+
 namespace sg {
 
 class SG_COMMON_EXPORT tcp_listener::impl {
@@ -133,33 +137,23 @@ void tcp_listener::impl::start(const int port) {
     uv_loop_init(&m_loop);
     m_loop.data = this;
 
-    int err = 0;
-
     /* Setup handle for stopping the loop */
     m_async = std::make_unique<uv_async_t>();
     uv_async_init(&m_loop, m_async.get(), [](uv_async_t *handle) { uv_stop(handle->loop); });
 
     /* Create address */
     struct sockaddr_in dest;
-    err = uv_ip4_addr("0.0.0.0", port, &dest);
-    if (err != 0)
-        throw std::runtime_error(uv_strerror(err));
+    THROW_ON_ERROR(uv_ip4_addr("0.0.0.0", port, &dest));
 
     /* Create socket */
     m_sock = std::make_unique<uv_tcp_t>();
-    err = uv_tcp_init(&m_loop, m_sock.get());
-    if (err != 0)
-        throw std::runtime_error(uv_strerror(err));
+    THROW_ON_ERROR(uv_tcp_init(&m_loop, m_sock.get()));
 
     /* Bind socket and address */
-    err = uv_tcp_bind(m_sock.get(), (const struct sockaddr *)&dest, 0);
-    if (err != 0)
-        throw std::runtime_error(uv_strerror(err));
+    THROW_ON_ERROR(uv_tcp_bind(m_sock.get(), (const struct sockaddr *)&dest, 0));
 
     /* Start listening */
-    err = uv_listen((uv_stream_t *)m_sock.get(), 20, on_new_connection);
-    if (err != 0)
-        throw std::runtime_error(uv_strerror(err));
+    THROW_ON_ERROR(uv_listen((uv_stream_t *)m_sock.get(), 20, on_new_connection));
 
     m_thread = std::thread([&]() {
         if (m_on_start_cb != nullptr)
