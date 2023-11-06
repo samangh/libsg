@@ -1,6 +1,7 @@
 #pragma once
 
 #include <shared_mutex>
+#include <string>
 
 namespace sg {
 

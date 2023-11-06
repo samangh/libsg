@@ -1,5 +1,9 @@
 #include "sg/version.h"
-#include "fmt/ranges.h"
+
+#include <compare>
+#include <fmt/core.h>
+
+#include "fmt/format.h"
 
 namespace sg {
 

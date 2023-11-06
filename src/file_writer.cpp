@@ -1,16 +1,17 @@
-#include <sg/file_writer.h>
-#include <sg/libuv_wrapper.h>
-
-#include <cstdint>
 #include <filesystem>
 #include <functional>
 #include <memory>
 #include <mutex>
+#include <sg/file_writer.h>
+#include <sg/libuv_wrapper.h>
 #include <shared_mutex>
-#include <stdexcept>
-#include <thread>
 #include <type_traits>
+#include <utility>
+#include <uv.h>
+#include <uv/unix.h>
 #include <vector>
+
+#include "sg/pimpl.h"
 
 namespace sg {
 

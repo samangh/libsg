@@ -1,5 +1,15 @@
 #include "sg/background_timer.h"
 
+#include <bits/chrono.h>                // for operator-, high_resolution_c...
+#include <memory>                       // for unique_ptr
+#include <mutex>                        // for unique_lock, lock_guard, mutex
+#include <stdexcept>                    // for logic_error, runtime_error
+#include <thread>
+#include <type_traits> // for remove_reference_t
+
+#include "sg/accurate_sleeper.h" // for AccurateSleeper, AccurateSle...
+#include "sg/pimpl.h"            // for pimpl
+
 /* Note:
  *
  * A thread that has finished executing code, but has not yet been joined is

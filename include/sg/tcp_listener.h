@@ -1,19 +1,21 @@
 #pragma once
 
-#include "sg/buffer.h"
-#include "sg/export/sg_common.h"
-#include "sg/pimpl.h"
-
 #include <cstdint>
 #include <functional>
 #include <map>
+#include <stddef.h>
 #include <string>
 #include <vector>
+
+#include "sg/buffer.h"
+#include "sg/export/sg_common.h"
+#include "sg/pimpl.h"
 
 namespace sg {
 
 class SG_COMMON_EXPORT tcp_listener {
     class impl;
+
     sg::pimpl<impl> pimpl;
 
   public:

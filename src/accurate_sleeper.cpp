@@ -1,6 +1,7 @@
 #include "sg/accurate_sleeper.h"
 
-#include <chrono>
+#include <bits/types/struct_sched_param.h> // for sched_param
+#include <compare>                         // for operator<, strong_ordering
 #include <iostream>
 #include <stdexcept>
 #include <string.h>
