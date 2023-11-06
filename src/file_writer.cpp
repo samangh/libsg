@@ -56,15 +56,40 @@ class file_writer::impl : public sg::libuv_wrapper {
 
     void setup_libuv_operations() override;
     void stop_libuv_operations() override;
+    void do_write();
 };
+
+void file_writer::impl::do_write() {
+    std::lock_guard lock(m_mutex);
+
+    /* If a write is already requested, then RETURN*/
+    if (m_write_pending)
+        return;
+
+    m_last_write_time = uv_now(&m_loop);
+
+    if (m_buffer_in->size() > 0) {
+        m_buffer_out = std::move(m_buffer_in);
+        m_buffer_in = std::make_unique<std::vector<char>>();
+
+        auto size = m_buffer_out->size();
+        auto buff_ptr = &(*m_buffer_out.get())[0];
+        m_uv_buf = uv_buf_init(buff_ptr, static_cast<unsigned int>(size));
+
+        m_write_pending = true;
+        uv_fs_write(&m_loop,
+                    &write_req,
+                    static_cast<uv_file>(open_req.result),
+                    &m_uv_buf,
+                    1,
+                    -1,
+                    on_uv_on_write);
+    }
+}
 
 void file_writer::impl::on_uv_timer_tick(uv_idle_t *handle) {
     /* Only called on UV event loop, so we don't need to lock for some things*/
     auto a = (file_writer::impl *)handle->loop->data;
-
-    /* If a write is already requested, then RETURN*/
-    if (a->m_write_pending)
-        return;
 
     /* Note (from https://stackoverflow.com/questions/47401833/is-uv-write-actually-asynchronous):
      *
@@ -76,38 +101,21 @@ void file_writer::impl::on_uv_timer_tick(uv_idle_t *handle) {
      * Because I don't want to maintain the offset paramemter I have one single buffer that I write
      * at a time. */
 
-    /* If data is available, send write request and RETURN*/
+    /* If data is available, send write request*/
     if (uv_now(handle->loop) >= a->m_last_write_time + a->buffer_write_interval) {
         a->m_last_write_time = uv_now(handle->loop);
-
-        std::lock_guard lock(a->m_mutex);
-        if (a->m_buffer_in->size() > 0) {
-            a->m_buffer_out = std::move(a->m_buffer_in);
-            a->m_buffer_in = std::make_unique<std::vector<char>>();
-
-            auto size = a->m_buffer_out->size();
-            auto buff_ptr = &(*a->m_buffer_out.get())[0];
-            a->m_uv_buf = uv_buf_init(buff_ptr, static_cast<unsigned int>(size));
-
-            a->m_write_pending = true;
-            uv_fs_write(&a->m_loop,
-                        &a->write_req,
-                        static_cast<uv_file>(a->open_req.result),
-                        &a->m_uv_buf,
-                        1,
-                        -1,
-                        on_uv_on_write);
-
-            return;
-        }
+        a->do_write();
     }
 }
 
 void file_writer::impl::setup_libuv_operations() {
     {
         std::lock_guard lock(m_mutex);
-        m_buffer_in->clear();
-        m_buffer_out->clear();
+        if (m_buffer_in)
+            m_buffer_in->clear();
+
+        if (m_buffer_out)
+            m_buffer_out->clear();
 
         /* Set the last time the file buffer was checked to 0.
          * Note: the idler is started by the on_uv_open cb
@@ -125,6 +133,9 @@ void file_writer::impl::setup_libuv_operations() {
 }
 
 void file_writer::impl::stop_libuv_operations() {
+    /* flush cache */
+    do_write();
+
     uv_fs_close(&m_loop,
                 &close_req,
                 static_cast<uv_file>(open_req.result),
