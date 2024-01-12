@@ -21,7 +21,7 @@ class file_writer {
 
     file_writer();
     ~file_writer();
-    void start(std::filesystem::path _path,
+    void start(const std::filesystem::path& _path,
                error_cb_t on_error_cb,
                started_cb_t on_client_connected_cb,
                stopped_cb_t on_client_disconnected_cb,

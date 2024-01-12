@@ -204,7 +204,7 @@ void file_writer::impl::on_uv_on_file_close(uv_fs_t *req) {
 file_writer::file_writer() = default;
 file_writer::~file_writer() = default;
 
-void file_writer::start(std::filesystem::path _path,
+void file_writer::start(const std::filesystem::path& _path,
                         file_writer::error_cb_t on_error_cb,
                         file_writer::started_cb_t on_client_connected_cb,
                         file_writer::stopped_cb_t on_client_disconnected_cb,
