@@ -6,6 +6,7 @@ set_property(GLOBAL APPEND PROPERTY ${PROJECT_NAME}_TARGETS ${TARGET})
 find_package(Threads REQUIRED)
 find_package(LibUV REQUIRED)
 find_package(fmt REQUIRED)
+find_package(zstd REQUIRED)
 
 ##
 ## Source files
@@ -41,6 +42,7 @@ target_link_libraries(${TARGET}
   PRIVATE
     Threads::Threads
     $<$<BOOL:${WIN32}>:Winmm>
+    $<IF:$<BOOL:${USE_STATIC_LIBS}>,zstd::libzstd_static,zstd::libzstd_shared>
     fmt::fmt)
 
 include (GenerateExportHeader)
