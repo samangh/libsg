@@ -1,8 +1,12 @@
 #pragma once
 
+#include "buffer.h"
+
 #include <cstddef>
+
 namespace sg::compresstion::zstd {
 
-void compress(void *dst, size_t dstCapacity, const void *src, size_t srcSize, int compressionLevel);
+sg::unique_opaque_buffer<uint8_t>
+compress(const void *src, size_t srcSize, int compressionLevel, uint noThreads);
 
 }
