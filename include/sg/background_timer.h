@@ -1,19 +1,23 @@
 #pragma once
 
-#include <exception>
-#include <functional>
-#include <shared_mutex>
-#include <stdint.h> // for uint32_t, uint64_t
-
-#include "accurate_sleeper.h"
 #include "pimpl.h"
 #include "sg/export/sg_common.h"
+
+#include "accurate_sleeper.h"
+
+#include <atomic>
+#include <chrono>
+#include <exception>
+#include <functional>
+#include <memory>
+#include <mutex>
+#include <shared_mutex>
+#include <thread>
 
 namespace sg {
 
 class SG_COMMON_EXPORT background_timer {
     class impl;
-
     sg::pimpl<impl> pimpl;
 
   public:

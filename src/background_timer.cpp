@@ -1,6 +1,6 @@
 #include "sg/background_timer.h"
 
-#include <bits/chrono.h> // for operator-, high_resolution_c...
+#include <chrono> // for operator-, high_resolution_c...
 #include <memory>        // for unique_ptr
 #include <mutex>         // for unique_lock, lock_guard, mutex
 #include <stdexcept>     // for logic_error, runtime_error

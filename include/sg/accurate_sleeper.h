@@ -1,10 +1,9 @@
 #pragma once
 
 #include <atomic>
-#include <bits/chrono.h> // for nanoseconds, duration, duration_cast
+#include <chrono>
 #include <memory>
 #include <stdexcept>
-#include <stdint.h> // for uint64_t
 
 #ifndef _WIN32
     #include <pthread.h>

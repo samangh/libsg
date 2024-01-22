@@ -1,17 +1,15 @@
 #pragma once
 
+#include "pimpl.h"
+
 #include <filesystem>
 #include <functional>
-#include <stddef.h>
 #include <string>
-
-#include "pimpl.h"
 
 namespace sg {
 
 class file_writer {
     class impl;
-
     sg::pimpl<impl> pimpl;
 
   public:

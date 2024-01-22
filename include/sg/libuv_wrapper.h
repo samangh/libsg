@@ -1,9 +1,8 @@
 #pragma once
 
 #include <functional>
-#include <memory>
-#include <stdexcept>
 #include <thread>
+#include <stdexcept>
 #include <uv.h>
 
 #define THROW_ON_LIBUV_ERROR(err)                                                                  \
