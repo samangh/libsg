@@ -39,6 +39,7 @@ compress(const void *src, size_t srcSize, int compressionLevel, int noThreads) {
 
     /* Create intermediate buffer */
     auto cBuffSize= ZSTD_compressBound(srcSize);
+    ZSTD_THROW_ON_ERROR(cBuffSize);
     auto cBuff = sg::make_unique_c_buffer<uint8_t>(cBuffSize);
 
     /* Compress */
