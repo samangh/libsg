@@ -56,10 +56,12 @@ compress(const void *src, size_t srcSize, int compressionLevel, int noThreads) {
     auto cSize = ZSTD_compress2(comp_context.get(), cBuff.get(), cBuffSize, src, srcSize);
     ZSTD_THROW_ON_ERROR(cSize);
 
-    /* Create finale buffer */
-    auto output = sg::make_unique_c_buffer<uint8_t>(cSize);
-    memcpy(output.get(), cBuff.get(), cSize);
-    return output;
+    /* Reallocate buffer */
+    auto newPtr = realloc(cBuff.release(), cSize);
+    if (!newPtr)
+        throw std::exception("memory reallocation failed");
+
+    return sg::unique_c_buffer<uint8_t>((uint8_t*)newPtr, cSize);
 }
 
 unique_c_buffer<uint8_t> decompress(const void *src, size_t srcSize)
