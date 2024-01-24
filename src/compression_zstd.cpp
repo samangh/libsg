@@ -24,8 +24,7 @@ struct decompression_context_deleter {
  * as there is a performance penalty */
 thread_local std::unique_ptr<ZSTD_CCtx, compression_context_deleter> comp_context;
 thread_local std::unique_ptr<ZSTD_DCtx, decompression_context_deleter> decomp_context;
-thread_local int _noThreads;
-thread_local int _cLevel;
+
 
 namespace sg::compression::zstd {
 
@@ -34,19 +33,9 @@ compress(const void *src, size_t srcSize, int compressionLevel, int noThreads) {
     if (!comp_context)
         comp_context = std::unique_ptr<ZSTD_CCtx, compression_context_deleter>(ZSTD_createCCtx());
 
-    /* Set required number of threads */
-    if (_noThreads != noThreads)
-    {
-        ZSTD_THROW_ON_ERROR(ZSTD_CCtx_setParameter(comp_context.get(), ZSTD_c_nbWorkers, noThreads));
-        _noThreads = noThreads;
-    }
-
-    /* Set required number of compression level */
-    if (_cLevel != compressionLevel)
-    {
-        ZSTD_THROW_ON_ERROR(ZSTD_CCtx_setParameter(comp_context.get(), ZSTD_c_compressionLevel, compressionLevel));
-        _cLevel = compressionLevel;
-    }
+    /* Set parameters */
+    ZSTD_THROW_ON_ERROR(ZSTD_CCtx_setParameter(comp_context.get(), ZSTD_c_nbWorkers, noThreads));
+    ZSTD_THROW_ON_ERROR(ZSTD_CCtx_setParameter(comp_context.get(), ZSTD_c_compressionLevel, compressionLevel));
 
     /* Create intermediate buffer */
     auto cBuffSize= ZSTD_compressBound(srcSize);
