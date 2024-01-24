@@ -44,7 +44,6 @@ compress(const void *src, size_t srcSize, int compressionLevel, int noThreads) {
         _cLevel = compressionLevel;
     }
 
-
     /* Create intermediate buffer */
     auto cBuffSize= ZSTD_compressBound(srcSize);
     auto cBuff = sg::make_unique_c_buffer<uint8_t>(cBuffSize);
@@ -57,6 +56,11 @@ compress(const void *src, size_t srcSize, int compressionLevel, int noThreads) {
     auto output = sg::make_unique_c_buffer<uint8_t>(cSize);
     memcpy(output.get(), cBuff.get(), cSize);
     return output;
+}
+
+sg::unique_opaque_buffer<uint8_t> compress(const sg::IBuffer<uint8_t> &srcBuffer, int compressionLevel, int noThreads)
+{
+    return compress(srcBuffer.get(), srcBuffer.size()*sizeof(uint8_t), compressionLevel, noThreads);
 }
 
 } // namespace sg::compresstion::zstd
