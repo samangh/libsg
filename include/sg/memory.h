@@ -20,11 +20,11 @@ namespace sg::memory {
 
 static inline void* MallocOrThrow(size_t size) {
     if (size==0)
-        throw std::exception("malloc failed: attempted to malloc an object of zero size");
+        throw std::bad_alloc();
 
     void* result = malloc(size);
     if (!result)
-        throw std::exception("mallo failed: probably not enough memory available");
+        throw std::bad_alloc();
 
     return result;
 }
@@ -43,6 +43,9 @@ static inline void* MallocOrThrow(size_t size) {
  */
 template <typename T>
 inline void MallocAndFree(size_t size, T **memory, std::function<void()> func) {
+    if (size==0)
+        throw std::bad_alloc();
+
     try {
         *memory = (T *)malloc(size);
         if (!*memory)
@@ -71,6 +74,9 @@ inline void MallocAndFree(size_t size, T **memory, std::function<void()> func) {
  */
 template <typename T>
 inline void CallocAndFree(size_t size, T **memory, std::function<void()> func) {
+    if (size==0)
+        throw std::bad_alloc();
+
     try {
         *memory = (T *)malloc(size);
         if (!*memory)
