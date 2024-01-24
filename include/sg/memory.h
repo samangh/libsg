@@ -18,6 +18,16 @@ template <typename T> struct deleter_free {
 
 namespace sg::memory {
 
+/**
+ *  @brief Allocates memory using malloc, and throws an expcetion if there are issues.
+ *
+ *  @param[in]     size  size of memory to allocate
+ *
+ *  @returns pointer to memory location
+ *
+ *  @throw std::bad_alloc if size is zero
+ *  @throw std::bad_alloc if can't allocate memory
+ **/
 static inline void* MallocOrThrow(size_t size) {
     if (size==0)
         throw std::bad_alloc();
@@ -29,7 +39,7 @@ static inline void* MallocOrThrow(size_t size) {
     return result;
 }
 
-/* Allocated memory of specific size, runs the specified function, and then clears the memory.
+/** Allocated memory of specific size, runs the specified function, and then clears the memory.
  *
  * On allocation error, throws std::bad_alloc aand clears the memory. If #func throws an an
  * exception, the memory is clear and the exception in re-thrown.
@@ -60,7 +70,7 @@ inline void MallocAndFree(size_t size, T **memory, std::function<void()> func) {
     }
 }
 
-/* Allocated memory of specific size, runs the specified function, and then clears the memory.
+/** Allocated memory of specific size, runs the specified function, and then clears the memory.
  *
  * On allocation error, throws std::bad_alloc aand clears the memory. If #func throws an an
  * exception, the memory is clear and the exception in re-thrown.
