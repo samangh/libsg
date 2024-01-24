@@ -8,17 +8,56 @@ namespace sg::compression::zstd {
 
 /********************** Compression functions **********************/
 
-sg::unique_opaque_buffer<uint8_t>
-compress(const void *src, size_t srcSize, int compressionLevel, int noThreads);
+/**
+ *  @brief Compresses given object using ZStandard algorithm
+ *
+ *  @param  src       Source pointer
+ *  @param  srcSize   Size of source data (in bytes, i.e. count * sizeof(..))
+ *  @param  cLevel    Compression level, from -7 (least) to 19 (most)
+ *  @param  noThreads Number of threads to use
+ *  @return buffer containing compressed data
+ **/
+unique_c_buffer<uint8_t>
+compress(const void *src, size_t srcSize, int cLevel, int noThreads);
 
-template <typename T> sg::unique_opaque_buffer<uint8_t>
-compress(const sg::IBuffer<T>& srcBuffer, int compressionLevel, int noThreads);
+/**
+ *  @brief Compresses given buffer using ZStandard algorithm
+ *
+ *  @param  src       Source pointer
+ *  @param  srcSize   Size of source data (in bytes, i.e. count * sizeof(..))
+ *  @param  cLevel    Compression level, from -7 (least) to 19 (most)
+ *  @param  noThreads Number of threads to use
+ *  @return buffer containing compressed data
+ **/
+template <typename T> unique_c_buffer<uint8_t>
+compress(const sg::IBuffer<T>& srcBuffer, int compressionLevel, int noThreads) {
+    return compress(srcBuffer.get(), srcBuffer.size() * sizeof(T), compressionLevel, noThreads);
+}
 
 /********************** Decompression functions **********************/
+/**
+ *  @brief recompresses given object using ZStandard algorithm
+ *
+ *  @param  src       compressed data pointer
+ *  @param  srcSize   Size of source data (in bytes, i.e. count * sizeof(..))
+ *  @return buffer containing de-compressed data
+ **/
+unique_c_buffer<uint8_t> decompress(const void *src, size_t srcSize);
 
-sg::unique_opaque_buffer<uint8_t> decompress(const void *src, size_t srcSize);
-
+/**
+ *  @brief recompresses given object using ZStandard algorithm
+ *
+ *  @tparam T         Type to cast data to
+ *  @param  src       compressed data pointer
+ *  @param  srcSize   Size of source data (in bytes, i.e. count * sizeof(..))
+ *  @return buffer containing de-compressed data
+ **/
 template <typename T>
-sg::unique_opaque_buffer<uint8_t> decompress(const sg::IBuffer<T>& srcBuffer);
+unique_c_buffer<T> decompress(const void *src, size_t srcSize){
+    auto ret= decompress(src, srcSize);
+    auto count = ret.size();
+
+    return unique_c_buffer<T>((T*)(ret.release()), count/sizeof(T));
+}
 
 }
