@@ -13,13 +13,18 @@
         throw std::exception(ZSTD_getErrorName(err));        \
     } while (0)
 
-struct context_deleter {
+struct compression_context_deleter {
     void operator()(ZSTD_CCtx *ctx) { ZSTD_freeCCtx(ctx); }
+};
+
+struct decompression_context_deleter {
+    void operator()(ZSTD_DCtx *ctx) { ZSTD_freeDCtx(ctx); }
 };
 
 /* Thread-local settings, we set these only if there is a change,
  * as there is a performance penalty */
-thread_local std::unique_ptr<ZSTD_CCtx, context_deleter> _context;
+thread_local std::unique_ptr<ZSTD_CCtx, compression_context_deleter> comp_context;
+thread_local std::unique_ptr<ZSTD_DCtx, decompression_context_deleter> decomp_context;
 thread_local int _noThreads;
 thread_local int _cLevel;
 
@@ -27,20 +32,20 @@ namespace sg::compression::zstd {
 
 sg::unique_opaque_buffer<uint8_t>
 compress(const void *src, size_t srcSize, int compressionLevel, int noThreads) {
-    if (!_context)
-        _context = std::unique_ptr<ZSTD_CCtx, context_deleter>(ZSTD_createCCtx());
+    if (!comp_context)
+        comp_context = std::unique_ptr<ZSTD_CCtx, compression_context_deleter>(ZSTD_createCCtx());
 
     /* Set required number of threads */
     if (_noThreads != noThreads)
     {
-        ZSTD_THROW_ON_ERROR(ZSTD_CCtx_setParameter(_context.get(), ZSTD_c_nbWorkers, noThreads));
+        ZSTD_THROW_ON_ERROR(ZSTD_CCtx_setParameter(comp_context.get(), ZSTD_c_nbWorkers, noThreads));
         _noThreads = noThreads;
     }
 
     /* Set required number of compression level */
     if (_cLevel != compressionLevel)
     {
-        ZSTD_THROW_ON_ERROR(ZSTD_CCtx_setParameter(_context.get(), ZSTD_c_compressionLevel, compressionLevel));
+        ZSTD_THROW_ON_ERROR(ZSTD_CCtx_setParameter(comp_context.get(), ZSTD_c_compressionLevel, compressionLevel));
         _cLevel = compressionLevel;
     }
 
@@ -49,7 +54,7 @@ compress(const void *src, size_t srcSize, int compressionLevel, int noThreads) {
     auto cBuff = sg::make_unique_c_buffer<uint8_t>(cBuffSize);
 
     /* Compress */
-    auto cSize = ZSTD_compress2(_context.get(), cBuff, cBuffSize, src, srcSize);
+    auto cSize = ZSTD_compress2(comp_context.get(), cBuff, cBuffSize, src, srcSize);
     ZSTD_THROW_ON_ERROR(cSize);
 
     /* Create finale buffer */
@@ -61,6 +66,29 @@ compress(const void *src, size_t srcSize, int compressionLevel, int noThreads) {
 sg::unique_opaque_buffer<uint8_t> compress(const sg::IBuffer<uint8_t> &srcBuffer, int compressionLevel, int noThreads)
 {
     return compress(srcBuffer.get(), srcBuffer.size()*sizeof(uint8_t), compressionLevel, noThreads);
+}
+
+sg::unique_opaque_buffer<uint8_t> decompress(const void *src, size_t srcSize)
+{
+    if (!decomp_context)
+        decomp_context = std::unique_ptr<ZSTD_DCtx, decompression_context_deleter>(ZSTD_createDCtx());
+
+    /* Get size of original uncompressed data */
+    auto unCompressedSize= ZSTD_getFrameContentSize(src, srcSize);
+    if (unCompressedSize == ZSTD_CONTENTSIZE_ERROR)
+        throw std::exception("given data not compressed by zstd");
+    if (unCompressedSize == ZSTD_CONTENTSIZE_UNKNOWN)
+        throw std::exception("zstd can't determine size of original uncompressed data");
+
+    auto output = sg::make_unique_c_buffer<uint8_t>(unCompressedSize);
+    ZSTD_THROW_ON_ERROR(ZSTD_decompressDCtx(decomp_context.get(), (void*)(output.get()), unCompressedSize, src, srcSize));
+
+    return output;
+}
+
+sg::unique_opaque_buffer<uint8_t> decompress(const sg::IBuffer<uint8_t> &srcBuffer)
+{
+    return decompress(srcBuffer.get(), srcBuffer.size());
 }
 
 } // namespace sg::compresstion::zstd
