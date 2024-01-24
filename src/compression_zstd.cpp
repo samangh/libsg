@@ -47,9 +47,7 @@ compress(const void *src, size_t srcSize, int compressionLevel, int noThreads) {
     ZSTD_THROW_ON_ERROR(cSize);
 
     /* Reallocate buffer */
-    auto newPtr = realloc(cBuff.release(), cSize);
-    if (!newPtr)
-        throw std::bad_alloc();
+    auto newPtr = sg::memory::ReallocOrFreeAndThrow(cBuff.release(), cSize);
 
     return sg::unique_c_buffer<uint8_t>((uint8_t*)newPtr, cSize);
 }

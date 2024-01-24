@@ -39,6 +39,23 @@ static inline void* MallocOrThrow(size_t size) {
     return result;
 }
 
+static inline void* ReallocOrFreeAndThrow(void* ptr, size_t size) {
+    void* result;
+
+    if (size==0)
+        goto error;
+
+    result = realloc(ptr, size);
+    if (!result)
+        goto error;
+
+    return result;
+
+ error:
+    free(ptr);
+    throw std::bad_alloc();
+}
+
 /** Allocated memory of specific size, runs the specified function, and then clears the memory.
  *
  * On allocation error, throws std::bad_alloc aand clears the memory. If #func throws an an
