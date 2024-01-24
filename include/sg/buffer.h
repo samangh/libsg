@@ -74,7 +74,7 @@ template <typename T> class IBuffer {
     virtual T &operator[](int i) = 0;
 };
 
-template <typename T> class buffer_base : IBuffer<T> {
+template <typename T> class buffer_base : public IBuffer<T> {
   protected:
     IBuffer<T> *ptr;
     buffer_base(IBuffer<T> *buff) : ptr(buff) {}
