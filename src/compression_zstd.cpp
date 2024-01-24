@@ -1,10 +1,9 @@
 #include <sg/compression_zstd.h>
 
-#include <zstd.h>
-
 #include <memory>
 #include <cstring>
 #include <stdexcept>
+#include <zstd.h>
 
 #define ZSTD_THROW_ON_ERROR(fn)                              \
     do {                                                     \
@@ -63,9 +62,10 @@ compress(const void *src, size_t srcSize, int compressionLevel, int noThreads) {
     return output;
 }
 
-sg::unique_opaque_buffer<uint8_t> compress(const sg::IBuffer<uint8_t> &srcBuffer, int compressionLevel, int noThreads)
+template<typename T>
+sg::unique_opaque_buffer<uint8_t> compress(const sg::IBuffer<T> &srcBuffer, int compressionLevel, int noThreads)
 {
-    return compress(srcBuffer.get(), srcBuffer.size()*sizeof(uint8_t), compressionLevel, noThreads);
+    return compress(srcBuffer.get(), srcBuffer.size() * sizeof(T), compressionLevel, noThreads);
 }
 
 sg::unique_opaque_buffer<uint8_t> decompress(const void *src, size_t srcSize)
@@ -86,9 +86,10 @@ sg::unique_opaque_buffer<uint8_t> decompress(const void *src, size_t srcSize)
     return output;
 }
 
-sg::unique_opaque_buffer<uint8_t> decompress(const sg::IBuffer<uint8_t> &srcBuffer)
+template <typename T>
+sg::unique_opaque_buffer<uint8_t> decompress(const sg::IBuffer<T> &srcBuffer)
 {
-    return decompress(srcBuffer.get(), srcBuffer.size());
+    return decompress(srcBuffer.get(), srcBuffer.size() * sizeof(T));
 }
 
 } // namespace sg::compresstion::zstd
