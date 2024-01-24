@@ -253,7 +253,7 @@ template <typename T> using shared_c_buffer = shared_buffer<T, deleter_free<T>>;
 
 /* Allocates memoery and creates a unique_buffer that uses C-style free as deleter */
 template <typename T> unique_opaque_buffer<T> make_unique_c_buffer(size_t length) {
-    T *ptr = (T *)malloc(sizeof(T) * length);
+    T *ptr = (T *)memory::MallocOrThrow(sizeof(T) * length);
     auto base = new unique_buffer<T, deleter_free<T>>(ptr, length);
     return unique_opaque_buffer<T>(base);
 
@@ -266,7 +266,7 @@ template <typename T> unique_opaque_buffer<T> make_unique_c_buffer(size_t length
 
 /* Allocates memoery and creates a unique_buffer that uses C-style free as deleter */
 template <typename T> shared_opaque_buffer<T> make_shared_c_buffer(size_t length) {
-    T *ptr = (T *)malloc(sizeof(T) * length);
+    T *ptr = (T *) memory::MallocOrThrow(sizeof(T) * length);
     auto base = new shared_buffer<T, deleter_free<T>>(ptr, length);
     return shared_opaque_buffer<T>(base);
 

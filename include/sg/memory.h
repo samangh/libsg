@@ -18,6 +18,17 @@ template <typename T> struct deleter_free {
 
 namespace sg::memory {
 
+static inline void* MallocOrThrow(size_t size) {
+    if (size==0)
+        throw std::exception("malloc failed: attempted to malloc an object of zero size");
+
+    void* result = malloc(size);
+    if (!result)
+        throw std::exception("mallo failed: probably not enough memory available");
+
+    return result;
+}
+
 /* Allocated memory of specific size, runs the specified function, and then clears the memory.
  *
  * On allocation error, throws std::bad_alloc aand clears the memory. If #func throws an an
