@@ -47,9 +47,6 @@ template <typename T> class IBuffer {
   public:
     virtual ~IBuffer() = default;
 
-    // Implicit cast
-    virtual operator T *() const noexcept = 0;
-
     /* Return the stored pointer.*/
     virtual T *get() const noexcept = 0;
 
@@ -82,7 +79,6 @@ template <typename T> class buffer_base : public IBuffer<T> {
   public:
     T *operator->() const noexcept { return ptr->get(); }
 
-    virtual operator T *() const noexcept override { return this->get(); };
     virtual T *get() const noexcept override { return ptr->get(); }
     virtual size_t size() const noexcept override { return ptr->size(); }
     virtual void reset() noexcept override { ptr->reset(); }
@@ -163,9 +159,6 @@ class unique_buffer : public IBuffer<T> {
     // Move constrcutor
     unique_buffer(unique_buffer &&) = default;
     unique_buffer &operator=(unique_buffer &&data) = default;
-
-    // Implicit cast
-    virtual operator T *() const noexcept override { return ptr.get(); }
 
     T *get() const noexcept override { return ptr.get(); }
 
