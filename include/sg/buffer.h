@@ -112,6 +112,10 @@ template <typename T> class unique_opaque_buffer : public buffer_base<T> {
     unique_opaque_buffer(IBuffer<T> *buff)
         : buffer_base<T>(buff),
           buffer(std::unique_ptr<IBuffer<T>>(buff)) {}
+
+    IBuffer<T>* release() noexcept {
+        return buffer.release();
+    }
 };
 
 /* Creates shared opaque buffer */
