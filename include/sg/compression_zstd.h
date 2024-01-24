@@ -4,9 +4,9 @@
 
 #include <cstddef>
 
-namespace sg::compresstion::zstd {
+namespace sg::compression::zstd {
 
 sg::unique_opaque_buffer<uint8_t>
-compress(const void *src, size_t srcSize, int compressionLevel, uint noThreads);
+compress(const void *src, size_t srcSize, int compressionLevel, int noThreads);
 
 }
