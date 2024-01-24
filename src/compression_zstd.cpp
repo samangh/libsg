@@ -3,19 +3,19 @@
 #include <memory>
 #include <cstring>
 #include <stdexcept>
+#include <new>
 #include <zstd.h>
 
 #define ZSTD_THROW_ON_ERROR(fn)                              \
     do {                                                     \
         size_t const err = (fn);                             \
         if (ZSTD_isError(err))                               \
-        throw std::exception(ZSTD_getErrorName(err));        \
+        throw std::runtime_error(ZSTD_getErrorName(err));    \
     } while (0)
 
 struct compression_context_deleter {
     void operator()(ZSTD_CCtx *ctx) { ZSTD_freeCCtx(ctx); }
 };
-
 struct decompression_context_deleter {
     void operator()(ZSTD_DCtx *ctx) { ZSTD_freeDCtx(ctx); }
 };
@@ -59,7 +59,7 @@ compress(const void *src, size_t srcSize, int compressionLevel, int noThreads) {
     /* Reallocate buffer */
     auto newPtr = realloc(cBuff.release(), cSize);
     if (!newPtr)
-        throw std::exception("memory reallocation failed");
+        throw std::bad_alloc();
 
     return sg::unique_c_buffer<uint8_t>((uint8_t*)newPtr, cSize);
 }
@@ -72,9 +72,9 @@ unique_c_buffer<uint8_t> decompress(const void *src, size_t srcSize)
     /* Get size of original uncompressed data */
     auto unCompressedSize= ZSTD_getFrameContentSize(src, srcSize);
     if (unCompressedSize == ZSTD_CONTENTSIZE_ERROR)
-        throw std::exception("given data not compressed by zstd");
+        throw std::runtime_error("given data not compressed by zstd");
     if (unCompressedSize == ZSTD_CONTENTSIZE_UNKNOWN)
-        throw std::exception("zstd can't determine size of original uncompressed data");
+        throw std::runtime_error("zstd can't determine size of original uncompressed data");
 
     auto output = sg::make_unique_c_buffer<uint8_t>(unCompressedSize);
     ZSTD_THROW_ON_ERROR(ZSTD_decompressDCtx(decomp_context.get(), (void*)(output.get()), unCompressedSize, src, srcSize));
