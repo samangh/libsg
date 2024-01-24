@@ -249,29 +249,42 @@ template <typename T> using unique_c_buffer = unique_buffer<T, deleter_free<T>>;
 template <typename T> using shared_c_buffer = shared_buffer<T, deleter_free<T>>;
 
 /* Allocates memoery and creates a unique_buffer that uses C-style free as deleter */
-template <typename T> unique_opaque_buffer<T> make_unique_c_buffer(size_t length) {
+template <typename T> unique_buffer<T, deleter_free<T>> make_unique_c_buffer(size_t length) {
     T *ptr = (T *)memory::MallocOrThrow(sizeof(T) * length);
-    auto base = new unique_buffer<T, deleter_free<T>>(ptr, length);
-    return unique_opaque_buffer<T>(base);
+    return unique_buffer<T, deleter_free<T>>(ptr, length);
 
     /* Note: this could also be done by doing
      *
      *     return unique_buffer<T, decltype(&free)>(ptr, length, free);
      *
      * but that uses an additional 8-bytes of memory. */
+
+    /* Note: an opaque version of this can be created by
+     *
+     *    T *ptr = (T *)memory::MallocOrThrow(sizeof(T) * length);
+     *    return unique_opaque_buffer<T>(new unique_buffer<T, deleter_free<T>>(ptr, length))
+     *
+     * The unique_buffer MUST be in the heap. */;
 }
 
-/* Allocates memoery and creates a unique_buffer that uses C-style free as deleter */
-template <typename T> shared_opaque_buffer<T> make_shared_c_buffer(size_t length) {
+/* Allocates memory and creates a unique_buffer that uses C-style free as deleter */
+template <typename T> shared_buffer<T, deleter_free<T>> make_shared_c_buffer(size_t length) {
     T *ptr = (T *) memory::MallocOrThrow(sizeof(T) * length);
-    auto base = new shared_buffer<T, deleter_free<T>>(ptr, length);
-    return shared_opaque_buffer<T>(base);
+    return shared_buffer<T, deleter_free<T>>(ptr, length);
+}
 
-    /* Note: this could also be done by doing
-     *
-     *     return unique_buffer<T, decltype(&free)>(ptr, length, free);
-     *
-     * but that uses an additional 8-bytes of memory. */
+/* Allocates memory and creates a opaqwue_buffer */
+template <typename T> unique_opaque_buffer<T> make_unique_opaque_buffer(size_t length) {
+    /* The base buffer MUST be in the heap. */
+    auto base = new unique_buffer<T>(new T[length], length);
+    return unique_opaque_buffer<T>(base);
+}
+
+/* Allocates memory and creates a opaqwue_buffer */
+template <typename T> shared_opaque_buffer<T> make_shared_opaque_buffer(size_t length) {
+    /* The base buffer MUST be in the heap. */
+    auto base = new shared_buffer<T>(new T[length], length);
+    return shared_opaque_buffer<T>(base);
 }
 
 } // namespace sg
