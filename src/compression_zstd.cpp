@@ -70,4 +70,19 @@ unique_c_buffer<uint8_t> decompress(const void *src, size_t srcSize)
     return output;
 }
 
+int min_compression_level()
+{
+    return ZSTD_minCLevel();
+}
+
+int max_compression_level()
+{
+    return ZSTD_maxCLevel();
+}
+
+int default_compresssion_level()
+{
+    return ZSTD_defaultCLevel();
+}
+
 } // namespace sg::compresstion::zstd

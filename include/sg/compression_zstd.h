@@ -6,6 +6,12 @@
 
 namespace sg::compression::zstd {
 
+/************************ Helper functions *************************/
+
+int min_compression_level();
+int max_compression_level();
+int default_compresssion_level();
+
 /********************** Compression functions **********************/
 
 /**
@@ -13,7 +19,7 @@ namespace sg::compression::zstd {
  *
  *  @param  src       Source pointer
  *  @param  srcSize   Size of source data (in bytes, i.e. count * sizeof(..))
- *  @param  cLevel    Compression level, from -7 (least) to 19 (most)
+ *  @param  cLevel    Compression level
  *  @param  noThreads Number of threads to use
  *  @return buffer containing compressed data
  **/
@@ -25,7 +31,7 @@ compress(const void *src, size_t srcSize, int cLevel, int noThreads);
  *
  *  @param  src       Source pointer
  *  @param  srcSize   Size of source data (in bytes, i.e. count * sizeof(..))
- *  @param  cLevel    Compression level, from -7 (least) to 19 (most)
+ *  @param  cLevel    Compression level
  *  @param  noThreads Number of threads to use
  *  @return buffer containing compressed data
  **/
