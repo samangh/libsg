@@ -51,7 +51,7 @@ compress(const sg::IBuffer<T>& srcBuffer, int compressionLevel, int noThreads) {
 unique_c_buffer<uint8_t> decompress(const void *src, size_t srcSize);
 
 /**
- *  @brief recompresses given object using ZStandard algorithm
+ *  @brief decompresses given object using ZStandard algorithm
  *
  *  @tparam T         Type to cast data to
  *  @param  src       compressed data pointer
@@ -64,6 +64,18 @@ unique_c_buffer<T> decompress(const void *src, size_t srcSize){
     auto count = ret.size();
 
     return unique_c_buffer<T>((T*)(ret.release()), count/sizeof(T));
+}
+
+/**
+ *  @brief decompresses given buffer using ZStandard algorithm
+ *
+ *  @tparam T         Type to cast data to
+ *  @param  src       compressed data buffer
+ *  @return buffer containing de-compressed data
+ **/
+template <typename T>
+unique_c_buffer<T> decompress(const IBuffer<uint8_t>& src){
+    return decompress<T>(src.get(), src.size());
 }
 
 }
