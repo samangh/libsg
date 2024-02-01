@@ -32,7 +32,7 @@ class IChannelBase {
 
         return false;
     };
-
+    virtual ~IChannelBase() = default;
 };
 
 template <typename T> class IChannel : public IChannelBase {
@@ -46,7 +46,6 @@ template <typename T> class IChannel : public IChannelBase {
 
     std::vector<std::string> hierarchy() const noexcept { return m_hierarchy; }
     void hierarchy(std::vector<std::string> hierarchy) noexcept { m_hierarchy = hierarchy; }
-
 };
 
 } // namespace sg::data

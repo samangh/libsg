@@ -10,6 +10,7 @@ template <typename T> class IView {
     virtual size_t count() const noexcept = 0;
     virtual T *data() noexcept = 0;
     virtual const T *data() const noexcept = 0;
+    virtual ~IView() = default;
 };
 
 template <typename T> class view_compressed : public IView<T> {
