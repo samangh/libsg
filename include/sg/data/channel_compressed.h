@@ -12,8 +12,6 @@ template <typename T> class compressed_channel : public IChannel<T> {
     static inline const int DEFAULT_COMP_THREAD_COUNT = std::thread::hardware_concurrency();
     static inline constexpr int DEFAULT_COMPRESSION_LEVEl = 3;
 
-    std::string m_name;
-    std::vector<std::string> m_hierarchy;
     size_t m_size = 0;
     sg::unique_c_buffer<T> m_raw_buffer;
     sg::unique_c_buffer<uint8_t> m_compressed_data;
@@ -82,11 +80,6 @@ template <typename T> class compressed_channel : public IChannel<T> {
     T operator[](int i) const { return const_data()[i]; };
     T &operator[](int i) { return data()[i]; };
 
-    std::string name() const noexcept { return m_name; }
-    void name(std::string name) noexcept { m_name = name; }
-
-    std::vector<std::string> hierarchy() const noexcept { return m_hierarchy; }
-    void hierarchy(std::vector<std::string> hierarchy) noexcept { m_hierarchy = hierarchy; }
     size_t size() const noexcept { return m_size; };
 
     T *data() noexcept {return m_raw_buffer.get();};

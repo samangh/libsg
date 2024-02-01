@@ -40,11 +40,23 @@ class IChannelBase {
 };
 
 template <typename T> class IChannel : public IChannelBase {
+    std::string m_name;
+    std::vector<std::string> m_hierarchy;
+
   public:
     virtual T *data() noexcept = 0;
     virtual const T* const_data() const noexcept = 0;
     virtual T operator[](int i) const = 0;
     virtual T &operator[](int i) = 0;
+
+    // IChannelBase interface
+  public:
+    std::string name() const noexcept { return m_name; }
+    void name(std::string name) noexcept { m_name = name; }
+
+    std::vector<std::string> hierarchy() const noexcept { return m_hierarchy; }
+    void hierarchy(std::vector<std::string> hierarchy) noexcept { m_hierarchy = hierarchy; }
+
   protected:
     virtual const void *const_data_voidptr() const { return (void *)const_data(); };
 };
