@@ -16,7 +16,7 @@ template <typename T> class compressed_channel : public IChannel<T> {
     size_t m_size = 0;
     mutable sg::unique_c_buffer<T> m_raw_buffer;
     mutable sg::unique_c_buffer<uint8_t> m_compressed_data;
-    mutable std::weak_ptr<view<T>> m_weakptr;
+    mutable std::weak_ptr<IView<T>> m_weakptr;
 
     int m_cLevel = DEFAULT_COMPRESSION_LEVEl;
     int m_noThread = DEFAULT_COMP_THREAD_COUNT;
@@ -50,8 +50,8 @@ template <typename T> class compressed_channel : public IChannel<T> {
         set_data(inBuffer);
     }
 
-    void set_compression_level(int cLevel);
-    void set_compresstion_thread_count(int noThread);
+    void compression_level(int cLevel) { m_cLevel = cLevel; };
+    void compresstion_thread_count(int noThread) { m_noThread = noThread; };
 
     void set_data(sg::unique_c_buffer<T> &&inBuffer) {
         m_size = inBuffer.size();
@@ -59,7 +59,7 @@ template <typename T> class compressed_channel : public IChannel<T> {
         compress_data();
     }
 
-    std::shared_ptr<view<T>> get_data_view() const {
+    std::shared_ptr<IView<T>> data_view() const {
         /* If ther is already a shared_ptr, return that */
         auto ptr = m_weakptr.lock();
         if (ptr)
@@ -67,7 +67,7 @@ template <typename T> class compressed_channel : public IChannel<T> {
 
         uncompress_data();
 
-        ptr = std::shared_ptr<view<T>>(new view<T>(*this), [this](view<T> *p) {
+        ptr = std::shared_ptr<view_compressed<T>>(new view_compressed<T>(*this, m_raw_buffer.get()), [this](view_compressed<T> *p) {
             this->compress_data();
             delete p;
         });
@@ -78,13 +78,8 @@ template <typename T> class compressed_channel : public IChannel<T> {
 
     // IChannel interface
   public:
-    T operator[](int i) const { return const_data()[i]; };
-    T &operator[](int i) { return data()[i]; };
-
     size_t size() const noexcept { return m_size; };
 
-    T *data() noexcept {return m_raw_buffer.get();};
-    const T *const_data() const noexcept {return m_raw_buffer.get();};
 };
 
 } // namespace sg::data

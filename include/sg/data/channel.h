@@ -16,10 +16,11 @@ class IChannelBase {
     virtual size_t size() const noexcept = 0;
 
     virtual bool operator==(const IChannelBase &o) const {
-        return name() == o.name() && hierarchy() == o.hierarchy() && size() == o.size() &&
-               const_data_voidptr() == o.const_data_voidptr();
+        //TODO NEED UUID or GUID
+        return name() == o.name() && hierarchy() == o.hierarchy() && size() == o.size();
     }
     virtual bool operator<(const IChannelBase &o) const {
+        //TODO NEED UUID or GUID
         if (hierarchy() != o.hierarchy())
             return (hierarchy() < o.hierarchy());
 
@@ -29,25 +30,14 @@ class IChannelBase {
         if (size() != o.size())
             return (size() < o.size());
 
-        if (const_data_voidptr() != o.const_data_voidptr())
-            return (const_data_voidptr() < o.const_data_voidptr());
-
         return false;
     };
 
-  protected:
-    virtual const void *const_data_voidptr() const = 0;
 };
 
 template <typename T> class IChannel : public IChannelBase {
     std::string m_name;
     std::vector<std::string> m_hierarchy;
-
-  public:
-    virtual T *data() noexcept = 0;
-    virtual const T* const_data() const noexcept = 0;
-    virtual T operator[](int i) const = 0;
-    virtual T &operator[](int i) = 0;
 
     // IChannelBase interface
   public:
@@ -57,8 +47,6 @@ template <typename T> class IChannel : public IChannelBase {
     std::vector<std::string> hierarchy() const noexcept { return m_hierarchy; }
     void hierarchy(std::vector<std::string> hierarchy) noexcept { m_hierarchy = hierarchy; }
 
-  protected:
-    virtual const void *const_data_voidptr() const { return (void *)const_data(); };
 };
 
 } // namespace sg::data
