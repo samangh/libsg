@@ -5,6 +5,7 @@
 #include "view.h"
 
 #include <thread>
+#include <utility>
 
 namespace sg::data {
 
@@ -13,21 +14,21 @@ template <typename T> class compressed_channel : public IChannel<T> {
     static inline constexpr int DEFAULT_COMPRESSION_LEVEl = 3;
 
     size_t m_size = 0;
-    sg::unique_c_buffer<T> m_raw_buffer;
-    sg::unique_c_buffer<uint8_t> m_compressed_data;
-    std::weak_ptr<view<T>> m_weakptr;
+    mutable sg::unique_c_buffer<T> m_raw_buffer;
+    mutable sg::unique_c_buffer<uint8_t> m_compressed_data;
+    mutable std::weak_ptr<view<T>> m_weakptr;
 
     int m_cLevel = DEFAULT_COMPRESSION_LEVEl;
     int m_noThread = DEFAULT_COMP_THREAD_COUNT;
 
-    void uncompress_data() {
+    void uncompress_data() const {
         if (!m_compressed_data.get() || m_compressed_data.size() == 0)
             return;
 
         m_raw_buffer = sg::compression::zstd::decompress<T>(m_compressed_data);
         m_compressed_data.reset();
     }
-    void compress_data() {
+    void compress_data() const {
         if (!m_raw_buffer.get() || m_raw_buffer.size() == 0)
             return;
 
@@ -58,7 +59,7 @@ template <typename T> class compressed_channel : public IChannel<T> {
         compress_data();
     }
 
-    std::shared_ptr<view<T>> get_data_view() {
+    std::shared_ptr<view<T>> get_data_view() const {
         /* If ther is already a shared_ptr, return that */
         auto ptr = m_weakptr.lock();
         if (ptr)
@@ -66,7 +67,7 @@ template <typename T> class compressed_channel : public IChannel<T> {
 
         uncompress_data();
 
-        ptr = std::shared_ptr<view<T>>(new view<T>(this), [this](view<T> *p) {
+        ptr = std::shared_ptr<view<T>>(new view<T>(*this), [this](view<T> *p) {
             this->compress_data();
             delete p;
         });
