@@ -215,7 +215,6 @@ class shared_buffer : public IBuffer<T> {
     shared_buffer(shared_buffer &) = default;
     shared_buffer &operator=(shared_buffer &data) = default;
 
-    operator T *() const noexcept override { return ptr.get(); }
     T *get() const noexcept override { return ptr.get(); }
 
     /* Exchange the pointer and the associated length */
