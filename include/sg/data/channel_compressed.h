@@ -14,8 +14,8 @@ template <typename T> class compressed_channel : public IChannel<T> {
     static inline constexpr int DEFAULT_COMPRESSION_LEVEl = 3;
 
     size_t m_size = 0;
-    mutable sg::unique_c_buffer<T> m_raw_buffer;
-    mutable sg::unique_c_buffer<uint8_t> m_compressed_data;
+    mutable sg::shared_c_buffer<T> m_raw_buffer;
+    mutable sg::shared_c_buffer<uint8_t> m_compressed_data;
     mutable std::weak_ptr<IView<T>> m_weakptr;
 
     int m_cLevel = DEFAULT_COMPRESSION_LEVEl;
@@ -55,7 +55,8 @@ template <typename T> class compressed_channel : public IChannel<T> {
 
     void set_data(sg::unique_c_buffer<T> &&inBuffer) {
         m_size = inBuffer.size();
-        m_raw_buffer = std::move(inBuffer);
+        T* ptr = inBuffer.release();
+        m_raw_buffer = sg::shared_c_buffer<T>(ptr, m_size);
         compress_data();
     }
 
@@ -79,7 +80,6 @@ template <typename T> class compressed_channel : public IChannel<T> {
     // IChannel interface
   public:
     size_t size() const noexcept { return m_size; };
-
 };
 
 } // namespace sg::data
