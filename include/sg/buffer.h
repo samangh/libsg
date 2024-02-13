@@ -172,7 +172,7 @@ class unique_buffer : public IBuffer<T> {
     }
 
     /* Release ownership of any stored pointer. */
-    void* release() noexcept {return ptr.release(); }
+    T* release() noexcept {return ptr.release(); }
 
     size_t size() const noexcept override { return length; }
 
