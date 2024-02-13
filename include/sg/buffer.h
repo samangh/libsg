@@ -208,6 +208,10 @@ class shared_buffer : public IBuffer<T> {
         : ptr(_ptr),
           length(_length) {}
 
+    shared_buffer(unique_buffer<T,deleter>&& _buff) noexcept //
+        : ptr(std::shared_ptr<T>(_buff.release(), deleter())), length(_buff.size())
+    {}
+
     // Move constrcutors
     shared_buffer(shared_buffer &&) = default;
     shared_buffer &operator=(shared_buffer &&data) = default;
