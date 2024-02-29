@@ -5,7 +5,7 @@
 #include <immintrin.h>
 #include <stdexcept>
 
-#include <boost/crc.hpp>  // for boost::crc_32_type
+#include <boost/crc.hpp> // for boost::crc_32_type
 
 /* Hardware assisted CRC32C, taken from https://github.com/komrad36/CRC
  * We also disable "implicit-fallthrough" warnings */
@@ -14,10 +14,9 @@
 #endif
 
 #ifdef HAVE_HARDWARE_CRC32
+namespace {
     #pragma GCC diagnostic push
     #pragma GCC diagnostic ignored "-Wimplicit-fallthrough"
-
-namespace {
 
 static constexpr uint64_t g_lut_intel[] = {
     0x00000001493c7d27, 0x493c7d27ba4fc28e, 0xf20c0dfeddc0152b, 0xba4fc28e9e4addf8,
@@ -225,17 +224,30 @@ uint32_t option_14_golden_amd(const void *M, uint32_t bytes, uint32_t prev /* = 
     // return ~(uint32_t)crcA; // if you want to invert the result
     return (uint32_t)crcA;
 }
-} // namespace
     #pragma GCC diagnostic pop
+} // namespace
 #endif
 
 namespace sg::checksum {
+
+bool can_do_crc32c_hardware() {
+    if (HAVE_HARDWARE_CRC32)
+        switch (sg::cpu::current_cpu_vendor()) {
+        case sg::cpu::cpu_vendor::Amd:
+            return true;
+        case sg::cpu::cpu_vendor::Intel:
+            return true;
+        case cpu::cpu_vendor::Other:
+            return false;
+        }
+}
+
 uint32_t crc32c(const void *data, uint32_t length) {
     /* If available, use hardware assited version.
      *
      * We invert (use ~), this is equivalent to XORing with 0xFFFFFFFF */
     if (HAVE_HARDWARE_CRC32)
-    switch (sg::cpu::current_cpu_vendor()) {
+        switch (sg::cpu::current_cpu_vendor()) {
         case sg::cpu::cpu_vendor::Amd:
             return ~option_14_golden_amd(data, length, 0xFFFFFFFF);
         case sg::cpu::cpu_vendor::Intel:
@@ -249,15 +261,13 @@ uint32_t crc32c(const void *data, uint32_t length) {
     return crc();
 }
 
-uint32_t crc32(const void *data, uint32_t length)
-{
+uint32_t crc32(const void *data, uint32_t length) {
     thread_local static boost::crc_32_type crc;
     crc.process_bytes(data, length);
     return crc();
 }
 
-uint16_t crc16(const void *data, uint32_t length)
-{
+uint16_t crc16(const void *data, uint32_t length) {
     thread_local static boost::crc_16_type crc;
     crc.process_bytes(data, length);
     return crc();
