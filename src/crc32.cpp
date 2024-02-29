@@ -6,7 +6,11 @@
 #include <stdexcept>
 
 // Hardware assisted CRC32C, taken from https://github.com/komrad36/CRC
+// We also disable "implicit-fallthrough" warnings
 #if defined(CPU_SUPPORTS_SSE41) && defined(CPU_SUPPORTS_CRC32) && defined(CPU_SUPPORTS_CLMUL)
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wimplicit-fallthrough"
+
 namespace {
 
 static constexpr uint64_t g_lut_intel[] = {
@@ -216,11 +220,11 @@ uint32_t option_14_golden_amd(const void *M, uint32_t bytes, uint32_t prev /* = 
     return (uint32_t)crcA;
 }
 } // namespace
+#pragma GCC diagnostic pop
 #endif
 
 namespace sg::checksum {
 uint32_t crc32c(const void *data, uint32_t length, uint32_t remainder) {
-    uint32_t result;
     switch (sg::cpu::current_cpu_vendor()) {
     case sg::cpu::cpu_vendor::Amd:
         return option_14_golden_amd(data, length, remainder);
