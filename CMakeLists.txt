@@ -13,6 +13,10 @@ find_package(zstd REQUIRED)
 # that
 find_package(SSE OPTIONAL_COMPONENTS COMPONENTS SSE41 CRC32 CLMUL)
 
+# Boost is required for other CRC checksums
+find_package(Boost REQUIRED)
+include(setup_boost)
+
 ##
 ## Source files
 ##
@@ -36,6 +40,7 @@ target_include_directories(${TARGET}
     $<BUILD_INTERFACE:${CMAKE_CURRENT_LIST_DIR}/include>
     $<BUILD_INTERFACE:${CMAKE_BINARY_DIR}/include>
   PRIVATE
+    Boost::Boost
   )
 
 target_link_libraries(${TARGET}
@@ -45,7 +50,9 @@ target_link_libraries(${TARGET}
     $<$<AND:$<CXX_COMPILER_ID:GNU>,$<VERSION_LESS:$<CXX_COMPILER_VERSION>,9.1>>:${STANDARD_LIBRARY}fs>
     $<$<AND:$<CXX_COMPILER_ID:Clang>,$<VERSION_LESS:$<CXX_COMPILER_VERSION>,9.0>>:${STANDARD_LIBRARY}fs>
   PRIVATE
-    $<$<BOOL:${SSE_FOUND}>:SSE::SSE41 SSE::CRC32 SSE::CLMUL> # For hardware accelerated CRC32
+    $<$<BOOL:${SSE_SSE41_FOUND}>:SSE::SSE41>    # For hardware accelerated CRC32
+    $<$<BOOL:${SSE_CRC32_FOUND}>:SSE::CRC32> # For hardware accelerated CRC32
+    $<$<BOOL:${SSE_CLMUL_FOUND}>:SSE::CLMUL> # For hardware accelerated CRC32
     Threads::Threads
     $<$<BOOL:${WIN32}>:Winmm>
     $<IF:$<BOOL:${USE_STATIC_LIBS}>,zstd::libzstd_static,zstd::libzstd_shared>

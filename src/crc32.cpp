@@ -5,11 +5,17 @@
 #include <immintrin.h>
 #include <stdexcept>
 
-// Hardware assisted CRC32C, taken from https://github.com/komrad36/CRC
-// We also disable "implicit-fallthrough" warnings
+#include <boost/crc.hpp>  // for boost::crc_32_type
+
+/* Hardware assisted CRC32C, taken from https://github.com/komrad36/CRC
+ * We also disable "implicit-fallthrough" warnings */
 #if defined(CPU_SUPPORTS_SSE41) && defined(CPU_SUPPORTS_CRC32) && defined(CPU_SUPPORTS_CLMUL)
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wimplicit-fallthrough"
+    #define HAVE_HARDWARE_CRC32 true
+#endif
+
+#ifdef HAVE_HARDWARE_CRC32
+    #pragma GCC diagnostic push
+    #pragma GCC diagnostic ignored "-Wimplicit-fallthrough"
 
 namespace {
 
@@ -116,8 +122,8 @@ static constexpr uint32_t g_lut_amd[] = {
     #define CRC_ITERS_256_TO_2_INTEL()                                                             \
         do {                                                                                       \
             X0_INTEL(256)                                                                          \
-            X1_INTEL(254) X2_INTEL(250) X3_INTEL(242) X4_INTEL(226) X5_INTEL(194) X6_INTEL(130)    \
-                X7_INTEL(2)                                                                        \
+            X1_INTEL(254)                                                                          \
+            X2_INTEL(250) X3_INTEL(242) X4_INTEL(226) X5_INTEL(194) X6_INTEL(130) X7_INTEL(2)      \
         } while (0)
 
     #define CRC_ITER_AMD(i)                                                                        \
@@ -220,21 +226,41 @@ uint32_t option_14_golden_amd(const void *M, uint32_t bytes, uint32_t prev /* = 
     return (uint32_t)crcA;
 }
 } // namespace
-#pragma GCC diagnostic pop
+    #pragma GCC diagnostic pop
 #endif
 
 namespace sg::checksum {
-uint32_t crc32c(const void *data, uint32_t length, uint32_t remainder) {
+uint32_t crc32c(const void *data, uint32_t length) {
+    /* If available, use hardware assited version.
+     *
+     * We invert (use ~), this is equivalent to XORing with 0xFFFFFFFF */
+    if (HAVE_HARDWARE_CRC32)
     switch (sg::cpu::current_cpu_vendor()) {
-    case sg::cpu::cpu_vendor::Amd:
-        return option_14_golden_amd(data, length, remainder);
-    case sg::cpu::cpu_vendor::Intel:
-        return option_13_golden_intel(data, length, remainder);
-    case cpu::cpu_vendor::Other:
-        break;
-    }
+        case sg::cpu::cpu_vendor::Amd:
+            return ~option_14_golden_amd(data, length, 0xFFFFFFFF);
+        case sg::cpu::cpu_vendor::Intel:
+            return ~option_13_golden_intel(data, length, 0xFFFFFFFF);
+        case cpu::cpu_vendor::Other:
+            break;
+        }
 
-    throw std::runtime_error("CRC32-C not implemented for this harware");
+    thread_local static boost::crc_optimal<32, 0x1EDC6F41, 0xFFFFFFFF, 0xFFFFFFFF, true, true> crc;
+    crc.process_bytes(data, length);
+    return crc();
+}
+
+uint32_t crc32(const void *data, uint32_t length)
+{
+    thread_local static boost::crc_32_type crc;
+    crc.process_bytes(data, length);
+    return crc();
+}
+
+uint16_t crc16(const void *data, uint32_t length)
+{
+    thread_local static boost::crc_16_type crc;
+    crc.process_bytes(data, length);
+    return crc();
 }
 
 } // namespace sg::checksum
