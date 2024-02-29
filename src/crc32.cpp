@@ -240,6 +240,7 @@ bool can_do_crc32c_hardware() {
         case cpu::cpu_vendor::Other:
             return false;
         }
+    return false;
 }
 
 uint32_t crc32c(const void *data, uint32_t length) {
