@@ -1,5 +1,5 @@
 #include <sg/cpu.h>
-#include <sg/crc32.h>
+#include <sg/crc.h>
 
 #include <cstdint>
 #include <immintrin.h>
