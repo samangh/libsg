@@ -3,7 +3,6 @@
 
 #include <cstdint>
 #include <immintrin.h>
-#include <stdexcept>
 
 #include <boost/crc.hpp> // for boost::crc_32_type
 
@@ -15,9 +14,10 @@
 
 #ifdef HAVE_HARDWARE_CRC32
 namespace {
+    #ifdef __GNUC__
     #pragma GCC diagnostic push
-    #pragma GCC diagnostic ignored "-Wimplicit-fallthrough"
-
+        #pragma GCC diagnostic ignored "-Wimplicit-fallthrough"
+    #endif
 static constexpr uint64_t g_lut_intel[] = {
     0x00000001493c7d27, 0x493c7d27ba4fc28e, 0xf20c0dfeddc0152b, 0xba4fc28e9e4addf8,
     0x3da6d0cb39d3b296, 0xddc0152b0715ce53, 0x1c291d0447db8317, 0x9e4addf80d3b6092,
@@ -224,7 +224,9 @@ uint32_t option_14_golden_amd(const void *M, uint32_t bytes, uint32_t prev /* = 
     // return ~(uint32_t)crcA; // if you want to invert the result
     return (uint32_t)crcA;
 }
-    #pragma GCC diagnostic pop
+    #ifdef __GNUC__
+        #pragma GCC diagnostic pop
+    #endif
 } // namespace
 #endif
 
