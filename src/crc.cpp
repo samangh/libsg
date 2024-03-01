@@ -148,7 +148,7 @@ static constexpr uint32_t LEAF_SIZE_INTEL = 6 * 24;
 // must be >= 16
 static constexpr uint32_t LEAF_SIZE_AMD = 7 * 16;
 
-uint32_t option_13_golden_intel(const void *M, uint32_t bytes, uint32_t prev) {
+uint32_t crc32c_hardware_intel(const void *M, uint32_t bytes, uint32_t prev) {
     uint64_t pA = (uint64_t)M;
     // uint64_t crcA = (uint64_t)(uint32_t)(~prev); // if you want to invert prev
     uint64_t crcA = prev;
@@ -189,7 +189,7 @@ uint32_t option_13_golden_intel(const void *M, uint32_t bytes, uint32_t prev) {
 }
 
 // OPTION 14
-uint32_t option_14_golden_amd(const void *M, uint32_t bytes, uint32_t prev /* = 0*/) {
+uint32_t crc32c_hardware_amd(const void *M, uint32_t bytes, uint32_t prev /* = 0*/) {
     uint64_t pA = (uint64_t)M;
     // uint64_t crcA = (uint64_t)(uint32_t)(~prev); // if you want to invert prev
     uint64_t crcA = prev;
@@ -873,9 +873,9 @@ uint32_t crc32c(const void *data, uint32_t length) {
     if (HAVE_HARDWARE_CRC32)
         switch (sg::cpu::current_cpu_vendor()) {
         case sg::cpu::cpu_vendor::Amd:
-            return ~option_14_golden_amd(data, length, initial_remainder);
+            return ~crc32c_hardware_amd(data, length, initial_remainder);
         case sg::cpu::cpu_vendor::Intel:
-            return ~option_13_golden_intel(data, length, initial_remainder);
+            return ~crc32c_hardware_intel(data, length, initial_remainder);
         default: // Keep compiled happy
             break;
         }
