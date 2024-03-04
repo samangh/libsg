@@ -4,6 +4,13 @@
 #include <type_traits>
 #include <vector>
 
+#ifdef _MSC_VER
+#include <stdlib.h> //Used in swap_bytes functins
+#endif
+
+#ifdef __APPLE__
+#include <libkern/OSByteOrder.h> //Used in swap_bytes functins
+#endif
 namespace sg::bytes {
 
 enum class Endianess { LittleEndian, BigEndian };
@@ -53,4 +60,59 @@ to_bytes(T input, typename std::enable_if<std::is_trivially_copyable<T>::value, 
 }
 
 std::vector<uint8_t> to_bytes(double input, sg::bytes::Endianess endian);
+
+/* Returns x with the order of the bytes reversed; for example, 0xaabb becomes 0xbbaa */
+uint16_t swap_bytes(uint16_t x) {
+#if defined(__GNUC__) || defined(__clang__)
+  return __builtin_bswap16(x);
+#elif defined(_MSC_VER)
+    return _byteswap_ushort(x);
+#elif defined(__APPLE__)
+    OSSwapInt16(x);
+#else
+    /* The manual calculation code is from github:
+     * Copyright 2020 github user jtbr, Released under MIT license */
+    return (( x  >> 8 ) & 0xffu ) |
+            (( x  & 0xffu ) << 8 );
+#endif
+}
+
+/* Returns x with the order of the bytes reversed */
+uint32_t swap_bytes(uint32_t x) {
+#if defined(__GNUC__) || defined(__clang__)
+  return __builtin_bswap32(x);
+#elif defined(_MSC_VER)
+    return _byteswap_ulong(x);
+#elif defined(__APPLE__)
+    OSSwapInt32(x);
+#else
+    return (x >> 24) |
+           ((x >>  8) & 0x0000FF00) |
+           ((x <<  8) & 0x00FF0000) |
+            (x << 24);
+#endif
+}
+
+/* Returns x with the order of the bytes reversed */
+uint64_t swap_bytes(uint64_t x) {
+#if defined(__GNUC__) || defined(__clang__)
+  return __builtin_bswap64(x);
+#elif defined(_MSC_VER)
+    return _byteswap_uint64(x);
+#elif defined(__APPLE__)
+    OSSwapInt64(x);
+#else
+    /* The manual calculation code is from github:
+     * Copyright 2020 github user jtbr, Released under MIT license */
+    return ((( x & 0xff00000000000000ull ) >> 56 ) |
+            (( x & 0x00ff000000000000ull ) >> 40 ) |
+            (( x & 0x0000ff0000000000ull ) >> 24 ) |
+            (( x & 0x000000ff00000000ull ) >> 8  ) |
+            (( x & 0x00000000ff000000ull ) << 8  ) |
+            (( x & 0x0000000000ff0000ull ) << 24 ) |
+            (( x & 0x000000000000ff00ull ) << 40 ) |
+            (( x & 0x00000000000000ffull ) << 56 ));
+#endif
+}
+
 } // namespace sg::bytes
