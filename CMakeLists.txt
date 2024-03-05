@@ -11,7 +11,7 @@ find_package(zstd REQUIRED)
 # Needed hardware-assited CRC32C checksum, optional as the SSE package
 # will set pre-processor header definitions and the code will check for
 # that
-find_package(SSE OPTIONAL_COMPONENTS COMPONENTS SSE41 CRC32 CLMUL)
+find_package(SSE OPTIONAL_COMPONENTS COMPONENTS SSE42 CRC32 CLMUL)
 
 # Boost is required for other CRC checksums
 find_package(Boost REQUIRED)
@@ -50,7 +50,7 @@ target_link_libraries(${TARGET}
     $<$<AND:$<CXX_COMPILER_ID:GNU>,$<VERSION_LESS:$<CXX_COMPILER_VERSION>,9.1>>:${STANDARD_LIBRARY}fs>
     $<$<AND:$<CXX_COMPILER_ID:Clang>,$<VERSION_LESS:$<CXX_COMPILER_VERSION>,9.0>>:${STANDARD_LIBRARY}fs>
   PRIVATE
-    $<$<BOOL:${SSE_SSE41_FOUND}>:SSE::SSE41>    # For hardware accelerated CRC32
+    $<$<BOOL:${SSE_SSE41_FOUND}>:SSE::SSE42>    # For hardware accelerated CRC32
     $<$<BOOL:${SSE_CRC32_FOUND}>:SSE::CRC32> # For hardware accelerated CRC32
     $<$<BOOL:${SSE_CLMUL_FOUND}>:SSE::CLMUL> # For hardware accelerated CRC32
     Threads::Threads
