@@ -50,7 +50,7 @@ target_link_libraries(${TARGET}
     $<$<AND:$<CXX_COMPILER_ID:GNU>,$<VERSION_LESS:$<CXX_COMPILER_VERSION>,9.1>>:${STANDARD_LIBRARY}fs>
     $<$<AND:$<CXX_COMPILER_ID:Clang>,$<VERSION_LESS:$<CXX_COMPILER_VERSION>,9.0>>:${STANDARD_LIBRARY}fs>
   PRIVATE
-    $<$<BOOL:${SSE_SSE41_FOUND}>:SSE::SSE42>    # For hardware accelerated CRC32
+    $<$<BOOL:${SSE_SSE42_FOUND}>:SSE::SSE42> # For hardware accelerated CRC32
     $<$<BOOL:${SSE_CRC32_FOUND}>:SSE::CRC32> # For hardware accelerated CRC32
     $<$<BOOL:${SSE_CLMUL_FOUND}>:SSE::CLMUL> # For hardware accelerated CRC32
     Threads::Threads
