@@ -62,7 +62,7 @@ to_bytes(T input, typename std::enable_if<std::is_trivially_copyable<T>::value, 
 std::vector<uint8_t> to_bytes(double input, sg::bytes::Endianess endian);
 
 /* Returns x with the order of the bytes reversed; for example, 0xaabb becomes 0xbbaa */
-uint16_t swap_bytes(uint16_t x) {
+inline uint16_t swap_bytes(uint16_t x) {
 #if defined(__GNUC__) || defined(__clang__)
   return __builtin_bswap16(x);
 #elif defined(_MSC_VER)
@@ -78,7 +78,7 @@ uint16_t swap_bytes(uint16_t x) {
 }
 
 /* Returns x with the order of the bytes reversed */
-uint32_t swap_bytes(uint32_t x) {
+inline uint32_t swap_bytes(uint32_t x) {
 #if defined(__GNUC__) || defined(__clang__)
   return __builtin_bswap32(x);
 #elif defined(_MSC_VER)
@@ -94,7 +94,7 @@ uint32_t swap_bytes(uint32_t x) {
 }
 
 /* Returns x with the order of the bytes reversed */
-uint64_t swap_bytes(uint64_t x) {
+inline uint64_t swap_bytes(uint64_t x) {
 #if defined(__GNUC__) || defined(__clang__)
   return __builtin_bswap64(x);
 #elif defined(_MSC_VER)
