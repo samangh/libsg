@@ -5,10 +5,10 @@
 #include <type_traits>
 
 template <typename T>
-T shift(const uint8_t *buff, unsigned int no_bytes, sg::bytes::Endianess endian) {
+T shift(const uint8_t *buff, unsigned int no_bytes, std::endian endian) {
     T result = 0;
 
-    if (endian == sg::bytes::Endianess::LittleEndian)
+    if (endian == std::endian::little)
         for (int i = no_bytes - 1; i >= 0; --i) {
             result <<= 8;
             result |= (T)buff[i];
@@ -40,52 +40,40 @@ T swap_endian(
     return dst.val;
 }
 
-sg::bytes::Endianess get_system_endianess(void) {
-    union {
-        uint32_t i;
-        char c[4];
-    } u = {0x01020304};
-
-    if (u.c[0] == 1)
-        return sg::bytes::Endianess::BigEndian;
-    else
-        return sg::bytes::Endianess::LittleEndian;
-}
-
-uint16_t sg::bytes::to_uint16(const uint8_t *buff, Endianess endian) {
+uint16_t sg::bytes::to_uint16(const uint8_t *buff, std::endian endian) {
     return shift<uint16_t>(buff, 2, endian);
 }
 
-uint32_t sg::bytes::to_uint32(const uint8_t *buff, sg::bytes::Endianess endian) {
+uint32_t sg::bytes::to_uint32(const uint8_t *buff, std::endian endian) {
     return shift<uint32_t>(buff, 4, endian);
 }
 
-int32_t sg::bytes::to_int32(const uint8_t *buff, sg::bytes::Endianess endian) {
+int32_t sg::bytes::to_int32(const uint8_t *buff, std::endian endian) {
     return shift<int32_t>(buff, 4, endian);
 }
 
-uint64_t sg::bytes::to_uint64(const uint8_t *buff, sg::bytes::Endianess endian) {
+uint64_t sg::bytes::to_uint64(const uint8_t *buff, std::endian endian) {
     return shift<uint64_t>(buff, 8, endian);
 }
 
-int64_t sg::bytes::to_int64(const uint8_t *buff, sg::bytes::Endianess endian) {
+int64_t sg::bytes::to_int64(const uint8_t *buff, std::endian endian) {
     return shift<int64_t>(buff, 8, endian);
 }
 
-double sg::bytes::to_double(const uint8_t *buff, sg::bytes::Endianess endian) {
+double sg::bytes::to_double(const uint8_t *buff, std::endian endian) {
     double r;
     std::copy(buff, buff + sizeof(double), reinterpret_cast<unsigned char *>(&r));
 
     /* swap endianess if the storage buffer has different endianess to the system */
-    if (get_system_endianess() != endian)
+    if (std::endian::native != endian)
         r = swap_endian(r);
 
     return r;
 }
 
-std::vector<uint8_t> sg::bytes::to_bytes(double input, sg::bytes::Endianess endian) {
+std::vector<uint8_t> sg::bytes::to_bytes(double input, std::endian endian) {
     /* If system and the desired endian is different, then swap endianness */
-    if (get_system_endianess() != endian)
+    if (std::endian::native != endian)
         input = swap_endian(input);
 
     std::vector<uint8_t> bytes;

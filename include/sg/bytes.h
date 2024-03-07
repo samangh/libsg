@@ -3,6 +3,7 @@
 #include <cstdint>
 #include <type_traits>
 #include <vector>
+#include <bit>
 
 #ifdef _MSC_VER
 #include <stdlib.h> //Used in swap_bytes functins
@@ -13,26 +14,22 @@
 #endif
 namespace sg::bytes {
 
-enum class Endianess { LittleEndian, BigEndian };
+uint16_t to_uint16(const uint8_t *buff, std::endian endian = std::endian::little);
+uint32_t to_uint32(const uint8_t *buff, std::endian endian = std::endian::little);
+int32_t to_int32(const uint8_t *buff, std::endian endian = std::endian::little);
+uint64_t to_uint64(const uint8_t *buff, std::endian endian = std::endian::little);
+int64_t to_int64(const uint8_t *buff, std::endian endian = std::endian::little);
+double to_double(const uint8_t *buff, std::endian endian = std::endian::little);
 
-uint16_t to_uint16(const uint8_t *buff, Endianess endian = Endianess::LittleEndian);
-uint32_t to_uint32(const uint8_t *buff, Endianess endian = Endianess::LittleEndian);
-int32_t to_int32(const uint8_t *buff, Endianess endian = Endianess::LittleEndian);
-uint64_t to_uint64(const uint8_t *buff, Endianess endian = Endianess::LittleEndian);
-int64_t to_int64(const uint8_t *buff, Endianess endian = Endianess::LittleEndian);
-double to_double(const uint8_t *buff, Endianess endian = Endianess::LittleEndian);
-
-template <typename T>
+template <typename T, typename = typename std::enable_if<std::is_integral<T>::value>::type>
 std::vector<uint8_t>
-to_bytes(T input,
-         sg::bytes::Endianess endian,
-         typename std::enable_if<std::is_integral<T>::value, std::nullptr_t>::type = nullptr) {
+to_bytes(T input, std::endian endian) {
     /* Defined in header as this is a template, and so if defined in the
      * library we won't know about what types to compile for! */
 
     auto no_bytes = sizeof(T);
     std::vector<uint8_t> result(no_bytes);
-    if (endian == sg::bytes::Endianess::BigEndian)
+    if (endian == std::endian::big)
         for (unsigned int i = 0; i < no_bytes; i++)
             result[no_bytes - 1 - i] = (uint8_t)(input >> (i * 8));
     else
@@ -47,9 +44,9 @@ to_bytes(T input,
  * @param input object
  * @return list of bytes
  */
-template <typename T>
+template <typename T, typename = typename std::enable_if<std::is_trivially_copyable<T>::value>::type>
 std::vector<uint8_t>
-to_bytes(T input, typename std::enable_if<std::is_trivially_copyable<T>::value, bool> = true) {
+to_bytes(T input) {
     uint8_t *arr = reinterpret_cast<uint8_t *>(&input);
     std::vector<uint8_t> result(sizeof(input));
 
@@ -59,7 +56,7 @@ to_bytes(T input, typename std::enable_if<std::is_trivially_copyable<T>::value, 
     return result;
 }
 
-std::vector<uint8_t> to_bytes(double input, sg::bytes::Endianess endian);
+std::vector<uint8_t> to_bytes(double input, std::endian endian);
 
 /* Returns x with the order of the bytes reversed; for example, 0xaabb becomes 0xbbaa */
 inline uint16_t swap_bytes(uint16_t x) {
