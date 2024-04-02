@@ -201,7 +201,9 @@ void file_writer::impl::on_uv_on_file_close(uv_fs_t *req) {
 }
 
 file_writer::file_writer() = default;
-file_writer::~file_writer() = default;
+file_writer::~file_writer() {
+    pimpl->stop();
+}
 
 void file_writer::start(const std::filesystem::path &_path,
                         file_writer::error_cb_t on_error_cb,

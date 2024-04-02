@@ -310,7 +310,10 @@ void tcp_listener::impl::on_error(client_id id, const std::string &message) {
 
 tcp_listener::tcp_listener() : pimpl(sg::pimpl<impl>(this)) {}
 
-tcp_listener::~tcp_listener() = default;
+tcp_listener::~tcp_listener() {
+    pimpl->stop();
+}
+
 
 void tcp_listener::start(const int port,
                          on_error_cb_t on_error_cb,
