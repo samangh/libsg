@@ -3,11 +3,16 @@
 namespace sg {
 
 libuv_wrapper::~libuv_wrapper() {
-    if (is_running())
-        stop();
+    stop();
 }
 
 void libuv_wrapper::stop() {
+    /* Lock in case a separate thread is trying to close this at the same time */
+    std::lock_guard lock(m_stopping_mutex);
+
+    if(!is_running())
+        return;
+
     if (uv_loop_alive(&m_loop))
         THROW_ON_LIBUV_ERROR(uv_async_send(m_async.get()));
 

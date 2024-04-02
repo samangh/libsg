@@ -1,6 +1,7 @@
 #pragma once
 
 #include <functional>
+#include <mutex>
 #include <thread>
 #include <stdexcept>
 #include <uv.h>
@@ -15,6 +16,7 @@ namespace sg {
 
 /* wrapper around libuv, helps with starting and stopping it properly */
 class libuv_wrapper {
+    mutable std::mutex m_stopping_mutex;
   public:
     virtual ~libuv_wrapper();
     void stop();
