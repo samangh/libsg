@@ -13,8 +13,7 @@ void libuv_wrapper::stop() {
     if(!is_running())
         return;
 
-    if (uv_loop_alive(&m_loop))
-        THROW_ON_LIBUV_ERROR(uv_async_send(m_async.get()));
+    abort_uv_loop();
 
     // join and wait for the thread to end.
     // Note: A thread that has finished executing code, but has not yet been joined
@@ -33,6 +32,8 @@ void libuv_wrapper::start_libuv(libuv_on_start_cb_t on_start_cb, libuv_on_stop_c
 
     m_started_cb = on_start_cb;
     m_stopped_cb = on_stop_cb;
+
+    m_uvloop_stop_requested = false;
 
     /* setup UV loop */
     THROW_ON_LIBUV_ERROR(uv_loop_init(&m_loop));
@@ -78,6 +79,20 @@ void libuv_wrapper::start_libuv(libuv_on_start_cb_t on_start_cb, libuv_on_stop_c
         if (m_stopped_cb)
             m_stopped_cb(this);
     });
+}
+
+void libuv_wrapper::abort_uv_loop()
+{
+    /* This unction is thread safe, because m_uvloop_stop_requested is atomic
+     * and uv_async_send(...) is also threadsafe */
+
+    if (m_uvloop_stop_requested || !uv_loop_alive(&m_loop))
+        return;
+
+    /* uv_async_send can throw error if we are in the process walking
+     * the uv_loop callbacks, so ensure we do it only once */
+    THROW_ON_LIBUV_ERROR(uv_async_send(m_async.get()));
+    m_uvloop_stop_requested = true;
 }
 
 } // namespace sg

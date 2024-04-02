@@ -17,11 +17,24 @@ namespace sg {
 /* wrapper around libuv, helps with starting and stopping it properly */
 class libuv_wrapper {
     mutable std::mutex m_stopping_mutex;
+    std::atomic<bool> m_uvloop_stop_requested;
   public:
     typedef std::function<void(libuv_wrapper *)> libuv_on_start_cb_t;
     typedef std::function<void(libuv_wrapper *)> libuv_on_stop_cb_t;
 
+    /* Stops the libuv loop and joins the thread.
+     *
+     * This is thread-safe, but is NOT async-signal-safe. This should
+     * not be called from a signal handler or from the uv loop
+     * thread. Instead call abort_uv_loop() if you need to abort from
+     * within a callback */
     void stop();
+
+    /* Terminates the uv_loop.
+     *
+     * This is thread and async-signal safe. Can be called multiple
+     * times. */
+    void abort_uv_loop();
     bool is_running() const;
 
     /* Note that in C++ derived classes are destructed before the parent
