@@ -18,12 +18,23 @@ namespace sg {
 class libuv_wrapper {
     mutable std::mutex m_stopping_mutex;
   public:
-    virtual ~libuv_wrapper();
+    typedef std::function<void(libuv_wrapper *)> libuv_on_start_cb_t;
+    typedef std::function<void(libuv_wrapper *)> libuv_on_stop_cb_t;
+
     void stop();
     bool is_running() const;
 
-    typedef std::function<void(libuv_wrapper *)> libuv_on_start_cb_t;
-    typedef std::function<void(libuv_wrapper *)> libuv_on_stop_cb_t;
+    /* Note that in C++ derived classes are destructed before the parent
+     * class. If any callbacks are defined in the parent class, and
+     * those callbacks are called when libuv_wrapper is being detructed,
+     * then you will have undefined behaviour because the parent class
+     * and it's functions would have been destroyed.
+     *
+     * Where possible, you SHOULD call stop() in the top-most derived
+     * class that defined any callbacks that could be called as libuv is
+     * being shutdown.
+     */
+    virtual ~libuv_wrapper();
 
   protected:
     uv_loop_t m_loop;
