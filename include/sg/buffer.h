@@ -216,8 +216,9 @@ class shared_buffer : public IBuffer<T> {
     shared_buffer(shared_buffer &&) = default;
     shared_buffer &operator=(shared_buffer &&data) = default;
 
-    shared_buffer(shared_buffer &) = default;
-    shared_buffer &operator=(shared_buffer &data) = default;
+    // Assignment and copy constructor
+    shared_buffer &operator=(const shared_buffer &data) = default;
+    shared_buffer(const shared_buffer&) = default;
 
     T *get() const noexcept override { return ptr.get(); }
 
