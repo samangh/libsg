@@ -37,6 +37,12 @@ class libuv_wrapper {
     void abort_uv_loop();
     bool is_running() const;
 
+    /* Whether a request has been requested.
+     *
+     * After uv_loop abort is requested, it can take a while befor loop
+     * itself is stopped.  This is function is threadsafe. */
+    bool is_stop_requested() const;
+
     /* Note that in C++ derived classes are destructed before the parent
      * class. If any callbacks are defined in the parent class, and
      * those callbacks are called when libuv_wrapper is being detructed,
