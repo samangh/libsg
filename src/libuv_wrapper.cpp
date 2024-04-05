@@ -7,38 +7,42 @@ libuv_wrapper::~libuv_wrapper() {
 }
 
 void libuv_wrapper::stop() {
-    /* Lock in case a separate thread is trying to close this at the same time */
+    stop_async();
+    block_until_stopped();
+}
+
+bool libuv_wrapper::is_stopped() const noexcept
+{
+    return !m_uvloop_running;
+}
+
+bool libuv_wrapper::is_stopped_or_stopping() const noexcept
+{
+    return m_uvloop_stop_requested || is_stopped();
+}
+
+void libuv_wrapper::block_until_stopped() const
+{
+    /* need mutex as join() is not threadsafe */
     std::lock_guard lock(m_stopping_mutex);
 
-    if(!is_running())
-        return;
-
-    abort_uv_loop();
-
-    // join and wait for the thread to end.
-    // Note: A thread that has finished executing code, but has not yet been joined
-    //        is still considered an active thread of execution and is therefore joinable.
+    /* A thread that has finished executing code, but has not yet been
+	 * joined is still considered an active thread of execution and is
+	 * therefore joinable. */
     if (m_thread.joinable())
         m_thread.join();
 }
 
-bool libuv_wrapper::is_running() const {
-    return m_thread.joinable() && (uv_loop_alive(&m_loop) != 0);
-}
-
-bool libuv_wrapper::is_stop_requested() const
-{
-    return m_uvloop_stop_requested;
-}
-
 void libuv_wrapper::start_libuv(libuv_on_start_cb_t on_start_cb, libuv_on_stop_cb_t on_stop_cb) {
-    if (is_running())
+    if (!is_stopped_or_stopping())
         throw std::logic_error("this libuv loop is currently running");
+
+    /* If libuv loop is stopped (or process of stopping), but the thread not joined yet do it */
+    block_until_stopped();
+    m_uvloop_stop_requested = false;
 
     m_started_cb = on_start_cb;
     m_stopped_cb = on_stop_cb;
-
-    m_uvloop_stop_requested = false;
 
     /* setup UV loop */
     THROW_ON_LIBUV_ERROR(uv_loop_init(&m_loop));
@@ -57,6 +61,9 @@ void libuv_wrapper::start_libuv(libuv_on_start_cb_t on_start_cb, libuv_on_stop_c
     m_thread = std::thread([&]() {
         if (m_started_cb)
             m_started_cb(this);
+
+        m_uvloop_running=true;
+
         while (true) {
             /*  Runs the event loop until there are no more active and referenced
              *  handles or requests.  Returns non-zero if uv_stop() was called
@@ -81,23 +88,26 @@ void libuv_wrapper::start_libuv(libuv_on_start_cb_t on_start_cb, libuv_on_stop_c
             if (uv_loop_close(&m_loop) != UV_EBUSY)
                 break;
         }
+
+         m_uvloop_running=false;
+
         if (m_stopped_cb)
             m_stopped_cb(this);
     });
 }
 
-void libuv_wrapper::abort_uv_loop()
+void libuv_wrapper::stop_async()
 {
-    /* This unction is thread safe, because m_uvloop_stop_requested is atomic
-     * and uv_async_send(...) is also threadsafe */
+    if (!uv_loop_alive(&m_loop))
+        return;
 
-    if (m_uvloop_stop_requested || !uv_loop_alive(&m_loop))
+    auto stop_requested_previously = m_uvloop_stop_requested.exchange(true);
+    if (stop_requested_previously)
         return;
 
     /* uv_async_send can throw error if we are in the process walking
      * the uv_loop callbacks, so ensure we do it only once */
     THROW_ON_LIBUV_ERROR(uv_async_send(m_async.get()));
-    m_uvloop_stop_requested = true;
 }
 
 } // namespace sg

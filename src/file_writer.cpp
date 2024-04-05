@@ -226,7 +226,7 @@ void file_writer::start(const std::filesystem::path &_path,
 
 void file_writer::stop() { pimpl->stop(); }
 
-bool file_writer::is_running() const { return pimpl->is_running(); }
+bool file_writer::is_running() const { return !pimpl->is_stopped_or_stopping(); }
 
 void file_writer::write(const char *data, size_t length) { pimpl->write(data, length); }
 

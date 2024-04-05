@@ -18,11 +18,13 @@ namespace sg {
 class libuv_wrapper {
     mutable std::mutex m_stopping_mutex;
     std::atomic<bool> m_uvloop_stop_requested;
+
+    std::atomic<bool> m_uvloop_running=false; /* could use uv_loop_alive(&m_loop), but this is more performant */
   public:
     typedef std::function<void(libuv_wrapper *)> libuv_on_start_cb_t;
     typedef std::function<void(libuv_wrapper *)> libuv_on_stop_cb_t;
 
-    /* Stops the libuv loop and joins the thread.
+    /* Stops the libuv loop syncrhonously.
      *
      * This is thread-safe, but is NOT async-signal-safe. This should
      * not be called from a signal handler or from the uv loop
@@ -34,14 +36,10 @@ class libuv_wrapper {
      *
      * This is thread and async-signal safe. Can be called multiple
      * times. */
-    void abort_uv_loop();
-    bool is_running() const;
-
-    /* Whether a request has been requested.
-     *
-     * After uv_loop abort is requested, it can take a while befor loop
-     * itself is stopped.  This is function is threadsafe. */
-    bool is_stop_requested() const;
+    void stop_async();
+    bool is_stopped() const noexcept;
+    bool is_stopped_or_stopping() const noexcept;
+    void block_until_stopped() const;
 
     /* Note that in C++ derived classes are destructed before the parent
      * class. If any callbacks are defined in the parent class, and
@@ -79,7 +77,7 @@ class libuv_wrapper {
     void start_libuv(libuv_on_start_cb_t, libuv_on_stop_cb_t);
 
   private:
-    std::thread m_thread;
+    mutable std::thread m_thread; /*mutable because of block_until_stopped() */
     std::unique_ptr<uv_async_t> m_async; /* For stopping the loop */
 
     libuv_on_start_cb_t m_started_cb;

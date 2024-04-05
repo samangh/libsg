@@ -118,8 +118,11 @@ void tcp_listener::impl::start(const int port,
                                libuv_on_stop_cb_t on_stop,
                                on_data_available_cb_t on_data_available_cb) {
 
-    if (is_running())
+    if (!is_stopped_or_stopping())
         throw std::logic_error("this tcplistener is currently running");
+
+    // In case in the process of stopping
+    block_until_stopped();
 
     this->port = port;
     m_on_error_cb = on_error_cb;
@@ -344,7 +347,7 @@ void tcp_listener::start(const int port,
 
 void tcp_listener::stop() { pimpl->stop(); }
 
-bool tcp_listener::is_running() const { return pimpl->is_running(); }
+bool tcp_listener::is_running() const { return !pimpl->is_stopped_or_stopping(); }
 
 size_t tcp_listener::number_of_clients() const { return pimpl->number_of_clients(); }
 
