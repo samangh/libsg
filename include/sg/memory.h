@@ -2,6 +2,7 @@
 
 #include <exception>
 #include <functional>
+#include <memory>
 #include <new>
 #include <stdexcept>
 
@@ -12,6 +13,24 @@ namespace sg {
  * Can be passed to std::unique_ptr etc. */
 template <typename T> struct deleter_free {
     constexpr void operator()(T *p) const noexcept { free(p); }
+};
+
+/* a class that will safely generate a weak_ptr that will be valid as
+ * long as the class is in scope.
+ *
+ * If a class inherits or contains this object as a member, then this
+ * can be used to track if that class is in scope. */
+class enable_lifetime_indicator {
+    /* note: This is similar to using std::enable_shared_from_this and
+     * casting to a weak ptr, but in the case the weak_ptr would become
+     * invalid if no other object is holding the shared_ptr */
+  public:
+    typedef std::nullptr_t item_type;
+    std::weak_ptr<item_type> get_lifetime_indicator() const noexcept { return _indicator; }
+    virtual ~enable_lifetime_indicator() = default;
+
+  private:
+    std::shared_ptr<item_type> _indicator = std::make_shared<std::nullptr_t>();
 };
 
 } // namespace sg
