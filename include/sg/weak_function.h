@@ -24,7 +24,7 @@ template <typename T, typename R, typename... ArgT> class weak_function {
 
   public:
     weak_function(const std::nullptr_t &){}; // Allow cast from nullptr
-    weak_function(std::weak_ptr<T> weakPtr, std::function<R(ArgT...)> func)
+    weak_function(std::weak_ptr<T> weakPtr, const std::function<R(ArgT...)>& func)
         : m_item(weakPtr),
           m_func(func){};
 
@@ -36,9 +36,8 @@ template <typename T, typename R, typename... ArgT> class weak_function {
 };
 
 template <typename R, typename... ArgTypes>
-sg::weak_function<bool, R, ArgTypes...>
-create_weak_funct(::sg::enable_lifetime_indicator lifeimeIndicator,
-                  std::function<R(ArgTypes...)> func) {
-    return sg::weak_function<bool, R, ArgTypes...>(lifeimeIndicator.get_lifetime_indicator(), func);
+auto create_weak_function(sg::enable_lifetime_indicator *lifeimeIndicator,
+                          const std::function<R(ArgTypes...)>& func) {
+    return sg::weak_function(lifeimeIndicator->get_lifetime_indicator(), func);
 }
 } // namespace sg
