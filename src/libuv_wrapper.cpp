@@ -2,38 +2,46 @@
 
 namespace sg {
 
-libuv_wrapper::~libuv_wrapper() {
-    stop();
-}
+libuv_wrapper::~libuv_wrapper() { stop(); }
 
 void libuv_wrapper::stop() {
     stop_async();
     block_until_stopped();
 }
 
-bool libuv_wrapper::is_stopped() const noexcept
-{
-    return !m_uvloop_running;
-}
+bool libuv_wrapper::is_stopped() const noexcept { return !m_uvloop_running; }
 
-bool libuv_wrapper::is_stopped_or_stopping() const noexcept
-{
+bool libuv_wrapper::is_stopped_or_stopping() const noexcept {
     return m_uvloop_stop_requested || is_stopped();
 }
 
-void libuv_wrapper::block_until_stopped() const
-{
+void libuv_wrapper::block_until_stopped() const {
     /* need mutex as join() is not threadsafe */
-    std::lock_guard lock(m_stopping_mutex);
+    std::lock_guard lock(m_start_stop_mutex);
 
     /* A thread that has finished executing code, but has not yet been
-	 * joined is still considered an active thread of execution and is
-	 * therefore joinable. */
+     * joined is still considered an active thread of execution and is
+     * therefore joinable. */
     if (m_thread.joinable())
         m_thread.join();
 }
 
-void libuv_wrapper::start_libuv(libuv_on_start_cb_t on_start_cb, libuv_on_stop_cb_t on_stop_cb) {
+uv_loop_t *libuv_wrapper::get_uv_loop() { return &m_loop; }
+
+void libuv_wrapper::add_on_loop_started_cb(cb_t cb) {
+    std::lock_guard lock(m_tasks_mutex);
+    m_started_cbs.push_back(cb);
+}
+
+void libuv_wrapper::add_on_stopped_cb(cb_t cb) {
+    std::lock_guard lock(m_tasks_mutex);
+    m_stopped_cbs.push_back(cb);
+}
+
+void libuv_wrapper::start_libuv() {
+    std::lock_guard lock(m_start_stop_mutex);
+    std::lock_guard lock_tasks(m_tasks_mutex);
+
     if (!is_stopped_or_stopping())
         throw std::logic_error("this libuv loop is currently running");
 
@@ -41,28 +49,37 @@ void libuv_wrapper::start_libuv(libuv_on_start_cb_t on_start_cb, libuv_on_stop_c
     block_until_stopped();
     m_uvloop_stop_requested = false;
 
-    m_started_cb = on_start_cb;
-    m_stopped_cb = on_stop_cb;
-
     /* setup UV loop */
     THROW_ON_LIBUV_ERROR(uv_loop_init(&m_loop));
     m_loop.data = this;
 
-    /* call derived class operations */
-    setup_libuv_operations();
+    /* task setup callacks */
+    for (auto& [index, cb] : libuv_setup_task_cbs)
+        cb(this);
+    libuv_setup_task_cbs.clear();
 
     /* Setup handle for stopping the loop */
     m_async = std::make_unique<uv_async_t>();
     uv_async_init(&m_loop, m_async.get(), [](uv_async_t *handle) {
-        ((libuv_wrapper *)handle->loop->data)->stop_libuv_operations();
+        auto wrapper = (libuv_wrapper *)handle->loop->data;
+
+        std::lock_guard lock_tasks(wrapper->m_tasks_mutex);
+        for (auto& [index, cb] : wrapper->m_wrapup_tasks_cbs)
+            cb(wrapper);
+        wrapper->m_wrapup_tasks_cbs.clear();
+
         uv_stop(handle->loop);
     });
 
     m_thread = std::thread([&]() {
-        if (m_started_cb)
-            m_started_cb(this);
+        {
+            std::lock_guard lock(m_tasks_mutex);
+            for (auto &cb : m_started_cbs)
+                cb(this);
+            m_started_cbs.clear();
+        }
 
-        m_uvloop_running=true;
+        m_uvloop_running = true;
 
         while (true) {
             /*  Runs the event loop until there are no more active and referenced
@@ -81,23 +98,61 @@ void libuv_wrapper::start_libuv(libuv_on_start_cb_t on_start_cb, libuv_on_stop_c
              *    called and you can free the memory in the callbacks */
 
             /* Close callbacks */
-            uv_walk(
-                &m_loop, [](uv_handle_s *handle, void *) { uv_close(handle, nullptr); }, nullptr);
+            uv_walk(&m_loop, [](uv_handle_s *handle, void *) {
+                uv_close(handle, nullptr);
+            }, nullptr);
 
             /* Check if there are any remaining callbacks*/
             if (uv_loop_close(&m_loop) != UV_EBUSY)
                 break;
         }
 
-         m_uvloop_running=false;
+        m_uvloop_running = false;
 
-        if (m_stopped_cb)
-            m_stopped_cb(this);
+        {
+            std::lock_guard lock(m_tasks_mutex);
+            for (auto &cb : m_stopped_cbs)
+                cb(this);
+            m_stopped_cbs.clear();
+        }
     });
 }
 
-void libuv_wrapper::stop_async()
+size_t libuv_wrapper::add_setup_task_cb(cb_t setup, cb_t wrapup)
 {
+    std::lock_guard lock(m_tasks_mutex);
+    auto index = m_task_counter++;
+
+    libuv_setup_task_cbs.emplace(index, std::move(setup));
+    m_wrapup_tasks_cbs.emplace(index, std::move(wrapup));
+
+    return index;
+}
+
+void libuv_wrapper::remove_task_callbacks(size_t index)
+{
+    std::lock_guard lock(m_tasks_mutex);
+    m_wrapup_tasks_cbs.erase(index);
+    libuv_setup_task_cbs.erase(index);
+}
+
+size_t libuv_wrapper::start_task(cb_t setup, cb_t wrapup) {
+    size_t i;
+
+    if (is_stopped_or_stopping()) {
+        block_until_stopped();
+
+        i = add_setup_task_cb(std::move(setup), std::move(wrapup));
+        start_libuv();
+    } else {
+        i = add_setup_task_cb(nullptr, std::move(wrapup));
+        setup(this);
+    }
+
+    return i;
+}
+
+void libuv_wrapper::stop_async() {
     if (!uv_loop_alive(&m_loop))
         return;
 
@@ -108,6 +163,11 @@ void libuv_wrapper::stop_async()
     /* uv_async_send can throw error if we are in the process walking
      * the uv_loop callbacks, so ensure we do it only once */
     THROW_ON_LIBUV_ERROR(uv_async_send(m_async.get()));
+}
+
+std::shared_ptr<libuv_wrapper> get_global_uv_holder() {
+    static std::shared_ptr<libuv_wrapper> ptr = std::make_shared<libuv_wrapper>();
+    return ptr;
 }
 
 } // namespace sg

@@ -1,9 +1,13 @@
 #pragma once
 
+#include "weak_function.h"
+
 #include <functional>
+#include <map>
+#include <memory>
 #include <mutex>
-#include <thread>
 #include <stdexcept>
+#include <thread>
 #include <uv.h>
 
 #define THROW_ON_LIBUV_ERROR(err)                                                                  \
@@ -16,13 +20,33 @@ namespace sg {
 
 /* wrapper around libuv, helps with starting and stopping it properly */
 class libuv_wrapper {
-    mutable std::mutex m_stopping_mutex;
-    std::atomic<bool> m_uvloop_stop_requested;
-
-    std::atomic<bool> m_uvloop_running=false; /* could use uv_loop_alive(&m_loop), but this is more performant */
   public:
-    typedef std::function<void(libuv_wrapper *)> libuv_on_start_cb_t;
-    typedef std::function<void(libuv_wrapper *)> libuv_on_stop_cb_t;
+    typedef weak_function<sg::enable_lifetime_indicator::item_type, void, libuv_wrapper *> cb_t;
+
+    /* add a callback to be called just before the uv_loop is started.
+     *
+     * Callback is called only once. You must add it if you need it to
+     * be called on futher starts/stops. */
+    void add_on_loop_started_cb(cb_t);
+
+    /* add a callback to be called just after the uv_loop is stopped.
+     *
+     * Callback is called only once. You must add it if you need it to
+     * be called on further starts/stops. */
+    void add_on_stopped_cb(cb_t);
+
+    /**
+     * @brief runs the given set task, then starts the libuv loop if
+     * needed
+     *
+     * @tparam setup_action is called as part of the setup process. This
+     * will always be called after the loop is initialised. This action
+     * is done in the calling thread.
+     *
+     * @tparam wrapup_action is called right before the uv_loop is
+     * stopped. This action is done ithe libuv event loop.
+     */
+    size_t start_task(cb_t setup_action, cb_t wrapup_action);
 
     /* Stops the libuv loop syncrhonously.
      *
@@ -41,6 +65,10 @@ class libuv_wrapper {
     bool is_stopped_or_stopping() const noexcept;
     void block_until_stopped() const;
 
+    void remove_task_callbacks(size_t index);
+
+    uv_loop_t *get_uv_loop();
+
     /* Note that in C++ derived classes are destructed before the parent
      * class. If any callbacks are defined in the parent class, and
      * those callbacks are called when libuv_wrapper is being detructed,
@@ -53,35 +81,31 @@ class libuv_wrapper {
      */
     virtual ~libuv_wrapper();
 
-  protected:
+  private:
     uv_loop_t m_loop;
 
-    /* Function that will be called to setup libuv operations
-     *
-     * This function is called bye start_libuv() as part of the start process.
-     * It'll be called after the libuv loopis initialised, but before the loop
-     * itself is started.
-     *
-     * This function will be called in the same thread that the start_libuv()
-     * function is called on. */
-    virtual void setup_libuv_operations() = 0;
-
-    /* Function to stop derived_class specific libuv operations
-     *
-     * Note:
-     *  - This will be called right before uv_stop() is called.
-     *  - This will be called in the libuv event loop thread. */
-    virtual void stop_libuv_operations() = 0;
-
-    /* Starts libuv loop, the callbacks can be nullptr */
-    void start_libuv(libuv_on_start_cb_t, libuv_on_stop_cb_t);
-
-  private:
-    mutable std::thread m_thread; /*mutable because of block_until_stopped() */
+    mutable std::thread m_thread;        /* mutable because of block_until_stopped() */
     std::unique_ptr<uv_async_t> m_async; /* For stopping the loop */
 
-    libuv_on_start_cb_t m_started_cb;
-    libuv_on_stop_cb_t m_stopped_cb;
+    mutable std::mutex m_tasks_mutex;
+    std::vector<cb_t> m_started_cbs;
+    std::vector<cb_t> m_stopped_cbs;
+    std::map<size_t, cb_t> libuv_setup_task_cbs;
+    std::map<size_t, cb_t> m_wrapup_tasks_cbs;
+
+    size_t m_task_counter;
+
+    mutable std::recursive_mutex m_start_stop_mutex;
+    std::atomic<bool> m_uvloop_stop_requested;
+    std::atomic<bool> m_uvloop_running =
+        false; /* could use uv_loop_alive(&m_loop), but this is more performant */
+
+    /* Starts libuv loop, the callbacks can be nullptr */
+    void start_libuv();
+
+    size_t add_setup_task_cb(cb_t setup, cb_t wrapup);
 };
+
+std::shared_ptr<libuv_wrapper> get_global_uv_holder();
 
 } // namespace sg
