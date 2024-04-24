@@ -1,6 +1,7 @@
 #pragma once
 
 #include "pimpl.h"
+#include "sg/memory.h"
 
 #include <filesystem>
 #include <functional>
@@ -8,7 +9,7 @@
 
 namespace sg {
 
-class file_writer {
+class file_writer: public sg::enable_lifetime_indicator {
     class impl;
     sg::pimpl<impl> pimpl;
 
