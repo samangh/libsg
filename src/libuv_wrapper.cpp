@@ -165,8 +165,8 @@ void libuv_wrapper::stop_async() {
     THROW_ON_LIBUV_ERROR(uv_async_send(m_async.get()));
 }
 
-std::shared_ptr<libuv_wrapper> get_global_uv_holder() {
-    static std::shared_ptr<libuv_wrapper> ptr = std::make_shared<libuv_wrapper>();
+libuv_wrapper& get_global_uv_holder() {
+    static libuv_wrapper ptr;
     return ptr;
 }
 

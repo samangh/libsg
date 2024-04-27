@@ -106,6 +106,6 @@ class libuv_wrapper {
     size_t add_setup_task_cb(cb_t setup, cb_t wrapup);
 };
 
-std::shared_ptr<libuv_wrapper> get_global_uv_holder();
+libuv_wrapper& get_global_uv_holder();
 
 } // namespace sg

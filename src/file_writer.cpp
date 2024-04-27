@@ -17,7 +17,7 @@ namespace sg {
 
 class file_writer::impl : public sg::enable_lifetime_indicator {
   public:
-    impl(sg::file_writer& parent, std::shared_ptr<sg::libuv_wrapper> libuv)
+    impl(sg::file_writer& parent, sg::libuv_wrapper& libuv)
         : m_parent(parent),
           m_libuv(libuv),
           m_buffer_in(std::make_unique<std::vector<char>>()) {}
@@ -76,7 +76,7 @@ class file_writer::impl : public sg::enable_lifetime_indicator {
         sg::libuv_wrapper::cb_t setup_cb = sg::create_weak_function(this, setup_func);
         sg::libuv_wrapper::cb_t wrapup_cb = sg::create_weak_function(this, wrapup_func);
 
-        m_libuv_task_index = m_libuv->start_task(setup_cb, wrapup_cb);
+        m_libuv_task_index = m_libuv.start_task(setup_cb, wrapup_cb);
     }
 
     void write(const char *data, size_t length) {
@@ -116,7 +116,7 @@ class file_writer::impl : public sg::enable_lifetime_indicator {
     sg::file_writer& m_parent;
     std::filesystem::path m_path;
 
-    std::shared_ptr<sg::libuv_wrapper> m_libuv;
+    sg::libuv_wrapper& m_libuv;
     size_t m_libuv_task_index;
 
     /* client callbacks */
@@ -178,7 +178,7 @@ class file_writer::impl : public sg::enable_lifetime_indicator {
                 uv_close((uv_handle_t*)&m_uv_timer, on_timer_stop);
 
                 close_req.data = this;
-                uv_fs_close(m_libuv->get_uv_loop(),
+                uv_fs_close(m_libuv.get_uv_loop(),
                             &close_req,
                             static_cast<uv_file>(open_req.result),
                             &file_writer::impl::on_uv_on_file_close);
@@ -202,7 +202,7 @@ class file_writer::impl : public sg::enable_lifetime_indicator {
             write_req.data = this;
 
             m_write_pending = true;
-            uv_fs_write(m_libuv->get_uv_loop(),
+            uv_fs_write(m_libuv.get_uv_loop(),
                         &write_req,
                         static_cast<uv_file>(open_req.result),
                         &m_uv_buf,
