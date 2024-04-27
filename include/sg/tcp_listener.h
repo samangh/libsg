@@ -21,24 +21,24 @@ class SG_COMMON_EXPORT tcp_listener : sg::enable_lifetime_indicator {
    typedef size_t write_req_id;
    typedef sg::unique_c_buffer<uint8_t> buffer;
 
-   typedef std::function<void(tcp_listener &, client_id, const std::string &msg)> on_error_cb_t;
-   typedef std::function<void(tcp_listener &, client_id)> on_client_connected_cb_t;
-   typedef std::function<void(tcp_listener &, client_id)> on_client_disconnected_cb_t;
-   typedef std::function<void(tcp_listener &)> on_listening_started_cb_t;
-   typedef std::function<void(tcp_listener &)> on_listening_stopped_cb_t;
-   typedef std::function<void(tcp_listener &, client_id, size_t length)> on_data_available_cb_t;
+   typedef std::function<void(tcp_listener &, client_id, const std::string &msg)> on_error_fn;
+   typedef std::function<void(tcp_listener &, client_id)> on_client_connected_fn;
+   typedef std::function<void(tcp_listener &, client_id)> on_client_disconnected_fn;
+   typedef std::function<void(tcp_listener &)> on_started_fn;
+   typedef std::function<void(tcp_listener &)> on_stopped_fn;
+   typedef std::function<void(tcp_listener &, client_id, size_t length)> on_data_available_fn;
 
    /* Consructs a TCP listener, callbacks can be nullptr */
    tcp_listener();
    ~tcp_listener();
 
    void start(const int port,
-              on_error_cb_t on_error_cb,
-              on_client_connected_cb_t on_client_connected_cb,
-              on_client_disconnected_cb_t on_client_disconnected_cb,
-              on_listening_started_cb_t on_start,
-              on_listening_stopped_cb_t on_stop,
-              on_data_available_cb_t on_data_available_cb);
+              on_error_fn on_error_cb,
+              on_client_connected_fn on_client_connected_cb,
+              on_client_disconnected_fn on_client_disconnected_cb,
+              on_started_fn on_start,
+              on_stopped_fn on_stop,
+              on_data_available_fn on_data_available_cb);
    void stop_async();
    void stop();
 

@@ -36,12 +36,12 @@ class SG_COMMON_EXPORT tcp_listener::impl : public sg::enable_lifetime_indicator
     }
 
    void start(const int port,
-              sg::tcp_listener::on_error_cb_t on_error_cb,
-              sg::tcp_listener::on_client_connected_cb_t on_client_connected_cb,
-              sg::tcp_listener::on_client_disconnected_cb_t on_client_disconnected_cb,
-              sg::tcp_listener::on_listening_started_cb_t on_started_listening_cb,
-              sg::tcp_listener::on_listening_stopped_cb_t on_stopped_listening_cb,
-              sg::tcp_listener::on_data_available_cb_t on_data_available_cb) {
+              sg::tcp_listener::on_error_fn on_error_cb,
+              sg::tcp_listener::on_client_connected_fn on_client_connected_cb,
+              sg::tcp_listener::on_client_disconnected_fn on_client_disconnected_cb,
+              sg::tcp_listener::on_started_fn on_started_listening_cb,
+              sg::tcp_listener::on_stopped_fn on_stopped_listening_cb,
+              sg::tcp_listener::on_data_available_fn on_data_available_cb) {
        if (!is_stopped_or_stopping())
            throw std::logic_error("this tcp_listener is currently running");
 
@@ -185,12 +185,12 @@ class SG_COMMON_EXPORT tcp_listener::impl : public sg::enable_lifetime_indicator
    void on_error(client_id, const std::string &message);
 
    /* call backs to user */
-   sg::tcp_listener::on_error_cb_t m_on_error_cb; /* Called in case of errors after connect(...) */
-   sg::tcp_listener::on_client_connected_cb_t m_on_client_connected_cb;
-   sg::tcp_listener::on_client_disconnected_cb_t m_on_client_disconnected_cb;
-   sg::tcp_listener::on_data_available_cb_t m_on_data_available;
-   sg::tcp_listener::on_listening_started_cb_t m_on_started_listening_cb;
-   sg::tcp_listener::on_listening_stopped_cb_t m_on_stopped_listening_cb;
+   sg::tcp_listener::on_error_fn m_on_error_cb; /* Called in case of errors after connect(...) */
+   sg::tcp_listener::on_client_connected_fn m_on_client_connected_cb;
+   sg::tcp_listener::on_client_disconnected_fn m_on_client_disconnected_cb;
+   sg::tcp_listener::on_data_available_fn m_on_data_available;
+   sg::tcp_listener::on_started_fn m_on_started_listening_cb;
+   sg::tcp_listener::on_stopped_fn m_on_stopped_listening_cb;
 
    /* clients*/
    mutable std::shared_mutex m_mutex; /* Mutex for getting modifying m_clients*/
@@ -368,12 +368,12 @@ tcp_listener::~tcp_listener()  = default;
 
 
 void tcp_listener::start(const int port,
-                        on_error_cb_t on_error_cb,
-                        on_client_connected_cb_t on_client_connected_cb,
-                        on_client_disconnected_cb_t on_client_disconnected_cb,
-                        on_listening_started_cb_t on_start,
-                        on_listening_stopped_cb_t on_stop,
-                        on_data_available_cb_t on_data_available_cb) {
+                        on_error_fn on_error_cb,
+                        on_client_connected_fn on_client_connected_cb,
+                        on_client_disconnected_fn on_client_disconnected_cb,
+                        on_started_fn on_start,
+                        on_stopped_fn on_stop,
+                        on_data_available_fn on_data_available_cb) {
    pimpl->start(port,
                 on_error_cb,
                 on_client_connected_cb,
