@@ -88,6 +88,9 @@ class file_writer::impl : public sg::enable_lifetime_indicator {
     {
         /* Tell timer to stop, this will also flush the cache and close the file */
         m_stop_requested = true;
+
+        /* tell timer to restart more quickly */
+        uv_timer_set_repeat(&m_uv_timer, 10);
     }
     void close() {
         if (!m_stop_requested)
@@ -305,7 +308,7 @@ void file_writer::start(const std::filesystem::path &_path,
     pimpl->start(_path, on_error_cb, on_client_connected_cb, on_client_disconnected_cb, write_interval);
 }
 
-void file_writer::stop() { pimpl->close_async(); }
+void file_writer::stop() { pimpl->close(); }
 
 bool file_writer::is_running() const { return pimpl->is_running(); }
 
