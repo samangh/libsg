@@ -19,7 +19,7 @@ class SG_COMMON_EXPORT tcp_listener : sg::enable_lifetime_indicator {
  public:
    typedef size_t client_id;
    typedef size_t write_req_id;
-   typedef sg::unique_c_buffer<uint8_t> buffer;
+   typedef sg::unique_c_buffer<std::byte> buffer;
 
    typedef std::function<void(tcp_listener &, client_id, const std::string &msg)> on_error_fn;
    typedef std::function<void(tcp_listener &, client_id)> on_client_connected_fn;
@@ -47,8 +47,8 @@ class SG_COMMON_EXPORT tcp_listener : sg::enable_lifetime_indicator {
 
    size_t number_of_clients() const;
 
-   void write(client_id, sg::shared_opaque_buffer<uint8_t>);
-   void write(client_id, std::vector<uint8_t>);
+   void write(client_id, sg::shared_c_buffer<std::byte>);
+   void write(client_id, std::vector<std::byte>);
 
    /* Returns data read from a client */
    std::vector<buffer> get_buffers(client_id);
@@ -57,12 +57,12 @@ class SG_COMMON_EXPORT tcp_listener : sg::enable_lifetime_indicator {
    std::map<client_id, std::vector<buffer>> get_buffers();
 
    /* Combines all data read from a client as a vector */
-   std::vector<uint8_t> get_buffers_as_vector(client_id);
+   std::vector<std::byte> get_buffers_as_vector(client_id);
 
    /* Combines all data read from all client as a set of vector */
-   std::map<client_id, std::vector<uint8_t>> get_buffers_as_vector();
+   std::map<client_id, std::vector<std::byte>> get_buffers_as_vector();
 
-   std::vector<uint8_t> buffers_to_vector(std::vector<buffer>);
+   std::vector<std::byte> buffers_to_vector(std::vector<buffer>);
 };
 
 } // namespace sg
