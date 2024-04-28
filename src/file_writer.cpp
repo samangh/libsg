@@ -1,6 +1,8 @@
-#include <sg/file_writer.h>
-#include <sg/libuv_wrapper.h>
+#include "sg/buffer.h"
+#include "sg/file_writer.h"
+#include "sg/libuv_wrapper.h"
 
+#include <cstring>
 #include <cstdint>
 #include <filesystem>
 #include <functional>
@@ -19,8 +21,7 @@ class file_writer::impl : public sg::enable_lifetime_indicator {
   public:
     impl(sg::file_writer& parent, sg::libuv_wrapper& libuv)
         : m_parent(parent),
-          m_libuv(libuv),
-          m_buffer_in(std::make_unique<std::vector<char>>()) {}
+          m_libuv(libuv){}
 
     void start(std::filesystem::path _path,
                file_writer::error_cb_t on_error_cb,
@@ -53,11 +54,8 @@ class file_writer::impl : public sg::enable_lifetime_indicator {
         std::function<void(sg::libuv_wrapper*)> setup_func = [this](sg::libuv_wrapper* wrap){
             {
                 std::lock_guard lock(m_mutex);
-                if (m_buffer_in)
-                    m_buffer_in->clear();
-
-                if (m_buffer_out)
-                    m_buffer_out->clear();
+                m_buffer_in.clear();
+                m_buffer_out.clear();
             }
 
             open_req.data = this;
@@ -79,9 +77,9 @@ class file_writer::impl : public sg::enable_lifetime_indicator {
         m_libuv_task_index = m_libuv.start_task(setup_cb, wrapup_cb);
     }
 
-    void write(const char *data, size_t length) {
+    void write(sg::shared_c_buffer<std::byte> buf) {
         std::lock_guard lock(m_mutex);
-        m_buffer_in.get()->insert(m_buffer_in.get()->end(), data, data + length);
+        m_buffer_in.emplace_back(std::move(buf));
     }
 
     std::filesystem::path path() const { return open_req.path; }
@@ -125,8 +123,8 @@ class file_writer::impl : public sg::enable_lifetime_indicator {
     file_writer::stopped_cb_t m_on_client_disconnected_cb;
 
     std::shared_mutex m_mutex;
-    std::unique_ptr<std::vector<char>> m_buffer_in;
-    std::unique_ptr<std::vector<char>> m_buffer_out;
+    std::vector<sg::shared_c_buffer<std::byte>> m_buffer_in;
+    std::vector<sg::shared_c_buffer<std::byte>> m_buffer_out;
 
     bool m_write_pending = false;
     bool m_last_data_seen =false;
@@ -136,7 +134,7 @@ class file_writer::impl : public sg::enable_lifetime_indicator {
     uv_fs_t open_req;
     uv_fs_t write_req;
     uv_fs_t close_req;
-    uv_buf_t m_uv_buf;
+    std::vector<uv_buf_t> m_uv_buffers;
     uv_timer_t m_uv_timer;
 
     /* promies for ensuring that this class is not destructed until the timer is stopped and file
@@ -157,10 +155,9 @@ class file_writer::impl : public sg::enable_lifetime_indicator {
     }
 
     void do_write() {
-        /* This can be called by in event loop by on_uv_timer_tick(..) or
-         * by stop_libuv_operations(...)
-         *
-         * As this can called by multiple threads, locking is required */
+        /* This can be called by in event loop by on_uv_timer_tick(..).
+         * However, m_buffer_in will be written to by other threads, so a lock is needed */
+
         std::lock_guard lock(m_mutex);
 
         /* If a write is already requested, then RETURN*/
@@ -190,14 +187,13 @@ class file_writer::impl : public sg::enable_lifetime_indicator {
             m_last_data_seen=true;
         }
 
+        if (m_buffer_in.size() > 0) {
+            m_buffer_out.clear();
+            m_buffer_in.swap(m_buffer_out);
 
-        if (m_buffer_in->size() > 0) {
-            m_buffer_out = std::move(m_buffer_in);
-            m_buffer_in = std::make_unique<std::vector<char>>();
-
-            auto size = m_buffer_out->size();
-            auto buff_ptr = &(*m_buffer_out.get())[0];
-            m_uv_buf = uv_buf_init(buff_ptr, static_cast<unsigned int>(size));
+            m_uv_buffers.clear();
+            for (auto& buf: m_buffer_out)
+                m_uv_buffers.emplace_back(uv_buf_init(reinterpret_cast<char*>(buf.get()), buf.size()));
 
             write_req.data = this;
 
@@ -205,8 +201,8 @@ class file_writer::impl : public sg::enable_lifetime_indicator {
             uv_fs_write(m_libuv.get_uv_loop(),
                         &write_req,
                         static_cast<uv_file>(open_req.result),
-                        &m_uv_buf,
-                        1,
+                        m_uv_buffers.data(),
+                        m_uv_buffers.size(),
                         -1,
                         on_uv_on_write);
         }
@@ -313,7 +309,35 @@ void file_writer::stop() { pimpl->close_async(); }
 
 bool file_writer::is_running() const { return pimpl->is_running(); }
 
-void file_writer::write(const char *data, size_t length) { pimpl->write(data, length); }
+void file_writer::write(sg::shared_c_buffer<std::byte> buf)
+{
+    pimpl->write(std::move(buf));
+}
+
+void file_writer::write(const char *data, size_t length) {
+    auto a =sg::make_shared_c_buffer<std::byte>(length);
+    std::memcpy(a.get(), data, length*sizeof(char));
+    pimpl->write(std::move(a));
+}
+
+void file_writer::write(const std::string_view &msg) {
+    /* having this in header means that we don't have to
+         * worry about passing std::string across library
+         * boundaries. */
+    write(msg.data(), msg.size());
+}
+
+void file_writer::write_line(const std::string_view &msg) {
+    /* having this in header means that we don't have to
+         * worry about passing std::string across library
+         * boundaries. */
+    write(msg);
+    #ifdef _WIN32
+    write("\r\n");
+    #else
+    write("n");
+    #endif
+}
 
 std::filesystem::path file_writer::path() const { return pimpl->path(); }
 

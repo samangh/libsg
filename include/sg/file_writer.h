@@ -1,6 +1,7 @@
 #pragma once
 
 #include "pimpl.h"
+#include "sg/buffer.h"
 #include "sg/memory.h"
 
 #include <filesystem>
@@ -28,19 +29,16 @@ class file_writer: public sg::enable_lifetime_indicator {
     void stop();
     bool is_running() const;
 
+    void write(sg::shared_c_buffer<std::byte>);
+
+    /* note: the data is copied internally */
     void write(const char *data, size_t length);
-    inline void write(const std::string &msg) {
-        /* having this in header means that we don't have to
-         * worry about passing std::string across library
-         * boundaries. */
-        write(msg.c_str(), msg.size());
-    }
-    inline void write_line(const std::string &msg) {
-        /* having this in header means that we don't have to
-         * worry about passing std::string across library
-         * boundaries. */
-        write(msg + "\n");
-    }
+
+    /* note: the data is copied internally */
+    void write(const std::string_view &);
+
+    /* note: the data is copied internally */
+    void write_line(const std::string_view &);
 
     std::filesystem::path path() const;
 };
