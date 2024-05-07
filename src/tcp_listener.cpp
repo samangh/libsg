@@ -145,6 +145,12 @@ class SG_COMMON_EXPORT tcp_listener::impl : public sg::enable_lifetime_indicator
        return m_clients.at(id)->address;
    }
 
+   sg::net::address_family client_address_family(client_id id) const {
+       std::lock_guard lock(m_mutex);
+       return m_clients.at(id)->address_family;
+
+   }
+
    std::vector<sg::tcp_listener::buffer> get_buffer(client_id);
    std::map<client_id, std::vector<tcp_listener::buffer>> get_buffers();
 
@@ -169,7 +175,7 @@ class SG_COMMON_EXPORT tcp_listener::impl : public sg::enable_lifetime_indicator
        std::unique_ptr<uv_tcp_t> uv_tcp_handle;
        std::vector<sg::tcp_listener::buffer> data;
        std::string address;
-       sg::net::address_family inet_family;
+       sg::net::address_family address_family;
    };
    struct write_request {
        write_request(std::shared_ptr<client_data> _client,
@@ -331,9 +337,9 @@ void tcp_listener::impl::on_new_connection(uv_stream_t *server, int status) {
        client->address = ip_str;
 
        if (addr.ss_family == AF_INET)
-           client->inet_family = sg::net::address_family::IPv4;
+           client->address_family = sg::net::address_family::IPv4;
        else if (addr.ss_family == AF_INET6)
-           client->inet_family = sg::net::address_family::IPv6;
+           client->address_family = sg::net::address_family::IPv6;
    }
 
    /* call this after accepting, in case the CB tries to write/close the cb */
@@ -439,6 +445,11 @@ size_t tcp_listener::number_of_clients() const { return pimpl->number_of_clients
 std::string tcp_listener::client_address(client_id id) const
 {
     return pimpl->client_address(id);
+}
+
+net::address_family tcp_listener::cleint_address_family(client_id id) const
+{
+    return pimpl->client_address_family(id);
 }
 
 void tcp_listener::write(client_id id, sg::shared_c_buffer<std::byte> bytes) {
