@@ -16,7 +16,13 @@
 #include <system_error>
 #include <thread>
 #include <vector>
+
+#ifdef _WIN32
+    #include <WinSock2.h>
+    #include <Ws2def.h>
+#else
 #include <sys/socket.h>
+#endif
 
 namespace {
 struct result {
