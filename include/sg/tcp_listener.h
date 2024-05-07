@@ -3,6 +3,7 @@
 #include "sg/buffer.h"
 #include "sg/export/sg_common.h"
 #include "sg/pimpl.h"
+#include "sg/net.h"
 
 #include <cstdint>
 #include <functional>
@@ -46,6 +47,7 @@ class SG_COMMON_EXPORT tcp_listener : sg::enable_lifetime_indicator {
    bool is_stopped_or_stopping() const;
 
    size_t number_of_clients() const;
+   std::string client_address(client_id) const;
 
    void write(client_id, sg::shared_c_buffer<std::byte>);
    void write(client_id, std::vector<std::byte>);

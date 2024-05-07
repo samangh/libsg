@@ -16,6 +16,7 @@
 #include <system_error>
 #include <thread>
 #include <vector>
+#include <sys/socket.h>
 
 namespace {
 struct result {
@@ -133,6 +134,11 @@ class SG_COMMON_EXPORT tcp_listener::impl : public sg::enable_lifetime_indicator
    size_t number_of_clients() const;
    void write(client_id, sg::shared_c_buffer<std::byte> buffer);
 
+   std::string client_address(client_id id) const {
+       std::lock_guard lock(m_mutex);
+       return m_clients.at(id)->address;
+   }
+
    std::vector<sg::tcp_listener::buffer> get_buffer(client_id);
    std::map<client_id, std::vector<tcp_listener::buffer>> get_buffers();
 
@@ -156,6 +162,8 @@ class SG_COMMON_EXPORT tcp_listener::impl : public sg::enable_lifetime_indicator
        client_id id;
        std::unique_ptr<uv_tcp_t> uv_tcp_handle;
        std::vector<sg::tcp_listener::buffer> data;
+       std::string address;
+       sg::net::address_family inet_family;
    };
    struct write_request {
        write_request(std::shared_ptr<client_data> _client,
@@ -287,23 +295,46 @@ void tcp_listener::impl::on_new_connection(uv_stream_t *server, int status) {
    }
 
    client_id id;
+   std::shared_ptr<client_data> client;
    {
        std::lock_guard lock(a->m_mutex);
        id = a->m_client_counter++;
-       a->m_clients.emplace(id, std::make_unique<client_data>(a, id));
+       a->m_clients.emplace(id, std::make_shared<client_data>(a, id));
+
+       client = a->m_clients.at(id);
    }
 
-   uv_tcp_t *client = a->m_clients.at(id)->uv_tcp_handle.get();
-   uv_tcp_init(server->loop, client);
+   uv_tcp_t * tcp_handle = a->m_clients.at(id)->uv_tcp_handle.get();
+   THROW_ON_LIBUV_ERROR(uv_tcp_init(server->loop, tcp_handle));
 
    /* uv_acceppt is guaraneed to succeeed */
-   uv_accept(server, (uv_stream_t *)client);
+   uv_accept(server, (uv_stream_t *)tcp_handle);
+
+   /* get client address */
+   {
+       struct sockaddr_storage addr;
+       int addr_length = sizeof(addr);
+
+       /* get scokaddr structure */
+       memset(&addr, 0, addr_length);
+       THROW_ON_LIBUV_ERROR(uv_tcp_getpeername(tcp_handle, (struct sockaddr *)&addr, &addr_length));
+
+       /* convert binary IP details to string */
+       char ip_str[INET6_ADDRSTRLEN];
+       THROW_ON_LIBUV_ERROR(uv_ip_name((struct sockaddr *)&addr, ip_str, sizeof(ip_str)));
+       client->address = ip_str;
+
+       if (addr.ss_family == AF_INET)
+           client->inet_family = sg::net::address_family::IPv4;
+       else if (addr.ss_family == AF_INET6)
+           client->inet_family = sg::net::address_family::IPv6;
+   }
 
    /* call this after accepting, in case the CB tries to write/close the cb */
    if (a->m_on_client_connected_cb != nullptr)
        a->m_on_client_connected_cb(a->m_parent_listener, id);
 
-    uv_read_start((uv_stream_t *)client, alloc_cb, on_read);
+    uv_read_start((uv_stream_t *)tcp_handle, alloc_cb, on_read);
 }
 
 void tcp_listener::impl::alloc_cb(uv_handle_t *, size_t size, uv_buf_t *buf) {
@@ -398,6 +429,11 @@ bool tcp_listener::is_stopped() const
 bool tcp_listener::is_stopped_or_stopping() const { return pimpl->is_stopped_or_stopping(); }
 
 size_t tcp_listener::number_of_clients() const { return pimpl->number_of_clients(); }
+
+std::string tcp_listener::client_address(client_id id) const
+{
+    return pimpl->client_address(id);
+}
 
 void tcp_listener::write(client_id id, sg::shared_c_buffer<std::byte> bytes) {
     pimpl->write(id, std::move(bytes));
