@@ -29,6 +29,14 @@ class SG_COMMON_EXPORT tcp_listener : sg::enable_lifetime_indicator {
    typedef std::function<void(tcp_listener &)> on_stopped_fn;
    typedef std::function<void(tcp_listener &, client_id, size_t length)> on_data_available_fn;
 
+   struct connection_details {
+       std::string source_address;
+       std::string local_address;
+       sg::net::address_family address_family;
+       size_t bytes_sent;
+       size_t bytes_received;
+   };
+
    /* Consructs a TCP listener, callbacks can be nullptr */
    tcp_listener();
    ~tcp_listener();
@@ -48,8 +56,7 @@ class SG_COMMON_EXPORT tcp_listener : sg::enable_lifetime_indicator {
 
    size_t number_of_clients() const;
 
-   std::string client_address(client_id) const;
-   sg::net::address_family cleint_address_family(client_id) const;
+   connection_details client_details(client_id) const;
 
    void write(client_id, sg::shared_c_buffer<std::byte>);
    void write(client_id, std::vector<std::byte>);

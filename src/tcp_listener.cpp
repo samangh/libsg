@@ -140,15 +140,9 @@ class SG_COMMON_EXPORT tcp_listener::impl : public sg::enable_lifetime_indicator
    size_t number_of_clients() const;
    void write(client_id, sg::shared_c_buffer<std::byte> buffer);
 
-   std::string client_address(client_id id) const {
+   connection_details client_connection_details(client_id id) const {
        std::lock_guard lock(m_mutex);
-       return m_clients.at(id)->address;
-   }
-
-   sg::net::address_family client_address_family(client_id id) const {
-       std::lock_guard lock(m_mutex);
-       return m_clients.at(id)->address_family;
-
+       return m_clients.at(id)->client_connection_details;
    }
 
    std::vector<sg::tcp_listener::buffer> get_buffer(client_id);
@@ -174,8 +168,7 @@ class SG_COMMON_EXPORT tcp_listener::impl : public sg::enable_lifetime_indicator
        client_id id;
        std::unique_ptr<uv_tcp_t> uv_tcp_handle;
        std::vector<sg::tcp_listener::buffer> data;
-       std::string address;
-       sg::net::address_family address_family;
+       connection_details client_connection_details;
    };
    struct write_request {
        write_request(std::shared_ptr<client_data> _client,
@@ -195,6 +188,8 @@ class SG_COMMON_EXPORT tcp_listener::impl : public sg::enable_lifetime_indicator
 
    void remove_write_request(write_req_id);
    write_request *add_write_request(client_id id, sg::shared_c_buffer<std::byte>);
+
+   void populate_client_details(std::shared_ptr<client_data> client);
 
    /* libuv callbacks */
    static void on_read(uv_stream_t *tcp, ssize_t nread, const uv_buf_t *buf);
@@ -293,6 +288,7 @@ void tcp_listener::impl::on_read(uv_stream_t *client, ssize_t nread, const uv_bu
        std::lock_guard lock(a->m_mutex);
        auto b = sg::tcp_listener::buffer(reinterpret_cast<std::byte *>(buf->base), nread);
        a->m_clients.at(id)->data.emplace_back(std::move(b));
+       a->m_clients.at(id)->client_connection_details.bytes_received += nread;
    }
 
    if (a->m_on_data_available != nullptr)
@@ -322,25 +318,8 @@ void tcp_listener::impl::on_new_connection(uv_stream_t *server, int status) {
    /* uv_acceppt is guaraneed to succeeed */
    uv_accept(server, (uv_stream_t *)tcp_handle);
 
-   /* get client address */
-   {
-       struct sockaddr_storage addr;
-       int addr_length = sizeof(addr);
-
-       /* get scokaddr structure */
-       memset(&addr, 0, addr_length);
-       THROW_ON_LIBUV_ERROR(uv_tcp_getpeername(tcp_handle, (struct sockaddr *)&addr, &addr_length));
-
-       /* convert binary IP details to string */
-       char ip_str[INET6_ADDRSTRLEN];
-       THROW_ON_LIBUV_ERROR(uv_ip_name((struct sockaddr *)&addr, ip_str, sizeof(ip_str)));
-       client->address = ip_str;
-
-       if (addr.ss_family == AF_INET)
-           client->address_family = sg::net::address_family::IPv4;
-       else if (addr.ss_family == AF_INET6)
-           client->address_family = sg::net::address_family::IPv6;
-   }
+   /* store source address, etc */
+   a->populate_client_details(client);
 
    /* call this after accepting, in case the CB tries to write/close the cb */
    if (a->m_on_client_connected_cb != nullptr)
@@ -369,14 +348,17 @@ void tcp_listener::impl::on_client_disconnected(uv_handle_t *handle) {
 }
 
 void tcp_listener::impl::on_write(uv_write_s *req, int status) {
-   impl *a = ((write_request *)req->data)->client_data_ptr->listener;
-   auto _client_id = ((write_request *)req->data)->client_data_ptr->id;
-   auto _write_id = ((write_request *)req->data)->write_id;
+   auto write_req  = ((write_request *)req->data);
+
+   impl *a = write_req->client_data_ptr->listener;
+   auto _client_id = write_req->client_data_ptr->id;
+   auto _write_id = write_req->write_id;
 
    if (status < 0)
        a->on_error(_client_id, uv_strerror((int)status));
 
-   a->remove_write_request(_write_id);
+   write_req->client_data_ptr->client_connection_details.bytes_sent += write_req->buffer.size();
+   a->remove_write_request(_write_id);     
 }
 
 void tcp_listener::impl::remove_write_request(write_req_id id) {
@@ -393,6 +375,49 @@ tcp_listener::impl::add_write_request(client_id id, sg::shared_c_buffer<std::byt
    m_write_requests.emplace(req_number, std::move(req));
 
    return m_write_requests.at(req_number).get();
+}
+
+void tcp_listener::impl::populate_client_details(std::shared_ptr<client_data> client)
+{
+    struct sockaddr_storage addr;
+    char ip_str[INET6_ADDRSTRLEN];
+
+    auto tcp_handle = client->uv_tcp_handle.get();
+
+    /* get client address */
+    {
+        int addr_length = sizeof(addr);
+
+        /* get scokaddr structure */
+        memset(&addr, 0, addr_length);
+        THROW_ON_LIBUV_ERROR(uv_tcp_getpeername(tcp_handle, (struct sockaddr *)&addr, &addr_length));
+
+        /* convert binary IP details to string */
+        THROW_ON_LIBUV_ERROR(uv_ip_name((struct sockaddr *)&addr, ip_str, sizeof(ip_str)));
+        client->client_connection_details.source_address = ip_str;
+
+        if (addr.ss_family == AF_INET)
+            client->client_connection_details.address_family = sg::net::address_family::IPv4;
+        else if (addr.ss_family == AF_INET6)
+            client->client_connection_details.address_family = sg::net::address_family::IPv6;
+    }
+
+    /* get socket bound address */
+    {
+        /* reset back to full value */
+        int addr_length = sizeof(addr);
+
+        /* get scokaddr structure */
+        memset(&addr, 0, addr_length);
+        THROW_ON_LIBUV_ERROR(uv_tcp_getsockname(tcp_handle, (struct sockaddr *)&addr, &addr_length));
+
+        /* convert binary IP details to string */
+        THROW_ON_LIBUV_ERROR(uv_ip_name((struct sockaddr *)&addr, ip_str, sizeof(ip_str)));
+        client->client_connection_details.local_address = ip_str;
+    }
+
+    client->client_connection_details.bytes_sent=0;
+    client->client_connection_details.bytes_received=0;
 }
 
 
@@ -442,15 +467,11 @@ bool tcp_listener::is_stopped_or_stopping() const { return pimpl->is_stopped_or_
 
 size_t tcp_listener::number_of_clients() const { return pimpl->number_of_clients(); }
 
-std::string tcp_listener::client_address(client_id id) const
+tcp_listener::connection_details tcp_listener::client_details(client_id id) const
 {
-    return pimpl->client_address(id);
+    return pimpl->client_connection_details(id);
 }
 
-net::address_family tcp_listener::cleint_address_family(client_id id) const
-{
-    return pimpl->client_address_family(id);
-}
 
 void tcp_listener::write(client_id id, sg::shared_c_buffer<std::byte> bytes) {
     pimpl->write(id, std::move(bytes));
