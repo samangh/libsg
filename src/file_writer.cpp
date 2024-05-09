@@ -324,21 +324,18 @@ void file_writer::write(const char *data, size_t length) {
 }
 
 void file_writer::write(const std::string_view &msg) {
-    /* having this in header means that we don't have to
-         * worry about passing std::string across library
-         * boundaries. */
+    /* having this in header means that we don't have to worry about
+     * passing std::string across library boundaries. */
     write(msg.data(), msg.size());
 }
 
 void file_writer::write_line(const std::string_view &msg) {
-    /* having this in header means that we don't have to
-         * worry about passing std::string across library
-         * boundaries. */
-    write(msg);
+    /* having this in header means that we don't have to worry about
+     * passing std::string across library boundaries. */
     #ifdef _WIN32
-    write("\r\n");
+    write(std::string(msg) + "\r\n");
     #else
-    write("n");
+    write(std::string(msg) + "\n");
     #endif
 }
 
