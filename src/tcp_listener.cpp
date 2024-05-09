@@ -42,7 +42,8 @@ class SG_COMMON_EXPORT tcp_listener::impl : public sg::enable_lifetime_indicator
         stop();
     }
 
-   void start(const int port,
+   void start(const std::string& address,
+              int port,
               sg::tcp_listener::on_error_fn on_error_cb,
               sg::tcp_listener::on_client_connected_fn on_client_connected_cb,
               sg::tcp_listener::on_client_disconnected_fn on_client_disconnected_cb,
@@ -63,30 +64,39 @@ class SG_COMMON_EXPORT tcp_listener::impl : public sg::enable_lifetime_indicator
        m_on_stopped_listening_cb = on_stopped_listening_cb;
        m_on_started_listening_cb  = on_started_listening_cb;
 
+       // Clean previous use data
+       {
+           std::lock_guard lock(m_mutex);
+           m_write_request_counter = 0;
+           m_client_counter = 0;
+           m_clients.clear();
+           m_write_requests.clear();
+       }
+
        /* for holding result of listening attempt*/
        std::promise<result> conn_promise;
 
        std::function<void(sg::libuv_wrapper *)> setup_func = [&, this](sg::libuv_wrapper *wrap) {
-           // Clean previous use data
-           {
-               std::lock_guard lock(m_mutex);
-               m_write_request_counter = 0;
-               m_client_counter = 0;
-               m_clients.clear();
-               m_write_requests.clear();
-           }
-
-           /* Create address */
-           struct sockaddr_in dest;
-
-           /* Create socket */
-           m_sock = std::make_unique<uv_tcp_t>();
-           m_sock->data = this;
-
            try {
-               THROW_ON_LIBUV_ERROR(uv_ip4_addr("0.0.0.0", port, &dest));
+               /* Create address */
+               void* dest;
+               struct sockaddr_in dest4;
+               struct sockaddr_in6 dest6;
+
+               /* Create socket */
+               m_sock = std::make_unique<uv_tcp_t>();
+               m_sock->data = this;
+
+               /* Check if IPv6 or IPv4 address */
+               if (uv_ip4_addr(address.c_str(), port, &dest4) == 0)
+                   dest=&dest4;
+               else if (uv_ip6_addr(address.c_str(), port, &dest6) == 0)
+                   dest=&dest6;
+               else
+                   throw std::invalid_argument("provided address is neither an IPv4 or IPv6 address");
+
                THROW_ON_LIBUV_ERROR(uv_tcp_init(wrap->get_uv_loop(), m_sock.get()));
-               THROW_ON_LIBUV_ERROR(uv_tcp_bind(m_sock.get(), (const struct sockaddr *)&dest, 0));
+               THROW_ON_LIBUV_ERROR(uv_tcp_bind(m_sock.get(), (const struct sockaddr *)dest, 0));
                THROW_ON_LIBUV_ERROR(uv_listen((uv_stream_t *)m_sock.get(), 20, on_new_connection));
 
                result r{true, ""};
@@ -358,7 +368,7 @@ void tcp_listener::impl::on_write(uv_write_s *req, int status) {
        a->on_error(_client_id, uv_strerror((int)status));
 
    write_req->client_data_ptr->client_connection_details.bytes_sent += write_req->buffer.size();
-   a->remove_write_request(_write_id);     
+   a->remove_write_request(_write_id);
 }
 
 void tcp_listener::impl::remove_write_request(write_req_id id) {
@@ -435,14 +445,16 @@ tcp_listener::tcp_listener() : pimpl(*this) {}
 tcp_listener::~tcp_listener()  = default;
 
 
-void tcp_listener::start(const int port,
+void tcp_listener::start(const std::string& address,
+                        int port,
                         on_error_fn on_error_cb,
                         on_client_connected_fn on_client_connected_cb,
                         on_client_disconnected_fn on_client_disconnected_cb,
                         on_started_fn on_start,
                         on_stopped_fn on_stop,
                         on_data_available_fn on_data_available_cb) {
-   pimpl->start(port,
+   pimpl->start(address,
+                port,
                 on_error_cb,
                 on_client_connected_cb,
                 on_client_disconnected_cb,

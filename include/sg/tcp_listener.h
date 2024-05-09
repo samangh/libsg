@@ -41,7 +41,8 @@ class SG_COMMON_EXPORT tcp_listener : sg::enable_lifetime_indicator {
    tcp_listener();
    ~tcp_listener();
 
-   void start(const int port,
+   void start(const std::string& address,
+              int port,
               on_error_fn on_error_cb,
               on_client_connected_fn on_client_connected_cb,
               on_client_disconnected_fn on_client_disconnected_cb,
