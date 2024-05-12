@@ -21,7 +21,13 @@ namespace sg {
 /* wrapper around libuv, helps with starting and stopping it properly */
 class libuv_wrapper {
   public:
+    enum class wrapup_result {
+        rerun_uv_loop,
+        stop_uv_loop
+    };
+
     typedef weak_function<sg::enable_lifetime_indicator::item_type, void, libuv_wrapper *> cb_t;
+    typedef weak_function<sg::enable_lifetime_indicator::item_type, wrapup_result, libuv_wrapper *> cb_wrapup_t;
 
     /* add a callback to be called just before the uv_loop is started.
      *
@@ -46,7 +52,7 @@ class libuv_wrapper {
      * @tparam wrapup_action is called right before the uv_loop is
      * stopped. This action is done ithe libuv event loop.
      */
-    size_t start_task(cb_t setup_action, cb_t wrapup_action);
+    size_t start_task(cb_t setup_action, cb_wrapup_t wrapup_action);
 
     /* Stops the libuv loop syncrhonously.
      *
@@ -91,7 +97,7 @@ class libuv_wrapper {
     std::vector<cb_t> m_started_cbs;
     std::vector<cb_t> m_stopped_cbs;
     std::map<size_t, cb_t> libuv_setup_task_cbs;
-    std::map<size_t, cb_t> m_wrapup_tasks_cbs;
+    std::map<size_t, cb_wrapup_t> m_wrapup_tasks_cbs;
 
     size_t m_task_counter;
 
@@ -103,7 +109,7 @@ class libuv_wrapper {
     /* Starts libuv loop, the callbacks can be nullptr */
     void start_libuv();
 
-    size_t add_setup_task_cb(cb_t setup, cb_t wrapup);
+    size_t add_setup_task_cb(cb_t setup, cb_wrapup_t wrapup);
 };
 
 libuv_wrapper& get_global_uv_holder();

@@ -31,6 +31,8 @@ template <typename T, typename R, typename... ArgT> class weak_function {
     R operator()(ArgT... args) {
         if (m_item.lock())
             return m_func(std::forward<ArgT>(args)...);
+
+        return R();
     };
     virtual ~weak_function() = default;
 };

@@ -61,17 +61,10 @@ void libuv_wrapper::start_libuv() {
     /* Setup handle for stopping the loop */
     m_async = std::make_unique<uv_async_t>();
     uv_async_init(&m_loop, m_async.get(), [](uv_async_t *handle) {
-        auto wrapper = (libuv_wrapper *)handle->loop->data;
-
-        std::lock_guard lock_tasks(wrapper->m_tasks_mutex);
-        for (auto& [index, cb] : wrapper->m_wrapup_tasks_cbs)
-            cb(wrapper);
-        wrapper->m_wrapup_tasks_cbs.clear();
-
         uv_stop(handle->loop);
     });
 
-    m_thread = std::thread([&]() {
+    m_thread = std::thread([&, this]() {
         {
             std::lock_guard lock(m_tasks_mutex);
             for (auto &cb : m_started_cbs)
@@ -80,13 +73,29 @@ void libuv_wrapper::start_libuv() {
         }
 
         m_uvloop_running = true;
+        bool loop_stop_requested = false;
 
         while (true) {
             /*  Runs the event loop until there are no more active and referenced
              *  handles or requests.  Returns non-zero if uv_stop() was called
              *  and there are still active handles or  requests. Returns zero in
              *  all other cases. */
-            uv_run(&m_loop, UV_RUN_DEFAULT);
+            if (loop_stop_requested)
+                uv_run(&m_loop, UV_RUN_ONCE);
+            else
+                uv_run(&m_loop, UV_RUN_DEFAULT);
+
+            loop_stop_requested = true;
+            {
+                std::lock_guard lock_tasks(m_tasks_mutex);
+                for (auto it = m_wrapup_tasks_cbs.begin(); it != m_wrapup_tasks_cbs.end();)
+                    it = (it->second(this) == wrapup_result::stop_uv_loop)
+                             ? m_wrapup_tasks_cbs.erase(it)
+                             : std::next(it);
+
+                if (m_wrapup_tasks_cbs.size() > 0)
+                    continue;
+            }
 
             /* The following loop closing logic is from guidance from
              * https://stackoverflow.com/questions/25615340/closing-libuv-handles-correctly
@@ -118,7 +127,7 @@ void libuv_wrapper::start_libuv() {
     });
 }
 
-size_t libuv_wrapper::add_setup_task_cb(cb_t setup, cb_t wrapup)
+size_t libuv_wrapper::add_setup_task_cb(cb_t setup, cb_wrapup_t wrapup)
 {
     std::lock_guard lock(m_tasks_mutex);
     auto index = m_task_counter++;
@@ -136,7 +145,7 @@ void libuv_wrapper::remove_task_callbacks(size_t index)
     libuv_setup_task_cbs.erase(index);
 }
 
-size_t libuv_wrapper::start_task(cb_t setup, cb_t wrapup) {
+size_t libuv_wrapper::start_task(cb_t setup, cb_wrapup_t wrapup) {
     size_t i;
 
     if (is_stopped_or_stopping()) {
