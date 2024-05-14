@@ -47,7 +47,7 @@ class file_writer::impl : public sg::enable_lifetime_indicator {
     file_writer::started_cb_t m_on_client_connected_cb;
     file_writer::stopped_cb_t m_on_client_disconnected_cb;
 
-    std::shared_mutex m_mutex;
+    std::recursive_mutex m_mutex;
     std::vector<sg::shared_c_buffer<std::byte>> m_buffer_in;
     std::vector<sg::shared_c_buffer<std::byte>> m_buffer_out;
 
@@ -77,9 +77,7 @@ class file_writer::impl : public sg::enable_lifetime_indicator {
 
 file_writer::file_writer() : pimpl(*this, sg::get_global_uv_holder()){};
 
-file_writer::~file_writer() {
-    // pimpl->stop();
-}
+file_writer::~file_writer() = default;
 
 void file_writer::start(const std::filesystem::path &_path,
                         file_writer::error_cb_t on_error_cb,
@@ -273,13 +271,61 @@ void file_writer::impl::on_uv_on_write(uv_fs_t *req) {
     auto res = req->result;
     uv_fs_req_cleanup(req);
 
+    /* if errors */
+    if (res < 0)
     {
-        std::lock_guard lock(a->m_mutex);
-        a->m_write_pending = false;
+        {
+            std::lock_guard lock(a->m_mutex);
+            a->m_write_pending = false;
+        }
+
+        a->on_error(uv_strerror(static_cast<int>(res)));
+        return;
     }
 
-    if (res < 0)
-        a->on_error(uv_strerror(static_cast<int>(res)));
+    std::lock_guard lock(a->m_mutex);
+    a->m_write_pending = false;
+
+
+    /* rest is to check that bufferis fully written, as event if there is
+     * no error its possible that not all data has been written */
+
+    /* size of buffers that were supposed to be written */
+    size_t total_size = 0;
+    size_t written_size = static_cast<size_t>(res);
+    for (const auto &buf : a->m_buffer_out)
+        total_size += buf.size();
+
+    /* if write is not complete */
+    if (written_size < total_size) {
+        /* move and clear out existing out buffer */
+        auto buffers = std::move(a->m_buffer_out);
+        auto remaning_count = written_size;
+
+        for (auto it = buffers.cbegin(); it != buffers.cend();) {
+            /* this buffer has been fully written, skip */
+            if (remaning_count >= it->size()) {
+                written_size -= it->size();
+                it = buffers.erase(it);
+                continue;
+            }
+
+            /* if a (partially) unwritten buffer*/
+            if (written_size < it->size()) {
+                auto remainder_count = it->size() - written_size;
+                auto new_buf = sg::make_shared_c_buffer<std::byte>(remainder_count);
+                std::memcpy(new_buf.get(), &it->get()[written_size - 1], remainder_count);
+
+                /* Add buffers to any existing input buffer */
+                a->m_buffer_in.insert(a->m_buffer_in.cbegin(), new_buf);
+                a->m_buffer_in.insert(a->m_buffer_in.cbegin(), std::next(it), buffers.cend());
+                break;
+            }
+        }
+
+        bool _temp;
+        a->do_write(_temp);
+    }
 }
 
 void file_writer::impl::on_uv_timer_tick(uv_timer_t *handle) {
