@@ -116,7 +116,7 @@ void file_writer::write_line_async(const std::string_view &msg) {
 /* having this in header means that we don't have to worry about
  * passing std::string across library boundaries. */
 #ifdef _WIN32
-    write(std::string(msg) + "\r\n");
+    write_async(std::string(msg) + "\r\n");
 #else
     write_async(std::string(msg) + "\n");
 #endif
@@ -124,7 +124,7 @@ void file_writer::write_line_async(const std::string_view &msg) {
 
 std::filesystem::path file_writer::path() const { return pimpl->path(); }
 
-void file_writer::impl::start(std::filesystem::__cxx11::path _path,
+void file_writer::impl::start(std::filesystem::path _path,
                               error_cb_t on_error_cb,
                               started_cb_t on_client_connected_cb,
                               stopped_cb_t on_client_disconnected_cb,
@@ -207,7 +207,7 @@ void file_writer::impl::write(sg::shared_c_buffer<std::byte> buf) {
     }
 }
 
-std::filesystem::__cxx11::path file_writer::impl::path() const { return open_req.path; }
+std::filesystem::path file_writer::impl::path() const { return open_req.path; }
 
 void file_writer::impl::close_async() { m_libuv.stop_async(); }
 
