@@ -2,11 +2,9 @@
 
 #include "weak_function.h"
 
-#include <functional>
 #include <map>
 #include <memory>
 #include <mutex>
-#include <stdexcept>
 #include <thread>
 #include <uv.h>
 

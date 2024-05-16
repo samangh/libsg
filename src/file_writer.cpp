@@ -6,11 +6,8 @@
 #include <filesystem>
 #include <functional>
 #include <future>
-#include <memory>
 #include <mutex>
-#include <shared_mutex>
 #include <stdexcept>
-#include <type_traits>
 #include <vector>
 
 namespace sg {
