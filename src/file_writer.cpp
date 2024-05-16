@@ -26,6 +26,7 @@ class file_writer::impl : public sg::enable_lifetime_indicator {
                file_writer::stopped_cb_t on_client_disconnected_cb,
                unsigned int write_interval = 1000);
 
+    void write_async(sg::shared_c_buffer<std::byte> buf);
     void write(sg::shared_c_buffer<std::byte> buf);
 
     void close_async();
@@ -92,31 +93,32 @@ void file_writer::stop() { pimpl->close(); }
 
 bool file_writer::is_running() const { return pimpl->is_running(); }
 
+void file_writer::write_async(sg::shared_c_buffer<std::byte> buf) { pimpl->write_async(std::move(buf)); }
 void file_writer::write(sg::shared_c_buffer<std::byte> buf) { pimpl->write(std::move(buf)); }
 
-void file_writer::write(const char *data, size_t length) {
+void file_writer::write_async(const char *data, size_t length) {
     auto a = sg::make_shared_c_buffer<std::byte>(length);
     std::memcpy(a.get(), data, length * sizeof(char));
-    pimpl->write(std::move(a));
+    pimpl->write_async(std::move(a));
 }
 
 /*******************************************************************
  * Private implementation
  ******************************************************************/
 
-void file_writer::write(const std::string_view &msg) {
+void file_writer::write_async(const std::string_view &msg) {
     /* having this in header means that we don't have to worry about
      * passing std::string across library boundaries. */
-    write(msg.data(), msg.size());
+    write_async(msg.data(), msg.size());
 }
 
-void file_writer::write_line(const std::string_view &msg) {
+void file_writer::write_line_async(const std::string_view &msg) {
 /* having this in header means that we don't have to worry about
  * passing std::string across library boundaries. */
 #ifdef _WIN32
     write(std::string(msg) + "\r\n");
 #else
-    write(std::string(msg) + "\n");
+    write_async(std::string(msg) + "\n");
 #endif
 }
 
@@ -174,12 +176,35 @@ void file_writer::impl::start(std::filesystem::__cxx11::path _path,
     m_connection_promise.get_future().get();
 }
 
-void file_writer::impl::write(sg::shared_c_buffer<std::byte> buf) {
+void file_writer::impl::write_async(sg::shared_c_buffer<std::byte> buf) {
     if (this->is_stopped_or_stopping())
         throw std::runtime_error("this file_writer is closed or closing");
 
     std::lock_guard lock(m_mutex);
     m_buffer_in.emplace_back(std::move(buf));
+}
+
+void file_writer::impl::write(sg::shared_c_buffer<std::byte> buf) {
+    if (this->is_stopped_or_stopping())
+        throw std::runtime_error("this file_writer is closed or closing");
+
+    std::lock_guard lock(m_mutex);
+    auto total_written = 0;
+
+    while ((size_t)total_written < buf.size()) {
+        uv_fs_t _req;
+        auto _buffer = uv_buf_init(reinterpret_cast<char *>(&buf.get()[total_written]),
+                                   buf.size() - total_written);
+        auto result = uv_fs_write(m_libuv.get_uv_loop(),
+                                  &_req,
+                                  static_cast<uv_file>(open_req.result),
+                                  &_buffer,
+                                  1,
+                                  -1,
+                                  nullptr);
+        THROW_ON_LIBUV_ERROR(result);
+        total_written += result;
+    }
 }
 
 std::filesystem::__cxx11::path file_writer::impl::path() const { return open_req.path; }

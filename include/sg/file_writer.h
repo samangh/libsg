@@ -29,17 +29,18 @@ class file_writer: public sg::enable_lifetime_indicator {
     void stop();
     bool is_running() const;
 
+    void write_async(sg::shared_c_buffer<std::byte>);
     void write(sg::shared_c_buffer<std::byte>);
 
     /* note: the data is copied internally, the data can be freed after
      * calling this function */
-    void write(const char *data, size_t length);
+    void write_async(const char *data, size_t length);
 
     /* note: the data is copied internally */
-    void write(const std::string_view &);
+    void write_async(const std::string_view &);
 
     /* note: the data is copied internally */
-    void write_line(const std::string_view &);
+    void write_line_async(const std::string_view &);
 
     std::filesystem::path path() const;
 };
