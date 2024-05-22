@@ -1,7 +1,10 @@
+#include <mutex>
 #include <sg/cpu.h>
 
 #include <string>
 #include <cstdint>
+
+#include <uv.h>
 
 #ifdef _WIN32
     #include <intrin.h>
@@ -32,31 +35,58 @@ class CPUID {
     const uint32_t &EDX() const {return regs[3];}
 };
 
+struct internal_cpu_vendor {
+    internal_cpu_vendor() {
+        CPUID cpuID(0);
+        std::string vendor;
+        vendor += std::string((const char *)&cpuID.EBX(), 4);
+        vendor += std::string((const char *)&cpuID.EDX(), 4);
+        vendor += std::string((const char *)&cpuID.ECX(), 4);
+
+        if (vendor == "AuthenticAMD")
+            result = sg::cpu::cpu_vendor::Amd;
+        if (vendor == "GenuineIntel")
+            result = sg::cpu::cpu_vendor::Intel;
+    }
+    sg::cpu::cpu_vendor result;
+};
+
 }
 
 namespace sg::cpu {
 
 cpu_vendor current_cpu_vendor() {
-    static bool alreadyCalled = false;
-    static cpu_vendor result = cpu_vendor::Other;
+    static internal_cpu_vendor singleton;
+    return singleton.result;
+}
 
-    if (alreadyCalled)
-        return result;
-    alreadyCalled=true;
+size_t available_parallelism()
+{
+    static size_t count = uv_available_parallelism();
+    return count;
+}
 
-    // when cpuid is called with parameter 0, it gives the CPU vendor string
-    CPUID cpuID(0);
-    std::string vendor;
-    vendor += std::string((const char *)&cpuID.EBX(), 4);
-    vendor += std::string((const char *)&cpuID.EDX(), 4);
-    vendor += std::string((const char *)&cpuID.ECX(), 4);
+std::vector<cpu_info_t> info()
+{
+    uv_cpu_info_t *uv_info=nullptr;
+    int count;
 
-    if (vendor == "AuthenticAMD")
-        result = cpu_vendor::Amd;
-    if (vendor == "GenuineIntel")
-        result = cpu_vendor::Intel;
+    int err = uv_cpu_info(&uv_info, &count);
+    if (err <0)
+        throw std::runtime_error(uv_strerror(err));
 
-    return result;
+    std::vector<sg::cpu::cpu_info_t> m_cpu_infos;
+    for (int i= 0; i < count; ++i)
+    {
+        sg::cpu::cpu_info_t cpu;
+        cpu.model = uv_info[i].model;
+        cpu.speed = uv_info[i].speed;
+        m_cpu_infos.push_back(cpu);
+    }
+
+    uv_free_cpu_info(uv_info, count);
+
+    return m_cpu_infos;
 }
 
 }
