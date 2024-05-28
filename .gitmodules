@@ -1,0 +1,12 @@
+[submodule "external/portable-file-dialogs"]
+	path = external/portable-file-dialogs
+	url = https://github.com/samangh/portable-file-dialogs.git
+	branch = main
+[submodule "external/implot"]
+	path = external/implot
+	url = https://github.com/epezent/implot.git
+	branch = master
+[submodule "external/imgui"]
+	path = external/imgui
+	url = https://github.com/ocornut/imgui.git
+	branch = master
