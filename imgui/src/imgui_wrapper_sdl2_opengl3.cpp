@@ -13,6 +13,9 @@
 #include <stdio.h>
 #include <stdexcept>
 
+/* To see what has been manually added for libsg, please see search for
+ * "ADDED BY SAMAN" */
+
 namespace sg::imgui {
 
 ImGuiWrapper_Sdl2_OpenGl3::ImGuiWrapper_Sdl2_OpenGl3(sg::imgui::IImGuiWrapper::on_start_t a, sg::imgui::IImGuiWrapper::on_end_t b, sg::imgui::IImGuiWrapper::on_iteration_t c)
@@ -77,6 +80,11 @@ void ImGuiWrapper_Sdl2_OpenGl3::start(const std::string &title)
     //io.ConfigViewportsNoAutoMerge = true;
     //io.ConfigViewportsNoTaskBarIcon = true;
 
+    /* ADDED BY SAMAN */
+    io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;           // Enable Docking
+    io.ConfigFlags |= ImGuiConfigFlags_ViewportsEnable;         // Enable Multi-Viewport / Platform Windows
+    /******************/
+
     // Setup Dear ImGui style
     ImGui::StyleColorsDark();
     //ImGui::StyleColorsLight();
@@ -123,7 +131,9 @@ void ImGuiWrapper_Sdl2_OpenGl3::start(const std::string &title)
     io.IniFilename = NULL;
     EMSCRIPTEN_MAINLOOP_BEGIN
 #else
+    /* ADDED BY SAMAN */
     while (!done)
+    /*****************/
 #endif
     {
         // Poll and handle events (inputs, window resize, etc.)
@@ -146,7 +156,9 @@ void ImGuiWrapper_Sdl2_OpenGl3::start(const std::string &title)
         ImGui_ImplSDL2_NewFrame();
         ImGui::NewFrame();
 
+        /* ADDED BY SAMAN */
         iterate(done);
+        /*****************/
 
         // Rendering
         ImGui::Render();
@@ -173,7 +185,9 @@ void ImGuiWrapper_Sdl2_OpenGl3::start(const std::string &title)
     EMSCRIPTEN_MAINLOOP_END;
 #endif
 
+    /* ADDED BY SAMAN */
     cleanup();
+    /*****************/
 
     // Cleanup
     ImGui_ImplOpenGL3_Shutdown();
