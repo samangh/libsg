@@ -91,4 +91,5 @@ target_link_libraries(${TARGET}
     "$<$<BOOL:${APPLE}>:-framework CoreFoundation>"
     $<$<AND:$<BOOL:${UNIX}>,$<NOT:$<BOOL:${APPLE}>>>:${CMAKE_DL_LIBS}>
   PUBLIC
+    SG::common
     portable_file_dialogs)

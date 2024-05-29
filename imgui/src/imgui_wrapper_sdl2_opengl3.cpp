@@ -18,8 +18,8 @@
 
 namespace sg::imgui {
 
-ImGuiWrapper_Sdl2_OpenGl3::ImGuiWrapper_Sdl2_OpenGl3(sg::imgui::IImGuiWrapper::on_start_t a, sg::imgui::IImGuiWrapper::on_end_t b, sg::imgui::IImGuiWrapper::on_iteration_t c)
-    :IImGuiWrapper(a,b,c)
+ImGuiWrapper_Sdl2_OpenGl3::ImGuiWrapper_Sdl2_OpenGl3(sg::imgui::IImGuiWrapper::on_start_t a, sg::imgui::IImGuiWrapper::on_end_t b, sg::imgui::IImGuiWrapper::on_iteration_t c, sg::imgui::ConfigFlags configFlags)
+    :IImGuiWrapper(a,b,c,configFlags)
 {
 
 }
@@ -75,14 +75,13 @@ void ImGuiWrapper_Sdl2_OpenGl3::start(const std::string &title)
     ImGuiIO& io = ImGui::GetIO(); (void)io;
     io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;       // Enable Keyboard Controls
     //io.ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad;      // Enable Gamepad Controls
-    io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;           // Enable Docking
-    io.ConfigFlags |= ImGuiConfigFlags_ViewportsEnable;         // Enable Multi-Viewport / Platform Windows
     //io.ConfigViewportsNoAutoMerge = true;
     //io.ConfigViewportsNoTaskBarIcon = true;
 
-    /* ADDED BY SAMAN */
-    io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;           // Enable Docking
-    io.ConfigFlags |= ImGuiConfigFlags_ViewportsEnable;         // Enable Multi-Viewport / Platform Windows
+    /******************
+     * ADDED BY SAMAN *
+     ******************/
+    io.ConfigFlags |= to_imgui_configflags(m_configflags);
     /******************/
 
     // Setup Dear ImGui style
@@ -131,7 +130,9 @@ void ImGuiWrapper_Sdl2_OpenGl3::start(const std::string &title)
     io.IniFilename = NULL;
     EMSCRIPTEN_MAINLOOP_BEGIN
 #else
-    /* ADDED BY SAMAN */
+    /******************
+     * ADDED BY SAMAN *
+     ******************/
     while (!done)
     /*****************/
 #endif
@@ -156,7 +157,12 @@ void ImGuiWrapper_Sdl2_OpenGl3::start(const std::string &title)
         ImGui_ImplSDL2_NewFrame();
         ImGui::NewFrame();
 
-        /* ADDED BY SAMAN */
+        /******************
+         * ADDED BY SAMAN *
+         ******************/
+        if (io.ConfigFlags & ImGuiConfigFlags_DockingEnable)
+            ImGui::DockSpaceOverViewport();
+
         iterate(done);
         /*****************/
 
@@ -185,7 +191,9 @@ void ImGuiWrapper_Sdl2_OpenGl3::start(const std::string &title)
     EMSCRIPTEN_MAINLOOP_END;
 #endif
 
-    /* ADDED BY SAMAN */
+    /******************
+     * ADDED BY SAMAN *
+     ******************/
     cleanup();
     /*****************/
 
