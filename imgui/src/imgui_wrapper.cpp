@@ -23,6 +23,8 @@ void IImGuiWrapper::initalise()
 
 void IImGuiWrapper::iterate(bool& done)
 {
+    if (sg::enumeration::contains(m_configflags, ConfigFlags::Docking))
+        ImGui::DockSpaceOverViewport();
     m_on_iteration(done);
 }
 

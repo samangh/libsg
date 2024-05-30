@@ -160,9 +160,6 @@ void ImGuiWrapper_Sdl2_OpenGl3::start(const std::string &title)
         /******************
          * ADDED BY SAMAN *
          ******************/
-        if (io.ConfigFlags & ImGuiConfigFlags_DockingEnable)
-            ImGui::DockSpaceOverViewport();
-
         iterate(done);
         /*****************/
 
