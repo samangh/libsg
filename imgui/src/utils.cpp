@@ -4,6 +4,41 @@
 #include "karla-font.h"
 #include <imgui_internal.h>
 
+namespace {
+
+struct int_sincos
+{
+   int_sincos(float deg)
+   {
+       #ifdef _WIN32
+       sin = std::sin(deg * std::numbers::pi/180.0f);
+       cos = std::cos(deg* std::numbers::pi/180.0f);
+       #else
+       sincosf(deg * std::numbers::pi/180.0f, &sin, &cos);
+       #endif
+   }
+
+   float sin;
+   float cos;
+};
+
+/* rotates given point round origin */
+inline ImVec2 rotate(const ImVec2& vec, int_sincos trig)
+{
+    auto x=vec.x;
+    auto y=vec.y;
+    return ImVec2(x*trig.cos -y*trig.sin,
+                  x*trig.sin +y*trig.cos);
+}
+
+/* rotates given point round origin */
+inline ImVec2 rotate(const ImVec2& vec, float deg)
+{
+    return rotate(vec, int_sincos(deg));
+}
+
+}
+
 namespace  sg::imgui{
 
 int InputTextCallback(ImGuiInputTextCallbackData* data)
@@ -91,10 +126,8 @@ void centre_next_window(ImGuiCond cond)
 {
     auto pos = ImVec2(ImGui::GetIO().DisplaySize.x * 0.5f, ImGui::GetIO().DisplaySize.y * 0.5f);
     ImGui::SetNextWindowPos(pos, cond, ImVec2(0.5f,0.5f));
-
 }
 
-/* Calcultes the size of a button with the given text */
 ImVec2 get_button_size(const char *msg)
 {
     // See: https://github.com/ocornut/imgui/issues/3714#issuecomment-759319268
@@ -105,5 +138,47 @@ ImVec2 get_button_size(const char *msg)
     auto y= textSize.y + style.FramePadding.y * 2.0f;
     return ImVec2(x,y);
 }
+
+ImVec2 draw_line_angle(ImDrawList * const drawlist, const ImVec2 &from, float length, float angle, ImU32 color, float thickness)
+{
+    ImVec2 to = from + rotate(ImVec2(length, 0), angle);
+    drawlist->AddLine(from, to, color, thickness);
+    return to;
+}
+
+ImVec2 draw_arrow(ImDrawList * const drawlist, const ImVec2 &from, float length, float deg, ImU32 color, float thickness)
+{
+    auto width=3*thickness;
+
+    auto trig = int_sincos(deg);
+    ImVec2 line_end = from + rotate(ImVec2(length-width, 0), trig);
+
+    auto arrow_end =line_end + rotate(ImVec2(width, 0), trig);
+    auto arrow_top =line_end + rotate(ImVec2(0, -0.5f*width), trig);
+    auto arrow_bot =line_end + rotate(ImVec2(0, +0.5f*width), trig);
+
+    drawlist->AddLine(from, line_end, color, thickness);
+    drawlist->AddTriangleFilled(arrow_top, arrow_bot, arrow_end, color);
+
+    return arrow_end;
+}
+
+ImVec2 draw_arrow_middle(ImDrawList * const drawlist, const ImVec2 &from, float length, float deg, ImU32 color, float thickness)
+{
+    auto width=3*thickness;
+
+    auto trig = int_sincos(deg);
+    ImVec2 line_end = from + rotate(ImVec2(length-width, 0), trig);
+
+    ImVec2 pos = from + rotate(ImVec2(0.5f*(length - width), 0), trig);
+    auto arrow_end =pos + rotate(ImVec2(width, 0), trig);
+    auto arrow_top =pos + rotate(ImVec2(0, -0.5f*width), trig);
+    auto arrow_bot =pos + rotate(ImVec2(0, +0.5f*width), trig);
+
+    drawlist->AddLine(from, line_end, color, thickness);
+    drawlist->AddTriangleFilled(arrow_top, arrow_bot, arrow_end, color);
+    return line_end;
+}
+
 
 }

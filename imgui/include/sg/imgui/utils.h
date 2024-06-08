@@ -50,5 +50,31 @@ DialogResult create_modal_popup(const char *imgui_id,
 /* Centre the new window both orizontally and vertically */
 void centre_next_window(ImGuiCond cond = ImGuiCond_Once);
 
+/* Calcultes the size of a button with the given text */
 ImVec2 get_button_size(const char *msg);
+
+/** Draws a line, given starting point, length and angle.
+ *
+ * @param drawlist  ImGui drawlist, get this from ImGui::GetWindowDrawList();
+ * @param color     Color, use IM_COL32(..). For example, IM_COL32(255,0,0,255) for red
+ * @return          the position of the end of the line
+ */
+ImVec2 draw_line_angle(ImDrawList* const drawlist, const ImVec2& from, float length, float angle, ImU32 color, float thickness=1.0);
+
+/** Draws an arrow, given starting point, length and angle
+ *
+ * @param drawlist  ImGui drawlist, get this from ImGui::GetWindowDrawList();
+ * @param color     Color, use IM_COL32(..). For example, IM_COL32(255,0,0,255) for red
+ * @return          The position of teh arrow tip
+ */
+ImVec2 draw_arrow(ImDrawList* const drawlist, const ImVec2& from, float length, float deg_angle, ImU32 color, float thickness=1);
+
+/** Draws line with with an arrow at the midpoint
+ *
+ * @param drawlist  ImGui drawlist, get this from ImGui::GetWindowDrawList();
+ * @param color     Color, use IM_COL32(..). For example, IM_COL32(255,0,0,255) for red
+ * @return          The position of teh arrow tip
+ */
+ImVec2 draw_arrow_middle(ImDrawList * const drawlist, const ImVec2 &from, float length, float deg, ImU32 color, float thickness=1);
+
 } // namespace sg::imgui
