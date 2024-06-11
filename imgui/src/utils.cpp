@@ -1,4 +1,3 @@
-#include "sg/imgui/imgui_wrapper.h"
 #include "sg/imgui/utils.h"
 
 #include "karla-font.h"
@@ -158,7 +157,7 @@ ImVec2 draw_arrow(ImDrawList * const drawlist, const ImVec2 &from, float length,
     auto arrow_bot =line_end + rotate(ImVec2(0, +0.5f*width), trig);
 
     drawlist->AddLine(from, line_end, color, thickness);
-    drawlist->AddTriangleFilled(arrow_top, arrow_bot, arrow_end, color);
+    drawlist->AddTriangleFilled(arrow_top, arrow_end, arrow_bot,color);
 
     return arrow_end;
 }
@@ -168,7 +167,7 @@ ImVec2 draw_arrow_middle(ImDrawList * const drawlist, const ImVec2 &from, float 
     auto width=3*thickness;
 
     auto trig = int_sincos(deg);
-    ImVec2 line_end = from + rotate(ImVec2(length-width, 0), trig);
+    ImVec2 line_end = from + rotate(ImVec2(length, 0), trig);
 
     ImVec2 pos = from + rotate(ImVec2(0.5f*(length - width), 0), trig);
     auto arrow_end =pos + rotate(ImVec2(width, 0), trig);
@@ -176,8 +175,22 @@ ImVec2 draw_arrow_middle(ImDrawList * const drawlist, const ImVec2 &from, float 
     auto arrow_bot =pos + rotate(ImVec2(0, +0.5f*width), trig);
 
     drawlist->AddLine(from, line_end, color, thickness);
-    drawlist->AddTriangleFilled(arrow_top, arrow_bot, arrow_end, color);
+    drawlist->AddTriangleFilled(arrow_top, arrow_end,arrow_bot, color);
     return line_end;
+}
+
+ImVec2 draw_arrow(ImDrawList * const drawlist, const ImVec2 &from, const ImVec2 &to, ImU32 color, float thickness)
+{
+    auto vector = to-from;
+    float total_length = ImSqrt(vector.x*vector.x + vector.y*vector.y);
+    float angle = std::asin(vector.y/total_length) * 180.0f / std::numbers::pi;
+
+    if (angle >=0 && vector.x<0)
+        angle=180.0f - angle;
+    else if (angle <0 && vector.x<0)
+        angle=-180.0f - angle;
+
+    return draw_arrow(drawlist, from, total_length, angle, color, thickness);
 }
 
 

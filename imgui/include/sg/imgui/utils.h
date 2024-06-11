@@ -69,6 +69,8 @@ ImVec2 draw_line_angle(ImDrawList* const drawlist, const ImVec2& from, float len
  */
 ImVec2 draw_arrow(ImDrawList* const drawlist, const ImVec2& from, float length, float deg_angle, ImU32 color, float thickness=1);
 
+ImVec2 draw_arrow(ImDrawList* const drawlist, const ImVec2& from, const ImVec2& to, ImU32 color, float thickness=1);
+
 /** Draws line with with an arrow at the midpoint
  *
  * @param drawlist  ImGui drawlist, get this from ImGui::GetWindowDrawList();
