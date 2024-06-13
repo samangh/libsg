@@ -5,3 +5,4 @@ PackConstructorInitializers: CurrentLine
 BinPackArguments: false
 BinPackParameters: false
 PointerAlignment: Left
+AlignConsecutiveDeclarations: true
