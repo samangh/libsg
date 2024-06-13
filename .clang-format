@@ -4,3 +4,4 @@ ColumnLimit: 100
 PackConstructorInitializers: CurrentLine
 BinPackArguments: false
 BinPackParameters: false
+PointerAlignment: Left
