@@ -81,7 +81,7 @@ void ImGuiWrapper_Sdl2_OpenGl3::start(const std::string &title)
     /******************
      * ADDED BY SAMAN *
      ******************/
-    io.ConfigFlags |= to_imgui_configflags(m_configflags);
+    setup_io(io);
     /******************/
 
     // Setup Dear ImGui style

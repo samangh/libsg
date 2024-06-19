@@ -20,7 +20,13 @@ class IImGuiWrapper {
     virtual void start(const std::string &title) = 0;
 
   protected:
+    /* sets up ImGUI IO */
+    void setup_io(ImGuiIO&);
+
+    /* this is called after the platform/renderer backends have been
+	 * intialised*/
     void initalise();
+
     void iterate(bool &done);
     void cleanup();
 

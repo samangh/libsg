@@ -35,6 +35,11 @@ void IImGuiWrapper::cleanup()
         ImPlot::CreateContext();
 }
 
+void IImGuiWrapper::setup_io(ImGuiIO& io)
+{
+    io.ConfigFlags |= to_imgui_configflags(m_configflags);
+}
+
 ImGuiConfigFlags IImGuiWrapper::to_imgui_configflags(ConfigFlags flags)
 {
     ImGuiConfigFlags output = ImGuiConfigFlags_None;
