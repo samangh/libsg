@@ -30,14 +30,16 @@ void IImGuiWrapper::iterate(bool& done)
 
 void IImGuiWrapper::cleanup()
 {
-    on_end_t();    
+    on_end_t();
     if (sg::enumeration::contains(m_configflags, ConfigFlags::IncludeImPlot))
         ImPlot::CreateContext();
 }
 
-void IImGuiWrapper::setup_io(ImGuiIO& io)
-{
+void IImGuiWrapper::setup_io(ImGuiIO& io) {
     io.ConfigFlags |= to_imgui_configflags(m_configflags);
+
+    if (sg::enumeration::contains(m_configflags, ConfigFlags::NoIni))
+        io.IniFilename = nullptr;
 }
 
 ImGuiConfigFlags IImGuiWrapper::to_imgui_configflags(ConfigFlags flags)
