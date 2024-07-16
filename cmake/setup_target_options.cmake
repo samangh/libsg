@@ -8,11 +8,11 @@ function(setup_target_options)
   target_compile_options(${ARG_TARGET}
     PRIVATE
       #Warnings
-      $<$<OR:$<CXX_COMPILER_ID:Clang>,$<CXX_COMPILER_ID:AppleClang>,$<CXX_COMPILER_ID:GNU>>:-Wall -Wextra>
+      $<$<NOT:$<CXX_COMPILER_ID:MSVC>>:-Wall -Wextra>
       $<$<CXX_COMPILER_ID:MSVC>:/permissive->
 
       # Set arch to native (i.e. use all processor flags)
-      $<$<AND:$<BOOL:${ARCH_NATIVE}>,$<OR:$<CXX_COMPILER_ID:Clang>,$<CXX_COMPILER_ID:AppleClang>,$<CXX_COMPILER_ID:GNU>>>:-march=native>)
+      $<$<AND:$<BOOL:${ARCH_NATIVE}>,$<NOT:$<CXX_COMPILER_ID:MSVC>>>:-march=native>)
 
   target_link_libraries(${ARG_TARGET}
     PRIVATE
