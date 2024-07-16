@@ -15,7 +15,6 @@ find_package(SSE OPTIONAL_COMPONENTS COMPONENTS SSE42 CRC32 CLMUL)
 
 # Boost is required for other CRC checksums
 find_package(Boost REQUIRED CONFIG)
-include(setup_boost)
 
 ##
 ## Source files
