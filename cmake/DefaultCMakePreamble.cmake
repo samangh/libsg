@@ -25,6 +25,11 @@ endif()
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 set_property(GLOBAL PROPERTY USE_FOLDERS ON)
 
+# This enables SSE later for all targets
+if(USE_SSE)
+  find_package(SSE OPTIONAL_COMPONENTS COMPONENTS SSE42 AVX2)
+endif()
+
 ##
 ## Import functions
 ##
