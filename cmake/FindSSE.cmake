@@ -57,7 +57,7 @@ if(CMAKE_SYSTEM_NAME MATCHES "Linux" OR
   endif()
 endif()
 
-if(CMAKE_SYSTEM_NAME MATCHES "Windows")
+if(MSVC)
   # Don't know how to check in Windows
   check_cxx_compiler_flag("/arch:AVX" _AVX_SUPPORTED)
   check_cxx_compiler_flag("/arch:AVX2" _AVX2_SUPPORTED)
@@ -70,13 +70,29 @@ if(CMAKE_SYSTEM_NAME MATCHES "Windows")
   endforeach()
 endif()
 
+if(MSYS OR MINGW)
+  check_cxx_compiler_flag("-msse" _SSE_SUPPORTED)
+  check_cxx_compiler_flag("-msse2" _SSE2_SUPPORTED)
+  check_cxx_compiler_flag("-msse3" _SSE3_SUPPORTED)
+  check_cxx_compiler_flag("-msse4.1" _SSE41_SUPPORTED)
+  check_cxx_compiler_flag("-msse4.2" _SSE42_SUPPORTED)
+  check_cxx_compiler_flag("-msse3" _SSSE3_SUPPORTED)
+  check_cxx_compiler_flag("-mavx" _AVX_SUPPORTED)
+  check_cxx_compiler_flag("-mavx2" _AVX2_SUPPORTED)
+  check_cxx_compiler_flag("-mpclmul" _CLMUL_SUPPORTED)
+  check_cxx_compiler_flag("-mcrc32" _CRC32_SUPPORTED)
+  check_cxx_compiler_flag("-msse3" _SSE3_SUPPORTED)
+endif()
+
 ##
 ## Find components
 ##
 
 # A component, say SSE41, is found if _SSE41_SUPPORTED is set
 foreach(comp ${SSE_FIND_COMPONENTS})
-  set(SSE_${comp}_FOUND _${comp}_SUPPORTED)
+  if (_${comp}_SUPPORTED)
+    set(SSE_${comp}_FOUND _${comp}_SUPPORTED)
+  endif()
 endforeach()
 
 ##
