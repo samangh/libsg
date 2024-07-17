@@ -17,7 +17,7 @@ function(setup_target_options)
   target_link_libraries(${ARG_TARGET}
     PRIVATE
       # Enable SSE if
-      $<$<AND:$<BOOL:${USE_SSE}>,$<BOOL:${SSE_SSE41_FOUND}>>:SSE::SSE42>
+      $<$<AND:$<BOOL:${USE_SSE}>,$<BOOL:${SSE_SSE42_FOUND}>>:SSE::SSE42>
       $<$<AND:$<BOOL:${USE_SSE}>,$<BOOL:${SSE_AVX2_FOUND}>>:SSE::AVX2>)
 
   # Link against statically to runtime in Windows if enabled

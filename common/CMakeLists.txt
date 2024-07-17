@@ -11,7 +11,7 @@ find_package(zstd REQUIRED)
 # Needed hardware-assited CRC32C checksum, optional as the SSE package
 # will set pre-processor header definitions and the code will check for
 # that
-find_package(SSE OPTIONAL_COMPONENTS COMPONENTS SSE42 CRC32 CLMUL)
+find_package(SSE OPTIONAL_COMPONENTS SSE42 CRC32 CLMUL)
 
 # Boost is required for other CRC checksums
 find_package(Boost REQUIRED CONFIG)
@@ -39,8 +39,7 @@ target_include_directories(${TARGET}
     $<BUILD_INTERFACE:${CMAKE_CURRENT_LIST_DIR}/include>
     $<BUILD_INTERFACE:${CMAKE_BINARY_DIR}/include>
   PRIVATE
-    Boost::Boost
-  )
+    Boost::Boost)
 
 target_link_libraries(${TARGET}
   INTERFACE
