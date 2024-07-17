@@ -1,10 +1,11 @@
 #include <mutex>
 #include <sg/cpu.h>
 
+#include <uv.h>
+
 #include <string>
 #include <cstdint>
-
-#include <uv.h>
+#include <stdexcept>
 
 #ifdef _WIN32
     #include <intrin.h>
