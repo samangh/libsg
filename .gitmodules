@@ -10,3 +10,7 @@
 	path = external/imgui
 	url = https://github.com/ocornut/imgui.git
 	branch = master
+[submodule "external/sanitizers-cmake"]
+	path = external/sanitizers-cmake
+	url = https://github.com/arsenm/sanitizers-cmake.git
+	branch = master
