@@ -20,16 +20,11 @@ if(USE_STATIC_LIBS)
   prioritise_static_libraries()
 endif()
 
+# Enable default SANitizer options
 if(SANITIZE)
   set(SANITIZE_ADDRESS ON)
   set(SANITIZE_UNDEFINED ON)
 endif()
-
-##
-## CMake module paths
-##
-
-list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_LIST_DIR}/../external/sanitizers-cmake/cmake")
 
 ##
 ## Compile support
@@ -43,6 +38,12 @@ set_property(GLOBAL PROPERTY USE_FOLDERS ON)
 if(USE_SSE)
   find_package(SSE OPTIONAL_COMPONENTS SSE42 AVX2)
 endif()
+
+##
+## CMake module paths
+##
+
+list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_LIST_DIR}/../external/sanitizers-cmake/cmake")
 
 ##
 ## Import functions
