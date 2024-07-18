@@ -90,6 +90,9 @@ target_link_libraries(${TARGET}
     OpenGL::GL
     "$<$<BOOL:${APPLE}>:-framework CoreFoundation>"
     $<$<AND:$<BOOL:${UNIX}>,$<NOT:$<BOOL:${APPLE}>>>:${CMAKE_DL_LIBS}>
+
+    #math library, needed by sg::imgui::units
+    $<$<NOT:$<CXX_COMPILER_ID:MSVC>>:m>
   PUBLIC
     SG::common
     portable_file_dialogs)
