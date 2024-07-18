@@ -11,7 +11,9 @@ find_package(zstd REQUIRED)
 # Needed hardware-assited CRC32C checksum, optional as the SSE package
 # will set pre-processor header definitions and the code will check for
 # that
-find_package(SSE OPTIONAL_COMPONENTS SSE42 CRC32 CLMUL)
+if (USE_SSE)
+  find_package(SSE OPTIONAL_COMPONENTS SSE42 CRC32 CLMUL)
+endif ()
 
 # Boost is required for other CRC checksums
 find_package(Boost REQUIRED CONFIG)
