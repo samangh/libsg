@@ -3,6 +3,8 @@
 #include "karla-font.h"
 #include <imgui_internal.h>
 
+#include <numbers>
+
 namespace {
 
 struct int_sincos
