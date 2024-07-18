@@ -8,6 +8,7 @@ namespace sg::cpu {
 enum class cpu_vendor {
     Amd,
     Intel,
+	Arm,
     Other
 };
 
