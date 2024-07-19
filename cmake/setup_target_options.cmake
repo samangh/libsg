@@ -27,7 +27,7 @@ function(setup_target_options)
     endif()
 
     if (MSYS OR MINGW)
-      target_compile_options(${ARG_TARGET} PUBLIC $<$<COMPILE_LANGUAGE:CXX>:-static-lib${STANDARD_LIBRARY}>)
+      target_link_options(${ARG_TARGET} PUBLIC $<$<COMPILE_LANGUAGE:CXX>:-static-lib${STANDARD_LIBRARY}>)
     endif()
   endif()
 
