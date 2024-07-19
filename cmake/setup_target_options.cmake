@@ -24,10 +24,10 @@ function(setup_target_options)
   if (USE_STATIC_RUNTIME)
     if(MSVC)
       set_property(TARGET ${ARG_TARGET} PROPERTY MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
-    endif()
-
-    if (MSYS OR MINGW)
-      target_link_options(${ARG_TARGET} PUBLIC $<$<COMPILE_LANGUAGE:CXX>:-static-lib${STANDARD_LIBRARY}>)
+    else()
+      target_link_options(${ARG_TARGET} PRIVATE
+        -static-libstdc++
+        -static-libgcc)
     endif()
   endif()
 
