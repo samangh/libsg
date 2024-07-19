@@ -73,12 +73,12 @@ if(TARGET SDL2::SDL2main)
       set(USE_STATIC_SDL ON)
     endif()
   endif()
-  target_link_libraries(${TARGET} PRIVATE
+  target_link_libraries(${TARGET} PUBLIC
     $<IF:$<BOOL:${USE_STATIC_SDL}>,SDL2::SDL2-static,SDL2::SDL2>
     SDL2::SDL2main)
 else()
-  target_include_directories(${TARGET} PRIVATE ${SDL2_INCLUDE_DIRS})
-  target_link_libraries(${TARGET} PRIVATE ${SDL2_LIBRARIES})
+  target_include_directories(${TARGET} PUBLIC ${SDL2_INCLUDE_DIRS})
+  target_link_libraries(${TARGET} PUBLIC ${SDL2_LIBRARIES})
 endif()
 
 ##
