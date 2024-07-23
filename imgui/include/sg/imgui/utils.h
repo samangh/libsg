@@ -51,7 +51,7 @@ DialogResult create_modal_popup(const char *imgui_id,
 void centre_next_window(ImGuiCond cond = ImGuiCond_Always);
 
 /* Calcultes the size of a button with the given text */
-ImVec2 get_button_size(const char *msg);
+ImVec2 dimensions_of_button(const char *msg);
 
 /** Draws a line, given starting point, length and angle.
  *

@@ -129,7 +129,7 @@ void centre_next_window(ImGuiCond cond)
     ImGui::SetNextWindowPos(pos, cond, ImVec2(0.5f,0.5f));
 }
 
-ImVec2 get_button_size(const char *msg)
+ImVec2 dimensions_of_button(const char *msg)
 {
     // See: https://github.com/ocornut/imgui/issues/3714#issuecomment-759319268
     auto style = ImGui::GetStyle();
