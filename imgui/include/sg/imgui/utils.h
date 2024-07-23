@@ -48,7 +48,7 @@ DialogResult create_modal_popup(const char *imgui_id,
                                                   ImGuiWindowFlags_NoMove);
 
 /* Centre the new window both orizontally and vertically */
-void centre_next_window(ImGuiCond cond = ImGuiCond_Once);
+void centre_next_window(ImGuiCond cond = ImGuiCond_Always);
 
 /* Calcultes the size of a button with the given text */
 ImVec2 get_button_size(const char *msg);
