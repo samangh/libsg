@@ -30,7 +30,7 @@ void set_karla_font();
  * @param vec           total size of the controls to be displated
  * @param no_of_items   number of controls to be cenrelised
  */
-void centre_next_control_hor(const ImVec2 &vec, const int no_of_items = 0);
+void centre_next_control_hor(const ImVec2 &vec, const int no_of_items = 1);
 
 /* Create a modal popup.
  *
