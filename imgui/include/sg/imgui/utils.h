@@ -1,7 +1,5 @@
 #pragma once
 
-#include "DialogResult.h"
-
 #include <imgui.h>
 
 #include <cstdint>
@@ -31,21 +29,6 @@ void set_karla_font();
  * @param no_of_items   number of controls to be cenrelised
  */
 void centre_next_control_hor(const ImVec2 &vec, const int no_of_items = 1);
-
-/* Create a modal popup.
- *
- * Note that you must have set the popup to open first by calling
- * `ImGui::OpenPopup(imgui_id)` first.
- *
- * @param imgui_id      ImGui ID of the popup
- * @param message       message to shown
- * @param flags         window flags
- */
-DialogResult create_modal_popup(const char *imgui_id,
-                                const std::string &message,
-                                const int flags = ImGuiWindowFlags_AlwaysAutoResize |
-                                                  ImGuiWindowFlags_NoSavedSettings |
-                                                  ImGuiWindowFlags_NoMove);
 
 /* Centre the new window both orizontally and vertically */
 void centre_next_window(ImGuiCond cond = ImGuiCond_Always);

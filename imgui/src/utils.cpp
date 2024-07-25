@@ -97,31 +97,6 @@ void centre_next_control_hor(const ImVec2 &vec, const int no_of_items)
      ImGui::SetCursorPosX(centre_position_for_button);
 }
 
-DialogResult create_modal_popup(const char *imgui_id, const std::string &message, const int flags)
-{
-    DialogResult result = DialogResult::NoResult;
-    if (ImGui::BeginPopupModal(imgui_id, NULL, flags))
-    {
-        ImGui::Spacing();
-        ImGui::Text("%s", message.c_str());
-        ImGui::Spacing();
-        ImGui::Separator();
-        ImGui::Spacing();
-
-        auto size = ImVec2(80, 0);
-        centre_next_control_hor(size);
-
-        if (ImGui::Button("OK", size))
-        {
-            result = DialogResult::OK;
-            ImGui::CloseCurrentPopup();
-        }
-
-        ImGui::EndPopup();
-    }
-
-    return result;
-}
 
 void centre_next_window(ImGuiCond cond)
 {
