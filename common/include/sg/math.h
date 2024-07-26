@@ -1,6 +1,10 @@
 #pragma once
 
+#include <fmt/compile.h>
+#include <fmt/format.h>
+
 #include <cstdint>
+#include <string>
 #include <type_traits>
 
 namespace sg::math {
@@ -32,6 +36,12 @@ T largest_power_of_two(T number)
     number = number| (number>>8);
     number = number| (number>>16);
   return number - (number>>1);
+}
+
+/* Fast number to string conversion */
+template <typename T, typename = typename std::enable_if<std::is_arithmetic<T>::value>::type>
+inline std::string to_string(T number) {
+    return (fmt::to_string(number));
 }
 
 }
