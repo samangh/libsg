@@ -16,6 +16,55 @@
 
 namespace sg {
 
+class SG_COMMON_EXPORT sequential_worker {
+    std::thread m_thread;
+    std::stop_source m_stop_source;
+
+    std::mutex m_lock;
+    std::vector<std::function<void(std::stop_token)>> m_functions;
+
+    std::jthread background_timer;
+
+    template <typename Callable, typename... Args>
+    std::thread store_function(Callable&& cb, Args&&... args) {
+        std::function<void(std::stop_token)> func;
+        if constexpr (std::is_invocable_v<Callable, std::stop_token, Args...>)
+            func = [&cb, &args...](std::stop_token token) {
+                std::invoke(
+                    std::forward<decltype(cb)>(cb), token, std::forward<decltype(args)>(args)...);
+            };
+        else
+            func = [&cb, &args...](std::stop_token) {
+                std::invoke(
+                    std::forward<decltype(cb)>(cb), std::forward<decltype(args)>(args)...);
+            };
+
+        std::lock_guard lock(m_lock);
+        m_functions.emplace_back(std::move(func));
+    }
+
+public:
+    sequential_worker() {}
+
+     template <typename Callable,
+               typename... Args,
+               typename = ::std::enable_if_t<!::std::is_same_v<::std::decay_t<Callable>, sequential_worker>>>
+     void add(Callable&& cb, Args&&... args)
+     {
+         store_function(std::forward<Callable>(cb), std::forward<Args>(args)...);
+     }
+
+     template <typename Callable,
+               typename... Args,
+               typename = ::std::enable_if_t<!::std::is_same_v<::std::decay_t<Callable>, sequential_worker>>,
+               typename = ::std::enable_if_t<std::is_invocable_v<Callable, sequential_worker*, Args...>>>
+     void add2(Callable&& cb, Args&&... args)
+     {
+         //store_function(std::forward<Callable>(cb), std::forward<Args>(args)...);
+     }
+
+};
+
 class SG_COMMON_EXPORT background_timer {
     class impl;
     sg::pimpl<impl> pimpl;
