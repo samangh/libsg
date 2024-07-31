@@ -16,7 +16,7 @@ namespace sg::math {
  *  - input '9' returns 1
 */
 template <typename T, typename = typename std::enable_if<std::is_unsigned<T>::value>::type>
-T exact_factor_of_two(T number)
+[[nodiscard]] T exact_factor_of_two(T number)
 {
     return number & (~number + 1);
 }
@@ -28,7 +28,7 @@ T exact_factor_of_two(T number)
  *  - input '16' returns 16
 */
 template <typename T, typename = typename std::enable_if<std::is_unsigned<T>::value>::type>
-T largest_power_of_two(T number)
+[[nodiscard]] T largest_power_of_two(T number)
 {
     number = number| (number>>1);
     number = number| (number>>2);
@@ -40,7 +40,7 @@ T largest_power_of_two(T number)
 
 /* Fast number to string conversion */
 template <typename T, typename = typename std::enable_if<std::is_arithmetic<T>::value>::type>
-inline std::string to_string(T number) {
+[[nodiscard]] inline std::string to_string(T number) {
     return (fmt::to_string(number));
 }
 
