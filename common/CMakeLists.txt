@@ -19,6 +19,13 @@ endif ()
 find_package(Boost REQUIRED CONFIG)
 
 ##
+## External files
+##
+
+set(DP_THREAD_POOL_DIR ${CMAKE_CURRENT_SOURCE_DIR}/../external/thread-pool)
+
+
+##
 ## Source files
 ##
 
@@ -38,8 +45,10 @@ target_include_directories(${TARGET}
   INTERFACE
   PUBLIC
     $<INSTALL_INTERFACE:include>
+
     $<BUILD_INTERFACE:${CMAKE_CURRENT_LIST_DIR}/include>
     $<BUILD_INTERFACE:${CMAKE_BINARY_DIR}/include>
+    $<BUILD_INTERFACE:${DP_THREAD_POOL_DIR}/include>
   PRIVATE
     Boost::Boost)
 
