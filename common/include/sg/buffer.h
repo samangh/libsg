@@ -156,8 +156,9 @@ class unique_buffer : public IBuffer<T> {
           length(_length) {}
 
     /* Takes ownership of a unique-pointer */
-    unique_buffer(std::unique_ptr<T, deleter> _ptr, size_t _length) noexcept
-        : ptr(_ptr),
+    template <typename U>
+    unique_buffer(U&& _ptr, size_t _length) noexcept
+        : ptr(std::forward<U>(_ptr)),
           length(_length) {}
 
     // Move constrcutor
@@ -212,8 +213,9 @@ class shared_buffer : public IBuffer<T> {
           length(_length) {}
 
     /* Takes ownership of a shared-pointer */
-    shared_buffer(std::shared_ptr<T> _ptr, size_t _length) noexcept //
-        : ptr(_ptr),
+    template <typename U>
+    shared_buffer(U&& _ptr, size_t _length) noexcept //
+        : ptr(std::forward<U>(_ptr)),
           length(_length) {}
 
     shared_buffer(unique_buffer<T,deleter>&& _buff) noexcept //
