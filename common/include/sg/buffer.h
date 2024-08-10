@@ -131,9 +131,13 @@ template <typename T> class shared_opaque_buffer : public buffer_base<T> {
           buffer(std::shared_ptr<IBuffer<T>>(buff)) {}
 };
 
-template <typename T, typename deleter = std::default_delete<T>> //
+/**
+ * @brief The unique_buffer class
+ * @details if using the default deleted, you MUST use new[] to create the pointers
+ */
+template <typename T, typename deleter = std::default_delete<T[]>> //
 class unique_buffer : public IBuffer<T> {
-    std::unique_ptr<T, deleter> ptr;
+    std::unique_ptr<T[], deleter> ptr;
     size_t length;
 
   public:
@@ -143,12 +147,12 @@ class unique_buffer : public IBuffer<T> {
 
     /* Constrcts from bare pointer */
     unique_buffer(T *_ptr, size_t _length) noexcept
-        : ptr(std::unique_ptr<T, deleter>(_ptr)),
+        : ptr(std::unique_ptr<T[], deleter>(_ptr)),
           length(_length) {}
 
     /* Take owenership of bare pointer with custom deleter */
     unique_buffer(T *_ptr, size_t _length, const deleter &del) noexcept
-        : ptr(std::unique_ptr<T, deleter>(_ptr, del)),
+        : ptr(std::unique_ptr<T[], deleter>(_ptr, del)),
           length(_length) {}
 
     /* Takes ownership of a unique-pointer */
@@ -189,9 +193,13 @@ class unique_buffer : public IBuffer<T> {
     const T& operator[](int i) const override { return (ptr.get())[i]; };
 };
 
-template <typename T, typename deleter = std::default_delete<T>> //
+/**
+ * @brief The shared_buffer class
+ * @details if using the default deleted, you MUST use new[] to create the pointers
+ */
+template <typename T, typename deleter = std::default_delete<T[]>> //
 class shared_buffer : public IBuffer<T> {
-    std::shared_ptr<T> ptr;
+    std::shared_ptr<T[]> ptr;
     size_t length;
 
   public:
@@ -200,7 +208,7 @@ class shared_buffer : public IBuffer<T> {
 
     /* Constrcts from bare pointer */
     shared_buffer(T *_ptr, size_t _length) noexcept
-        : ptr(std::shared_ptr<T>(_ptr, deleter())),
+        : ptr(std::shared_ptr<T[]>(_ptr, deleter())),
           length(_length) {}
 
     /* Takes ownership of a shared-pointer */
@@ -209,7 +217,7 @@ class shared_buffer : public IBuffer<T> {
           length(_length) {}
 
     shared_buffer(unique_buffer<T,deleter>&& _buff) noexcept //
-        : ptr(std::shared_ptr<T>(_buff.release(), deleter())), length(_buff.size())
+        : ptr(std::shared_ptr<T[]>(_buff.release(), deleter())), length(_buff.size())
     {}
 
     // Move constrcutors
