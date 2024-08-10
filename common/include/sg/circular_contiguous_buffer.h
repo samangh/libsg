@@ -30,7 +30,9 @@ template <typename T> class SG_COMMON_EXPORT circular_contiguous_buffer {
         : m_cb_size(size),
           m_buff(sg::make_unique_c_buffer<T>(2*size)) {}
 
-    size_t   size() const { return m_cb_size; }
+    size_t capacity() const { return m_cb_size; }
+    size_t size() const { return pos_end - pos_begin; }
+
     T*       data() { return &m_buff[pos_begin]; }
     const T* data() const { return &m_buff[pos_begin]; }
 
