@@ -53,7 +53,6 @@ template <typename T> class SG_COMMON_EXPORT rolling_contiguous_buffer {
             if (pos_end - pos_begin > m_cb_size)
                 ++pos_begin;
         } else {
-            /* call destrctors of unneeded items, if they are non-trivial */
             for (size_t i = 0; i < pos_begin; ++i)
                 m_buff[i].~T();
 
@@ -75,7 +74,6 @@ template <typename T> class SG_COMMON_EXPORT rolling_contiguous_buffer {
      * @param size the size to change to
      */
     void resize(size_t size) {
-        /* call destrctors of unneeded items, if they are non-trivial */
         for (size_t i = 0; i < pos_begin; ++i)
             m_buff[i].~T();
 
@@ -101,7 +99,6 @@ template <typename T> class SG_COMMON_EXPORT rolling_contiguous_buffer {
     }
 
     void clear() {
-        /* call destrctors of unneeded items, if they are non-trivial */
         for (size_t i = 0; i < pos_end; ++i)
             m_buff[i].~T();
 
