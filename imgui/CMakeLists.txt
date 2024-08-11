@@ -40,7 +40,7 @@ file(GLOB SRC_FILES
 ## ImGui variables are correctly shared across the DLL boundary.
 ##
 add_library(${TARGET} STATIC ${SRC_FILES})
-add_library(SG::${SG_TARGET_NANE} ALIAS ${TARGET})
+add_library(${NAMESPACE}::${SG_TARGET_NANE} ALIAS ${TARGET})
 
 ##
 ## Includes

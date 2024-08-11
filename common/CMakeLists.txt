@@ -35,7 +35,7 @@ file(GLOB_RECURSE SRC_FILES
   ${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp)
 
 add_library(${TARGET} ${SRC_FILES})
-add_library(SG::${SG_TARGET_NANE} ALIAS ${TARGET})
+add_library(${NAMESPACE}::${SG_TARGET_NANE} ALIAS ${TARGET})
 
 ##
 ## Includes
@@ -71,9 +71,3 @@ include (GenerateExportHeader)
 generate_export_header(${TARGET}
              EXPORT_FILE_NAME "${CMAKE_BINARY_DIR}/include/sg/export/${TARGET}.h")
 
-
-##
-## Compiler flags
-##
-
-target_compile_features(${TARGET} PUBLIC cxx_std_20)
