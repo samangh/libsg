@@ -12,6 +12,7 @@ option (USE_STATIC_RUNTIME "Statically link against the C++ runtime" USE_STATIC_
 option (ARCH_NATIVE "Optimise code for current architecture" OFF)
 option (USE_SSE "Enable global use of SSE if possible" ARCH_NATIVE)
 
+option (BUILD_TESTS "Builds tests" ON)
 option (SANITIZE "Enable address, eak and undefined Behaviour sanitizers" OFF)
 # Note, the sanitizer also provides SANITIZE_THREAD and SANITIZE_MEMORY options
 

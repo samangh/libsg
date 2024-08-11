@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.15.0)
 
 project(libsg
-  VERSION "0.0.1"
+  VERSION "1.0.0"
   DESCRIPTION "libsg"
   LANGUAGES C CXX)
 
@@ -33,6 +33,11 @@ find_package(fmt REQUIRED)
 
 add_subdirectory(common)
 add_subdirectory(imgui)
+
+if(BUILD_TESTS)
+  include(CTest)
+  add_subdirectory(test)
+endif()
 
 ##
 ## Compile options
