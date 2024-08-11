@@ -3,7 +3,7 @@
 #include <atomic>
 #include <doctest/doctest.h>
 
-TEST_CASE("rolling_contiguous_buffer: check size() and capacity()") {
+TEST_CASE("SG::common rolling_contiguous_buffer: check size() and capacity()") {
     sg::rolling_contiguous_buffer<int> buffer(5);
 
     /* check size() */
@@ -15,7 +15,7 @@ TEST_CASE("rolling_contiguous_buffer: check size() and capacity()") {
     CHECK_EQ(buffer.capacity(), 5);
 }
 
-TEST_CASE("rolling_contiguous_buffer: check push_back()") {
+TEST_CASE("SG::common rolling_contiguous_buffer: check push_back()") {
     sg::rolling_contiguous_buffer<int> buffer(5);
 
     auto count=0;
@@ -29,7 +29,7 @@ TEST_CASE("rolling_contiguous_buffer: check push_back()") {
     CHECK_EQ(count, 5);
 }
 
-TEST_CASE("rolling_contiguous_buffer: check rolling works before memcpy()") {
+TEST_CASE("SG::common rolling_contiguous_buffer: check rolling works before memcpy()") {
     sg::rolling_contiguous_buffer<int> buffer(5);
     auto count=0;
 
@@ -48,7 +48,7 @@ TEST_CASE("rolling_contiguous_buffer: check rolling works before memcpy()") {
     CHECK_EQ(buffer.size(), 5);
 }
 
-TEST_CASE("rolling_contiguous_buffer: check rolling works after memcpy()") {
+TEST_CASE("SG::common rolling_contiguous_buffer: check rolling works after memcpy()") {
     sg::rolling_contiguous_buffer<int> buffer(5);
     auto count=0;
 
@@ -67,7 +67,7 @@ TEST_CASE("rolling_contiguous_buffer: check rolling works after memcpy()") {
     CHECK_EQ(buffer.size(), 5);
 }
 
-TEST_CASE("rolling_contiguous_buffer: check resize() growth") {
+TEST_CASE("SG::common rolling_contiguous_buffer: check resize() growth") {
     sg::rolling_contiguous_buffer<int> buffer(5);
     auto                               count = 0;
 
@@ -96,7 +96,7 @@ TEST_CASE("rolling_contiguous_buffer: check resize() growth") {
     CHECK_EQ(buffer.size(), 10);
 }
 
-TEST_CASE("rolling_contiguous_buffer: check resize() reduction") {
+TEST_CASE("SG::common rolling_contiguous_buffer: check resize() reduction") {
     sg::rolling_contiguous_buffer<int> buffer(5);
     auto                               count = 0;
 
@@ -114,7 +114,7 @@ TEST_CASE("rolling_contiguous_buffer: check resize() reduction") {
     CHECK_EQ(count, 3+4);
 }
 
-TEST_CASE("rolling_contiguous_buffer: check for loop iteration") {
+TEST_CASE("SG::common rolling_contiguous_buffer: check for loop iteration") {
     sg::rolling_contiguous_buffer<int> buffer(5);
     auto                               count = 0;
 
@@ -143,7 +143,7 @@ TEST_CASE("rolling_contiguous_buffer: check for loop iteration") {
     CHECK_EQ(count, 5);
 }
 
-TEST_CASE("rolling_contiguous_buffer: check begin/end") {
+TEST_CASE("SG::common rolling_contiguous_buffer: check begin/end") {
     sg::rolling_contiguous_buffer<int> buffer(5);
 
     /* fill fully */
@@ -163,7 +163,7 @@ TEST_CASE("rolling_contiguous_buffer: check begin/end") {
     CHECK_EQ(counter, 6);
 }
 
-TEST_CASE("rolling_contiguous_buffer: modifying through []") {
+TEST_CASE("SG::common rolling_contiguous_buffer: modifying through []") {
     sg::rolling_contiguous_buffer<int> buffer(5);
 
     /* fill fully */
@@ -174,7 +174,7 @@ TEST_CASE("rolling_contiguous_buffer: modifying through []") {
     CHECK_EQ(buffer[1], 2);
 }
 
-TEST_CASE("rolling_contiguous_buffer: check copy/move") {
+TEST_CASE("SG::common rolling_contiguous_buffer: check copy/move") {
     std::atomic_int ctr_count = 0;
     std::atomic_int dest_count = 0;
     std::atomic_int copy_count = 0;
