@@ -26,8 +26,11 @@ template <typename T> class SG_COMMON_EXPORT rolling_contiguous_buffer {
     size_t pos_begin{0}; // index of first element (i.e. similar to begin())
     size_t pos_end{0};   // index after last element (i.e. similar to end())
   public:
+    typedef std::size_t                 size_type;
     typedef contiguous_iterator<T>       iterator_type;
     typedef contiguous_iterator<const T> const_iterator_type;
+    typedef T&                           reference;
+    typedef const T&                     const_reference;
 
     rolling_contiguous_buffer(size_t size)
         : m_cb_size(size),
@@ -110,5 +113,17 @@ template <typename T> class SG_COMMON_EXPORT rolling_contiguous_buffer {
     /* const interators */
     const_iterator_type begin() const { return const_iterator_type(data()); }
     const_iterator_type end() const { return begin() + (pos_end - pos_begin); }
+
+    /* front/back */
+    reference front() { return *begin(); }
+    reference back() { return *(end() - 1); }
+
+    /* const front/back */
+    const_reference front() const {return *begin();}
+    const_reference back() const {return *(end() - 1);;}
+
+    const T& operator[](size_type i) const  { return *(front() + i); };
+    T&       operator[](size_type i)  { return *(front() + i); }
+
 };
 } // namespace sg
