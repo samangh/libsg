@@ -17,8 +17,12 @@ template <typename T> class vector_channel : public IChannel<T> {
     const T* data() const noexcept override { return m_data.data(); }
 
     const T& back() const override { return m_data.back(); }
-    const T& operator[](int i) const override { return m_data[i]; };
-    T&       operator[](int i) override { return m_data[i]; }
+    T&       back() override { return m_data.back(); }
+    T&       front() override { return m_data.front(); }
+    const T& front() const override { return m_data.front(); }
+
+    const T& operator[](size_t i) const override { return m_data[i]; };
+    T&       operator[](size_t i) override { return m_data[i]; }
 
     std::string back_as_string() const override { return sg::math::to_string(back()); };
 

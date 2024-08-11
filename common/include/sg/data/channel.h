@@ -51,11 +51,16 @@ template <typename T> class IChannel : public IChannelBase {
     virtual T *data() noexcept = 0;
     virtual const T *data() const noexcept = 0;
 
+    virtual T& back() = 0;
     virtual const T& back() const = 0;
+
+    virtual T& front() = 0;
+    virtual const T& front() const = 0;
+
     virtual std::string back_as_string() const = 0;
 
-    virtual const T& operator[](int i) const = 0;
-    virtual T& operator[](int i) = 0;
+    virtual const T& operator[](size_t i) const = 0;
+    virtual T& operator[](size_t i) = 0;
 };
 
 typedef sg::data::IChannel<double> t_chan_double;
