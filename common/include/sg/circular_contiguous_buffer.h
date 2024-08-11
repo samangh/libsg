@@ -2,6 +2,7 @@
 
 #include "sg/buffer.h"
 #include "sg/export/sg_common.h"
+#include "sg/iterator.h"
 
 #include <cstring>
 #include <iostream>
@@ -17,18 +18,22 @@ namespace sg {
  *
  * If contiguous memory is not required, much better to use boost::circular_buffer instead.
  */
-#include<vector>
-
 template <typename T> class SG_COMMON_EXPORT circular_contiguous_buffer {
-    size_t               m_cb_size;
+    size_t                 m_cb_size;
     sg::unique_c_buffer<T> m_buff;
 
     size_t pos_begin{0}; // index of first element (i.e. similar to begin())
     size_t pos_end{0};   // index after last element (i.e. similar to end())
   public:
+    typedef contiguous_iterator<T>       iterator_type;
+    typedef contiguous_iterator<const T> const_iterator_type;
+
     circular_contiguous_buffer(size_t size)
         : m_cb_size(size),
-          m_buff(sg::make_unique_c_buffer<T>(2*size)) {}
+          m_buff(sg::make_unique_c_buffer<T>(2 * size)) {
+        static_assert(std::contiguous_iterator<iterator_type>);
+        static_assert(std::contiguous_iterator<const_iterator_type>);
+    }
 
     size_t capacity() const { return m_cb_size; }
     size_t size() const { return pos_end - pos_begin; }
@@ -36,8 +41,7 @@ template <typename T> class SG_COMMON_EXPORT circular_contiguous_buffer {
     T*       data() { return &m_buff[pos_begin]; }
     const T* data() const { return &m_buff[pos_begin]; }
 
-    template <typename U>
-    void push_back(U&& val) {
+    template <typename U> void push_back(U&& val) {
         if (pos_end != m_buff.size()) {
             m_buff[pos_end++] = std::forward<U>(val);
             if (pos_end - pos_begin > m_cb_size)
@@ -66,7 +70,7 @@ template <typename T> class SG_COMMON_EXPORT circular_contiguous_buffer {
                 m_buff[i].~T();
 
         /* create new base buffer of new size-and swap */
-        auto old_buf = sg::make_unique_c_buffer<T>(2*size);
+        auto old_buf = sg::make_unique_c_buffer<T>(2 * size);
         m_buff.swap(old_buf);
 
         /* set new circular-buffer size */
@@ -82,9 +86,6 @@ template <typename T> class SG_COMMON_EXPORT circular_contiguous_buffer {
                     static_cast<void*>(&old_buf[pos_end - copy_count]),
                     copy_count * sizeof(T));
 
-
-
-
         pos_begin = 0;
         pos_end = copy_count;
     }
@@ -93,5 +94,13 @@ template <typename T> class SG_COMMON_EXPORT circular_contiguous_buffer {
         pos_begin = 0;
         pos_end = 0;
     }
+
+    iterator_type begin() { return iterator_type(data()); }
+
+    iterator_type end() { return begin() + (pos_end - pos_begin); }
+
+    const_iterator_type begin() const { return const_iterator_type(data()); }
+
+    const_iterator_type end() const { return begin() + (pos_end - pos_begin); }
 };
 } // namespace sg
