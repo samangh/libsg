@@ -12,13 +12,14 @@
 namespace sg {
 
 /**
- * @brief a circular buffer where the the is contiguously in memory.
+ * @brief a rolling buffer where the data is contiguously in memory.
  * @details This uses twice as much memory as allocated, to increase performance. Adding more than
  * twice the size will cause the buffer to "shift" and so there is a memory copyign cost.
  *
- * If contiguous memory is not required, much better to use boost::circular_buffer instead.
+ * If contiguous memory is not required, it might be better to use  std::queue, std:deque, or
+ * boost::circular_buffer instead.
  */
-template <typename T> class SG_COMMON_EXPORT circular_contiguous_buffer {
+template <typename T> class SG_COMMON_EXPORT rolling_contiguous_buffer {
     size_t                 m_cb_size;
     sg::unique_c_buffer<T> m_buff;
 
@@ -28,13 +29,14 @@ template <typename T> class SG_COMMON_EXPORT circular_contiguous_buffer {
     typedef contiguous_iterator<T>       iterator_type;
     typedef contiguous_iterator<const T> const_iterator_type;
 
-    circular_contiguous_buffer(size_t size)
+    rolling_contiguous_buffer(size_t size)
         : m_cb_size(size),
           m_buff(sg::make_unique_c_buffer<T>(2 * size)) {
         static_assert(std::contiguous_iterator<iterator_type>);
         static_assert(std::contiguous_iterator<const_iterator_type>);
     }
 
+    /* returns the capacity of the buffer */
     size_t capacity() const { return m_cb_size; }
     size_t size() const { return pos_end - pos_begin; }
 
@@ -63,6 +65,12 @@ template <typename T> class SG_COMMON_EXPORT circular_contiguous_buffer {
         }
     }
 
+    /**
+     * @brief resize the buffer element count.
+     * @details note that if size is smaller than the current size some elements from the front of
+     * the buffer will be removed.
+     * @param size the size to change to
+     */
     void resize(size_t size) {
         /* call destrctors of unneeded items, if they are non-trivial */
         if (!std::is_trivially_destructible_v<T>)
@@ -95,12 +103,12 @@ template <typename T> class SG_COMMON_EXPORT circular_contiguous_buffer {
         pos_end = 0;
     }
 
+    /* iterators */
     iterator_type begin() { return iterator_type(data()); }
-
     iterator_type end() { return begin() + (pos_end - pos_begin); }
 
+    /* const interators */
     const_iterator_type begin() const { return const_iterator_type(data()); }
-
     const_iterator_type end() const { return begin() + (pos_end - pos_begin); }
 };
 } // namespace sg
