@@ -56,6 +56,9 @@ include(get_standard_library_name)
 include(CheckCXXSourceCompiles)
 get_standard_library_name(STANDARD_LIBRARY)
 
+# CPM
+include(get_cpm)
+
 ##
 ## Packages
 ##
