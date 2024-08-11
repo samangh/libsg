@@ -25,6 +25,7 @@ template <typename T> class SG_COMMON_EXPORT rolling_contiguous_buffer {
 
     size_t pos_begin{0}; // index of first element (i.e. similar to begin())
     size_t pos_end{0};   // index after last element (i.e. similar to end())
+
   public:
     typedef std::size_t                 size_type;
     typedef contiguous_iterator<T>       iterator_type;
@@ -32,7 +33,7 @@ template <typename T> class SG_COMMON_EXPORT rolling_contiguous_buffer {
     typedef T&                           reference;
     typedef const T&                     const_reference;
 
-    rolling_contiguous_buffer(size_t size)
+    explicit rolling_contiguous_buffer(size_t size)
         : m_cb_size(size),
           m_buff(sg::make_unique_c_buffer<T>(2 * size)) {
         static_assert(std::contiguous_iterator<iterator_type>);
@@ -53,9 +54,8 @@ template <typename T> class SG_COMMON_EXPORT rolling_contiguous_buffer {
                 ++pos_begin;
         } else {
             /* call destrctors of unneeded items, if they are non-trivial */
-            if (!std::is_trivially_destructible_v<U>)
-                for (size_t i = 0; i < pos_begin; ++i)
-                    m_buff[i].~T();
+            for (size_t i = 0; i < pos_begin; ++i)
+                m_buff[i].~T();
 
             std::memcpy(static_cast<void*>(&m_buff.get()[0]),
                         static_cast<void*>(&m_buff.get()[pos_begin]),
@@ -76,9 +76,8 @@ template <typename T> class SG_COMMON_EXPORT rolling_contiguous_buffer {
      */
     void resize(size_t size) {
         /* call destrctors of unneeded items, if they are non-trivial */
-        if (!std::is_trivially_destructible_v<T>)
-            for (size_t i = 0; i < pos_begin; ++i)
-                m_buff[i].~T();
+        for (size_t i = 0; i < pos_begin; ++i)
+            m_buff[i].~T();
 
         /* create new base buffer of new size-and swap */
         auto old_buf = sg::make_unique_c_buffer<T>(2 * size);
@@ -102,17 +101,25 @@ template <typename T> class SG_COMMON_EXPORT rolling_contiguous_buffer {
     }
 
     void clear() {
+        /* call destrctors of unneeded items, if they are non-trivial */
+        for (size_t i = 0; i < pos_end; ++i)
+            m_buff[i].~T();
+
         pos_begin = 0;
         pos_end = 0;
     }
 
     /* iterators */
-    iterator_type begin() { return iterator_type(data()); }
-    iterator_type end() { return begin() + (pos_end - pos_begin); }
+    constexpr iterator_type begin() { return iterator_type(data()); }
+    constexpr iterator_type end() { return begin() + (pos_end - pos_begin); }
 
     /* const interators */
-    const_iterator_type begin() const { return const_iterator_type(data()); }
-    const_iterator_type end() const { return begin() + (pos_end - pos_begin); }
+    constexpr const_iterator_type begin() const { return const_iterator_type(data()); }
+    constexpr const_iterator_type end() const { return begin() + (pos_end - pos_begin); }
+
+    /* const interators */
+    constexpr const_iterator_type cbegin() const { return const_iterator_type(data()); }
+    constexpr const_iterator_type cend() const { return cbegin() + (pos_end - pos_begin); }
 
     /* front/back */
     reference front() { return *begin(); }
@@ -122,8 +129,11 @@ template <typename T> class SG_COMMON_EXPORT rolling_contiguous_buffer {
     const_reference front() const {return *begin();}
     const_reference back() const {return *(end() - 1);;}
 
-    const T& operator[](size_type i) const  { return *(front() + i); };
-    T&       operator[](size_type i)  { return *(front() + i); }
+    const T& operator[](size_type i) const  { return m_buff[pos_begin+i]; };
+    T&       operator[](size_type i)  { return m_buff[pos_begin+i]; }
 
+    ~rolling_contiguous_buffer() {
+        clear();
+    }
 };
 } // namespace sg
