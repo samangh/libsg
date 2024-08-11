@@ -7,18 +7,22 @@ function(setup_target_options)
 
   target_compile_options(${ARG_TARGET}
     PRIVATE
-    #Warnings
-    $<$<NOT:$<CXX_COMPILER_ID:MSVC>>:-Wall -Wextra>
-    $<$<CXX_COMPILER_ID:MSVC>:/permissive->
+      #Warnings
+      $<$<NOT:$<CXX_COMPILER_ID:MSVC>>:-Wall -Wextra>
+      $<$<CXX_COMPILER_ID:MSVC>:/permissive->
 
-    # Set arch to native (i.e. use all processor flags)
-    $<$<AND:$<BOOL:${ARCH_NATIVE}>,$<NOT:$<CXX_COMPILER_ID:MSVC>>>:-march=native>)
+      # Set arch to native (i.e. use all processor flags)
+      $<$<AND:$<BOOL:${ARCH_NATIVE}>,$<NOT:$<CXX_COMPILER_ID:MSVC>>>:-march=native>)
 
   target_link_libraries(${ARG_TARGET}
     PRIVATE
-    # Enable SSE if
-    $<$<AND:$<BOOL:${USE_SSE}>,$<BOOL:${SSE_SSE42_FOUND}>>:SSE::SSE42>
-    $<$<AND:$<BOOL:${USE_SSE}>,$<BOOL:${SSE_AVX2_FOUND}>>:SSE::AVX2>)
+      # Enable SSE if
+      $<$<AND:$<BOOL:${USE_SSE}>,$<BOOL:${SSE_SSE42_FOUND}>>:SSE::SSE42>
+      $<$<AND:$<BOOL:${USE_SSE}>,$<BOOL:${SSE_AVX2_FOUND}>>:SSE::AVX2>
+    PUBLIC
+      $<$<AND:$<CXX_COMPILER_ID:GNU>,$<VERSION_LESS:$<CXX_COMPILER_VERSION>,9.1>>:${STANDARD_LIBRARY}fs>
+      $<$<AND:$<CXX_COMPILER_ID:Clang>,$<VERSION_LESS:$<CXX_COMPILER_VERSION>,9.0>>:${STANDARD_LIBRARY}fs>)
+
 
   # Link against statically to runtime in Windows if enabled
   if (USE_STATIC_RUNTIME)
