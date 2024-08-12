@@ -42,6 +42,9 @@ template <typename T> class IChannel : public IChannelBase {
     std::vector<std::string> m_hierarchy;
 
   public:
+    IChannel() =default;
+    IChannel(std::string name) :m_name(name) {}
+
     std::string name() const noexcept { return m_name; }
     void name(std::string name) noexcept { m_name = name; }
 
