@@ -25,9 +25,11 @@ template <typename T> class channel_rolling : public IChannel<T> {
     T&       front() override { return m_buff.front(); }
     const T& front() const override { return m_buff.front(); }
 
-    std::string back_as_string() const override { fmt::to_string(back()); }
+    std::string back_as_string() const override { return fmt::to_string(back()); }
     const T&    operator[](size_t i) const override { return m_buff[i]; }
     T&          operator[](size_t i) override { return m_buff[i]; }
+
+    void push_back(T val) { m_buff.push_back(val); }
 };
 
 } // namespace sg::data
