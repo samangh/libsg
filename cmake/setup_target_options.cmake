@@ -12,7 +12,10 @@ function(setup_target_options)
       $<$<CXX_COMPILER_ID:MSVC>:/permissive->
 
       # Set arch to native (i.e. use all processor flags)
-      $<$<AND:$<BOOL:${ARCH_NATIVE}>,$<NOT:$<CXX_COMPILER_ID:MSVC>>>:-march=native>)
+      $<$<AND:$<BOOL:${ARCH_NATIVE}>,$<NOT:$<CXX_COMPILER_ID:MSVC>>>:-march=native>
+
+      # Enable __cpluscplus header in MSVC for getting C++ version
+      $<$<CXX_COMPILER_ID:MSVC>:/Zc:__cplusplus>)
 
   target_link_libraries(${ARG_TARGET}
     PRIVATE
