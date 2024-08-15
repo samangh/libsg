@@ -22,4 +22,11 @@ TEST_CASE("SG::common sg::bytes: check to_uint16()") {
         CHECK(big == 69633);
         CHECK(little == 17826048);
     }
+
+    CHECK_EQ(0x0110, sg::bytes::byteswap(uint16_t(0x1001)));
+    CHECK_EQ(0x0110, sg::bytes::byteswap(int16_t(0x1001)));
+    CHECK_EQ(0xEFBEADDE, sg::bytes::byteswap(uint32_t(0xDEADBEEFu)));
+    CHECK_EQ(0xEFBEADDE, sg::bytes::byteswap(int32_t(0xDEADBEEFu)));
+    CHECK_EQ(0xEFCDAB8967452301, sg::bytes::byteswap(uint64_t(0x0123456789ABCDEFull)));
+    CHECK_EQ(0xEFCDAB8967452301, sg::bytes::byteswap(int64_t(0x0123456789ABCDEFull)));
 }

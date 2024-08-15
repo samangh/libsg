@@ -17,42 +17,6 @@
 #endif
 namespace sg::bytes {
 
-template <typename T, typename = typename std::enable_if<std::is_integral<T>::value>::type>
-std::vector<uint8_t> to_bytes(T input, std::endian endian) {
-    /* Defined in header as this is a template, and so if defined in the
-     * library we won't know about what types to compile for! */
-
-    auto no_bytes = sizeof(T);
-    std::vector<uint8_t> result(no_bytes);
-    if (endian == std::endian::big)
-        for (unsigned int i = 0; i < no_bytes; i++)
-            result[no_bytes - 1 - i] = (uint8_t)(input >> (i * 8));
-    else
-        for (unsigned int i = 0; i < no_bytes; i++)
-            result[i] = (uint8_t)(input >> (i * 8));
-
-    return result;
-}
-
-/**
- * @brief Casts the given object to an array of bytes.
- * @param input object
- * @return list of bytes
- */
-template <typename T,
-          typename = typename std::enable_if<std::is_trivially_copyable<T>::value>::type>
-std::vector<uint8_t> to_bytes(T input) {
-    uint8_t* arr = reinterpret_cast<uint8_t*>(&input);
-    std::vector<uint8_t> result(sizeof(input));
-
-    for (int i = 0; i < sizeof(input); ++i)
-        result[i] = arr[i];
-
-    return result;
-}
-
-std::vector<uint8_t> to_bytes(double input, std::endian endian);
-
 /* universal function for swapping bytes of a number */
 template <std::integral T> constexpr T byteswap(T value) {
 #if __cplusplus >= 202302L
@@ -82,6 +46,9 @@ template <> constexpr uint16_t byteswap(uint16_t x) {
     return ((x >> 8) & 0xffu) | ((x & 0xffu) << 8);
     #endif
 }
+template <> constexpr int16_t byteswap(int16_t x) {
+    return static_cast<int16_t>(byteswap(static_cast<uint16_t>(x)));
+}
 
 /* Returns x with the order of the bytes reversed */
 template <> constexpr uint32_t byteswap(uint32_t x) {
@@ -94,6 +61,9 @@ template <> constexpr uint32_t byteswap(uint32_t x) {
     #else
     return (x >> 24) | ((x >> 8) & 0x0000FF00) | ((x << 8) & 0x00FF0000) | (x << 24);
     #endif
+}
+template <> constexpr int32_t byteswap(int32_t x) {
+    return static_cast<int32_t>(byteswap(static_cast<uint32_t>(x)));
 }
 
 /* Returns x with the order of the bytes reversed */
@@ -113,8 +83,32 @@ template <> constexpr uint64_t byteswap(uint64_t x) {
             ((x & 0x000000000000ff00ull) << 40) | ((x & 0x00000000000000ffull) << 56));
     #endif
 }
+template <> constexpr int64_t byteswap(int64_t x) {
+    return static_cast<int64_t>(byteswap(static_cast<uint64_t>(x)));
+}
 
 #endif
+
+/* Converts a object to bytes */
+template <typename T>
+requires std::is_trivially_copyable_v<T>
+std::vector<std::byte> to_bytes(T input) {
+    std::vector<std::byte> result(sizeof(input));
+    memcpy(&result[0], static_cast<void*>(&input), sizeof(T));
+    return result;
+}
+
+/* Converts an integer object to bytes, modified to match a target endianess*/
+template <std::integral T>
+std::vector<std::byte> to_bytes(T input, std::endian dest_endian) {
+    if (dest_endian != std::endian::native)
+        input=byteswap(input);
+
+    return to_bytes(input);
+}
+
+std::vector<uint8_t> to_bytes(double input, std::endian endian);
+
 
 template <std::integral T>
 T to_integral(const uint8_t* buff, std::endian src_endian = std::endian::native) {
