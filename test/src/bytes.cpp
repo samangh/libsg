@@ -23,4 +23,3 @@ TEST_CASE("SG::common sg::bytes: check to_uint16()") {
         CHECK(little == 17826048);
     }
 }
-
