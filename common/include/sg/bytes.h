@@ -1,9 +1,12 @@
 #pragma once
 
+#include <array>
 #include <cstdint>
+#include <cstring>
 #include <type_traits>
 #include <vector>
 #include <bit>
+#include <algorithm>
 
 #ifdef _MSC_VER
 #include <stdlib.h> //Used in swap_bytes functins
@@ -13,13 +16,6 @@
 #include <libkern/OSByteOrder.h> //Used in swap_bytes functins
 #endif
 namespace sg::bytes {
-
-uint16_t to_uint16(const uint8_t *buff, std::endian endian = std::endian::little);
-uint32_t to_uint32(const uint8_t *buff, std::endian endian = std::endian::little);
-int32_t to_int32(const uint8_t *buff, std::endian endian = std::endian::little);
-uint64_t to_uint64(const uint8_t *buff, std::endian endian = std::endian::little);
-int64_t to_int64(const uint8_t *buff, std::endian endian = std::endian::little);
-double to_double(const uint8_t *buff, std::endian endian = std::endian::little);
 
 template <typename T, typename = typename std::enable_if<std::is_integral<T>::value>::type>
 std::vector<uint8_t>
@@ -58,8 +54,28 @@ to_bytes(T input) {
 
 std::vector<uint8_t> to_bytes(double input, std::endian endian);
 
+/* universal function for swapping bytes of a number */
+template<std::integral T>
+constexpr T byteswap(T value)
+{
+#if __cplusplus >= 202302L
+    /* the following functions are already defined in C++23 */
+    return std::byteswap(val);
+#else
+    static_assert(std::has_unique_object_representations_v<T>,
+                  "T may not have padding bits");
+    auto value_representation = std::bit_cast<std::array<std::byte, sizeof(T)>>(value);
+    std::ranges::reverse(value_representation);
+    return std::bit_cast<T>(value_representation);
+#endif
+
+}
+
+#if __cplusplus < 202302L
+
 /* Returns x with the order of the bytes reversed; for example, 0xaabb becomes 0xbbaa */
-inline uint16_t swap_bytes(uint16_t x) {
+template<>
+constexpr uint16_t byteswap(uint16_t x) {
 #if defined(__GNUC__) || defined(__clang__)
   return __builtin_bswap16(x);
 #elif defined(_MSC_VER)
@@ -75,7 +91,8 @@ inline uint16_t swap_bytes(uint16_t x) {
 }
 
 /* Returns x with the order of the bytes reversed */
-inline uint32_t swap_bytes(uint32_t x) {
+template<>
+constexpr uint32_t byteswap(uint32_t x) {
 #if defined(__GNUC__) || defined(__clang__)
   return __builtin_bswap32(x);
 #elif defined(_MSC_VER)
@@ -91,7 +108,8 @@ inline uint32_t swap_bytes(uint32_t x) {
 }
 
 /* Returns x with the order of the bytes reversed */
-inline uint64_t swap_bytes(uint64_t x) {
+template<>
+constexpr uint64_t byteswap(uint64_t x) {
 #if defined(__GNUC__) || defined(__clang__)
   return __builtin_bswap64(x);
 #elif defined(_MSC_VER)
@@ -111,5 +129,20 @@ inline uint64_t swap_bytes(uint64_t x) {
             (( x & 0x00000000000000ffull ) << 56 ));
 #endif
 }
+
+#endif
+
+template <std::integral T>
+T to_integral(const uint8_t *buff, std::endian src_endian = std::endian::native) {
+    T val;
+    memcpy(&val, buff, sizeof(T));
+
+    if (std::endian::native != src_endian)
+        return sg::bytes::byteswap(val);
+    return val;
+}
+
+double to_double(const uint8_t *buff, std::endian endian = std::endian::native);
+
 
 } // namespace sg::bytes

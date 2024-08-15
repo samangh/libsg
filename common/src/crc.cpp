@@ -34,7 +34,7 @@ uint32_t crc32_tabular_2_bytes(const void* M, uint32_t bytes, uint32_t prev, uin
     for (uint32_t i = 0; i < bytes >> 1; ++i)
     {
         if constexpr (std::endian::native == std::endian::big) {
-            R = M16[i] ^ sg::bytes::swap_bytes(R);
+            R = M16[i] ^ sg::bytes::byteswap(R);
             R = crcTable[0 * 256 + uint8_t(R >> 0)] ^
                 crcTable[1 * 256 + uint8_t(R >> 8)];
         } else {
@@ -53,7 +53,7 @@ uint32_t crc32_tabular_4_bytes(const void* M, uint32_t bytes, uint32_t prev, uin
     for (uint32_t i = 0; i < bytes >> 2; ++i)
     {
         if constexpr (std::endian::native == std::endian::big) {
-        R = M32[i] ^ sg::bytes::swap_bytes(R);
+        R = M32[i] ^ sg::bytes::byteswap(R);
         R = crcTable[0 * 256 + uint8_t(R >> 0)] ^
             crcTable[1 * 256 + uint8_t(R >> 8)] ^
             crcTable[2 * 256 + uint8_t(R >> 16)] ^
@@ -75,7 +75,7 @@ uint32_t crc32_tabular_8_bytes(const void* M, uint32_t bytes, uint32_t prev, uin
     while (bytes>=8)
     {
         if constexpr (std::endian::native == std::endian::big) {
-        R = *M32++ ^ sg::bytes::swap_bytes(R);
+        R = *M32++ ^ sg::bytes::byteswap(R);
         const uint32_t R2 = *M32++;
         R = crcTable[0 * 256 + uint8_t(R2 >> 0)] ^
             crcTable[1 * 256 + uint8_t(R2 >> 8)] ^
@@ -110,7 +110,7 @@ uint32_t crc32_tabular_16_bytes(const void* M, uint32_t bytes, uint32_t prev, ui
     while (bytes >=16)
     {
         if constexpr (std::endian::native == std::endian::big) {
-        R = *M32++ ^ sg::bytes::swap_bytes(R);
+        R = *M32++ ^ sg::bytes::byteswap(R);
         const uint32_t R2 = *M32++;
         const uint32_t R3 = *M32++;
         const uint32_t R4 = *M32++;

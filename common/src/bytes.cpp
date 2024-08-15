@@ -2,8 +2,13 @@
 
 #include <algorithm>
 #include <array>
+#include <cstring>
 #include <type_traits>
+#include <algorithm>
+#include <iterator>
+#include <bit>
 
+namespace {
 template <typename T>
 T shift(const uint8_t *buff, unsigned int no_bytes, std::endian endian) {
     T result = 0;
@@ -14,7 +19,7 @@ T shift(const uint8_t *buff, unsigned int no_bytes, std::endian endian) {
             result |= (T)buff[i];
         }
     else
-        for (unsigned int i = 0; i >= no_bytes - 1; ++i) {
+        for (unsigned int i = 0; i < no_bytes; ++i) {
             result <<= 8;
             result |= (T)buff[i];
         }
@@ -40,24 +45,6 @@ T swap_endian(
     return dst.val;
 }
 
-uint16_t sg::bytes::to_uint16(const uint8_t *buff, std::endian endian) {
-    return shift<uint16_t>(buff, 2, endian);
-}
-
-uint32_t sg::bytes::to_uint32(const uint8_t *buff, std::endian endian) {
-    return shift<uint32_t>(buff, 4, endian);
-}
-
-int32_t sg::bytes::to_int32(const uint8_t *buff, std::endian endian) {
-    return shift<int32_t>(buff, 4, endian);
-}
-
-uint64_t sg::bytes::to_uint64(const uint8_t *buff, std::endian endian) {
-    return shift<uint64_t>(buff, 8, endian);
-}
-
-int64_t sg::bytes::to_int64(const uint8_t *buff, std::endian endian) {
-    return shift<int64_t>(buff, 8, endian);
 }
 
 double sg::bytes::to_double(const uint8_t *buff, std::endian endian) {
