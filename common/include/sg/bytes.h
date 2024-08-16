@@ -89,26 +89,24 @@ template <> constexpr int64_t byteswap(int64_t x) {
 
 #endif
 
-/* Converts a object to bytes */
+/* Converts an object to bytes */
 template <typename T>
-requires std::is_trivially_copyable_v<T>
+  requires(std::is_trivially_copyable_v<T> &&
+           std::has_unique_object_representations_v<T>)
 std::vector<std::byte> to_bytes(T input) {
     std::vector<std::byte> result(sizeof(input));
-    memcpy(&result[0], static_cast<void*>(&input), sizeof(T));
+    memcpy(&result[0], static_cast<void *>(&input), sizeof(T));
     return result;
 }
 
-/* Converts an integer object to bytes, modified to match a target endianess*/
+/* Converts an integer objectg to bytes, modified to match a target endianess*/
 template <std::integral T>
 std::vector<std::byte> to_bytes(T input, std::endian dest_endian) {
     if (dest_endian != std::endian::native)
-        input=byteswap(input);
+      input = byteswap(input);
 
     return to_bytes(input);
 }
-
-std::vector<uint8_t> to_bytes(double input, std::endian endian);
-
 
 template <std::integral T>
 T to_integral(const uint8_t* buff, std::endian src_endian = std::endian::native) {
@@ -121,5 +119,6 @@ T to_integral(const uint8_t* buff, std::endian src_endian = std::endian::native)
 }
 
 double to_double(const uint8_t* buff, std::endian endian = std::endian::native);
+std::vector<uint8_t> to_bytes(double input, std::endian endian);
 
 } // namespace sg::bytes
