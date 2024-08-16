@@ -1,3 +1,4 @@
+BasedOnStyle: Google
 IndentWidth: '4'
 IndentPPDirectives: BeforeHash
 ColumnLimit: 100
@@ -5,4 +6,6 @@ PackConstructorInitializers: CurrentLine
 BinPackArguments: false
 BinPackParameters: false
 PointerAlignment: Left
+BreakTemplateDeclarations: true
+NamespaceIndentation: Inner
 #AlignConsecutiveDeclarations: true
