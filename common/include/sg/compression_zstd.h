@@ -23,8 +23,7 @@ int default_compresssion_level();
  *  @param  noThreads Number of threads to use
  *  @return buffer containing compressed data
  **/
-unique_c_buffer<uint8_t>
-compress(const void *src, size_t srcSize, int cLevel, int noThreads);
+unique_c_buffer<std::byte> compress(const void *src, size_t srcSize, int cLevel, int noThreads);
 
 /**
  *  @brief Compresses given buffer using ZStandard algorithm
@@ -35,8 +34,10 @@ compress(const void *src, size_t srcSize, int cLevel, int noThreads);
  *  @param  noThreads Number of threads to use
  *  @return buffer containing compressed data
  **/
-template <typename T> unique_c_buffer<uint8_t>
-compress(const sg::IBuffer<T>& srcBuffer, int compressionLevel, int noThreads) {
+template <typename T>
+unique_c_buffer<std::byte> compress(const sg::IBuffer<T> &srcBuffer,
+                                    int compressionLevel,
+                                    int noThreads) {
     return compress(srcBuffer.get(), srcBuffer.size() * sizeof(T), compressionLevel, noThreads);
 }
 
@@ -48,7 +49,7 @@ compress(const sg::IBuffer<T>& srcBuffer, int compressionLevel, int noThreads) {
  *  @param  srcSize   Size of source data (in bytes, i.e. count * sizeof(..))
  *  @return buffer containing de-compressed data
  **/
-unique_c_buffer<uint8_t> decompress(const void *src, size_t srcSize);
+unique_c_buffer<std::byte> decompress(const void *src, size_t srcSize);
 
 /**
  *  @brief decompresses given object using ZStandard algorithm
@@ -59,11 +60,11 @@ unique_c_buffer<uint8_t> decompress(const void *src, size_t srcSize);
  *  @return buffer containing de-compressed data
  **/
 template <typename T>
-unique_c_buffer<T> decompress(const void *src, size_t srcSize){
-    auto ret= decompress(src, srcSize);
+unique_c_buffer<T> decompress(const void *src, size_t srcSize) {
+    auto ret = decompress(src, srcSize);
     auto count = ret.size();
 
-    return unique_c_buffer<T>((T*)(ret.release()), count/sizeof(T));
+    return unique_c_buffer<T>((T *)(ret.release()), count / sizeof(T));
 }
 
 /**
@@ -74,8 +75,8 @@ unique_c_buffer<T> decompress(const void *src, size_t srcSize){
  *  @return buffer containing de-compressed data
  **/
 template <typename T>
-unique_c_buffer<T> decompress(const IBuffer<uint8_t>& src){
+unique_c_buffer<T> decompress(const IBuffer<uint8_t> &src) {
     return decompress<T>(src.get(), src.size());
 }
 
-}
+}  // namespace sg::compression::zstd
