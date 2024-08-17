@@ -116,7 +116,10 @@ T to_integral(const std::byte* buff, std::endian src_endian = std::endian::nativ
     return val;
 }
 
-double to_double(const uint8_t* buff, std::endian endian = std::endian::native);
-std::vector<uint8_t> to_bytes(double input, std::endian endian);
+double to_double(const std::byte *buff,
+                 std::endian src_endian = std::endian::native);
+
+std::array<std::byte, sizeof(double)>
+to_bytes(double input, std::endian endian = std::endian::native);
 
 } // namespace sg::bytes

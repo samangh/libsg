@@ -44,3 +44,18 @@ TEST_CASE("SG::common sg::bytes: check to_bytes(...) and to_integral(...)") {
     CHECK_EQ(uint64_t(0xAABBCCDDEEFF0011), sg::bytes::to_integral<uint64_t>(uint64_test.data(), std::endian::little));
     CHECK_EQ(uint64_t(0x1100FFEEDDCCBBAA), sg::bytes::to_integral<uint64_t>(uint64_test.data(), std::endian::big));
 }
+
+TEST_CASE("SG::common sg::bytes: check to_double(...) and from_bytes(double)") {
+    CHECK_EQ(std::array<std::byte, 8>{std::byte{0x1B}, std::byte{0xDE},
+                                      std::byte{0x83}, std::byte{0x42},
+                                      std::byte{0xCA}, std::byte{0xC0},
+                                      std::byte{0xF3}, std::byte{0x3F}},
+             sg::bytes::to_bytes((double)1.23456789, std::endian::little));
+
+    CHECK_EQ(std::array<std::byte, 8>{std::byte{0x3F}, std::byte{0xF3},
+                                      std::byte{0xC0}, std::byte{0xCA},
+                                      std::byte{0x42}, std::byte{0x83},
+                                      std::byte{0xDE}, std::byte{0x1B}},
+             sg::bytes::to_bytes((double)1.23456789, std::endian::big));
+}
+
