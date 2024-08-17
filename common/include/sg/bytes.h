@@ -93,10 +93,8 @@ template <> constexpr int64_t byteswap(int64_t x) {
 template <typename T>
   requires(std::is_trivially_copyable_v<T> &&
            std::has_unique_object_representations_v<T>)
-std::vector<std::byte> to_bytes(T input) {
-    std::vector<std::byte> result(sizeof(input));
-    memcpy(&result[0], static_cast<void *>(&input), sizeof(T));
-    return result;
+constexpr std::array<std::byte, sizeof(T)> to_bytes(T input) {
+    return std::bit_cast<std::array<std::byte, sizeof(T)>>(input);
 }
 
 /* Converts an integer objectg to bytes, modified to match a target endianess*/
@@ -109,7 +107,7 @@ std::vector<std::byte> to_bytes(T input, std::endian dest_endian) {
 }
 
 template <std::integral T>
-T to_integral(const uint8_t* buff, std::endian src_endian = std::endian::native) {
+T to_integral(const std::byte* buff, std::endian src_endian = std::endian::native) {
     T val;
     memcpy(&val, buff, sizeof(T));
 
