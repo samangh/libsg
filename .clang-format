@@ -6,6 +6,14 @@ PackConstructorInitializers: CurrentLine
 BinPackArguments: false
 BinPackParameters: false
 PointerAlignment: Left
-BreakTemplateDeclarations: true
 NamespaceIndentation: Inner
 #AlignConsecutiveDeclarations: true
+
+# Have all arguments/parameters in one line, or one per line
+BinPackArguments: false
+BinPackParameters: false
+
+## Only valid in clang >19
+# BreakTemplateDeclarations: 'Yes'
+
+IncludeBlocks: Regroup
