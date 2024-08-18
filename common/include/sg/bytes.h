@@ -18,7 +18,7 @@
 namespace sg::bytes {
 
 /* universal function for swapping bytes of a number */
-template <std::integral T> constexpr T byteswap(T value) {
+template <std::integral T> T byteswap(T value) {
 #if __cplusplus >= 202302L
     /* the following functions are already defined in C++23 */
     return std::byteswap(val);
