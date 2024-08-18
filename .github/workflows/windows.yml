@@ -1,0 +1,47 @@
+name: Windows
+
+on: [workflow_dispatch, pull_request]
+
+jobs:
+  build:
+    name: ${{matrix.config.name}}
+    runs-on: windows-latest
+    strategy:
+      fail-fast: true
+      matrix:
+        config:
+           - { name: "static library and runtime", shared: OFF, static_runtime: ON, triplet: "x64-windows-static"}
+           - { name: "share library", shared: ON, static_runtime: OFF, triplet: "x64-windows"}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v2
+        with:
+          submodules: recursive
+
+      - name: Install dependencies
+        run: |
+             vcpkg --triplet ${{ matrix.config.triplet }} install boost-crc sdl2 fmt libuv zstd
+             vcpkg integrate install
+
+      - name: Run CMake
+        working-directory: ${{github.workspace}}
+        run: |
+             mkdir build
+             cd build
+             # The Releae setting is a workaround vcpkg and
+             # multi-release targets
+             cmake .. `
+                   -DBUILD_SHARED_LIBS=${{ matrix.config.shared }} `
+                   -DUSE_STATIC_RUNTIME=${{ matrix.config.static_runtime }} `
+                   -DCMAKE_TOOLCHAIN_FILE=C:/vcpkg/scripts/buildsystems/vcpkg.cmake `
+                   -DVCPKG_TARGET_TRIPLET=${{ matrix.config.triplet }} `
+                   -DCMAKE_BUILD_TYPE=Release
+
+      - name: Build
+        working-directory: ${{github.workspace}}/build
+        run: cmake --build . --config Release
+
+      - name: Test
+        working-directory: ${{github.workspace}}/build
+        run: ctest   
