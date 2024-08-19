@@ -5,41 +5,6 @@
 
 #include <numbers>
 
-namespace {
-
-struct int_sincos
-{
-   int_sincos(float deg)
-   {
-       #ifdef _WIN32
-       sin = std::sin(deg * std::numbers::pi/180.0f);
-       cos = std::cos(deg* std::numbers::pi/180.0f);
-       #else
-       sincosf(deg * std::numbers::pi/180.0f, &sin, &cos);
-       #endif
-   }
-
-   float sin;
-   float cos;
-};
-
-/* rotates given point round origin */
-inline ImVec2 rotate(const ImVec2& vec, int_sincos trig)
-{
-    auto x=vec.x;
-    auto y=vec.y;
-    return ImVec2(x*trig.cos -y*trig.sin,
-                  x*trig.sin +y*trig.cos);
-}
-
-/* rotates given point round origin */
-inline ImVec2 rotate(const ImVec2& vec, float deg)
-{
-    return rotate(vec, int_sincos(deg));
-}
-
-}
-
 namespace  sg::imgui{
 
 int InputTextCallback(ImGuiInputTextCallbackData* data)
@@ -117,47 +82,63 @@ ImVec2 dimensions_of_button(const char *msg)
 
 ImVec2 draw_line_angle(ImDrawList * const drawlist, const ImVec2 &from, float length, float angle, ImU32 color, float thickness)
 {
-    ImVec2 to = from + rotate(ImVec2(length, 0), angle);
-    drawlist->AddLine(from, to, color, thickness);
-    return to;
+    drawlist->PathLineTo(from);
+    drawlist->PathLineTo(from+ImVec2(length,0));
+
+    sg::imgui::rotate_path(drawlist->_Path, from,angle);
+    auto res =  drawlist->_Path.back();
+
+    drawlist->PathStroke(color, ImDrawFlags_None, thickness);
+
+    return res;
 }
 
-ImVec2 draw_arrow(ImDrawList * const drawlist, const ImVec2 &from, float length, float deg, ImU32 color, float thickness)
+ImVec2 draw_arrow(ImDrawList * const drawlist, const ImVec2 &from, float length, float deg, ImU32 color, float thickness, float arrow_triangle_width)
 {
-    auto width=3*thickness;
+    auto arrow_line_width = length-arrow_triangle_width;
 
-    auto trig = int_sincos(deg);
-    ImVec2 line_end = from + rotate(ImVec2(length-width, 0), trig);
+    auto arrow_triangle_bottom = from + ImVec2(arrow_line_width, 0.5f*arrow_triangle_width);
+    auto arrow_bottom_line_end = from + ImVec2(arrow_line_width, 0.5f*thickness);
+    auto arrow_bottom_line_start = from + ImVec2(0, 0.5f*thickness);
+    auto arrow_top_line_start = from + ImVec2(0, -0.5f*thickness);
+    auto arrow_top_line_end = from + ImVec2(arrow_line_width, -0.5f*thickness);
+    auto arrow_triangle_top = from + ImVec2(arrow_line_width, -0.5f*arrow_triangle_width);
+    auto arrow_triangle_endpoint = from + ImVec2(arrow_line_width+arrow_triangle_width, 0);
 
-    auto arrow_end =line_end + rotate(ImVec2(width, 0), trig);
-    auto arrow_top =line_end + rotate(ImVec2(0, -0.5f*width), trig);
-    auto arrow_bot =line_end + rotate(ImVec2(0, +0.5f*width), trig);
+    drawlist->PathLineTo(arrow_triangle_endpoint);
+    drawlist->PathLineTo(arrow_triangle_bottom);
+    drawlist->PathLineTo(arrow_bottom_line_end);
+    drawlist->PathLineTo(arrow_bottom_line_start);
+    drawlist->PathLineTo(arrow_top_line_start);
+    drawlist->PathLineTo(arrow_top_line_end);
+    drawlist->PathLineTo(arrow_triangle_top);
+    drawlist->PathLineTo(arrow_triangle_endpoint);
 
-    drawlist->AddLine(from, line_end, color, thickness);
-    drawlist->AddTriangleFilled(arrow_top, arrow_end, arrow_bot,color);
+    sg::imgui::rotate_path(drawlist->_Path, from, deg);
+    auto res =  drawlist->_Path.back();
 
-    return arrow_end;
+    drawlist->PathFillConvex(color);
+    //drawlist->PathStroke(color, ImDrawFlags_None, thickness);
+
+    return res;
 }
 
-ImVec2 draw_arrow_middle(ImDrawList * const drawlist, const ImVec2 &from, float length, float deg, ImU32 color, float thickness)
-{
-    auto width=3*thickness;
-
-    auto trig = int_sincos(deg);
-    ImVec2 line_end = from + rotate(ImVec2(length, 0), trig);
-
-    ImVec2 pos = from + rotate(ImVec2(0.5f*(length - width), 0), trig);
-    auto arrow_end =pos + rotate(ImVec2(width, 0), trig);
-    auto arrow_top =pos + rotate(ImVec2(0, -0.5f*width), trig);
-    auto arrow_bot =pos + rotate(ImVec2(0, +0.5f*width), trig);
-
-    drawlist->AddLine(from, line_end, color, thickness);
-    drawlist->AddTriangleFilled(arrow_top, arrow_end,arrow_bot, color);
-    return line_end;
+ImVec2 draw_arrow(ImDrawList * const drawlist, const ImVec2 &from, float length, float deg, ImU32 color, float thickness){
+    return draw_arrow(drawlist, from, length, deg,color,thickness,4.0*thickness);
 }
 
-ImVec2 draw_arrow(ImDrawList * const drawlist, const ImVec2 &from, const ImVec2 &to, ImU32 color, float thickness)
-{
+ImVec2 draw_arrow_middle(ImDrawList * const drawlist, const ImVec2 &from, float length, float deg, ImU32 color, float thickness, float arrow_triangle_width)
+{        
+    draw_arrow(drawlist, from, 0.5f*(length+arrow_triangle_width), deg,color,thickness,arrow_triangle_width);
+    return draw_line_angle(drawlist, from, length, deg, color, thickness);
+}
+
+ImVec2 draw_arrow_middle(ImDrawList * const drawlist, const ImVec2 &from, float length, float deg, ImU32 color, float thickness) {
+    return draw_arrow_middle(drawlist, from, length, deg, color,  thickness, 4*thickness);
+}
+
+
+ImVec2 draw_arrow(ImDrawList * const drawlist, const ImVec2 &from, const ImVec2 &to, ImU32 color, float thickness, float arrow_triangle_width){
     auto vector = to-from;
     float total_length = ImSqrt(vector.x*vector.x + vector.y*vector.y);
     float angle = std::asin(vector.y/total_length) * 180.0f / std::numbers::pi;
@@ -167,8 +148,22 @@ ImVec2 draw_arrow(ImDrawList * const drawlist, const ImVec2 &from, const ImVec2 
     else if (angle <0 && vector.x<0)
         angle=-180.0f - angle;
 
-    return draw_arrow(drawlist, from, total_length, angle, color, thickness);
+    return draw_arrow(drawlist, from, total_length, angle, color, thickness, arrow_triangle_width);
 }
 
+ImVec2 draw_arrow(ImDrawList * const drawlist, const ImVec2 &from, const ImVec2 &to, ImU32 color, float thickness)
+{
+    return draw_arrow(drawlist, from, to, color, thickness, 4.0*thickness);
+}
 
+void rotate_path(ImVector<ImVec2> &vec, ImVec2 reference, float angle_deg) {
+    float sin = std::sin(std::numbers::pi / 180.0f * angle_deg);
+    float cos = std::cos(std::numbers::pi / 180.0f * angle_deg);
+
+    for (auto &p : vec) {
+        auto x = p.x - reference.x;
+        auto y = p.y - reference.y;
+        p = ImVec2(reference.x + x * cos - y * sin, reference.y + x * sin + y * cos);
+    }
+}
 }

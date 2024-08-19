@@ -48,10 +48,13 @@ ImVec2 draw_line_angle(ImDrawList* const drawlist, const ImVec2& from, float len
  *
  * @param drawlist  ImGui drawlist, get this from ImGui::GetWindowDrawList();
  * @param color     Color, use IM_COL32(..). For example, IM_COL32(255,0,0,255) for red
+ * @param arrow_triangle_width Width of the point of the triangle
  * @return          The position of teh arrow tip
  */
-ImVec2 draw_arrow(ImDrawList* const drawlist, const ImVec2& from, float length, float deg_angle, ImU32 color, float thickness=1);
+ImVec2 draw_arrow(ImDrawList* const drawlist, const ImVec2& from, float length, float deg_angle, ImU32 color, float thickness, float arrow_triangle_width);
+ImVec2 draw_arrow(ImDrawList* const drawlist, const ImVec2& from, float length, float deg_angle, ImU32 color, float thickness = 1);
 
+ImVec2 draw_arrow(ImDrawList* const drawlist, const ImVec2& from, const ImVec2& to, ImU32 color, float thickness, float arrow_triangle_width);
 ImVec2 draw_arrow(ImDrawList* const drawlist, const ImVec2& from, const ImVec2& to, ImU32 color, float thickness=1);
 
 /** Draws line with with an arrow at the midpoint
@@ -60,6 +63,17 @@ ImVec2 draw_arrow(ImDrawList* const drawlist, const ImVec2& from, const ImVec2& 
  * @param color     Color, use IM_COL32(..). For example, IM_COL32(255,0,0,255) for red
  * @return          The position of teh arrow tip
  */
+ImVec2 draw_arrow_middle(ImDrawList * const drawlist, const ImVec2 &from, float length, float deg, ImU32 color, float thickness, float arrow_triangle_width);
 ImVec2 draw_arrow_middle(ImDrawList * const drawlist, const ImVec2 &from, float length, float deg, ImU32 color, float thickness=1);
+
+
+/**
+ * @brief Rotates the given set of co-oridates around the refeerence point
+ * @details This is mostly used to rotate ImGui::GetWindowDrawList()->_Path
+ * @param vec       List of co-ordiantes
+ * @param reference Refernce point
+ * @param angle     Angle in degrees
+ */
+void rotate_path(ImVector<ImVec2>& vec, ImVec2 reference, float angle_deg);
 
 } // namespace sg::imgui
