@@ -33,7 +33,7 @@ template <std::integral T> T byteswap(T value) {
 #if __cplusplus < 202302L
 
 /* Returns x with the order of the bytes reversed; for example, 0xaabb becomes 0xbbaa */
-template <> constexpr uint16_t byteswap(uint16_t x) {
+template <> inline uint16_t byteswap(uint16_t x) {
     #if defined(__GNUC__) || defined(__clang__)
     return __builtin_bswap16(x);
     #elif defined(_MSC_VER)
@@ -46,12 +46,12 @@ template <> constexpr uint16_t byteswap(uint16_t x) {
     return ((x >> 8) & 0xffu) | ((x & 0xffu) << 8);
     #endif
 }
-template <> constexpr int16_t byteswap(int16_t x) {
+template <> inline int16_t byteswap(int16_t x) {
     return static_cast<int16_t>(byteswap(static_cast<uint16_t>(x)));
 }
 
 /* Returns x with the order of the bytes reversed */
-template <> constexpr uint32_t byteswap(uint32_t x) {
+template <> inline uint32_t byteswap(uint32_t x) {
     #if defined(__GNUC__) || defined(__clang__)
     return __builtin_bswap32(x);
     #elif defined(_MSC_VER)
@@ -62,12 +62,12 @@ template <> constexpr uint32_t byteswap(uint32_t x) {
     return (x >> 24) | ((x >> 8) & 0x0000FF00) | ((x << 8) & 0x00FF0000) | (x << 24);
     #endif
 }
-template <> constexpr int32_t byteswap(int32_t x) {
+template <> inline int32_t byteswap(int32_t x) {
     return static_cast<int32_t>(byteswap(static_cast<uint32_t>(x)));
 }
 
 /* Returns x with the order of the bytes reversed */
-template <> constexpr uint64_t byteswap(uint64_t x) {
+template <> inline uint64_t byteswap(uint64_t x) {
     #if defined(__GNUC__) || defined(__clang__)
     return __builtin_bswap64(x);
     #elif defined(_MSC_VER)
@@ -83,7 +83,7 @@ template <> constexpr uint64_t byteswap(uint64_t x) {
             ((x & 0x000000000000ff00ull) << 40) | ((x & 0x00000000000000ffull) << 56));
     #endif
 }
-template <> constexpr int64_t byteswap(int64_t x) {
+template <> inline int64_t byteswap(int64_t x) {
     return static_cast<int64_t>(byteswap(static_cast<uint64_t>(x)));
 }
 
