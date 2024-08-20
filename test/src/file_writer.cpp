@@ -4,6 +4,7 @@
 #include <doctest/doctest.h>
 
 #include <fstream>
+#include <sstream>
 #include <string>
 #include <cstring>
 
