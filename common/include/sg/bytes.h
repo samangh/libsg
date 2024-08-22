@@ -1,5 +1,7 @@
 #pragma once
 
+#include "sg/export/sg_common.h"
+
 #include <algorithm>
 #include <array>
 #include <bit>
@@ -116,10 +118,10 @@ T to_integral(const std::byte* buff, std::endian src_endian = std::endian::nativ
     return val;
 }
 
-double to_double(const std::byte *buff,
+SG_COMMON_EXPORT double to_double(const std::byte *buff,
                  std::endian src_endian = std::endian::native);
 
-std::array<std::byte, sizeof(double)>
+SG_COMMON_EXPORT std::array<std::byte, sizeof(double)>
 to_bytes(double input, std::endian endian = std::endian::native);
 
 } // namespace sg::bytes

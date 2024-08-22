@@ -1,7 +1,6 @@
 #pragma once
 
 #include "sg/buffer.h"
-#include "sg/export/sg_common.h"
 #include "sg/iterator.h"
 
 #include <cstring>
@@ -19,7 +18,7 @@ namespace sg {
  * If contiguous memory is not required, it might be better to use  std::queue, std:deque, or
  * boost::circular_buffer instead.
  */
-template <typename T> class SG_COMMON_EXPORT rolling_contiguous_buffer {
+template <typename T> class rolling_contiguous_buffer {
     size_t                 m_cb_size;
     sg::unique_c_buffer<T> m_buff;
 

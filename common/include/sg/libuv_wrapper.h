@@ -1,6 +1,7 @@
 #pragma once
 
 #include "weak_function.h"
+#include "sg/export/sg_common.h"
 
 #include <map>
 #include <memory>
@@ -17,7 +18,7 @@
 namespace sg {
 
 /* wrapper around libuv, helps with starting and stopping it properly */
-class libuv_wrapper {
+class SG_COMMON_EXPORT libuv_wrapper {
   public:
     enum class wrapup_result {
         rerun_uv_loop,

@@ -1,5 +1,7 @@
 #pragma once
 
+#include "sg/export/sg_common.h"
+
 #include <atomic>
 #include <chrono>
 #include <memory>
@@ -11,7 +13,7 @@
 
 namespace sg {
 
-class AccurateSleeper {
+class SG_COMMON_EXPORT AccurateSleeper {
   public:
     /* Defines the wait strategy for AccurateSleepr */
     enum class Strategy {

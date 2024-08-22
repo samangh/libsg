@@ -1,5 +1,7 @@
 #pragma once
 
+#include "sg/export/sg_common.h"
+
 #include <cstdint>
 
 namespace sg::checksum {
@@ -23,12 +25,12 @@ namespace sg::checksum {
  * @param length    Length of input data
  * @return
  */
-uint32_t crc32c(const void *data, uint32_t length);
+SG_COMMON_EXPORT uint32_t crc32c(const void *data, uint32_t length);
 
-uint32_t crc32(const void *data, uint32_t length);
+SG_COMMON_EXPORT uint32_t crc32(const void *data, uint32_t length);
 
-uint16_t crc16(const void *data, uint32_t length);
+SG_COMMON_EXPORT uint16_t crc16(const void *data, uint32_t length);
 
-bool can_do_crc32c_hardware();
+SG_COMMON_EXPORT bool can_do_crc32c_hardware();
 
 } // namespace sg::checksum

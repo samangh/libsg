@@ -1,14 +1,12 @@
 #pragma once
 
-#include "sg/export/sg_common.h"
-
 #include <iterator>
 
 namespace sg {
 
 /* an iterator over a  contiguous container */
 template <typename T>
-class SG_COMMON_EXPORT contiguous_iterator
+class contiguous_iterator
 {
     /* Implementation courtesy of Alex Panter, see
      * https://stackoverflow.com/questions/69890176/create-contiguous-iterator-for-custom-class */

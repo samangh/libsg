@@ -3,6 +3,7 @@
 #include "pimpl.h"
 #include "sg/buffer.h"
 #include "sg/memory.h"
+#include "sg/export/sg_common.h"
 
 #include <filesystem>
 #include <functional>
@@ -10,7 +11,7 @@
 
 namespace sg {
 
-class file_writer: public sg::enable_lifetime_indicator {
+class SG_COMMON_EXPORT file_writer: public sg::enable_lifetime_indicator {
     class impl;
     sg::pimpl<impl> pimpl;
 
