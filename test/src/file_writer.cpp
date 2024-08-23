@@ -8,36 +8,93 @@
 #include <string>
 #include <cstring>
 
-TEST_CASE("SG::common sg::filewiter: check async() write following by stop()") {
+std::string read_file(std::string path){
+    std::ifstream t(path);
+    return std::string((std::istreambuf_iterator<char>(t)),
+                    std::istreambuf_iterator<char>());
+}
+
+TEST_CASE("SG::common sg::filewiter: check writer flushes correctly") {
     std::string text = "TEST";
     std::string path = "test.txt";
 
-    /* using .stop() */
     {
         sg::file_writer writer;
-        writer.start(path, nullptr, nullptr, nullptr, 200);
-        writer.write_async(text);
+        writer.start(path, nullptr, nullptr, nullptr);
+
+        auto a = sg::make_shared_c_buffer<std::byte>(text.size());
+        std::memcpy(a.get(), text.data(), text.size() * sizeof(char));
+        writer.write_aync(std::move(a));
+
         writer.stop();
 
-        std::ifstream t(path);
-        std::string str((std::istreambuf_iterator<char>(t)),
-                        std::istreambuf_iterator<char>());
-
-        CHECK(str == text);
+        CHECK(read_file(path) == text);
     }
 
-    /* depending on constructor to flush */
     {
         {
             sg::file_writer writer;
-            writer.start(path, nullptr, nullptr, nullptr, 200);
-            writer.write_async(text);
+            writer.start(path, nullptr, nullptr, nullptr);
+
+            auto a = sg::make_shared_c_buffer<std::byte>(text.size());
+            std::memcpy(a.get(), text.data(), text.size() * sizeof(char));
+            writer.write_aync(std::move(a));
         }
 
         std::ifstream t(path);
         std::string str((std::istreambuf_iterator<char>(t)),
                         std::istreambuf_iterator<char>());
 
-        CHECK(str == text);
+        CHECK(read_file(path) == text);
     }
+}
+
+TEST_CASE("SG::common sg::filewiter: check write_async(...) variations work") {
+    std::string text = "TEST";
+    std::string path = "test.txt";
+
+    {
+        sg::file_writer writer;
+        writer.start(path, nullptr, nullptr, nullptr);
+
+        SUBCASE("crate shared_buffer") {
+            auto a = sg::make_shared_c_buffer<std::byte>(text.size());
+            std::memcpy(a.get(), text.data(), text.size() * sizeof(char));
+            writer.write_aync(std::move(a));
+        }
+
+        SUBCASE("pass pointer") {
+            writer.write_aync(text.data(), text.size());
+        }
+
+        SUBCASE("pass string_view") {
+            writer.write_aync(text);
+        }
+
+        writer.stop();
+    }
+
+    CHECK(read_file(path) == text);
+}
+
+TEST_CASE("SG::common sg::filewiter: check that you can't start twice") {
+    std::string text = "TEST";
+    std::string path = "test.txt";
+
+    sg::file_writer writer;
+    writer.start(path, nullptr, nullptr, nullptr);
+    CHECK_THROWS(writer.start(path, nullptr, nullptr, nullptr));
+}
+
+TEST_CASE("SG::common sg::file_witer: check bytes_transferred()") {
+    std::string text = "TEST";
+    std::string path = "test.txt";
+
+    sg::file_writer writer;
+    writer.start(path, nullptr, nullptr, nullptr);
+    CHECK_EQ(writer.bytes_transferred(), 0);
+
+    writer.write_aync(text);
+    writer.stop();
+    CHECK_EQ(writer.bytes_transferred(), 4);
 }
