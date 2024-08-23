@@ -49,6 +49,15 @@ target_link_options(${TARGET} PRIVATE
   $<$<COMPILE_LANG_AND_ID:CXX,GNU>:--coverage>)
 
 ##
+## Copy dependencies
+##
+
+# Note: this only has an effect on DLL-platforms, e.g. Windows
+add_custom_command(TARGET ${TARGET} PRE_BUILD
+  COMMAND ${CMAKE_COMMAND} -E copy -t $<TARGET_FILE_DIR:${TARGET}> $<TARGET_RUNTIME_DLLS:${TARGET}>
+  COMMAND_EXPAND_LISTS)
+
+##
 ## Enable testing
 ##
 
