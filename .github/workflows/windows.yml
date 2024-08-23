@@ -7,11 +7,11 @@ jobs:
     name: ${{matrix.config.name}}
     runs-on: windows-latest
     strategy:
-      fail-fast: true
+      fail-fast: false
       matrix:
         config:
            - { name: "static library and runtime", shared: OFF, static_runtime: ON, triplet: "x64-windows-static"}
-           - { name: "share library", shared: ON, static_runtime: OFF, triplet: "x64-windows"}
+           - { name: "shared library", shared: ON, static_runtime: OFF, triplet: "x64-windows"}
 
     steps:
       - name: Checkout repository
