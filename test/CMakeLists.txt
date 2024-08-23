@@ -52,10 +52,13 @@ target_link_options(${TARGET} PRIVATE
 ## Copy dependencies
 ##
 
-# Note: this only has an effect on DLL-platforms, e.g. Windows
-add_custom_command(TARGET ${TARGET} PRE_BUILD
-  COMMAND ${CMAKE_COMMAND} -E copy -t $<TARGET_FILE_DIR:${TARGET}> $<TARGET_RUNTIME_DLLS:${TARGET}>
-  COMMAND_EXPAND_LISTS)
+# On DLL paltforms (e.g. Windows), copy dependent libraries to executable folder. Has no effect on other systems
+# Note: requires Cmake 3.26 or higher
+if (CMAKE_VERSION VERSION_GREATER_EQUAL "3.26.0")
+  add_custom_command(TARGET ${TARGET} PRE_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy -t $<TARGET_FILE_DIR:${TARGET}> $<TARGET_RUNTIME_DLLS:${TARGET}>
+    COMMAND_EXPAND_LISTS)
+endif()
 
 ##
 ## Enable testing
