@@ -67,7 +67,18 @@ target_link_libraries(${TARGET}
     $<IF:$<BOOL:${USE_STATIC_LIBS}>,zstd::libzstd_static,zstd::libzstd_shared>
     fmt::fmt)
 
+##
+## Export headers
+##
+
 include (GenerateExportHeader)
 generate_export_header(${TARGET}
              EXPORT_FILE_NAME "${CMAKE_BINARY_DIR}/include/sg/export/${TARGET}.h")
 
+##
+## Version
+##
+
+set_target_properties(${TARGET} PROPERTIES
+  VERSION ${PROJECT_VERSION}
+  SOVERSION ${PROJECT_VERSION_MAJOR})

@@ -96,3 +96,11 @@ target_link_libraries(${TARGET}
   PUBLIC
     SG::common
     portable_file_dialogs)
+
+##
+## Version
+##
+
+set_target_properties(${TARGET} PROPERTIES
+  VERSION ${PROJECT_VERSION}
+  SOVERSION ${PROJECT_VERSION_MAJOR})
