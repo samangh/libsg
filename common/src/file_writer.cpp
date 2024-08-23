@@ -58,6 +58,7 @@ class file_writer::impl : public sg::enable_lifetime_indicator {
 
     /* libuv objects */
     uv_fs_t open_req;
+    uv_fs_t close_req;
     uv_fs_t write_req;
     std::vector<uv_buf_t> m_uv_buffers;
     uv_timer_t m_uv_timer;
@@ -157,19 +158,30 @@ void file_writer::impl::start(std::filesystem::path _path,
                                         on_uv_open));
     };
     std::function<sg::libuv_wrapper::wrapup_result(sg::libuv_wrapper *)> wrapup_func =
-        [&](sg::libuv_wrapper *) {
+        [&](sg::libuv_wrapper * wrap) {
             bool can_stop;
             do_write(can_stop);
 
             if (can_stop)
+            {
+                // Don't care about errors on closing the handle
+                uv_fs_close(wrap->get_uv_loop(), &this->close_req , this->open_req.result, NULL);
                 return sg::libuv_wrapper::wrapup_result::stop_uv_loop;
+            }
             return sg::libuv_wrapper::wrapup_result::rerun_uv_loop;
         };
+
+    std::function<void(sg::libuv_wrapper *)> stopped_func = [&, this](sg::libuv_wrapper *) {
+        if (m_on_client_disconnected_cb)
+            m_on_client_disconnected_cb(&m_parent);
+    };
 
     sg::libuv_wrapper::cb_t setup_cb = sg::create_weak_function(this, setup_func);
     sg::libuv_wrapper::cb_wrapup_t wrapup_cb = sg::create_weak_function(this, wrapup_func);
 
     m_libuv_task_index = m_libuv.start_task(setup_cb, wrapup_cb);
+    m_libuv.add_on_stopped_cb(sg::create_weak_function(this, stopped_func));
+
     m_connection_promise.get_future().get();
 }
 
