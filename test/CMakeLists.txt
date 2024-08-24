@@ -8,6 +8,10 @@ set_property(GLOBAL APPEND PROPERTY ${PROJECT_NAME}_TARGETS ${TARGET})
 ##
 
 CPMAddPackage("gh:doctest/doctest@2.4.11")
+CPMAddPackage(NAME nanobench
+  GITHUB_REPOSITORY martinus/nanobench
+  VERSION 4.3.11
+  GIT_SHALLOW)
 
 ##
 ## Source files
@@ -36,6 +40,7 @@ target_include_directories(${TARGET}
 target_link_libraries(${TARGET}
   PRIVATE
     SG::common
+    nanobench
     doctest::doctest)
 
 ##
