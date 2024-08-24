@@ -28,7 +28,8 @@ template <typename T, typename R, typename... ArgT> class weak_function {
         : m_item(weakPtr),
           m_func(func){};
 
-    R operator()(ArgT... args) {
+    template<typename... U>
+    R operator()(U&& ...args) {
         if (m_item.lock())
             return m_func(std::forward<ArgT>(args)...);
 
