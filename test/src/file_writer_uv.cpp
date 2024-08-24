@@ -1,5 +1,5 @@
 #include <cstring>
-#include <sg/file_writer.h>
+#include <sg/file_writer_uv.h>
 
 #include <doctest/doctest.h>
 
@@ -8,14 +8,14 @@
 #include <string>
 #include <cstring>
 
-TEST_CASE("SG::common sg::filewiter: check async() write following by stop()") {
+TEST_CASE("SG::common sg::filewiter_uv: check async() write following by stop()") {
     std::string text = "TEST";
     std::string path = "test.txt";
 
     /* using .stop() */
     {
-        sg::file_writer writer;
-        writer.start(path, nullptr, nullptr, nullptr, 200);
+        sg::file_writer_uv writer;
+        writer.start(path, nullptr, nullptr, 200);
         writer.write_async(text);
         writer.stop();
 
@@ -29,8 +29,8 @@ TEST_CASE("SG::common sg::filewiter: check async() write following by stop()") {
     /* depending on constructor to flush */
     {
         {
-            sg::file_writer writer;
-            writer.start(path, nullptr, nullptr, nullptr, 200);
+            sg::file_writer_uv writer;
+            writer.start(path, nullptr, nullptr, 200);
             writer.write_async(text);
         }
 

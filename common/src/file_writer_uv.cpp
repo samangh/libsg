@@ -1,4 +1,4 @@
-#include "sg/file_writer.h"
+#include "sg/file_writer_uv.h"
 #include "sg/buffer.h"
 #include "sg/libuv_wrapper.h"
 
@@ -12,15 +12,14 @@
 
 namespace sg {
 
-class file_writer::impl : public sg::enable_lifetime_indicator {
+class file_writer_uv::impl : public sg::enable_lifetime_indicator {
   public:
-    impl(sg::file_writer &parent, sg::libuv_wrapper &libuv);
+    impl(sg::file_writer_uv &parent, sg::libuv_wrapper &libuv);
     ~impl();
 
     void start(std::filesystem::path _path,
-               file_writer::error_cb_t on_error_cb,
-               file_writer::started_cb_t on_client_connected_cb,
-               file_writer::stopped_cb_t on_client_disconnected_cb,
+               file_writer_uv::error_cb_t on_error_cb,
+               file_writer_uv::stopped_cb_t on_client_disconnected_cb,
                unsigned int write_interval = 1000);
 
     void write_async(sg::shared_c_buffer<std::byte> buf);
@@ -34,7 +33,7 @@ class file_writer::impl : public sg::enable_lifetime_indicator {
     std::filesystem::path path() const;
 
   private:
-    sg::file_writer &m_parent;
+    sg::file_writer_uv &m_parent;
     std::filesystem::path m_path;
 
     sg::libuv_wrapper &m_libuv;
@@ -42,8 +41,7 @@ class file_writer::impl : public sg::enable_lifetime_indicator {
 
     /* client callbacks */
     error_cb_t m_on_error_cb;
-    file_writer::started_cb_t m_on_client_connected_cb;
-    file_writer::stopped_cb_t m_on_client_disconnected_cb;
+    file_writer_uv::stopped_cb_t m_on_client_disconnected_cb;
 
     std::recursive_mutex m_mutex;
     std::vector<sg::shared_c_buffer<std::byte>> m_buffer_in;
@@ -74,27 +72,26 @@ class file_writer::impl : public sg::enable_lifetime_indicator {
  * Public implementation
  ******************************************************************/
 
-file_writer::file_writer() : pimpl(*this, sg::get_global_uv_holder()){};
+file_writer_uv::file_writer_uv() : pimpl(*this, sg::get_global_uv_holder()){};
 
-file_writer::~file_writer() = default;
+file_writer_uv::~file_writer_uv() = default;
 
-void file_writer::start(const std::filesystem::path &_path,
-                        file_writer::error_cb_t on_error_cb,
-                        file_writer::started_cb_t on_client_connected_cb,
-                        file_writer::stopped_cb_t on_client_disconnected_cb,
+void file_writer_uv::start(const std::filesystem::path &_path,
+                        file_writer_uv::error_cb_t on_error_cb,
+                        file_writer_uv::stopped_cb_t on_client_disconnected_cb,
                         unsigned int write_interval) {
     pimpl->start(
-        _path, on_error_cb, on_client_connected_cb, on_client_disconnected_cb, write_interval);
+        _path, on_error_cb, on_client_disconnected_cb, write_interval);
 }
 
-void file_writer::stop() { pimpl->close(); }
+void file_writer_uv::stop() { pimpl->close(); }
 
-bool file_writer::is_running() const { return pimpl->is_running(); }
+bool file_writer_uv::is_running() const { return pimpl->is_running(); }
 
-void file_writer::write_async(sg::shared_c_buffer<std::byte> buf) { pimpl->write_async(std::move(buf)); }
-void file_writer::write(sg::shared_c_buffer<std::byte> buf) { pimpl->write(std::move(buf)); }
+void file_writer_uv::write_async(sg::shared_c_buffer<std::byte> buf) { pimpl->write_async(std::move(buf)); }
+void file_writer_uv::write(sg::shared_c_buffer<std::byte> buf) { pimpl->write(std::move(buf)); }
 
-void file_writer::write_async(const char *data, size_t length) {
+void file_writer_uv::write_async(const char *data, size_t length) {
     auto a = sg::make_shared_c_buffer<std::byte>(length);
     std::memcpy(a.get(), data, length * sizeof(char));
     pimpl->write_async(std::move(a));
@@ -104,13 +101,13 @@ void file_writer::write_async(const char *data, size_t length) {
  * Private implementation
  ******************************************************************/
 
-void file_writer::write_async(const std::string_view &msg) {
+void file_writer_uv::write_async(const std::string_view &msg) {
     /* having this in header means that we don't have to worry about
      * passing std::string across library boundaries. */
     write_async(msg.data(), msg.size());
 }
 
-void file_writer::write_line_async(const std::string_view &msg) {
+void file_writer_uv::write_line_async(const std::string_view &msg) {
 /* having this in header means that we don't have to worry about
  * passing std::string across library boundaries. */
 #ifdef _WIN32
@@ -120,14 +117,12 @@ void file_writer::write_line_async(const std::string_view &msg) {
 #endif
 }
 
-std::filesystem::path file_writer::path() const { return pimpl->path(); }
+std::filesystem::path file_writer_uv::path() const { return pimpl->path(); }
 
-void file_writer::impl::start(std::filesystem::path _path,
+void file_writer_uv::impl::start(std::filesystem::path _path,
                               error_cb_t on_error_cb,
-                              started_cb_t on_client_connected_cb,
                               stopped_cb_t on_client_disconnected_cb,
                               unsigned int write_interval) {
-
     if (is_running())
         throw std::logic_error("this file_write is currently running");
 
@@ -136,7 +131,6 @@ void file_writer::impl::start(std::filesystem::path _path,
 
     /* set parent cbs */
     m_on_error_cb = on_error_cb;
-    m_on_client_connected_cb = on_client_connected_cb;
     m_on_client_disconnected_cb = on_client_disconnected_cb;
 
     m_connection_promise = std::promise<void>();
@@ -185,7 +179,7 @@ void file_writer::impl::start(std::filesystem::path _path,
     m_connection_promise.get_future().get();
 }
 
-void file_writer::impl::write_async(sg::shared_c_buffer<std::byte> buf) {
+void file_writer_uv::impl::write_async(sg::shared_c_buffer<std::byte> buf) {
     if (this->is_stopped_or_stopping())
         throw std::runtime_error("this file_writer is closed or closing");
 
@@ -193,7 +187,7 @@ void file_writer::impl::write_async(sg::shared_c_buffer<std::byte> buf) {
     m_buffer_in.emplace_back(std::move(buf));
 }
 
-void file_writer::impl::write(sg::shared_c_buffer<std::byte> buf) {
+void file_writer_uv::impl::write(sg::shared_c_buffer<std::byte> buf) {
     if (this->is_stopped_or_stopping())
         throw std::runtime_error("this file_writer is closed or closing");
 
@@ -216,23 +210,23 @@ void file_writer::impl::write(sg::shared_c_buffer<std::byte> buf) {
     }
 }
 
-std::filesystem::path file_writer::impl::path() const { return open_req.path; }
+std::filesystem::path file_writer_uv::impl::path() const { return open_req.path; }
 
-void file_writer::impl::close_async() { m_libuv.stop_async(); }
+void file_writer_uv::impl::close_async() { m_libuv.stop_async(); }
 
-void file_writer::impl::close() { m_libuv.stop(); }
+void file_writer_uv::impl::close() { m_libuv.stop(); }
 
-bool file_writer::impl::is_running() const { return !m_libuv.is_stopped(); }
+bool file_writer_uv::impl::is_running() const { return !m_libuv.is_stopped(); }
 
-bool file_writer::impl::is_stopped_or_stopping() { return m_libuv.is_stopped_or_stopping(); }
+bool file_writer_uv::impl::is_stopped_or_stopping() { return m_libuv.is_stopped_or_stopping(); }
 
-file_writer::impl::impl(file_writer &parent, libuv_wrapper &libuv)
+file_writer_uv::impl::impl(file_writer_uv &parent, libuv_wrapper &libuv)
     : m_parent(parent),
       m_libuv(libuv) {}
 
-file_writer::impl::~impl() { close(); }
+file_writer_uv::impl::~impl() { close(); }
 
-void file_writer::impl::do_write(bool &can_terminate) {
+void file_writer_uv::impl::do_write(bool &can_terminate) {
     can_terminate = false;
 
     /* This can be called by in event loop by on_uv_timer_tick(..).
@@ -267,14 +261,14 @@ void file_writer::impl::do_write(bool &can_terminate) {
     can_terminate = true;
 }
 
-void file_writer::impl::on_error(const std::string &message) {
+void file_writer_uv::impl::on_error(const std::string &message) {
     if (m_on_error_cb)
         m_on_error_cb(message);
 }
 
-void file_writer::impl::on_uv_open(uv_fs_t *req) {
+void file_writer_uv::impl::on_uv_open(uv_fs_t *req) {
     auto res = req->result;
-    auto a = (file_writer::impl *)req->data;
+    auto a = (file_writer_uv::impl *)req->data;
 
     uv_fs_req_cleanup(req);
 
@@ -293,14 +287,11 @@ void file_writer::impl::on_uv_open(uv_fs_t *req) {
         return;
     }
 
-    if (a->m_on_client_connected_cb)
-        a->m_on_client_connected_cb(&a->m_parent);
-
     a->m_connection_promise.set_value();
 }
 
-void file_writer::impl::on_uv_on_write(uv_fs_t *req) {
-    auto a = (file_writer::impl *)req->data;
+void file_writer_uv::impl::on_uv_on_write(uv_fs_t *req) {
+    auto a = (file_writer_uv::impl *)req->data;
 
     auto res = req->result;
     uv_fs_req_cleanup(req);
@@ -362,9 +353,9 @@ void file_writer::impl::on_uv_on_write(uv_fs_t *req) {
     }
 }
 
-void file_writer::impl::on_uv_timer_tick(uv_timer_t *handle) {
+void file_writer_uv::impl::on_uv_timer_tick(uv_timer_t *handle) {
     /* Only called on UV event loop, so we don't need to lock for some things*/
-    auto a = (file_writer::impl *)handle->data;
+    auto a = (file_writer_uv::impl *)handle->data;
     bool can_terminate;
 
     /* Note (from

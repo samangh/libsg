@@ -11,20 +11,18 @@
 
 namespace sg {
 
-class SG_COMMON_EXPORT file_writer: public sg::enable_lifetime_indicator {
+class SG_COMMON_EXPORT file_writer_uv: public sg::enable_lifetime_indicator {
     class impl;
     sg::pimpl<impl> pimpl;
 
   public:
     typedef std::function<void(const std::string &msg)> error_cb_t;
-    typedef std::function<void(file_writer *)> started_cb_t;
-    typedef std::function<void(file_writer *)> stopped_cb_t;
+    typedef std::function<void(file_writer_uv *)> stopped_cb_t;
 
-    file_writer();
-    ~file_writer();
+    file_writer_uv();
+    ~file_writer_uv();
     void start(const std::filesystem::path &_path,
                error_cb_t on_error_cb,
-               started_cb_t on_client_connected_cb,
                stopped_cb_t on_client_disconnected_cb,
                unsigned int write_interval = 1000);
     void stop();
