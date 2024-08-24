@@ -162,7 +162,7 @@ size_t libuv_wrapper::start_task(cb_t setup, cb_wrapup_t wrapup) {
 }
 
 void libuv_wrapper::stop_async() {
-    if (!uv_loop_alive(&m_loop))
+    if (!m_uvloop_running)
         return;
 
     auto stop_requested_previously = m_uvloop_stop_requested.exchange(true);

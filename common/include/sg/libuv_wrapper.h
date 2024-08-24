@@ -103,7 +103,8 @@ class SG_COMMON_EXPORT libuv_wrapper {
     mutable std::recursive_mutex m_start_stop_mutex;
     std::atomic<bool> m_uvloop_stop_requested;
     std::atomic<bool> m_uvloop_running =
-        false; /* could use uv_loop_alive(&m_loop), but this is more performant */
+        false; /* could use uv_loop_alive(&m_loop), but m_loop won't be initalised if loop has not
+                  been started at least once*/
 
     /* Starts libuv loop, the callbacks can be nullptr */
     void start_libuv();
