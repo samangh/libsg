@@ -10,6 +10,7 @@
 #include <mutex>
 #include <stdexcept>
 #include <vector>
+#include <thread>
 
 #include "sg/buffer.h"
 

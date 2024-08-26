@@ -12,6 +12,7 @@
 #include <string>
 #include <cstring>
 #include <filesystem>
+#include <numeric>
 
 static std::string read_file(std::string path) {
     std::ifstream t(path);
@@ -134,36 +135,38 @@ TEST_CASE("SG::common sg::file_writer: test large sequental writes") {
     CHECK_EQ(std::filesystem::file_size(path), 1024*2048);
 }
 
-//TEST_CASE("SG::common file_writer and file_writer_uv performance" ){
-//    std::string path = "benchmark-buffer";
-//    std::vector<std::vector<uint64_t>> vec_data;
+#ifdef BENCHMARK
+TEST_CASE("SG::common file_writer and file_writer_uv performance" ){
+    std::string path = "benchmark-buffer";
+    std::vector<std::vector<uint64_t>> vec_data;
 
-//    vec_data =   random_data(100, 1500);
-//    SUBCASE("sg::file_writer(..)") {
-//        ankerl::nanobench::Bench().minEpochIterations(100).run("sg::file_writer(..)", [&]() {
-//            sg::file_writer writer;
-//            writer.start(path, nullptr, nullptr, nullptr);
-//            for (const auto& buf : vec_data) {
-//                auto data_buf = sg::make_shared_c_buffer<std::byte>(buf.size() * sizeof(uint64_t));
-//                std::memcpy(data_buf.get(), &buf[0], buf.size() * sizeof(uint64_t));
-//                writer.write_aync(std::move(data_buf));
-//            }
-//            writer.stop();
-//        });
-//    }
+    vec_data =   random_data(100, 1500);
+    SUBCASE("sg::file_writer(..)") {
+        ankerl::nanobench::Bench().minEpochIterations(200).run("sg::file_writer(..)", [&]() {
+            sg::file_writer writer;
+            writer.start(path, nullptr, nullptr, nullptr);
+            for (const auto& buf : vec_data) {
+                auto data_buf = sg::make_shared_c_buffer<std::byte>(buf.size() * sizeof(uint64_t));
+                std::memcpy(data_buf.get(), &buf[0], buf.size() * sizeof(uint64_t));
+                writer.write_aync(std::move(data_buf));
+            }
+            writer.stop();
+        });
+    }
 
-//    vec_data =   random_data(100, 1500);
-//    SUBCASE("sg::file_writer_uv(..)") {
-//        ankerl::nanobench::Bench().minEpochIterations(100).run("sg::file_writer_uv(..)", [&]() {
-//            sg::file_writer_uv writer;
-//            writer.start(path, nullptr, nullptr, 100);
-//            for (const auto& buf : vec_data) {
-//                auto data_buf = sg::make_shared_c_buffer<std::byte>(buf.size() * sizeof(uint64_t));
-//                std::memcpy(data_buf.get(), &buf[0], buf.size() * sizeof(uint64_t));
-//                writer.write_async(std::move(data_buf));
-//            }
-//            writer.stop();
-//        });
-//    }
+    vec_data =   random_data(100, 1500);
+    SUBCASE("sg::file_writer_uv(..)") {
+        ankerl::nanobench::Bench().minEpochIterations(200).run("sg::file_writer_uv(..)", [&]() {
+            sg::file_writer_uv writer;
+            writer.start(path, nullptr, nullptr, 100);
+            for (const auto& buf : vec_data) {
+                auto data_buf = sg::make_shared_c_buffer<std::byte>(buf.size() * sizeof(uint64_t));
+                std::memcpy(data_buf.get(), &buf[0], buf.size() * sizeof(uint64_t));
+                writer.write_async(std::move(data_buf));
+            }
+            writer.stop();
+        });
+    }
 
-//}
+}
+#endif

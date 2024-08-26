@@ -8,6 +8,8 @@
 #include <string>
 #include <cstring>
 #include <random>
+#include <algorithm>
+#include <numeric>
 
 static std::vector<std::vector<uint64_t>> random_data(std::size_t count, std::size_t bytes)
 {

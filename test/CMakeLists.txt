@@ -53,6 +53,10 @@ target_compile_options(${TARGET} PRIVATE
 target_link_options(${TARGET} PRIVATE
   $<$<COMPILE_LANG_AND_ID:CXX,GNU>:--coverage>)
 
+if(BENCHMARK)
+  target_compile_definitions(${TARGET} PRIVATE BENCHMARK)
+endif()
+
 ##
 ## Copy dependencies
 ##

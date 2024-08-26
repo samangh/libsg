@@ -43,7 +43,7 @@ jobs:
         run: |
              mkdir build
              cd build
-             cmake .. -DBUILD_SHARED_LIBS=${{matrix.type.build_shared_libs}}
+             cmake .. -DBUILD_SHARED_LIBS=${{matrix.type.build_shared_libs}} -DCMAKE_BUILD_TYPE=Release -DBENCHMARK=ON
 
       - name: Build
         working-directory: ${{github.workspace}}/build
@@ -51,4 +51,4 @@ jobs:
 
       - name: Test
         working-directory: ${{github.workspace}}/build
-        run: ctest
+        run: ./test/sg_test
