@@ -117,10 +117,10 @@ class SG_COMMON_EXPORT tcp_listener::impl : public sg::enable_lifetime_indicator
                m_on_stopped_listening_cb(m_parent_listener);
        };
 
-       m_libuv.add_on_loop_started_cb(sg::create_weak_function(this, started_func));
-       m_libuv.add_on_stopped_cb(sg::create_weak_function(this, stopped_func));
+       m_libuv.add_on_loop_started_cb(started_func);
+       m_libuv.add_on_stopped_cb(stopped_func);
 
-       m_libuv.start_task(sg::create_weak_function(this, setup_func), nullptr);
+       m_libuv.start_task( setup_func, nullptr);
 
        auto listen_result = conn_promise.get_future().get();
        if (!listen_result.success)
