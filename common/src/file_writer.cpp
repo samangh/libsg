@@ -62,7 +62,7 @@ void sg::file_writer::start(path_type _path,
     m_on_error_cb = std::move(on_error_cb);
     m_on_stop_cb = std::move(on_stop_cb);
 
-    m_file = std::fstream(_path, std::ios::out | std::ios::binary);
+    m_file = std::fstream(_path, std::ios::out | std::ios::binary | std::ios::trunc);
     m_thread = std::jthread([this](const std::stop_token &tok) { action(tok); });
 
     m_byte_count=0;
