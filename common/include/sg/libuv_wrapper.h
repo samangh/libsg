@@ -27,18 +27,19 @@ class SG_COMMON_EXPORT libuv_wrapper {
 
     typedef weak_function<sg::enable_lifetime_indicator::item_type, void, libuv_wrapper *> cb_t;
     typedef weak_function<sg::enable_lifetime_indicator::item_type, wrapup_result, libuv_wrapper *> cb_wrapup_t;
+    typedef size_t callback_id_t;
 
     /* add a callback to be called just before the uv_loop is started.
      *
      * Callback is called only once. You must add it if you need it to
      * be called on futher starts/stops. */
-    void add_on_loop_started_cb(cb_t);
+    callback_id_t add_on_loop_started_cb(cb_t);
 
     /* add a callback to be called just after the uv_loop is stopped.
      *
      * Callback is called only once. You must add it if you need it to
      * be called on further starts/stops. */
-    void add_on_stopped_cb(cb_t);
+    callback_id_t add_on_stopped_cb(cb_t);
 
     /**
      * @brief runs the given set task, then starts the libuv loop if
@@ -51,7 +52,7 @@ class SG_COMMON_EXPORT libuv_wrapper {
      * @tparam wrapup_action is called right before the uv_loop is
      * stopped. This action is done ithe libuv event loop.
      */
-    size_t start_task(cb_t setup_action, cb_wrapup_t wrapup_action);
+    callback_id_t start_task(cb_t setup_action, cb_wrapup_t wrapup_action);
 
     /* Stops the libuv loop syncrhonously.
      *
@@ -94,12 +95,12 @@ class SG_COMMON_EXPORT libuv_wrapper {
     std::unique_ptr<uv_async_t> m_loop_started_async; /* For calling te on_loop_started callbacks */
 
     mutable std::mutex m_tasks_mutex;
-    std::vector<cb_t> m_started_cbs;
-    std::vector<cb_t> m_stopped_cbs;
+    std::map<callback_id_t, cb_t> m_started_cbs;
+    std::map<callback_id_t, cb_t> m_stopped_cbs;
     std::map<size_t, cb_t> libuv_setup_task_cbs;
     std::map<size_t, cb_wrapup_t> m_wrapup_tasks_cbs;
 
-    size_t m_task_counter;
+    callback_id_t m_callback_counter{0};
 
     mutable std::recursive_mutex m_start_stop_mutex;
     std::atomic<bool> m_uvloop_stop_requested;
@@ -110,7 +111,7 @@ class SG_COMMON_EXPORT libuv_wrapper {
     /* Starts libuv loop, the callbacks can be nullptr */
     void start_libuv();
 
-    size_t add_setup_task_cb(cb_t setup, cb_wrapup_t wrapup);
+    callback_id_t add_setup_task_cb(cb_t setup, cb_wrapup_t wrapup);
 };
 
 libuv_wrapper& get_global_uv_holder();

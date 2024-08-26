@@ -2,7 +2,7 @@
 
 #include <sg/libuv_wrapper.h>
 
-TEST_CASE("SG::common libuv_wrapper: check event callbacks are called") {
+TEST_CASE("SG::common libuv_wrapper: check callbacks are called") {
 
     SUBCASE("check wrap up and setup callbacks")
     {
@@ -44,6 +44,23 @@ TEST_CASE("SG::common libuv_wrapper: check event callbacks are called") {
         CHECK_EQ(setup_cb_called_count, 1);
         CHECK_EQ(wrapup_cb_called_count, 1);
         CHECK_EQ(stop_cb_called_count, 1);
+    }
+
+    SUBCASE("check start/stop callbacks can be removed"){
+        std::atomic_int start_cb_called_count{0};
+        {
+            std::function<void(sg::libuv_wrapper *)> start_func = [&](sg::libuv_wrapper *) {
+                start_cb_called_count.fetch_add(1);
+            };
+
+            sg::enable_lifetime_indicator ind;
+            auto libuv = sg::libuv_wrapper();
+            auto i = libuv.add_on_loop_started_cb(sg::create_weak_function(&ind, start_func));
+            libuv.remove_task_callbacks(i);
+
+            //libuv.start_task(nullptr, nullptr);
+        }
+        CHECK_EQ(start_cb_called_count, 0);
     }
 }
 

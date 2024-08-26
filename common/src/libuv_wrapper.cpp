@@ -1,4 +1,5 @@
 #include <sg/libuv_wrapper.h>
+#include <sg/map.h>
 
 namespace sg {
 
@@ -28,14 +29,18 @@ void libuv_wrapper::block_until_stopped() const {
 
 uv_loop_t *libuv_wrapper::get_uv_loop() { return &m_loop; }
 
-void libuv_wrapper::add_on_loop_started_cb(cb_t cb) {
+libuv_wrapper::callback_id_t libuv_wrapper::add_on_loop_started_cb(cb_t cb) {
     std::lock_guard lock(m_tasks_mutex);
-    m_started_cbs.push_back(cb);
+    auto index = m_callback_counter++;
+    m_started_cbs.emplace(index, std::move(cb));
+    return index;
 }
 
-void libuv_wrapper::add_on_stopped_cb(cb_t cb) {
+libuv_wrapper::callback_id_t libuv_wrapper::add_on_stopped_cb(cb_t cb) {
     std::lock_guard lock(m_tasks_mutex);
-    m_stopped_cbs.push_back(cb);
+    auto index = m_callback_counter++;
+    m_stopped_cbs.emplace(index, std::move(cb));
+    return index;
 }
 
 void libuv_wrapper::start_libuv() {
@@ -71,15 +76,17 @@ void libuv_wrapper::start_libuv() {
         auto uv_wrap = (sg::libuv_wrapper *)handle->data;
         std::lock_guard lock(uv_wrap->m_tasks_mutex);
 
-        for (auto &cb : uv_wrap->m_started_cbs) cb(uv_wrap);
+        for (auto & [id, cb] : uv_wrap->m_started_cbs)
+                cb(uv_wrap);
         uv_wrap->m_started_cbs.clear();
     });
+    THROW_ON_LIBUV_ERROR(uv_async_send(m_loop_started_async.get()));
 
     m_uvloop_running = true;
     m_thread = std::thread([&, this]() {
         bool loop_stop_requested = false;
 
-        while (true) {
+        while (true) {                        
             /*  Runs the event loop until there are no more active and referenced
              *  handles or requests.  Returns non-zero if uv_stop() was called
              *  and there are still active handles or  requests. Returns zero in
@@ -124,17 +131,17 @@ void libuv_wrapper::start_libuv() {
 
         {
             std::lock_guard lock(m_tasks_mutex);
-            for (auto &cb : m_stopped_cbs)
+            for (auto &[id, cb] : m_stopped_cbs)
                 cb(this);
             m_stopped_cbs.clear();
         }
     });
 }
 
-size_t libuv_wrapper::add_setup_task_cb(cb_t setup, cb_wrapup_t wrapup)
+libuv_wrapper::callback_id_t libuv_wrapper::add_setup_task_cb(cb_t setup, cb_wrapup_t wrapup)
 {
     std::lock_guard lock(m_tasks_mutex);
-    auto index = m_task_counter++;
+    auto index = m_callback_counter++;
 
     libuv_setup_task_cbs.emplace(index, std::move(setup));
     m_wrapup_tasks_cbs.emplace(index, std::move(wrapup));
@@ -144,13 +151,16 @@ size_t libuv_wrapper::add_setup_task_cb(cb_t setup, cb_wrapup_t wrapup)
 
 void libuv_wrapper::remove_task_callbacks(size_t index)
 {
+    /* erase any callbacks with that index */
     std::lock_guard lock(m_tasks_mutex);
     m_wrapup_tasks_cbs.erase(index);
     libuv_setup_task_cbs.erase(index);
+    m_started_cbs.erase(index);
+    m_stopped_cbs.erase(index);
 }
 
-size_t libuv_wrapper::start_task(cb_t setup, cb_wrapup_t wrapup) {
-    size_t i;
+libuv_wrapper::callback_id_t libuv_wrapper::start_task(cb_t setup, cb_wrapup_t wrapup) {
+    callback_id_t i;
 
     if (is_stopped_or_stopping()) {
         block_until_stopped();
