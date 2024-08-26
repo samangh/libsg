@@ -26,14 +26,12 @@ TEST_CASE("SG::common libuv_wrapper: check callbacks are called") {
                 stop_cb_called_count.fetch_add(1);
             };
 
-            sg::enable_lifetime_indicator ind;
             auto libuv = sg::libuv_wrapper();
 
-            libuv.add_on_loop_started_cb(sg::create_weak_function(&ind, start_func));
-            libuv.add_on_stopped_cb(sg::create_weak_function(&ind, stop_func));
+            libuv.add_on_loop_started_cb(start_func);
+            libuv.add_on_stopped_cb(stop_func);
 
-            libuv.start_task(sg::create_weak_function(&ind, setup_func),
-                             sg::create_weak_function(&ind, wrapup_func));
+            libuv.start_task(setup_func, wrapup_func);
 
             CHECK_EQ(setup_cb_called_count, 1);
             CHECK_EQ(wrapup_cb_called_count, 0);
@@ -48,19 +46,26 @@ TEST_CASE("SG::common libuv_wrapper: check callbacks are called") {
 
     SUBCASE("check start/stop callbacks can be removed"){
         std::atomic_int start_cb_called_count{0};
+        std::atomic_int stop_cb_called_count{0};
         {
             std::function<void(sg::libuv_wrapper *)> start_func = [&](sg::libuv_wrapper *) {
                 start_cb_called_count.fetch_add(1);
             };
 
-            sg::enable_lifetime_indicator ind;
             auto libuv = sg::libuv_wrapper();
-            auto i = libuv.add_on_loop_started_cb(sg::create_weak_function(&ind, start_func));
-            libuv.remove_task_callbacks(i);
 
-            //libuv.start_task(nullptr, nullptr);
+            auto start_cb_index = libuv.add_on_loop_started_cb(
+                [&](sg::libuv_wrapper *) { start_cb_called_count.fetch_add(1); });
+            auto stop_cb_index = libuv.add_on_loop_started_cb(
+                [&](sg::libuv_wrapper *) { stop_cb_called_count.fetch_add(1); });
+
+            libuv.remove_task_callbacks(start_cb_index);
+            libuv.start_task(nullptr, nullptr);
+            libuv.remove_task_callbacks(stop_cb_index);
         }
         CHECK_EQ(start_cb_called_count, 0);
+        CHECK_EQ(stop_cb_called_count, 0);
+
     }
 }
 

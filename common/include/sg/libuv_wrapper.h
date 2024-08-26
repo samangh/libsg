@@ -7,6 +7,8 @@
 #include <memory>
 #include <mutex>
 #include <thread>
+#include <functional>
+
 #include <uv.h>
 
 #define THROW_ON_LIBUV_ERROR(err)                                                                  \
@@ -25,8 +27,8 @@ class SG_COMMON_EXPORT libuv_wrapper {
         stop_uv_loop
     };
 
-    typedef weak_function<sg::enable_lifetime_indicator::item_type, void, libuv_wrapper *> cb_t;
-    typedef weak_function<sg::enable_lifetime_indicator::item_type, wrapup_result, libuv_wrapper *> cb_wrapup_t;
+    typedef std::function<void(libuv_wrapper *)> cb_t;
+    typedef std::function<wrapup_result(libuv_wrapper *)> cb_wrapup_t;
     typedef size_t callback_id_t;
 
     /* add a callback to be called just before the uv_loop is started.

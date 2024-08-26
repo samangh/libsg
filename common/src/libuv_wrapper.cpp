@@ -30,6 +30,8 @@ void libuv_wrapper::block_until_stopped() const {
 uv_loop_t *libuv_wrapper::get_uv_loop() { return &m_loop; }
 
 libuv_wrapper::callback_id_t libuv_wrapper::add_on_loop_started_cb(cb_t cb) {
+    if (!cb)
+        throw std::runtime_error("nullptr callbacj passed");
     std::lock_guard lock(m_tasks_mutex);
     auto index = m_callback_counter++;
     m_started_cbs.emplace(index, std::move(cb));
@@ -37,6 +39,9 @@ libuv_wrapper::callback_id_t libuv_wrapper::add_on_loop_started_cb(cb_t cb) {
 }
 
 libuv_wrapper::callback_id_t libuv_wrapper::add_on_stopped_cb(cb_t cb) {
+    if (!cb)
+        throw std::runtime_error("nullptr callbacj passed");
+
     std::lock_guard lock(m_tasks_mutex);
     auto index = m_callback_counter++;
     m_stopped_cbs.emplace(index, std::move(cb));
@@ -143,8 +148,10 @@ libuv_wrapper::callback_id_t libuv_wrapper::add_setup_task_cb(cb_t setup, cb_wra
     std::lock_guard lock(m_tasks_mutex);
     auto index = m_callback_counter++;
 
-    libuv_setup_task_cbs.emplace(index, std::move(setup));
-    m_wrapup_tasks_cbs.emplace(index, std::move(wrapup));
+    if (setup)
+        libuv_setup_task_cbs.emplace(index, std::move(setup));
+    if (wrapup)
+        m_wrapup_tasks_cbs.emplace(index, std::move(wrapup));
 
     return index;
 }
@@ -169,7 +176,8 @@ libuv_wrapper::callback_id_t libuv_wrapper::start_task(cb_t setup, cb_wrapup_t w
         start_libuv();
     } else {
         i = add_setup_task_cb(nullptr, std::move(wrapup));
-        setup(this);
+        if (setup)
+            setup(this);
     }
 
     return i;
