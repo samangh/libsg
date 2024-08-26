@@ -14,7 +14,7 @@ namespace sg {
 
 class file_writer_uv::impl : public sg::enable_lifetime_indicator {
   public:
-    impl(sg::file_writer_uv &parent, sg::libuv_wrapper &libuv);
+    impl(sg::file_writer_uv &parent);
     ~impl();
 
     void start(std::filesystem::path _path,
@@ -36,7 +36,7 @@ class file_writer_uv::impl : public sg::enable_lifetime_indicator {
     sg::file_writer_uv &m_parent;
     std::filesystem::path m_path;
 
-    sg::libuv_wrapper &m_libuv;
+    sg::libuv_wrapper m_libuv;
     size_t m_libuv_task_index;
 
     /* client callbacks */
@@ -72,7 +72,7 @@ class file_writer_uv::impl : public sg::enable_lifetime_indicator {
  * Public implementation
  ******************************************************************/
 
-file_writer_uv::file_writer_uv() : pimpl(*this, sg::get_global_uv_holder()){};
+file_writer_uv::file_writer_uv() : pimpl(*this){};
 
 file_writer_uv::~file_writer_uv() = default;
 
@@ -217,9 +217,8 @@ bool file_writer_uv::impl::is_running() const { return !m_libuv.is_stopped(); }
 
 bool file_writer_uv::impl::is_stopped_or_stopping() { return m_libuv.is_stopped_or_stopping(); }
 
-file_writer_uv::impl::impl(file_writer_uv &parent, libuv_wrapper &libuv)
-    : m_parent(parent),
-      m_libuv(libuv) {}
+file_writer_uv::impl::impl(file_writer_uv &parent)
+    : m_parent(parent) {}
 
 file_writer_uv::impl::~impl() { close(); }
 
