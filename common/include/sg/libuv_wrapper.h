@@ -89,8 +89,9 @@ class SG_COMMON_EXPORT libuv_wrapper {
   private:
     uv_loop_t m_loop;
 
-    mutable std::thread m_thread;        /* mutable because of block_until_stopped() */
-    std::unique_ptr<uv_async_t> m_async; /* For stopping the loop */
+    mutable std::thread m_thread;                     /* mutable because of block_until_stopped() */
+    std::unique_ptr<uv_async_t> m_async;              /* For stopping the loop */
+    std::unique_ptr<uv_async_t> m_loop_started_async; /* For calling te on_loop_started callbacks */
 
     mutable std::mutex m_tasks_mutex;
     std::vector<cb_t> m_started_cbs;

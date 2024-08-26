@@ -64,15 +64,19 @@ void libuv_wrapper::start_libuv() {
         uv_stop(handle->loop);
     });
 
-    m_thread = std::thread([&, this]() {
-        {
-            std::lock_guard lock(m_tasks_mutex);
-            for (auto &cb : m_started_cbs)
-                cb(this);
-            m_started_cbs.clear();
-        }
+    /* Setup handle for calling the on_start callbacks from within the libuv loop */
+    m_loop_started_async = std::make_unique<uv_async_t>();
+    m_loop_started_async->data = this;
+    uv_async_init(&m_loop, m_loop_started_async.get(), [](uv_async_t *handle) {
+        auto uv_wrap = (sg::libuv_wrapper *)handle->data;
+        std::lock_guard lock(uv_wrap->m_tasks_mutex);
 
-        m_uvloop_running = true;
+        for (auto &cb : uv_wrap->m_started_cbs) cb(uv_wrap);
+        uv_wrap->m_started_cbs.clear();
+    });
+
+    m_uvloop_running = true;
+    m_thread = std::thread([&, this]() {
         bool loop_stop_requested = false;
 
         while (true) {
