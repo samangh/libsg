@@ -56,7 +56,7 @@ TEST_CASE("SG::common libuv_wrapper: check callbacks are called") {
 
             auto start_cb_index = libuv.add_on_loop_started_cb(
                 [&](sg::libuv_wrapper *) { start_cb_called_count.fetch_add(1); });
-            auto stop_cb_index = libuv.add_on_loop_started_cb(
+            auto stop_cb_index = libuv.add_on_stopped_cb(
                 [&](sg::libuv_wrapper *) { stop_cb_called_count.fetch_add(1); });
 
             libuv.remove_task_callbacks(start_cb_index);
