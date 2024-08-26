@@ -30,7 +30,8 @@ class weak_function {
 
     template <typename... U>
     ReturnT operator()(U &&...args) {
-        if (m_item.lock()) return m_func(std::forward<ArgsT>(args)...);
+        if (m_item.lock() && m_func)
+            return m_func(std::forward<ArgsT>(args)...);
         return ReturnT();
     };
     virtual ~weak_function() = default;
