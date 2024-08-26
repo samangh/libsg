@@ -170,11 +170,8 @@ void file_writer_uv::impl::start(std::filesystem::path _path,
             m_on_client_disconnected_cb(&m_parent);
     };
 
-    sg::libuv_wrapper::cb_t setup_cb = sg::create_weak_function(this, setup_func);
-    sg::libuv_wrapper::cb_wrapup_t wrapup_cb = sg::create_weak_function(this, wrapup_func);
-
-    m_libuv_task_index = m_libuv.start_task(setup_cb, wrapup_cb);
-    m_libuv.add_on_stopped_cb(sg::create_weak_function(this, stopped_func));
+    m_libuv_task_index = m_libuv.start_task(setup_func, wrapup_func);
+    m_libuv.add_on_stopped_cb(stopped_func);
 
     m_connection_promise.get_future().get();
 }
