@@ -16,9 +16,10 @@
 namespace sg {
 
 void sg::file_writer::action(const std::stop_token &stop_tok) {
-    do {
-        /* wait for data */
-        m_signal.acquire();
+    while(true) {
+        /* wait for data, unless a stop has been requested */
+        if (!stop_tok.stop_requested())
+            m_signal.acquire();
 
         /* swap buffer */
         std::deque<sg::shared_c_buffer<std::byte>> m_old_data;
@@ -38,9 +39,17 @@ void sg::file_writer::action(const std::stop_token &stop_tok) {
             m_byte_count.fetch_add(count * sizeof(char));
         } catch (const std::exception &ex) {
             if (m_on_error_cb) m_on_error_cb(this, ex.what());
-            m_stop_src.request_stop();
+            break;
         }
-    } while (!stop_tok.stop_requested());
+
+        /* if stop is requested and there is data, go around one more loop */
+        if (stop_tok.stop_requested())
+        {
+            std::lock_guard lock(m_mutex);
+            if (m_data.empty())
+                break;
+        }
+    };
 
     try {
         if (m_file.is_open()) m_file.close();
@@ -72,8 +81,8 @@ void sg::file_writer::start(path_type _path,
 
 void sg::file_writer::stop() {
     if (m_thread.joinable()) {
-        m_signal.release();
         m_thread.request_stop();
+        m_signal.release();
         m_thread.join();
     }
 }

@@ -69,7 +69,6 @@ private:
     std::fstream m_file;
 
     std::jthread m_thread;
-    std::stop_source m_stop_src;
 
     error_cb_t m_on_error_cb;
     stopped_cb_t m_on_stop_cb;
