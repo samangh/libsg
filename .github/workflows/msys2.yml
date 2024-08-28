@@ -1,0 +1,48 @@
+name: MSYS2
+
+on: [workflow_dispatch, pull_request]
+
+jobs:
+  build:
+    name: ${{matrix.config.sys}}
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: msys2 {0}
+    strategy:
+      fail-fast: false
+      matrix:
+        config:
+          - { sys: mingw64 }
+          - { sys: ucrt64 }
+          - { sys: clang64 }
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Install dependencies
+        uses: msys2/setup-msys2@v2
+        with:
+          msystem: ${{matrix.config.sys}}
+          update: true
+          pacboy: toolchain:p cmake:p boost:p SDL2:p fmt:p libuv:p zstd:p
+
+      - name: Run CMake
+        working-directory: ${{github.workspace}}
+        run: |
+             mkdir build
+             cd build
+             # The Releae setting is a workaround vcpkg and
+             # multi-release targets
+             cmake .. -DBUILD_SHARED_LIBS=ON -DBENCHMARK=ON -DCMAKE_BUILD_TYPE=Release
+
+      - name: Build
+        working-directory: ${{github.workspace}}/build
+        run: cmake --build .
+
+      - name: Test
+        working-directory: ${{github.workspace}}/build
+        run: ./test/sg_test.exe
