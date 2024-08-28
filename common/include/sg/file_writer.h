@@ -1,6 +1,7 @@
 #pragma once
 
-#include "sg/buffer.h"
+#include "jthread.h"
+#include "buffer.h"
 #include "sg/export/sg_common.h"
 
 #include <cstring>
@@ -9,7 +10,6 @@
 #include <functional>
 #include <semaphore>
 #include <string>
-#include <thread>
 #include <fstream>
 #include <mutex>
 
