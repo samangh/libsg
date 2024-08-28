@@ -17,7 +17,7 @@ list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_LIST_DIR}/cmake")
 ## Build options
 ##
 
-include(DefaultCMakePreamble)
+include(DefaultPreamble)
 option (BENCHMARK "Run benchmarks" OFF)
 
 ##
@@ -53,5 +53,4 @@ foreach(t ${TARGETS})
   target_compile_features(${t} PUBLIC cxx_std_20)
 endforeach()
 
-include(setup_all_targets)
-setup_all_targets()
+include(DefaultPostamble)
