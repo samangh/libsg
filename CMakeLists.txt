@@ -52,3 +52,6 @@ foreach(t ${TARGETS})
   setup_target_options(TARGET ${t})
   target_compile_features(${t} PUBLIC cxx_std_20)
 endforeach()
+
+include(setup_all_targets)
+setup_all_targets()
