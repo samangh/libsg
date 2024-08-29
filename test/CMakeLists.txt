@@ -1,7 +1,3 @@
-##
-## External projects
-##
-
 CPMAddPackage("gh:doctest/doctest@2.4.11")
 CPMAddPackage(NAME nanobench
   GITHUB_REPOSITORY martinus/nanobench
@@ -19,6 +15,8 @@ setup_executable(
     SG
   NAMESPACE_TARGET
      test
+  DIRECTORY
+     ${CMAKE_CURRENT_SOURCE_DIR}
 
   INCLUDE_PUBLIC
     ${DP_THREAD_POOL_DIR}/include

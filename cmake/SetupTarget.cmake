@@ -2,6 +2,7 @@ function(setup_target)
   set(options
     LIBRARY
     EXECUTABLE
+    DIRECTORY
     GENERATE_EXPORT_HEADER STATIC) #These are library only
   set(multiValueArgs
     SRC_FILES
@@ -30,9 +31,9 @@ function(setup_target)
   ##
   ## Check for required parameters
   ##
-  foreach(item TARGET NAMESPACE)
+  foreach(item TARGET NAMESPACE DIRECTORY)
     if(NOT ARG_${item})
-      message(FATAL_ERROR "parameter '${item}' not set")
+      message(FATAL_ERROR "parameter '${item}' not set for target ${ARG_TARGET}")
     endif()
   endforeach()
 
@@ -49,9 +50,9 @@ function(setup_target)
   ##
   if(NOT ARG_SRC_FILES)
     file(GLOB_RECURSE ARG_SRC_FILES
-      ${CMAKE_CURRENT_SOURCE_DIR}/src/*.c
-      ${CMAKE_CURRENT_SOURCE_DIR}/src/*.cc
-      ${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp)
+      ${ARG_DIRECTORY}/src/*.c
+      ${ARG_DIRECTORY}/src/*.cc
+      ${ARG_DIRECTORY}/src/*.cpp)
   endif()
 
   ##
@@ -121,8 +122,7 @@ function(setup_target)
     PUBLIC
       ${ARG_INCLUDE_PUBLIC}
       $<INSTALL_INTERFACE:include>
-      $<BUILD_INTERFACE:${CMAKE_CURRENT_LIST_DIR}/include>
-      $<BUILD_INTERFACE:${CMAKE_BINARY_DIR}/include>
+      $<BUILD_INTERFACE:${ARG_DIRECTORY}/include>
     PRIVATE
       ${ARG_INCLUDE_PRIVATE}
   )

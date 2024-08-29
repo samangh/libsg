@@ -43,7 +43,10 @@ setup_library(
   NAMESPACE
     SG
   NAMESPACE_TARGET
-     imgui
+    imgui
+  DIRECTORY
+     ${CMAKE_CURRENT_SOURCE_DIR}
+
   SRC_FILES
      ${SRC_FILES}
   INCLUDE_INTERFACE
