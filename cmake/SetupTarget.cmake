@@ -127,7 +127,6 @@ function(setup_target)
       ${ARG_INCLUDE_PRIVATE}
   )
 
-  message("{ARG_DIRECTORY}/include=${ARG_DIRECTORY}/include")
   ##
   ## Add link libraries and compiler flags
   ##
