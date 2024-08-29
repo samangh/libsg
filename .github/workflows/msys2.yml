@@ -1,6 +1,9 @@
 name: MSYS2
 
 on: [workflow_dispatch, pull_request, push]
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   build:
