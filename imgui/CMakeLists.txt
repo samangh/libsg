@@ -1,8 +1,5 @@
 set(SG_TARGET_NANE "imgui")
 set(TARGET "sg_${SG_TARGET_NANE}")
-
-set_property(GLOBAL APPEND PROPERTY ${PROJECT_NAME}_TARGETS ${TARGET})
-
 set(IMGUI_DIR ${CMAKE_CURRENT_SOURCE_DIR}/../external/imgui)
 set(IMPLOT_DIR ${CMAKE_CURRENT_SOURCE_DIR}/../external/implot)
 set(PORTABLE_FILE_DIALOGS_DIR ${CMAKE_CURRENT_SOURCE_DIR}/../external/portable-file-dialogs)
@@ -39,29 +36,55 @@ file(GLOB SRC_FILES
 ## ImPlot::SetImGuiContext(ImGuiContext* ctx). This ensures that global
 ## ImGui variables are correctly shared across the DLL boundary.
 ##
-add_library(${TARGET} STATIC ${SRC_FILES})
-add_library(${NAMESPACE}::${SG_TARGET_NANE} ALIAS ${TARGET})
 
-##
-## Includes
-##
-
-# Use our version of imconfig.h
-target_compile_definitions(${TARGET} PUBLIC IMGUI_DISABLE_INCLUDE_IMCONFIG_H)
-target_compile_definitions(${TARGET} PUBLIC IMGUI_USER_CONFIG="sg/imgui/config.h")
-
-target_include_directories(${TARGET}
-  INTERFACE
-  PUBLIC
+setup_library(
+  TARGET
+    sg_imgui
+  NAMESPACE
+    SG
+  NAMESPACE_TARGET
+     imgui
+  SRC_FILES
+     ${SRC_FILES}
+  INCLUDE_INTERFACE
+  INCLUDE_PUBLIC
     $<BUILD_INTERFACE:${IMGUI_DIR}>
     $<BUILD_INTERFACE:${IMPLOT_DIR}>
     $<BUILD_INTERFACE:${IMGUI_FILE_BROWSER_DIR}>
+  INCLUDE_PRIVATE
+    Boost::Boost
+  LINK_INTERFACE
+  LINK_PUBLIC
+    SG::common
+    portable_file_dialogs
 
-    $<INSTALL_INTERFACE:include>
-    $<BUILD_INTERFACE:${CMAKE_CURRENT_LIST_DIR}/include>
-    $<BUILD_INTERFACE:${CMAKE_BINARY_DIR}/include>
-  PRIVATE
-  )
+    $<TARGET_NAME_IF_EXISTS:bar>
+    SDL2::SDL2main
+  LINK_PRIVATE
+    OpenGL::GL
+    "$<$<BOOL:${APPLE}>:-framework CoreFoundation>"
+    $<$<AND:$<BOOL:${UNIX}>,$<NOT:$<BOOL:${APPLE}>>>:${CMAKE_DL_LIBS}>
+
+    #math library, needed by sg::imgui::units
+    $<$<NOT:$<CXX_COMPILER_ID:MSVC>>:m>
+  COMPILE_OPTIONS_INTERFACE
+  COMPILE_OPTIONS_PUBLIC
+  COMPILE_OPTIONS_PRIVATE
+  COMPILE_FEATURES_INTERFACE
+  COMPILE_FEATURES_PUBLIC
+    cxx_std_20
+  COMPILE_FEATURES_PRIVATE
+  COMPILE_DEFINITIONS_INTERFACE
+  COMPILE_DEFINITIONS_PUBLIC
+    IMGUI_DISABLE_INCLUDE_IMCONFIG_H
+    IMGUI_USER_CONFIG="sg/imgui/config.h"
+  COMPILE_DEFINITIONS_PRIVATE
+
+  ## Options
+  GENERATE_EXPORT_HEADER
+  STATIC
+)
+
 
 ##
 ## SDL
@@ -80,27 +103,3 @@ else()
   target_include_directories(${TARGET} PUBLIC ${SDL2_INCLUDE_DIRS})
   target_link_libraries(${TARGET} PUBLIC ${SDL2_LIBRARIES})
 endif()
-
-##
-## Linking
-##
-
-target_link_libraries(${TARGET}
-  PRIVATE
-    OpenGL::GL
-    "$<$<BOOL:${APPLE}>:-framework CoreFoundation>"
-    $<$<AND:$<BOOL:${UNIX}>,$<NOT:$<BOOL:${APPLE}>>>:${CMAKE_DL_LIBS}>
-
-    #math library, needed by sg::imgui::units
-    $<$<NOT:$<CXX_COMPILER_ID:MSVC>>:m>
-  PUBLIC
-    SG::common
-    portable_file_dialogs)
-
-##
-## Version
-##
-
-set_target_properties(${TARGET} PROPERTIES
-  VERSION ${PROJECT_VERSION}
-  SOVERSION ${PROJECT_VERSION_MAJOR})

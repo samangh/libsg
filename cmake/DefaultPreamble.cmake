@@ -52,6 +52,7 @@ list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_LIST_DIR}/../external/sanitizers-
 
 include(setup_ide_folders)
 include(get_standard_library_name)
+include(SetupTarget)
 
 # Check for name of standard library, use by common
 include(CheckCXXSourceCompiles)

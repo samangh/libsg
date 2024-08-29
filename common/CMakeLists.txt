@@ -1,8 +1,3 @@
-set(SG_TARGET_NANE "common")
-set(TARGET "sg_${SG_TARGET_NANE}")
-
-set_property(GLOBAL APPEND PROPERTY ${PROJECT_NAME}_TARGETS ${TARGET})
-
 find_package(Threads REQUIRED)
 find_package(LibUV REQUIRED)
 find_package(fmt REQUIRED)
@@ -24,61 +19,45 @@ find_package(Boost REQUIRED CONFIG)
 
 set(DP_THREAD_POOL_DIR ${CMAKE_CURRENT_SOURCE_DIR}/../external/thread-pool)
 
-
 ##
 ## Source files
 ##
 
-file(GLOB_RECURSE SRC_FILES
-  ${CMAKE_CURRENT_SOURCE_DIR}/src/*.c
-  ${CMAKE_CURRENT_SOURCE_DIR}/src/*.cc
-  ${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp)
 
-add_library(${TARGET} ${SRC_FILES})
-add_library(${NAMESPACE}::${SG_TARGET_NANE} ALIAS ${TARGET})
+setup_library(
+  TARGET
+    sg_common
+  NAMESPACE
+    SG
+  NAMESPACE_TARGET
+     common
 
-##
-## Includes
-##
-
-target_include_directories(${TARGET}
-  INTERFACE
-  PUBLIC
-    $<INSTALL_INTERFACE:include>
-
-    $<BUILD_INTERFACE:${CMAKE_CURRENT_LIST_DIR}/include>
-    $<BUILD_INTERFACE:${CMAKE_BINARY_DIR}/include>
-    $<BUILD_INTERFACE:${DP_THREAD_POOL_DIR}/include>
-  PRIVATE
-    Boost::Boost)
-
-target_link_libraries(${TARGET}
-  INTERFACE
-  PUBLIC
+  INCLUDE_INTERFACE
+  INCLUDE_PUBLIC
+    ${DP_THREAD_POOL_DIR}/include
+  INCLUDE_PRIVATE
+    Boost::Boost
+  LINK_INTERFACE
+  LINK_PUBLIC
     LibUV::LibUV
-    $<$<AND:$<CXX_COMPILER_ID:GNU>,$<VERSION_LESS:$<CXX_COMPILER_VERSION>,9.1>>:${STANDARD_LIBRARY}fs>
-    $<$<AND:$<CXX_COMPILER_ID:Clang>,$<VERSION_LESS:$<CXX_COMPILER_VERSION>,9.0>>:${STANDARD_LIBRARY}fs>
-  PRIVATE
+  LINK_PRIVATE
     $<$<BOOL:${SSE_SSE42_FOUND}>:SSE::SSE42> # For hardware accelerated CRC32
     $<$<BOOL:${SSE_CRC32_FOUND}>:SSE::CRC32> # For hardware accelerated CRC32
     $<$<BOOL:${SSE_CLMUL_FOUND}>:SSE::CLMUL> # For hardware accelerated CRC32
     Threads::Threads
     $<$<BOOL:${WIN32}>:Winmm>
     $<IF:$<BOOL:${USE_STATIC_LIBS}>,zstd::libzstd_static,zstd::libzstd_shared>
-    fmt::fmt)
+    fmt::fmt
+  COMPILE_OPTIONS_INTERFACE
+  COMPILE_OPTIONS_PUBLIC
+  COMPILE_OPTIONS_PRIVATE
+  COMPILE_FEATURES_INTERFACE
+  COMPILE_FEATURES_PUBLIC
+    cxx_std_20
+  COMPILE_FEATURES_PRIVATE
 
-##
-## Export headers
-##
+  ## Options
+  GENERATE_EXPORT_HEADER
+  # STATIC
+)
 
-include (GenerateExportHeader)
-generate_export_header(${TARGET}
-             EXPORT_FILE_NAME "${CMAKE_BINARY_DIR}/include/sg/export/${TARGET}.h")
-
-##
-## Version
-##
-
-set_target_properties(${TARGET} PROPERTIES
-  VERSION ${PROJECT_VERSION}
-  SOVERSION ${PROJECT_VERSION_MAJOR})
