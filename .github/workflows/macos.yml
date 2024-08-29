@@ -33,8 +33,6 @@ jobs:
 
       - name: Install Packages
         run: |
-             # Workaround homebrew bug
-             brew install --overwrite python@3.12
              brew install zstd uv boost fmt sdl2
 
       - name: Run CMake
