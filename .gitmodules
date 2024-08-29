@@ -16,4 +16,4 @@
 	branch = master
 [submodule "external/thread-pool"]
 	path = external/thread-pool
-	url = git@github.com:samangh/thread-pool.git
+	url = https://github.com/DeveloperPaul123/thread-pool.git
