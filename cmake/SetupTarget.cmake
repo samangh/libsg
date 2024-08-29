@@ -2,7 +2,6 @@ function(setup_target)
   set(options
     LIBRARY
     EXECUTABLE
-    DIRECTORY
     GENERATE_EXPORT_HEADER STATIC) #These are library only
   set(multiValueArgs
     SRC_FILES
@@ -25,7 +24,7 @@ function(setup_target)
     LINK_OPTIONS_PUBLIC
     LINK_OPTIONS_PRIVATE
   )
-  set(oneValueArgs TARGET NAMESPACE NAMESPACE_TARGET)
+  set(oneValueArgs TARGET NAMESPACE NAMESPACE_TARGET DIRECTORY)
   cmake_parse_arguments(ARG "${options}" "${oneValueArgs}" "${multiValueArgs}" ${ARGN})
 
   ##
@@ -122,11 +121,13 @@ function(setup_target)
     PUBLIC
       ${ARG_INCLUDE_PUBLIC}
       $<INSTALL_INTERFACE:include>
-      $<BUILD_INTERFACE:${ARG_DIRECTORY}/include>
+      $<BUILD_INTERFACE:${ARG_DIRECTORY}/include>    # Normal heades
+      $<BUILD_INTERFACE:${CMAKE_BINARY_DIR}/include> #  generate_export_header() files
     PRIVATE
       ${ARG_INCLUDE_PRIVATE}
   )
 
+  message("{ARG_DIRECTORY}/include=${ARG_DIRECTORY}/include")
   ##
   ## Add link libraries and compiler flags
   ##
