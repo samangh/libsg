@@ -1,5 +1,7 @@
 #pragma once
 
+#include "sg/export/sg_common.h"
+
 #include <shared_mutex>
 #include <string>
 
@@ -15,7 +17,7 @@ struct Progress {
 };
 
 /** @brief Source for @ref ProgressIndicator */
-class ProgressSource {
+class SG_COMMON_EXPORT ProgressSource {
   public:
     Progress progress() const;
 
@@ -31,7 +33,7 @@ class ProgressSource {
 };
 
 /** @brief Returns the progresss of a progress source */
-class ProgressIndicator {
+class SG_COMMON_EXPORT ProgressIndicator {
   public:
     ProgressIndicator(const ProgressSource &source);
 
