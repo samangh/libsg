@@ -70,9 +70,9 @@ function(setup_target)
   ########################################################
   if(ARG_LIBRARY)
     if(ARG_STATIC)
-      add_library(${ARG_TARGET} ${ARG_SRC_FILES})
-    else()
       add_library(${ARG_TARGET} STATIC ${ARG_SRC_FILES})
+    else()
+      add_library(${ARG_TARGET} ${ARG_SRC_FILES})
     endif()
     add_library(${ARG_NAMESPACE}::${ARG_NAMESPACE_TARGET} ALIAS ${ARG_TARGET})
 
