@@ -140,9 +140,9 @@ TEST_CASE("SG::common file_writer and file_writer_uv performance" ){
     std::string path = "benchmark-buffer";
     std::vector<std::vector<uint64_t>> vec_data;
 
-    vec_data =   random_data(100, 1500);
+    vec_data =   random_data(500, 1500);
     SUBCASE("sg::file_writer(..)") {
-        ankerl::nanobench::Bench().minEpochIterations(200).run("sg::file_writer(..)", [&]() {
+        ankerl::nanobench::Bench().minEpochIterations(100).run("sg::file_writer(..)", [&]() {
             sg::file_writer writer;
             writer.start(path, nullptr, nullptr, nullptr);
             for (const auto& buf : vec_data) {
@@ -154,9 +154,9 @@ TEST_CASE("SG::common file_writer and file_writer_uv performance" ){
         });
     }
 
-    vec_data =   random_data(100, 1500);
+    vec_data =   random_data(500, 1500);
     SUBCASE("sg::file_writer_uv(..)") {
-        ankerl::nanobench::Bench().minEpochIterations(200).run("sg::file_writer_uv(..)", [&]() {
+        ankerl::nanobench::Bench().minEpochIterations(100).run("sg::file_writer_uv(..)", [&]() {
             sg::file_writer_uv writer;
             writer.start(path, nullptr, nullptr, 100);
             for (const auto& buf : vec_data) {
