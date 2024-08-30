@@ -3,8 +3,6 @@ IndentWidth: '4'
 IndentPPDirectives: BeforeHash
 ColumnLimit: 100
 PackConstructorInitializers: CurrentLine
-BinPackArguments: false
-BinPackParameters: false
 PointerAlignment: Left
 NamespaceIndentation: Inner
 #AlignConsecutiveDeclarations: true
