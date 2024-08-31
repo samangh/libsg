@@ -239,7 +239,12 @@ function(setup_target)
       FILES_MATCHING
         PATTERN "*.h"
         PATTERN "*.hpp")
-   endif()
+  endif()
+
+  install(TARGETS ${ARG_TARGET}
+          #EXPORT  ${PROJECT_NAME}Targets
+          RUNTIME ARCHIVE LIBRARY RUNTIME FRAMEWORK BUNDLE PUBLIC_HEADER RESOURCE
+  )
 
   # Copy DLL-dependencies if a shared library or excutable on Windows on install
   if(WIN32 OR MSYS)
