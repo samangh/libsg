@@ -2,7 +2,10 @@ function(setup_target)
   set(options
     LIBRARY
     EXECUTABLE
-    GENERATE_EXPORT_HEADER STATIC) #These are library only
+    GENERATE_EXPORT_HEADER   #Libraries only
+    STATIC                   #Libraries only
+    INSTALL_HEADERS          #Libraries only
+  )
   set(multiValueArgs
     SRC_FILES
     INCLUDE_INTERFACE
@@ -65,6 +68,15 @@ function(setup_target)
   string(TOLOWER ${ARG_NAMESPACE_TARGET} NAMESPACE_TARGET_LOWER)
   string(TOLOWER ${ARG_NAMESPACE} NAMESPACE_LOWER)
 
+  # Copy headers if other flags are set
+  if(INSTALL_ALL_HEADERS
+     OR INSTALL_${PROJECT_NAME}_HEADERS
+     OR INSTALL_${ARG_NAMESPACE}_HEADERS
+     OR INSTALL_${ARG_NAMESPACE}_${ARG_NAMESPACE_TARGET}_HEADERS
+     OR INSTALL_${ARG_TARGET}_HEADERS)
+     set(ARG_INSTALL_HEADERS TRUE)
+  endif()
+
   ########################################################
   ## Library
   ########################################################
@@ -87,10 +99,12 @@ function(setup_target)
         EXPORT_FILE_NAME "${CMAKE_BINARY_DIR}/include/${NAMESPACE_LOWER}/export/${NAMESPACE_TARGET_LOWER}.h")
 
       # Copy on install
-      install(
-        FILES "${CMAKE_BINARY_DIR}/include/${NAMESPACE_LOWER}/export/${NAMESPACE_TARGET_LOWER}.h"
-        DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}/${NAMESPACE_LOWER}/export/"
-        COMPONENT dev)
+      if (ARG_INSTALL_HEADERS)
+        install(
+          FILES "${CMAKE_BINARY_DIR}/include/${NAMESPACE_LOWER}/export/${NAMESPACE_TARGET_LOWER}.h"
+          DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}/${NAMESPACE_LOWER}/export/"
+          COMPONENT dev)
+      endif()
 
     endif()
   endif()
@@ -217,13 +231,15 @@ function(setup_target)
   ##
   ## Install
   ##
-  install(
-    DIRECTORY ${ARG_DIRECTORY}/include/
-    DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
-    COMPONENT dev
-    FILES_MATCHING
-      PATTERN "*.h"
-      PATTERN "*.hpp")
+  if (ARG_INSTALL_HEADERS)
+    install(
+      DIRECTORY ${ARG_DIRECTORY}/include/
+      DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
+      COMPONENT dev
+      FILES_MATCHING
+        PATTERN "*.h"
+        PATTERN "*.hpp")
+   endif()
 
   # Copy DLL-dependencies if a shared library or excutable on Windows on install
   if(WIN32 OR MSYS)
