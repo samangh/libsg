@@ -3,7 +3,7 @@
 #include "pimpl.h"
 #include "sg/buffer.h"
 #include "sg/memory.h"
-#include "sg/export/sg_common.h"
+#include "sg/export/common.h"
 
 #include <filesystem>
 #include <functional>

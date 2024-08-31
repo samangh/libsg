@@ -1,6 +1,6 @@
 #pragma once
 
-#include "sg/export/sg_common.h"
+#include "sg/export/common.h"
 
 #include <cstdint>
 
