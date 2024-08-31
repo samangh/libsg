@@ -62,6 +62,16 @@ get_standard_library_name(STANDARD_LIBRARY)
 include(get_cpm)
 
 ##
+## Install path
+##
+include(GNUInstallDirs)
+
+# Place libraries in same location as executables in Windows
+if(WIN32 OR MSYS2)
+  set(CMAKE_INSTALL_LIBDIR ${CMAKE_INSTALL_BINDIR})
+endif()
+
+##
 ## Packages
 ##
 

@@ -204,6 +204,26 @@ function(setup_target)
   ## Sanitizers
   ##
   add_sanitizers(${ARG_TARGET})
+
+  ##
+  ## Install
+  ##
+  install(
+    DIRECTORY ${ARG_DIRECTORY}/include/
+    DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
+    COMPONENT dev
+    FILES_MATCHING
+      PATTERN "*.h"
+      PATTERN "*.hpp")
+
+  # Copy DLL-dependencies if a shared library or excutable
+  get_target_property(TARGET_TYPE ${ARG_TARGET} TYPE)
+  foreach(TYPE  "EXECUTABLE" "MODULE_LIBRARY"  "SHARED_LIBRARY")
+    if (TARGET_TYPE STREQUAL ${TYPE})
+      install(FILES $<TARGET_RUNTIME_DLLS:${ARG_TARGET}> TYPE BIN)
+    endif()
+  endforeach()
+
 endfunction()
 
 function(setup_library)

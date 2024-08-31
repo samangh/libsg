@@ -10,6 +10,7 @@ get_all_targets(_TARGETS)
 # It's better to use ${get_all_targets}, as that also pulls in any
 # subprojects that we might be using (e.g. nanobench)
 
+# Note: tho gets all source targets, not just the ones declared in this project
 if (USE_STATIC_RUNTIME)
   foreach(TARGET ${_TARGETS})
     if(MSVC)
@@ -29,5 +30,15 @@ if (USE_STATIC_RUNTIME)
     endif()
   endforeach()
 endif()
+
+get_property(TARGETS GLOBAL PROPERTY ${PROJECT_NAME}_TARGETS)
+
+install(TARGETS ${TARGETS}
+  EXPORT  ${PROJECT_NAME}Targets
+  LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
+  ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
+  RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
+  INCLUDES DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
+)
 
 unset(_TARGETS)
