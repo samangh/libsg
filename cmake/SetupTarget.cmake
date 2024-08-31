@@ -92,20 +92,9 @@ function(setup_target)
     ## Export headers
     ##
     if(ARG_GENERATE_EXPORT_HEADER)
-
-      # Generate for build folder
       include(GenerateExportHeader)
       generate_export_header(${ARG_TARGET}
         EXPORT_FILE_NAME "${CMAKE_BINARY_DIR}/include/${NAMESPACE_LOWER}/export/${NAMESPACE_TARGET_LOWER}.h")
-
-      # Copy on install
-      if (ARG_INSTALL_HEADERS)
-        install(
-          FILES "${CMAKE_BINARY_DIR}/include/${NAMESPACE_LOWER}/export/${NAMESPACE_TARGET_LOWER}.h"
-          DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}/${NAMESPACE_LOWER}/export/"
-          COMPONENT dev)
-      endif()
-
     endif()
   endif()
 
@@ -239,6 +228,14 @@ function(setup_target)
       FILES_MATCHING
         PATTERN "*.h"
         PATTERN "*.hpp")
+
+      if (ARG_GENERATE_EXPORT_HEADER)
+        install(
+          FILES "${CMAKE_BINARY_DIR}/include/${NAMESPACE_LOWER}/export/${NAMESPACE_TARGET_LOWER}.h"
+          DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}/${NAMESPACE_LOWER}/export/"
+          COMPONENT dev)
+      endif()
+
   endif()
 
   install(TARGETS ${ARG_TARGET}
