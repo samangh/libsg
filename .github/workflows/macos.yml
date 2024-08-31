@@ -50,7 +50,7 @@ jobs:
         working-directory: ${{github.workspace}}/build
         run: MAKEFLAGS=-j$(nproc) cmake --build .
 
-        - name: Install
+      - name: Install
         working-directory: ${{github.workspace}}/build
         run: cmake --install . --prefix ../prefix
 
