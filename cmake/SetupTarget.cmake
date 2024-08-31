@@ -121,8 +121,8 @@ function(setup_target)
     PUBLIC
       ${ARG_INCLUDE_PUBLIC}
       $<INSTALL_INTERFACE:include>
-      $<BUILD_INTERFACE:${ARG_DIRECTORY}/include>    # Normal heades
-      $<BUILD_INTERFACE:${CMAKE_BINARY_DIR}/include> #  generate_export_header() files
+      $<BUILD_INTERFACE:${ARG_DIRECTORY}/include>     # Normal heades
+      $<BUILD_INTERFACE:${CMAKE_BINARY_DIR}/include>  #  generate_export_header() files
     PRIVATE
       ${ARG_INCLUDE_PRIVATE}
   )
@@ -216,14 +216,22 @@ function(setup_target)
       PATTERN "*.h"
       PATTERN "*.hpp")
 
-  # Copy DLL-dependencies if a shared library or excutable
-  get_target_property(TARGET_TYPE ${ARG_TARGET} TYPE)
-  foreach(TYPE  "EXECUTABLE" "MODULE_LIBRARY"  "SHARED_LIBRARY")
-    if (TARGET_TYPE STREQUAL ${TYPE})
-      install(FILES $<TARGET_RUNTIME_DLLS:${ARG_TARGET}> TYPE BIN)
-    endif()
-  endforeach()
+  # Copy DLL-dependencies if a shared library or excutable on Windows on install
+  if(WIN32 OR MSYS)
+    get_target_property(TARGET_TYPE ${ARG_TARGET} TYPE)
+    foreach(TYPE  "EXECUTABLE" "MODULE_LIBRARY"  "SHARED_LIBRARY")
+      if (TARGET_TYPE STREQUAL ${TYPE})
+        install(FILES $<TARGET_RUNTIME_DLLS:${ARG_TARGET}> TYPE BIN)
 
+        # install(TARGETS ${ARG_TARGET}
+        #   COMPONENT ${ARG_TARGET}
+        #   RUNTIME_DEPENDENCIES
+        #   PRE_EXCLUDE_REGEXES "api-ms-" "ext-ms-"
+        #   POST_EXCLUDE_REGEXES ".*system32/.*\\.dll"
+        #   DIRECTORIES /clang64/bin)
+      endif()
+    endforeach()
+  endif()
 endfunction()
 
 function(setup_library)
