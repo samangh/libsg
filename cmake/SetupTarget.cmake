@@ -206,6 +206,15 @@ function(setup_target)
   )
 
   ##
+  ## Enable link-time optimisation
+  ##
+  # include(CheckIPOSupported)
+  # check_ipo_supported(RESULT IPO_SUPPORTED)
+  # if (IPO_SUPPORTED)
+  #    set_property(TARGET ${ARG_TARGET} PROPERTY INTERPROCEDURAL_OPTIMIZATION TRUE)
+  #  endif()
+
+  ##
   ## Version
   ##
   set_target_properties(${TARGET} PROPERTIES

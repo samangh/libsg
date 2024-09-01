@@ -44,6 +44,21 @@ if(USE_SSE)
 endif()
 
 ##
+## Enable link-time optimisation for all targets
+##
+
+# This enables link-time optimisation even for subprojects that are using an old cmake_minimum_version
+set(CMAKE_POLICY_DEFAULT_CMP0069 NEW)
+
+if(NOT MSVC)
+  include(CheckIPOSupported)
+  check_ipo_supported(RESULT IPO_SUPPORTED)
+  if (IPO_SUPPORTED)
+    set(CMAKE_INTERPROCEDURAL_OPTIMIZATION TRUE)
+  endif()
+endif()
+
+##
 ## CMake module paths
 ##
 
