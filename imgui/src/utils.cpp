@@ -133,7 +133,7 @@ ImVec2 draw_arrow(ImDrawList *const drawlist,
                   float deg,
                   ImU32 color,
                   float thickness) {
-    return draw_arrow(drawlist, from, length, deg, color, thickness, 4.0 * thickness);
+    return draw_arrow(drawlist, from, length, deg, color, thickness, 4 * thickness);
 }
 
 ImVec2 draw_arrow_middle(ImDrawList *const drawlist,
@@ -170,7 +170,7 @@ ImVec2 draw_arrow(ImDrawList *const drawlist,
                   float arrow_triangle_width) {
     auto vector = to - from;
     float total_length = ImSqrt(vector.x * vector.x + vector.y * vector.y);
-    float angle = std::asin(vector.y / total_length) * 180.0f / std::numbers::pi;
+    float angle = std::asin(vector.y / total_length) * 180.0f / static_cast<float>(std::numbers::pi);
 
     if (angle >= 0 && vector.x < 0)
         angle = 180.0f - angle;
@@ -185,12 +185,12 @@ ImVec2 draw_arrow(ImDrawList *const drawlist,
                   const ImVec2 &to,
                   ImU32 color,
                   float thickness) {
-    return draw_arrow(drawlist, from, to, color, thickness, 4.0 * thickness);
+    return draw_arrow(drawlist, from, to, color, thickness, 4 * thickness);
 }
 
 void rotate_path(ImVector<ImVec2> &vec, ImVec2 reference, float angle_deg) {
-    float sin = std::sin(std::numbers::pi / 180.0f * angle_deg);
-    float cos = std::cos(std::numbers::pi / 180.0f * angle_deg);
+    float sin = static_cast<float>(std::sin(std::numbers::pi / 180.0f * angle_deg));
+    float cos =  static_cast<float>(std::cos(std::numbers::pi / 180.0f * angle_deg));
 
     for (auto &p : vec) {
         auto x = p.x - reference.x;

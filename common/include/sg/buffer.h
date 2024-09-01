@@ -67,8 +67,8 @@ template <typename T> class IBuffer {
     virtual T *begin() const noexcept = 0;
     virtual T *end() const noexcept = 0;
 
-    virtual T&       operator[](int i) = 0;
-    virtual const T& operator[](int i) const = 0;
+    virtual T&       operator[](size_t i) = 0;
+    virtual const T& operator[](size_t i) const = 0;
 };
 
 template <typename T> class buffer_base : public IBuffer<T> {
@@ -89,8 +89,8 @@ template <typename T> class buffer_base : public IBuffer<T> {
     virtual T *begin() const noexcept override { return ptr->begin(); };
     virtual T *end() const noexcept override { return ptr->end(); };
 
-    virtual T&       operator[](int i) override { return ptr->get()[i]; };
-    virtual const T& operator[](int i) const override { return ptr->get()[i]; };
+    virtual T&       operator[](size_t i) override { return ptr->get()[i]; };
+    virtual const T& operator[](size_t i) const override { return ptr->get()[i]; };
 };
 
 /* Creates unique opaque buffer */
@@ -190,8 +190,8 @@ class unique_buffer : public IBuffer<T> {
     T *begin() const noexcept override { return ptr.get(); }
     T *end() const noexcept override { return ptr.get() + length; }
 
-    T&       operator[](int i) override { return (ptr.get())[i]; };
-    const T& operator[](int i) const override { return (ptr.get())[i]; };
+    T&       operator[](size_t i) override { return (ptr.get())[i]; };
+    const T& operator[](size_t i) const override { return (ptr.get())[i]; };
 };
 
 /**
@@ -252,8 +252,8 @@ class shared_buffer : public IBuffer<T> {
     virtual T *begin() const noexcept override { return ptr.get(); }
     virtual T *end() const noexcept override { return ptr.get() + length; }
 
-    virtual T&       operator[](int i) override { return (ptr.get())[i]; };
-    virtual const T& operator[](int i) const override { return (ptr.get())[i]; };
+    virtual T&       operator[](size_t i) override { return (ptr.get())[i]; };
+    virtual const T& operator[](size_t i) const override { return (ptr.get())[i]; };
 };
 
 /* A version of unique_buffer that uses C-style free() to delete the base pointer */

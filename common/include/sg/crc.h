@@ -3,6 +3,7 @@
 #include "sg/export/common.h"
 
 #include <cstdint>
+#include <cstddef>
 
 namespace sg::checksum {
 
@@ -25,11 +26,11 @@ namespace sg::checksum {
  * @param length    Length of input data
  * @return
  */
-SG_COMMON_EXPORT uint32_t crc32c(const void *data, uint32_t length);
+SG_COMMON_EXPORT uint32_t crc32c(const void *data, std::size_t length);
 
-SG_COMMON_EXPORT uint32_t crc32(const void *data, uint32_t length);
+SG_COMMON_EXPORT uint32_t crc32(const void *data, std::size_t length);
 
-SG_COMMON_EXPORT uint16_t crc16(const void *data, uint32_t length);
+SG_COMMON_EXPORT uint16_t crc16(const void *data, std::size_t length);
 
 SG_COMMON_EXPORT bool can_do_crc32c_hardware();
 

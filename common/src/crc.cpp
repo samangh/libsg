@@ -16,8 +16,7 @@
  * Copyright (c) 2020 Kareem Omar (MIT license) */
 namespace {
 
-uint32_t crc32_tabular_1_byte(const void* M, uint32_t bytes, uint32_t prev, uint32_t* crcTable)
-{
+uint32_t crc32_tabular_1_byte(const void* M, std::size_t bytes, uint32_t prev, uint32_t* crcTable) {
     const uint8_t* M8 = (const uint8_t*)M;
     uint32_t R = prev;
     for (uint32_t i = 0; i < bytes; ++i)
@@ -26,8 +25,10 @@ uint32_t crc32_tabular_1_byte(const void* M, uint32_t bytes, uint32_t prev, uint
     }
     return R;
 }
-uint32_t crc32_tabular_2_bytes(const void* M, uint32_t bytes, uint32_t prev, uint32_t* crcTable)
-{
+uint32_t crc32_tabular_2_bytes(const void* M,
+                               std::size_t bytes,
+                               uint32_t prev,
+                               uint32_t* crcTable) {
     const uint16_t* M16 = (const uint16_t*)M;
     uint32_t R = prev;
 
@@ -46,8 +47,7 @@ uint32_t crc32_tabular_2_bytes(const void* M, uint32_t bytes, uint32_t prev, uin
     }
     return R;
 }
-uint32_t crc32_tabular_4_bytes(const void* M, uint32_t bytes, uint32_t prev, uint32_t* crcTable)
-{
+uint32_t crc32_tabular_4_bytes(const void* M, size_t bytes, uint32_t prev, uint32_t* crcTable) {
     const uint32_t* M32 = (const uint32_t*)M;
     uint32_t R = prev;
     for (uint32_t i = 0; i < bytes >> 2; ++i)
@@ -68,8 +68,10 @@ uint32_t crc32_tabular_4_bytes(const void* M, uint32_t bytes, uint32_t prev, uin
     }
     return R;
 }
-uint32_t crc32_tabular_8_bytes(const void* M, uint32_t bytes, uint32_t prev, uint32_t* crcTable)
-{
+uint32_t crc32_tabular_8_bytes(const void* M,
+                               std::size_t bytes,
+                               uint32_t prev,
+                               uint32_t* crcTable) {
     const uint32_t* M32 = (const uint32_t*)M;
     uint32_t R = prev;
     while (bytes>=8)
@@ -103,8 +105,10 @@ uint32_t crc32_tabular_8_bytes(const void* M, uint32_t bytes, uint32_t prev, uin
     // Run 1-byte algorithm on any remaning bytes
     return crc32_tabular_1_byte(M32, bytes, R, crcTable);
 }
-uint32_t crc32_tabular_16_bytes(const void* M, uint32_t bytes, uint32_t prev, uint32_t* crcTable)
-{
+uint32_t crc32_tabular_16_bytes(const void* M,
+                                std::size_t bytes,
+                                uint32_t prev,
+                                uint32_t* crcTable) {
     const uint32_t* M32 = (const uint32_t*)M;
     uint32_t R = prev;
     while (bytes >=16)
@@ -179,7 +183,7 @@ std::unique_ptr<uint32_t[]> compute_tabular_method_tables(uint32_t polynomial) {
     return result;
 }
 uint32_t crc32c_tabular(const void *data,
-                        uint32_t no_of_bytes,
+                        std::size_t no_of_bytes,
                         uint32_t initial_remainder,
                         uint32_t *crcTable) {
     if (no_of_bytes >= 16)
@@ -204,7 +208,7 @@ bool can_do_crc32c_hardware() {
 #endif
 }
 
-uint32_t crc32c(const void *data, uint32_t length) {
+uint32_t crc32c(const void* data, std::size_t length) {
     /* Notes:
      *   - we invert (use ~) the result this is equivalent to XORing with 0xFFFFFFFF
      *   - the CRC32C initial remainder is 0xFFFFFFFFU */
@@ -229,12 +233,12 @@ uint32_t crc32c(const void *data, uint32_t length) {
     return ~crc32c_tabular(data, length, initial_remainder, pTbl.get());
 }
 
-uint32_t crc32(const void *data, uint32_t length) {
+uint32_t crc32(const void* data, std::size_t length) {
     static auto pTbl = compute_tabular_method_tables(0xEDB88320);
     return ~crc32c_tabular(data, length, 0xFFFFFFFFU, pTbl.get());
 }
 
-uint16_t crc16(const void *data, uint32_t length) {
+uint16_t crc16(const void* data, std::size_t length) {
     thread_local static boost::crc_16_type crc;
     crc.process_bytes(data, length);
     return crc();

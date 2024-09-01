@@ -245,7 +245,8 @@ void tcp_listener::impl::write(client_id id, sg::shared_c_buffer<std::byte> byte
    /* we must move or copy the bytes, as the buffer must be kept until the callback is called */
    auto write_req = add_write_request(id, std::move(bytes));
 
-   uv_buf_t wrbuf = uv_buf_init((char *)write_req->buffer.get(), write_req->buffer.size());
+   uv_buf_t wrbuf = uv_buf_init((char *)write_req->buffer.get(),
+                                static_cast<unsigned int>(write_req->buffer.size()));
 
    auto req = write_req->uv_write_req_handle.get();
    auto stream = (uv_stream_t *)write_req->client_data_ptr->uv_tcp_handle.get();

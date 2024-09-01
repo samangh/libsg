@@ -159,7 +159,7 @@ void file_writer_uv::impl::start(std::filesystem::path _path,
             if (can_stop)
             {
                 // Don't care about errors on closing the handle
-                uv_fs_close(wrap->get_uv_loop(), &this->close_req , this->open_req.result, NULL);
+                uv_fs_close(wrap->get_uv_loop(), &this->close_req , (uv_file)this->open_req.result, NULL);
                 return sg::libuv_wrapper::wrapup_result::stop_uv_loop;
             }
             return sg::libuv_wrapper::wrapup_result::rerun_uv_loop;
@@ -194,7 +194,7 @@ void file_writer_uv::impl::write(sg::shared_c_buffer<std::byte> buf) {
     while ((size_t)total_written < buf.size()) {
         uv_fs_t _req;
         auto _buffer = uv_buf_init(reinterpret_cast<char *>(&buf.get()[total_written]),
-                                   buf.size() - total_written);
+                                   static_cast<unsigned int>(buf.size()) - total_written);
         auto result = uv_fs_write(m_libuv.get_uv_loop(),
                                   &_req,
                                   static_cast<uv_file>(open_req.result),
@@ -239,7 +239,7 @@ void file_writer_uv::impl::do_write(bool &can_terminate) {
 
         m_uv_buffers.clear();
         for (auto &buf : m_buffer_out)
-            m_uv_buffers.emplace_back(uv_buf_init(reinterpret_cast<char *>(buf.get()), buf.size()));
+            m_uv_buffers.emplace_back(uv_buf_init(reinterpret_cast<char *>(buf.get()), static_cast<unsigned int>(buf.size())));
 
         write_req.data = this;
 
@@ -248,7 +248,7 @@ void file_writer_uv::impl::do_write(bool &can_terminate) {
                     &write_req,
                     static_cast<uv_file>(open_req.result),
                     m_uv_buffers.data(),
-                    m_uv_buffers.size(),
+                    static_cast<unsigned int>(m_uv_buffers.size()),
                     -1,
                     on_uv_on_write);
         return;
