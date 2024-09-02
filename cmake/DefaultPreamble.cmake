@@ -6,9 +6,12 @@ if (BUILD_SHARED_LIBS)
 else()
   set(USE_STATIC_LIBS_DEFAULT ON)
 endif()
-
 option (USE_STATIC_LIBS "Use external static libs if possible" ${USE_STATIC_LIBS_DEFAULT})
-option (USE_STATIC_RUNTIME "Statically link against the C++ runtime" USE_STATIC_LIBS)
+
+if(MSVC)
+  option (USE_STATIC_RUNTIME "Statically link against the C++ runtime" USE_STATIC_LIBS)
+endif()
+
 option (ARCH_NATIVE "Optimise code for current architecture" OFF)
 option (USE_SSE "Enable global use of SSE if possible" ARCH_NATIVE)
 
@@ -19,15 +22,19 @@ option (BUILD_TESTS "Builds tests" ON)
 option (SANITIZE "Enable address, eak and undefined Behaviour sanitizers" OFF)
 # Note, the sanitizer also provides SANITIZE_THREAD and SANITIZE_MEMORY options
 
+##
+## Static linking (Windows)
+##
+
+# Allows for setting MSVC static runtime
+if(USE_STATIC_RUNTIME)
+  cmake_policy(SET CMP0091 NEW)
+  set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
+endif()
+
 if(USE_STATIC_LIBS)
   include(prioritise_static_libraries)
   prioritise_static_libraries()
-endif()
-
-# Enable default SANitizer options
-if(SANITIZE)
-  set(SANITIZE_ADDRESS ON)
-  set(SANITIZE_UNDEFINED ON)
 endif()
 
 ##
@@ -82,9 +89,9 @@ endif()
 include(setup_boost)
 find_package(Sanitizers REQUIRED)
 
-##
-## Policies
-##
+# Enable default SANitizer options
+if(SANITIZE)
+  set(SANITIZE_ADDRESS ON)
+  set(SANITIZE_UNDEFINED ON)
+endif()
 
-# Allows for setting MSVC static runtime
-cmake_policy(SET CMP0091 NEW)
