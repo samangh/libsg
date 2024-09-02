@@ -12,6 +12,7 @@ if(MSVC)
   option (USE_STATIC_RUNTIME "Statically link against the C++ runtime" USE_STATIC_LIBS)
 endif()
 
+option (IPO "Enable inter-process and link-time optimisation" OFF)
 option (ARCH_NATIVE "Optimise code for current architecture" OFF)
 option (USE_SSE "Enable global use of SSE if possible" ARCH_NATIVE)
 
@@ -38,7 +39,22 @@ if(USE_STATIC_LIBS)
 endif()
 
 ##
-## Compile support
+## Enable link-time optimisation for all targets
+##
+
+if(IPO)
+  # This enables link-time optimisation even for subprojects that are using an old cmake_minimum_version
+  set(CMAKE_POLICY_DEFAULT_CMP0069 NEW)
+
+  include(CheckIPOSupported)
+  check_ipo_supported(RESULT IPO_SUPPORTED)
+  if (IPO_SUPPORTED)
+    set(CMAKE_INTERPROCEDURAL_OPTIMIZATION TRUE)
+  endif()
+endif()
+
+##
+## IDE support
 ##
 
 # Export compile database for IDEs, needed for QtCreator

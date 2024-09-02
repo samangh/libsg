@@ -47,7 +47,7 @@ jobs:
         run: |
              mkdir build
              cd build
-             cmake .. -DBUILD_SHARED_LIBS=${{matrix.type.build_shared_libs}} -DCMAKE_BUILD_TYPE=Release -DBENCHMARK=ON
+             cmake .. -DBUILD_SHARED_LIBS=${{matrix.type.build_shared_libs}} -DCMAKE_BUILD_TYPE=Release -DBENCHMARK=ON -DIPO=ON
 
       - name: Build
         working-directory: ${{github.workspace}}/build

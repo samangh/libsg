@@ -40,7 +40,7 @@ jobs:
                    -DCMAKE_TOOLCHAIN_FILE=C:/vcpkg/scripts/buildsystems/vcpkg.cmake `
                    -DVCPKG_TARGET_TRIPLET=${{ matrix.config.triplet }} `
                    -DBENCHMARK=ON `
-                   -DCMAKE_BUILD_TYPE=Release
+                   -DCMAKE_BUILD_TYPE=Release -DIPO=ON
 
       - name: Build
         working-directory: ${{github.workspace}}/build
