@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.5...3.30.2)
+cmake_minimum_required(VERSION 3.15)
 
 project(libsg
   VERSION "1.0.0"
