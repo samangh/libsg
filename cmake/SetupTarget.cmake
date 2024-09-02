@@ -246,7 +246,7 @@ function(setup_target)
   # Copy DLL-dependencies if a shared library or excutable on Windows on install
   if(WIN32 OR MSYS)
     get_target_property(TARGET_TYPE ${ARG_TARGET} TYPE)
-    foreach(TYPE  "EXECUTABLE" "MODULE_LIBRARY"  "SHARED_LIBRARY")
+    foreach(TYPE  "EXECUTABLE" "MODULE_LIBRARY" "SHARED_LIBRARY")
       if (TARGET_TYPE STREQUAL ${TYPE})
         install(FILES $<TARGET_RUNTIME_DLLS:${ARG_TARGET}> TYPE BIN)
 
