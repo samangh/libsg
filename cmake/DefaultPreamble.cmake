@@ -29,7 +29,8 @@ option (SANITIZE "Enable address, eak and undefined Behaviour sanitizers" OFF)
 
 # Allows for setting MSVC static runtime
 if(USE_STATIC_RUNTIME)
-  cmake_policy(SET CMP0091 NEW)
+  # Enable policy for subprojects that are using an old cmake_minimum_version
+  set(CMAKE_POLICY_DEFAULT_CMP0091 NEW)
   set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
 endif()
 
@@ -43,7 +44,7 @@ endif()
 ##
 
 if(IPO)
-  # This enables link-time optimisation even for subprojects that are using an old cmake_minimum_version
+  # Enable policy for subprojects that are using an old cmake_minimum_version
   set(CMAKE_POLICY_DEFAULT_CMP0069 NEW)
 
   include(CheckIPOSupported)
