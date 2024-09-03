@@ -4,7 +4,9 @@ function(setup_target)
     EXECUTABLE
     GENERATE_EXPORT_HEADER   #Libraries only
     STATIC                   #Libraries only
-    INSTALL_HEADERS          #Libraries only
+    INSTALL                  #Implies INSTALL_HEADERS and INSTALL_BINARIES
+    INSTALL_HEADERS
+    INSTALL_BINARIES
   )
   set(multiValueArgs
     SRC_FILES
@@ -73,10 +75,19 @@ function(setup_target)
      OR INSTALL_${PROJECT_NAME}_HEADERS
      OR INSTALL_${ARG_NAMESPACE}_HEADERS
      OR INSTALL_${ARG_NAMESPACE}_${ARG_NAMESPACE_TARGET}_HEADERS
-     OR INSTALL_${ARG_TARGET}_HEADERS)
+     OR INSTALL_${ARG_TARGET}_HEADERS
+     OR ARG_INSTALL)
      set(ARG_INSTALL_HEADERS TRUE)
-  endif()
+   endif()
 
+  if(INSTALL_ALL_BINARIES
+     OR INSTALL_${PROJECT_NAME}_BINARIES
+     OR INSTALL_${ARG_NAMESPACE}_BINARIES
+     OR INSTALL_${ARG_NAMESPACE}_${ARG_NAMESPACE_TARGET}_BINARIES
+     OR INSTALL_${ARG_TARGET}_BINARIES
+     OR ARG_INSTALL)
+     set(ARG_INSTALL_BINARIES TRUE)
+  endif()
   ########################################################
   ## Library
   ########################################################
@@ -238,10 +249,11 @@ function(setup_target)
 
   endif()
 
-  install(TARGETS ${ARG_TARGET}
-          #EXPORT  ${PROJECT_NAME}Targets
-          RUNTIME ARCHIVE LIBRARY RUNTIME FRAMEWORK BUNDLE PUBLIC_HEADER RESOURCE
-  )
+  if(ARG_INSTALL_BINARIES)
+    install(TARGETS ${ARG_TARGET}
+      #EXPORT  ${PROJECT_NAME}Targets
+      RUNTIME ARCHIVE LIBRARY RUNTIME FRAMEWORK BUNDLE PUBLIC_HEADER RESOURCE)
+  endif()
 
   # Copy DLL-dependencies if a shared library or excutable on Windows on install
   if(WIN32 OR MSYS)

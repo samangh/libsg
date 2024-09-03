@@ -17,7 +17,9 @@ option (ARCH_NATIVE "Optimise code for current architecture" OFF)
 option (USE_SSE "Enable global use of SSE if possible" ARCH_NATIVE)
 
 # By default, install headers. Note that you can always choose the component wih `--component` flag
-option (INSTALL_${PROJECT_NAME}_HEADERS "Install headers of this project" ${PROJECT_IS_TOP_LEVEL})
+option (INSTALL_${PROJECT_NAME} "Install project binaries and headers as part of cmake install" ${PROJECT_IS_TOP_LEVEL})
+option (INSTALL_${PROJECT_NAME}_HEADERS "Install project headers as part of cmake install" INSTALL_${PROJECT_NAME})
+option (INSTALL_${PROJECT_NAME}_BINARIES "Install project binaries as part of cmake install" INSTALL_${PROJECT_NAME})
 
 option (BUILD_TESTS "Builds tests" ON)
 option (SANITIZE "Enable address, eak and undefined Behaviour sanitizers" OFF)
