@@ -10,14 +10,16 @@ set(NAMESPACE SG)
 ##
 ## CMake module paths
 ##
-
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_LIST_DIR}/cmake")
 
 ##
-## Build options
+## Pre-amble
 ##
-
 include(DefaultPreamble)
+
+##
+## Additional Options
+##
 option (BENCHMARK "Run benchmarks" OFF)
 
 ##
@@ -40,8 +42,6 @@ if(BUILD_TESTS)
 endif()
 
 ##
-## Compile options
+## Postamble
 ##
-
-
 include(DefaultPostamble)

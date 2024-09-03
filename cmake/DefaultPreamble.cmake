@@ -112,3 +112,19 @@ if(SANITIZE)
   set(SANITIZE_UNDEFINED ON)
 endif()
 
+##
+## Global project version
+##
+
+string(TOLOWER ${NAMESPACE} NAMESPACE_LOWER)
+
+configure_file (
+  "${CMAKE_CURRENT_LIST_DIR}/version.h.in"
+  "${CMAKE_BINARY_DIR}/include/${NAMESPACE_LOWER}/export/${PROJECT_NAME}_version.h"
+)
+
+install(
+  FILES "${CMAKE_BINARY_DIR}/include/${NAMESPACE_LOWER}/export/${PROJECT_NAME}_version.h"
+  DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}/${NAMESPACE_LOWER}/export/"
+  COMPONENT dev
+)
