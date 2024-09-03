@@ -2,11 +2,10 @@ function(setup_target)
   set(options
     LIBRARY
     EXECUTABLE
-    GENERATE_EXPORT_HEADER   #Libraries only
-    STATIC                   #Libraries only
-    INSTALL                  #Implies INSTALL_HEADERS and INSTALL_BINARIES
     INSTALL_HEADERS
     INSTALL_BINARIES
+    GENERATE_EXPORT_HEADER   #Libraries only
+    STATIC                   #Libraries only
   )
   set(multiValueArgs
     SRC_FILES
@@ -75,8 +74,7 @@ function(setup_target)
      OR INSTALL_${PROJECT_NAME}_HEADERS
      OR INSTALL_${ARG_NAMESPACE}_HEADERS
      OR INSTALL_${ARG_NAMESPACE}_${ARG_NAMESPACE_TARGET}_HEADERS
-     OR INSTALL_${ARG_TARGET}_HEADERS
-     OR ARG_INSTALL)
+     OR INSTALL_${ARG_TARGET}_HEADERS)
      set(ARG_INSTALL_HEADERS TRUE)
    endif()
 
@@ -84,8 +82,7 @@ function(setup_target)
      OR INSTALL_${PROJECT_NAME}_BINARIES
      OR INSTALL_${ARG_NAMESPACE}_BINARIES
      OR INSTALL_${ARG_NAMESPACE}_${ARG_NAMESPACE_TARGET}_BINARIES
-     OR INSTALL_${ARG_TARGET}_BINARIES
-     OR ARG_INSTALL)
+     OR INSTALL_${ARG_TARGET}_BINARIES)
      set(ARG_INSTALL_BINARIES TRUE)
   endif()
   ########################################################
