@@ -7,6 +7,8 @@ project(libsg
 
 set(NAMESPACE SG)
 
+option (BUILD_TESTS "Builds tests" ON)
+
 ##
 ## CMake module paths
 ##
