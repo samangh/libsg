@@ -112,20 +112,6 @@ function(setup_target)
   if(ARG_EXECUTABLE)
     add_executable(${ARG_TARGET} ${ARG_SRC_FILES})
     add_executable(${ARG_NAMESPACE}::${ARG_NAMESPACE_TARGET} ALIAS ${ARG_TARGET})
-
-    ##
-    ## Copy dependencies
-    ##
-    #
-    # On DLL paltforms (e.g. Windows), copy dependent libraries to
-    # executable folder. Has no effect on other systems
-    #
-    # Note: requires Cmake 3.26 or higher
-    if (CMAKE_VERSION VERSION_GREATER_EQUAL "3.26.0")
-      add_custom_command(TARGET ${ARG_TARGET} PRE_BUILD
-        COMMAND ${CMAKE_COMMAND} -E copy -t $<TARGET_FILE_DIR:${ARG_TARGET}> $<TARGET_RUNTIME_DLLS:${ARG_TARGET}>
-        COMMAND_EXPAND_LISTS)
-    endif()
   endif()
   ########################################################
 
@@ -225,6 +211,21 @@ function(setup_target)
   ##
   add_sanitizers(${ARG_TARGET})
 
+
+  ##
+  ## Copy dependencies
+  ##
+
+  # On DLL paltforms (e.g. Windows), copy dependent libraries to
+  # executable folder. Has no effect on other systems
+  #
+  # Note: requires Cmake 3.26 or higher
+  if (CMAKE_VERSION VERSION_GREATER_EQUAL "3.26.0")
+    add_custom_command(TARGET ${ARG_TARGET} PRE_BUILD
+      COMMAND ${CMAKE_COMMAND} -E copy -t $<TARGET_FILE_DIR:${ARG_TARGET}> $<TARGET_RUNTIME_DLLS:${ARG_TARGET}>
+      COMMAND_EXPAND_LISTS)
+  endif()
+
   ##
   ## Install
   ##
@@ -243,31 +244,31 @@ function(setup_target)
           DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}/${NAMESPACE_LOWER}/export/"
           COMPONENT dev)
       endif()
-
   endif()
 
   if(ARG_INSTALL_BINARIES)
     install(TARGETS ${ARG_TARGET}
       #EXPORT  ${PROJECT_NAME}Targets
-      RUNTIME ARCHIVE LIBRARY RUNTIME FRAMEWORK BUNDLE PUBLIC_HEADER RESOURCE)
+      RUNTIME ARCHIVE FRAMEWORK LIBRARY RUNTIME FRAMEWORK BUNDLE PUBLIC_HEADER RESOURCE)
+
+    # Copy DLL-dependencies if a shared library or excutable on Windows on install
+    if(WIN32 OR MSYS)
+      get_target_property(TARGET_TYPE ${ARG_TARGET} TYPE)
+      foreach(TYPE  "EXECUTABLE" "MODULE_LIBRARY" "SHARED_LIBRARY")
+        if (TARGET_TYPE STREQUAL ${TYPE})
+          install(FILES $<TARGET_RUNTIME_DLLS:${ARG_TARGET}> TYPE BIN)
+
+          # install(TARGETS ${ARG_TARGET}
+          #   COMPONENT ${ARG_TARGET}
+          #   RUNTIME_DEPENDENCIES
+          #   PRE_EXCLUDE_REGEXES "api-ms-" "ext-ms-"
+          #   POST_EXCLUDE_REGEXES ".*system32/.*\\.dll"
+          #   DIRECTORIES ${CMAKE_LIBRARY_PATH})
+        endif()
+      endforeach()
+    endif()
   endif()
 
-  # Copy DLL-dependencies if a shared library or excutable on Windows on install
-  if(WIN32 OR MSYS)
-    get_target_property(TARGET_TYPE ${ARG_TARGET} TYPE)
-    foreach(TYPE  "EXECUTABLE" "MODULE_LIBRARY" "SHARED_LIBRARY")
-      if (TARGET_TYPE STREQUAL ${TYPE})
-        install(FILES $<TARGET_RUNTIME_DLLS:${ARG_TARGET}> TYPE BIN)
-
-        # install(TARGETS ${ARG_TARGET}
-        #   COMPONENT ${ARG_TARGET}
-        #   RUNTIME_DEPENDENCIES
-        #   PRE_EXCLUDE_REGEXES "api-ms-" "ext-ms-"
-        #   POST_EXCLUDE_REGEXES ".*system32/.*\\.dll"
-        #   DIRECTORIES /clang64/bin)
-      endif()
-    endforeach()
-  endif()
 endfunction()
 
 function(setup_library)
