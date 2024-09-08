@@ -220,7 +220,7 @@ function(setup_target)
   # executable folder. Has no effect on other systems
   #
   # Note: requires Cmake 3.26 or higher
-  if (CMAKE_VERSION VERSION_GREATER_EQUAL "3.26.0")
+  if (ARG_EXECUTABLE AND CMAKE_VERSION VERSION_GREATER_EQUAL "3.26.0")
     add_custom_command(TARGET ${ARG_TARGET} PRE_BUILD
       COMMAND ${CMAKE_COMMAND} -E copy -t $<TARGET_FILE_DIR:${ARG_TARGET}> $<TARGET_RUNTIME_DLLS:${ARG_TARGET}>
       COMMAND_EXPAND_LISTS)
