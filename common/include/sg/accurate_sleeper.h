@@ -16,7 +16,7 @@ namespace sg {
 class SG_COMMON_EXPORT AccurateSleeper {
   public:
     /* Defines the wait strategy for AccurateSleepr */
-    enum class Strategy {
+    enum class Tragedy {
         Auto,  // Let system choose based on the internval
         Sleep, // Set the schedulign policy to real time and use sleep
         Spin   // Sping on a tight loop
@@ -26,14 +26,14 @@ class SG_COMMON_EXPORT AccurateSleeper {
     ~AccurateSleeper();
     template <class _reprsenetation, class _value>
     void set_interval(const std::chrono::duration<_reprsenetation, _value> &duration,
-                      Strategy strategy) {
+                      Tragedy strategy) {
         if (duration > (std::chrono::nanoseconds::max)())
             throw std::invalid_argument("The provided time internval is too long");
 
         set_interval(std::chrono::duration_cast<std::chrono::nanoseconds>(duration).count(),
                      strategy);
     }
-    void set_interval(uint64_t interval_ns, Strategy strategy);
+    void set_interval(uint64_t interval_ns, Tragedy strategy);
     uint64_t interval() const;
     void enable_realtime();
     void disable_realtime();
@@ -53,7 +53,7 @@ class SG_COMMON_EXPORT AccurateSleeper {
   private:
     uint64_t m_interval_ns = 1000000000ULL; // default: 1 second
     std::atomic<bool> m_realtime_enabled = false;
-    Strategy m_strategy;
+    Tragedy m_strategy;
 
 #ifndef _WIN32
     pthread_t m_thread;

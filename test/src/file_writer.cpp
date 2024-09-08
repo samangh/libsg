@@ -2,8 +2,10 @@
 #include <sg/file_writer.h>
 #include <sg/file_writer_uv.h>
 
-#include <doctest/doctest.h>
-#include <nanobench.h>
+#include <catch2/catch_test_macros.hpp>
+#ifdef BENCHMARK
+    #include <nanobench.h>
+#endif
 
 #include <fstream>
 #include <numeric>
@@ -75,17 +77,17 @@ TEST_CASE("SG::common sg::file_writer: check write_async(...) variations work") 
         sg::file_writer writer;
         writer.start(path, nullptr, nullptr, nullptr);
 
-        SUBCASE("crate shared_buffer") {
+        SECTION("crate shared_buffer") {
             auto a = sg::make_shared_c_buffer<std::byte>(text.size());
             std::memcpy(a.get(), text.data(), text.size() * sizeof(char));
             writer.write_aync(std::move(a));
         }
 
-        SUBCASE("pass pointer") {
+        SECTION("pass pointer") {
             writer.write_aync(text.data(), text.size());
         }
 
-        SUBCASE("pass string_view") {
+        SECTION("pass string_view") {
             writer.write_aync(text);
         }
 
@@ -110,11 +112,11 @@ TEST_CASE("SG::common sg::file_writer: check bytes_transferred()") {
 
     sg::file_writer writer;
     writer.start(path, nullptr, nullptr, nullptr);
-    CHECK_EQ(writer.bytes_transferred(), 0);
+    CHECK(writer.bytes_transferred()== 0);
 
     writer.write_aync(text);
     writer.stop();
-    CHECK_EQ(writer.bytes_transferred(), 4);
+    CHECK(writer.bytes_transferred()== 4);
 }
 
 TEST_CASE("SG::common sg::file_writer: test large sequental writes") {
@@ -132,7 +134,7 @@ TEST_CASE("SG::common sg::file_writer: test large sequental writes") {
         writer.stop();
     }
 
-    CHECK_EQ(std::filesystem::file_size(path), 1024*2048);
+    CHECK(std::filesystem::file_size(path)== 1024*2048);
 }
 
 #ifdef BENCHMARK
@@ -141,7 +143,7 @@ TEST_CASE("SG::common file_writer and file_writer_uv performance" ){
     std::vector<std::vector<uint64_t>> vec_data;
 
     vec_data =   random_data(500, 1500);
-    SUBCASE("sg::file_writer(..)") {
+    SECTION("sg::file_writer(..)") {
         ankerl::nanobench::Bench().minEpochIterations(100).run("sg::file_writer(..)", [&]() {
             sg::file_writer writer;
             writer.start(path, nullptr, nullptr, nullptr);
@@ -155,7 +157,7 @@ TEST_CASE("SG::common file_writer and file_writer_uv performance" ){
     }
 
     vec_data =   random_data(500, 1500);
-    SUBCASE("sg::file_writer_uv(..)") {
+    SECTION("sg::file_writer_uv(..)") {
         ankerl::nanobench::Bench().minEpochIterations(100).run("sg::file_writer_uv(..)", [&]() {
             sg::file_writer_uv writer;
             writer.start(path, nullptr, nullptr, 100);

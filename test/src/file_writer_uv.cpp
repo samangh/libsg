@@ -1,7 +1,7 @@
 #include <cstring>
 #include <sg/file_writer_uv.h>
 
-#include <doctest/doctest.h>
+#include <catch2/catch_test_macros.hpp>
 
 #include <fstream>
 #include <sstream>
@@ -73,10 +73,10 @@ TEST_CASE("SG::common sg::file_writer_uv: test large sequental writes") {
         writer.stop();
     }
 
-    CHECK_EQ(std::filesystem::file_size(path), 1024*2048);
+    CHECK(std::filesystem::file_size(path) == 1024*2048);
 }
 
-TEST_CASE("SG::common sg::file_writer: check that you can't start twice") {
+TEST_CASE("SG::common sg::file_writer_uv: check that you can't start twice") {
     std::string text = "TEST";
     std::string path = "test.txt";
 

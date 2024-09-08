@@ -7,8 +7,6 @@ project(libsg
 
 set(NAMESPACE SG)
 
-option (BUILD_TESTS "Builds tests" ON)
-
 ##
 ## CMake module paths
 ##
@@ -38,8 +36,8 @@ find_package(fmt REQUIRED)
 add_subdirectory(common)
 add_subdirectory(imgui)
 
-if(BUILD_TESTS)
-  include(CTest)
+include(CTest)
+if(BUILD_TESTING)
   add_subdirectory(test)
 endif()
 

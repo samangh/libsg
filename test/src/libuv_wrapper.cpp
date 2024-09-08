@@ -1,10 +1,10 @@
-#include <doctest/doctest.h>
+#include <catch2/catch_test_macros.hpp>
 
 #include <sg/libuv_wrapper.h>
 
 TEST_CASE("SG::common libuv_wrapper: check callbacks are called") {
 
-    SUBCASE("check wrap up and setup callbacks")
+    SECTION("check wrap up and setup callbacks")
     {
         std::atomic_int wrapup_cb_called_count{0};
         std::atomic_int setup_cb_called_count{0};
@@ -33,18 +33,18 @@ TEST_CASE("SG::common libuv_wrapper: check callbacks are called") {
 
             libuv.start_task(setup_func, wrapup_func);
 
-            CHECK_EQ(setup_cb_called_count, 1);
-            CHECK_EQ(wrapup_cb_called_count, 0);
-            CHECK_EQ(stop_cb_called_count, 0);
+            REQUIRE(setup_cb_called_count== 1);
+            REQUIRE(wrapup_cb_called_count== 0);
+            REQUIRE(stop_cb_called_count== 0);
         }
 
-        CHECK_EQ(start_cb_called_count, 1);
-        CHECK_EQ(setup_cb_called_count, 1);
-        CHECK_EQ(wrapup_cb_called_count, 1);
-        CHECK_EQ(stop_cb_called_count, 1);
+        REQUIRE(start_cb_called_count== 1);
+        REQUIRE(setup_cb_called_count== 1);
+        REQUIRE(wrapup_cb_called_count== 1);
+        REQUIRE(stop_cb_called_count== 1);
     }
 
-    SUBCASE("check start/stop callbacks can be removed"){
+    SECTION("check start/stop callbacks can be removed"){
         std::atomic_int start_cb_called_count{0};
         std::atomic_int stop_cb_called_count{0};
         {
@@ -63,23 +63,23 @@ TEST_CASE("SG::common libuv_wrapper: check callbacks are called") {
             libuv.start_task(nullptr, nullptr);
             libuv.remove_task_callbacks(stop_cb_index);
         }
-        CHECK_EQ(start_cb_called_count, 0);
-        CHECK_EQ(stop_cb_called_count, 0);
+        REQUIRE(start_cb_called_count == 0);
+        REQUIRE(stop_cb_called_count== 0);
 
     }
 }
 
 
 TEST_CASE("SG::common libuv_wrapper: check libuv_wrapper.cpp(...) can be started/stopped with no tasks") {
-    SUBCASE("simple initialisation") { auto libuv = sg::libuv_wrapper(); }
+    SECTION("simple initialisation") { auto libuv = sg::libuv_wrapper(); }
 
-    SUBCASE("manual stop") {
+    SECTION("manual stop") {
         auto libuv = sg::libuv_wrapper();
         libuv.stop();
         CHECK(libuv.is_stopped());
     }
 
-    SUBCASE("async stop") {
+    SECTION("async stop") {
         auto libuv = sg::libuv_wrapper();
         libuv.stop_async();
         libuv.block_until_stopped();

@@ -1,18 +1,18 @@
 #include "sg/rolling_contiguous_buffer.h"
 
 #include <atomic>
-#include <doctest/doctest.h>
+#include <catch2/catch_test_macros.hpp>
 
 TEST_CASE("SG::common rolling_contiguous_buffer: check size() and capacity()") {
     sg::rolling_contiguous_buffer<int> buffer(5);
 
     /* check size() */
-    CHECK_EQ(buffer.size(), 0);
+    REQUIRE(buffer.size()== 0);
     buffer.push_back(0);
-    CHECK_EQ(buffer.size(), 1);
+    REQUIRE(buffer.size()== 1);
 
     /* check capacity */
-    CHECK_EQ(buffer.capacity(), 5);
+    REQUIRE(buffer.capacity()== 5);
 }
 
 TEST_CASE("SG::common rolling_contiguous_buffer: check push_back()") {
@@ -26,7 +26,7 @@ TEST_CASE("SG::common rolling_contiguous_buffer: check push_back()") {
     for (size_t i=0; i <5; i++)
         count += buffer[i];
 
-    CHECK_EQ(count, 5);
+    REQUIRE(count== 5);
 }
 
 TEST_CASE("SG::common rolling_contiguous_buffer: check rolling works before memcpy()") {
@@ -37,15 +37,15 @@ TEST_CASE("SG::common rolling_contiguous_buffer: check rolling works before memc
     for (size_t i=0; i <5; i++)
         buffer.push_back(0);
 
-    /* full full size again, push all of old values out*/
+    /* full full size again== push all of old values out*/
     for (size_t i=0; i <5; i++)
         buffer.push_back(1);
 
     for (size_t i=0; i <5; i++)
         count += buffer[i];
 
-    CHECK_EQ(count, 5);
-    CHECK_EQ(buffer.size(), 5);
+    REQUIRE(count== 5);
+    REQUIRE(buffer.size()== 5);
 }
 
 TEST_CASE("SG::common rolling_contiguous_buffer: check rolling works after memcpy()") {
@@ -63,8 +63,8 @@ TEST_CASE("SG::common rolling_contiguous_buffer: check rolling works after memcp
     for (size_t i=0; i <5; i++)
         count += buffer[i];
 
-    CHECK_EQ(count, 5);
-    CHECK_EQ(buffer.size(), 5);
+    REQUIRE(count== 5);
+    REQUIRE(buffer.size()== 5);
 }
 
 TEST_CASE("SG::common rolling_contiguous_buffer: check resize() growth") {
@@ -78,11 +78,11 @@ TEST_CASE("SG::common rolling_contiguous_buffer: check resize() growth") {
     for (size_t i = 0; i < buffer.size(); i++)
         count += buffer[i];
 
-    CHECK_EQ(count, 5);
-    CHECK_EQ(buffer.size(), 5);
+    REQUIRE(count== 5);
+    REQUIRE(buffer.size()== 5);
 
     buffer.resize(10);
-    CHECK_EQ(buffer.size(), 5);
+    REQUIRE(buffer.size()== 5);
 
     /* fill fully */
     for (size_t i = 5; i < 10; i++)
@@ -92,8 +92,8 @@ TEST_CASE("SG::common rolling_contiguous_buffer: check resize() growth") {
     for (size_t i = 0; i < buffer.size(); i++)
         count += buffer[i];
 
-    CHECK_EQ(count, 10);
-    CHECK_EQ(buffer.size(), 10);
+    REQUIRE(count== 10);
+    REQUIRE(buffer.size()== 10);
 }
 
 TEST_CASE("SG::common rolling_contiguous_buffer: check resize() reduction") {
@@ -105,13 +105,13 @@ TEST_CASE("SG::common rolling_contiguous_buffer: check resize() reduction") {
         buffer.push_back(i);
 
     buffer.resize(2);
-    CHECK_EQ(buffer.size(), 2);
-    CHECK_EQ(buffer.capacity(), 2);
+    REQUIRE(buffer.size()== 2);
+    REQUIRE(buffer.capacity()== 2);
 
     for (size_t i = 0; i < buffer.size(); i++)
         count += buffer[i];
 
-    CHECK_EQ(count, 3+4);
+    REQUIRE(count== 3+4);
 }
 
 TEST_CASE("SG::common rolling_contiguous_buffer: check for loop iteration") {
@@ -125,22 +125,22 @@ TEST_CASE("SG::common rolling_contiguous_buffer: check for loop iteration") {
     count=0;
     for (auto& a: buffer)
         count +=a;
-    CHECK_EQ(count, 5);
+    REQUIRE(count== 5);
 
     count=0;
     for (auto a: buffer)
         count +=a;
-    CHECK_EQ(count, 5);
+    REQUIRE(count== 5);
 
     count=0;
     for (const auto a: buffer)
         count +=a;
-    CHECK_EQ(count, 5);
+    REQUIRE(count== 5);
 
     count=0;
     for (const auto& a: buffer)
         count +=a;
-    CHECK_EQ(count, 5);
+    REQUIRE(count== 5);
 }
 
 TEST_CASE("SG::common rolling_contiguous_buffer: check begin/end") {
@@ -150,17 +150,17 @@ TEST_CASE("SG::common rolling_contiguous_buffer: check begin/end") {
     for (size_t i = 0; i < 5; i++)
         buffer.push_back(1);
 
-    CHECK_EQ(buffer.begin(), &buffer[0]);
-    CHECK_EQ(buffer.end(), &buffer[5]);
+    REQUIRE(buffer.begin()== &buffer[0]);
+    REQUIRE(buffer.end()== &buffer[5]);
 
-    CHECK_EQ(buffer.cbegin(), &buffer[0]);
-    CHECK_EQ(buffer.cend(), &buffer[5]);
+    REQUIRE(buffer.cbegin()== &buffer[0]);
+    REQUIRE(buffer.cend()== &buffer[5]);
 
     int counter=0;
     *buffer.begin()=2;
     for(auto it=buffer.begin(); it !=buffer.end(); ++it)
         counter += *it;
-    CHECK_EQ(counter, 6);
+    REQUIRE(counter== 6);
 }
 
 TEST_CASE("SG::common rolling_contiguous_buffer: modifying through []") {
@@ -171,7 +171,7 @@ TEST_CASE("SG::common rolling_contiguous_buffer: modifying through []") {
         buffer.push_back(1);
 
     buffer[1]=2;
-    CHECK_EQ(buffer[1], 2);
+    REQUIRE(buffer[1]== 2);
 }
 
 TEST_CASE("SG::common rolling_contiguous_buffer: check copy/move") {
@@ -242,7 +242,7 @@ TEST_CASE("SG::common rolling_contiguous_buffer: check copy/move") {
     }
 
     /* check that data was actually cleared only 5 times */
-    CHECK_EQ(ctr_count, 5);
-    CHECK_EQ(dest_count, 5);
-    CHECK_EQ(copy_count, 0);
+    REQUIRE(ctr_count== 5);
+    REQUIRE(dest_count== 5);
+    REQUIRE(copy_count== 0);
 }

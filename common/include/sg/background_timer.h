@@ -49,7 +49,7 @@ class SG_COMMON_EXPORT background_timer {
     /* gets the interval in seconds */
     uint64_t interval() const;
     void set_interval(uint32_t interval_ns,
-                      sg::AccurateSleeper::Strategy strategy = sg::AccurateSleeper::Strategy::Auto);
+                      sg::AccurateSleeper::Tragedy strategy = sg::AccurateSleeper::Tragedy::Auto);
 
     /* sets whether the time shouuld account for how long the action takes,
      * and remove that from the wait interval */

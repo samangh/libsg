@@ -44,7 +44,7 @@ class SG_COMMON_EXPORT background_timer::impl {
 
     /* gets the interval in seconds */
     uint64_t interval() const;
-    void set_interval(uint32_t interval_ns, sg::AccurateSleeper::Strategy strategy);
+    void set_interval(uint32_t interval_ns, sg::AccurateSleeper::Tragedy strategy);
 
     /* sets whether the time shouuld account for how long the action takes,
      * and remove that from the wait interval */
@@ -184,7 +184,7 @@ uint64_t background_timer::impl::interval() const {
 }
 
 void background_timer::impl::set_interval(uint32_t interval_ns,
-                                          AccurateSleeper::Strategy strategy) {
+                                          AccurateSleeper::Tragedy strategy) {
     std::unique_lock lock(m_sleeper_mutex);
     m_sleeper.set_interval(interval_ns, strategy);
 }
@@ -211,7 +211,7 @@ std::exception_ptr background_timer::get_exception() const { return pimpl->get_e
 bool background_timer::has_exception() const { return pimpl->has_exception(); }
 
 uint64_t background_timer::interval() const { return pimpl->interval(); }
-void background_timer::set_interval(uint32_t interval_ns, sg::AccurateSleeper::Strategy strategy) {
+void background_timer::set_interval(uint32_t interval_ns, sg::AccurateSleeper::Tragedy strategy) {
     return pimpl->set_interval(interval_ns, strategy);
 }
 

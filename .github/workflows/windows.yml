@@ -39,7 +39,7 @@ jobs:
                    -DUSE_STATIC_RUNTIME=${{ matrix.config.static_runtime }} `
                    -DCMAKE_TOOLCHAIN_FILE=C:/vcpkg/scripts/buildsystems/vcpkg.cmake `
                    -DVCPKG_TARGET_TRIPLET=${{ matrix.config.triplet }} `
-                   -DBENCHMARK=ON `
+                   -DBUILD_TESTING=ON -DBENCHMARK=ON `
                    -DCMAKE_BUILD_TYPE=Release -DIPO=ON
 
       - name: Build
