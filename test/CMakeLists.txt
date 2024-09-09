@@ -5,6 +5,11 @@
 # See:
 # - https://github.com/catchorg/Catch2/issues/2046
 # - https://github.com/catchorg/Catch2/issues/2210
+
+if(WIN32 OR MSYS2)
+  set(BUILD_SHARED_LIBS FALSE)
+endif()
+
 CPMAddPackage("gh:catchorg/catch2@3.7.0")
 target_compile_features(Catch2 PRIVATE cxx_std_20)
 target_compile_features(Catch2WithMain PRIVATE cxx_std_20)
