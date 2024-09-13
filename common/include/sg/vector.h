@@ -12,7 +12,7 @@ template <typename T> void append(std::vector<T> &base, const std::vector<T> &to
  * @brief Move contents of one vector to the end of another.
  *
  * There is no point in using this for basic types where a move is
- * equivalnet to copy (e.g. ini, double). But for more complex types
+ * equivalent to copy (e.g. ini, double). But for more complex types
  * this is useful.
  */
 template <typename T> void append(std::vector<T> &base, std::vector<T> &&to_add) {

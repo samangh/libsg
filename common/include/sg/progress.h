@@ -11,9 +11,9 @@ struct Progress {
     /** @brief current status message */
     std::string message;
     /** @brief current progress */
-    float progress;
+    float progress{0};
     /** @brief max value that @ref progress can take */
-    float max_val = 1;
+    float max_val{1};
 };
 
 /** @brief Source for @ref ProgressIndicator */
@@ -38,7 +38,7 @@ class SG_COMMON_EXPORT ProgressIndicator {
     ProgressIndicator(const ProgressSource &source);
 
     /** @brief current progress */
-    Progress progress() const;
+    [[nodiscard]] Progress progress() const;
 
   private:
     const ProgressSource &m_source;

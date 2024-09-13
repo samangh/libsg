@@ -16,7 +16,7 @@ namespace sg::checksum {
  * Calculates CRC32-C checksum, using polynomial 0x1EDC6F41 (or reversed representation,
  * 0x82F63B78).
  *
- * Assumtions:
+ * Assumptions:
  *  - Initial remainder:       0xFFFFFFFF
  *  - Reflect input bytes:     yes
  *  - Reflex output remainder: yes
@@ -26,12 +26,12 @@ namespace sg::checksum {
  * @param length    Length of input data
  * @return
  */
-SG_COMMON_EXPORT uint32_t crc32c(const void *data, std::size_t length);
+[[nodiscard]] SG_COMMON_EXPORT uint32_t crc32c(const void *data, std::size_t length);
 
-SG_COMMON_EXPORT uint32_t crc32(const void *data, std::size_t length);
+[[nodiscard]] SG_COMMON_EXPORT uint32_t crc32(const void *data, std::size_t length);
 
-SG_COMMON_EXPORT uint16_t crc16(const void *data, std::size_t length);
+[[nodiscard]] SG_COMMON_EXPORT uint16_t crc16(const void *data, std::size_t length);
 
-SG_COMMON_EXPORT bool can_do_crc32c_hardware();
+[[nodiscard]]  SG_COMMON_EXPORT bool can_do_crc32c_hardware();
 
 } // namespace sg::checksum

@@ -15,7 +15,8 @@ namespace sg::bytes {
 /* universal function for swapping bytes of a number.
  *
  * This is optimised well by clang/gcc, not as well on MSVC. */
-template <std::integral T> constexpr T byteswap(T value) {
+template <std::integral T>
+[[nodiscard]] constexpr T byteswap(T value) {
 #ifdef __cpp_lib_byteswap
     return std::byteswap(val);
 #else
@@ -30,13 +31,13 @@ template <std::integral T> constexpr T byteswap(T value) {
 template <typename T>
   requires(std::is_trivially_copyable_v<T> &&
            std::has_unique_object_representations_v<T>)
-constexpr std::array<std::byte, sizeof(T)> to_bytes(T input) {
+[[nodiscard]] constexpr std::array<std::byte, sizeof(T)> to_bytes(T input) {
     return std::bit_cast<std::array<std::byte, sizeof(T)>>(input);
 }
 
 /* Converts an integer objectg to bytes, modified to match a target endianess*/
 template <std::integral T>
-std::vector<std::byte> to_bytes(T input, std::endian dest_endian) {
+[[nodiscard]] std::vector<std::byte> to_bytes(T input, std::endian dest_endian) {
     if (dest_endian != std::endian::native)
       input = byteswap(input);
 
@@ -44,7 +45,7 @@ std::vector<std::byte> to_bytes(T input, std::endian dest_endian) {
 }
 
 template <std::integral T>
-T to_integral(const std::byte* buff, std::endian src_endian = std::endian::native) {
+[[nodiscard]] T to_integral(const std::byte* buff, std::endian src_endian = std::endian::native) {
     T val;
     memcpy(&val, buff, sizeof(T));
 
@@ -53,10 +54,10 @@ T to_integral(const std::byte* buff, std::endian src_endian = std::endian::nativ
     return val;
 }
 
-SG_COMMON_EXPORT double to_double(const std::byte *buff,
-                 std::endian src_endian = std::endian::native);
+[[nodiscard]] SG_COMMON_EXPORT double to_double(const std::byte* buff,
+                                                std::endian src_endian = std::endian::native);
 
-SG_COMMON_EXPORT std::array<std::byte, sizeof(double)>
-to_bytes(double input, std::endian endian = std::endian::native);
+[[nodiscard]] SG_COMMON_EXPORT std::array<std::byte, sizeof(double)> to_bytes(
+    double input, std::endian endian = std::endian::native);
 
 } // namespace sg::bytes

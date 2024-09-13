@@ -26,7 +26,7 @@ class enable_lifetime_indicator {
      * invalid if no other object is holding the shared_ptr */
   public:
     typedef std::nullptr_t item_type;
-    std::weak_ptr<item_type> get_lifetime_indicator() const noexcept { return _indicator; }
+    [[nodiscard]] std::weak_ptr<item_type> get_lifetime_indicator() const noexcept { return _indicator; }
     virtual ~enable_lifetime_indicator() = default;
 
   private:
@@ -59,9 +59,8 @@ static inline void* MallocOrThrow(size_t size) {
 }
 
 static inline void* ReallocOrFreeAndThrow(void* ptr, size_t size) {
-    void* result;
-
-    if (size==0)
+	void *result;
+	if (size==0)
         goto error;
 
     result = realloc(ptr, size);
