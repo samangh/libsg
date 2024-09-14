@@ -93,8 +93,8 @@ bool file_writer::is_running() const
     return m_thread.joinable();
 }
 
-void file_writer::write_aync(std::string_view view) {
-    write_aync(view.data(), view.size());
+void file_writer::write_async(std::string_view view) {
+    write_async(view.data(), view.size());
 }
 
 size_t file_writer::bytes_transferred() const

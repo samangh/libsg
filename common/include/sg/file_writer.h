@@ -49,7 +49,7 @@ class SG_COMMON_EXPORT file_writer {
 
     template<typename U>
     requires std::convertible_to<U, buffer_type>
-    void write_aync(U&& buff) {
+    void write_async(U&& buff) {
         std::lock_guard lock(m_mutex);
         m_data.push_back(std::forward<U>(buff));
         m_signal.release();
@@ -57,13 +57,13 @@ class SG_COMMON_EXPORT file_writer {
 
     template<typename U>
     requires std::is_trivially_copyable_v<U>
-    void write_aync(const U* ptr,  size_t length) {
+    void write_async(const U* ptr,  size_t length) {
         auto a = sg::make_shared_c_buffer<std::byte>(length*sizeof(U));
         std::memcpy(a.get(), ptr, length * sizeof(char));
-        write_aync(std::move(a));
+        write_async(std::move(a));
     }
 
-    void write_aync(std::string_view view);
+    void write_async(std::string_view view);
 
     [[nodiscard]] size_t bytes_transferred() const;
 private:

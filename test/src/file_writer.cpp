@@ -44,7 +44,7 @@ TEST_CASE("SG::common sg::file_writer: check writer flushes correctly") {
 
         auto a = sg::make_shared_c_buffer<std::byte>(text.size());
         std::memcpy(a.get(), text.data(), text.size() * sizeof(char));
-        writer.write_aync(std::move(a));
+        writer.write_async(std::move(a));
 
         writer.stop();
 
@@ -58,7 +58,7 @@ TEST_CASE("SG::common sg::file_writer: check writer flushes correctly") {
 
             auto a = sg::make_shared_c_buffer<std::byte>(text.size());
             std::memcpy(a.get(), text.data(), text.size() * sizeof(char));
-            writer.write_aync(std::move(a));
+            writer.write_async(std::move(a));
         }
 
         std::ifstream t(path);
@@ -80,15 +80,15 @@ TEST_CASE("SG::common sg::file_writer: check write_async(...) variations work") 
         SECTION("crate shared_buffer") {
             auto a = sg::make_shared_c_buffer<std::byte>(text.size());
             std::memcpy(a.get(), text.data(), text.size() * sizeof(char));
-            writer.write_aync(std::move(a));
+            writer.write_async(std::move(a));
         }
 
         SECTION("pass pointer") {
-            writer.write_aync(text.data(), text.size());
+            writer.write_async(text.data(), text.size());
         }
 
         SECTION("pass string_view") {
-            writer.write_aync(text);
+            writer.write_async(text);
         }
 
         writer.stop();
@@ -114,7 +114,7 @@ TEST_CASE("SG::common sg::file_writer: check bytes_transferred()") {
     writer.start(path, nullptr, nullptr, nullptr);
     CHECK(writer.bytes_transferred()== 0);
 
-    writer.write_aync(text);
+    writer.write_async(text);
     writer.stop();
     CHECK(writer.bytes_transferred()== 4);
 }
@@ -129,7 +129,7 @@ TEST_CASE("SG::common sg::file_writer: test large sequental writes") {
         for (const auto& buf : vec_data) {
             auto data_buf = sg::make_shared_c_buffer<std::byte>(buf.size() * sizeof(uint64_t));
             std::memcpy(data_buf.get(), &buf[0], buf.size() * sizeof(uint64_t));
-            writer.write_aync(std::move(data_buf));
+            writer.write_async(std::move(data_buf));
         }
         writer.stop();
     }
@@ -150,7 +150,7 @@ TEST_CASE("SG::common file_writer and file_writer_uv performance" ){
             for (const auto& buf : vec_data) {
                 auto data_buf = sg::make_shared_c_buffer<std::byte>(buf.size() * sizeof(uint64_t));
                 std::memcpy(data_buf.get(), &buf[0], buf.size() * sizeof(uint64_t));
-                writer.write_aync(std::move(data_buf));
+                writer.write_async(std::move(data_buf));
             }
             writer.stop();
         });
