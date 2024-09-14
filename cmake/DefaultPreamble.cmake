@@ -74,6 +74,13 @@ endif()
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_LIST_DIR}/../external/sanitizers-cmake/cmake")
 
 ##
+## Global properties
+##
+
+# Disable additional targets from being created when using CTest
+set_property(GLOBAL PROPERTY CTEST_TARGETS_ADDED 1)
+
+##
 ## Import functions
 ##
 
