@@ -20,7 +20,8 @@ include(DefaultPreamble)
 ##
 ## Additional Options
 ##
-option (BENCHMARK "Run benchmarks" OFF)
+option(BENCHMARK "Run benchmarks" OFF)
+option(IMGUI "Include IMGUI stuff" ON)
 
 ##
 ## Packages
@@ -34,7 +35,10 @@ find_package(fmt REQUIRED)
 ##
 
 add_subdirectory(common)
-add_subdirectory(imgui)
+
+if(IMGUI)
+  add_subdirectory(imgui)
+endif()
 
 include(CTest)
 if(BUILD_TESTING)
