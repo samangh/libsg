@@ -10,10 +10,10 @@
 	path = external/imgui
 	url = https://github.com/ocornut/imgui.git
 	branch = master
-[submodule "external/sanitizers-cmake"]
-	path = external/sanitizers-cmake
-	url = https://github.com/arsenm/sanitizers-cmake.git
-	branch = master
 [submodule "external/thread-pool"]
 	path = external/thread-pool
 	url = https://github.com/DeveloperPaul123/thread-pool.git
+[submodule "external/libsg_cmake"]
+	path = external/libsg_cmake
+	url = git@github.com:samangh/libsg_cmake.git
+	branch = master
