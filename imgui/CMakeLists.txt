@@ -1,7 +1,13 @@
 set(SG_TARGET_NANE "imgui")
 set(TARGET "sg_${SG_TARGET_NANE}")
-set(IMGUI_DIR ${CMAKE_CURRENT_SOURCE_DIR}/../external/imgui)
-set(IMPLOT_DIR ${CMAKE_CURRENT_SOURCE_DIR}/../external/implot)
+
+CPMAddPackage("gh:ocornut/imgui@1.91.1-docking")
+CPMAddPackage(
+  NAME implot
+  GITHUB_REPOSITORY epezent/implot
+  GIT_TAG f156599faefe316f7dd20fe6c783bf87c8bb6fd9
+)
+
 set(PORTABLE_FILE_DIALOGS_DIR ${CMAKE_CURRENT_SOURCE_DIR}/../external/portable-file-dialogs)
 
 find_package(SDL2 REQUIRED)
@@ -15,11 +21,11 @@ add_subdirectory(${PORTABLE_FILE_DIALOGS_DIR} ../external/portable-file-dialogs 
 ## ImGui source files
 ##
 file(GLOB SRC_FILES
-  ${IMGUI_DIR}/*.cpp
-  ${IMGUI_DIR}/backends/imgui_impl_opengl3.cpp
-  ${IMGUI_DIR}/backends/imgui_impl_sdl2.cpp
+  ${imgui_SOURCE_DIR}/*.cpp
+  ${imgui_SOURCE_DIR}/backends/imgui_impl_opengl3.cpp
+  ${imgui_SOURCE_DIR}/backends/imgui_impl_sdl2.cpp
 
-  ${IMPLOT_DIR}/*.cpp
+  ${implot_SOURCE_DIR}/*.cpp
 
   ${CMAKE_CURRENT_SOURCE_DIR}/src/*.c
   ${CMAKE_CURRENT_SOURCE_DIR}/src/*.cc
@@ -51,8 +57,8 @@ setup_library(
      ${SRC_FILES}
   INCLUDE_INTERFACE
   INCLUDE_PUBLIC
-    $<BUILD_INTERFACE:${IMGUI_DIR}>
-    $<BUILD_INTERFACE:${IMPLOT_DIR}>
+    $<BUILD_INTERFACE:${imgui_SOURCE_DIR}>
+    $<BUILD_INTERFACE:${implot_SOURCE_DIR}>
     $<BUILD_INTERFACE:${IMGUI_FILE_BROWSER_DIR}>
   INCLUDE_PRIVATE
     Boost::Boost
