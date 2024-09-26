@@ -33,4 +33,17 @@ template <typename enumT>
            static_cast<T>(enum_to_check);
 }
 
+template <typename enumT, typename T = std::underlying_type_t<enumT>>
+    requires std::is_enum_v<enumT>
+[[nodiscard]] T underlying_value(enumT enumeration) {
+    return static_cast<T>(enumeration);
+}
+
+template <typename enumT, typename T = std::underlying_type_t<enumT>>
+    requires std::is_enum_v<enumT>
+[[nodiscard]] enumT from_underlying_value(T underlying_value) {
+    return static_cast<enumT>(underlying_value);
+}
+
+
 }  // namespace sg::enumeration
