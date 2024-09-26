@@ -30,7 +30,7 @@ void IImGuiWrapper::iterate(bool& done)
 
 void IImGuiWrapper::cleanup()
 {
-    on_end_t();
+    m_on_end();
     if (sg::enumeration::contains(m_configflags, ConfigFlags::IncludeImPlot))
         ImPlot::CreateContext();
 }
