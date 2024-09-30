@@ -34,7 +34,7 @@ void show_button(dialog_box_result& resultStore, dialog_box_result resultIfClick
  * @param flags     Addition ImGuiWindowFlags_* flags
  * @return result of the dialog. This will be `DialogResult::NoResult` if the user has not pressed a button.
  */
-dialog_box_result dialog_box(const char *imgui_id,
+[[nodiscard]] dialog_box_result dialog_box(const char *imgui_id,
                         const std::string &message,
                              const dialog_box_buttons buttons = dialog_box_buttons::Ok,
                         const int flags = ImGuiWindowFlags_AlwaysAutoResize |
