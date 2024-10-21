@@ -1,7 +1,7 @@
 set(SG_TARGET_NANE "imgui")
 set(TARGET "sg_${SG_TARGET_NANE}")
 
-CPMAddPackage("gh:ocornut/imgui@1.91.1-docking")
+CPMAddPackage("gh:ocornut/imgui@1.91.4-docking")
 CPMAddPackage(
   NAME implot
   GITHUB_REPOSITORY epezent/implot
