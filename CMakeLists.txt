@@ -21,7 +21,7 @@ include(DefaultPreamble)
 ## Additional Options
 ##
 option(BENCHMARK "Run benchmarks" OFF)
-option(IMGUI "Include IMGUI stuff" ON)
+option(LIBSG_IMGUI "Include IMGUI stuff" ON)
 
 ##
 ## Packages
@@ -36,7 +36,7 @@ find_package(fmt REQUIRED)
 
 add_subdirectory(common)
 
-if(IMGUI)
+if(LIBSG_IMGUI)
   add_subdirectory(imgui)
 endif()
 
