@@ -42,6 +42,7 @@ setup_library(
   LINK_INTERFACE
   LINK_PUBLIC
     LibUV::LibUV
+    fmt::fmt
   LINK_PRIVATE
     $<$<BOOL:${SSE_SSE42_FOUND}>:SSE::SSE42> # For hardware accelerated CRC32
     $<$<BOOL:${SSE_CRC32_FOUND}>:SSE::CRC32> # For hardware accelerated CRC32
@@ -49,7 +50,6 @@ setup_library(
     Threads::Threads
     $<$<BOOL:${WIN32}>:Winmm>
     $<IF:$<BOOL:${USE_STATIC_LIBS}>,zstd::libzstd_static,zstd::libzstd_shared>
-    fmt::fmt
   COMPILE_OPTIONS_INTERFACE
   COMPILE_OPTIONS_PUBLIC
   COMPILE_OPTIONS_PRIVATE
