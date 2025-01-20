@@ -317,7 +317,14 @@ void tcp_listener::impl::on_new_connection(uv_stream_t *server, int status) {
    std::shared_ptr<client_data> client;
    {
        std::lock_guard lock(a->m_mutex);
-       id = a->m_client_counter++;
+
+       /* increment client id, check that it's not in use (in case of overflow) */
+       while(true)
+       {
+           id = a->m_client_counter++;
+           if  (!a->m_clients.contains(id))
+               break;
+       }
        a->m_clients.emplace(id, std::make_shared<client_data>(a, id));
 
        client = a->m_clients.at(id);
