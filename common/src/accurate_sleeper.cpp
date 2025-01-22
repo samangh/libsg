@@ -26,10 +26,6 @@ sg::AccurateSleeper::AccurateSleeper() {}
 sg::AccurateSleeper::~AccurateSleeper() { disable_realtime(); }
 
 void sg::AccurateSleeper::set_interval(uint64_t interval_ns, Tragedy strategy) {
-	if (strategy ==Tragedy::Auto)
-	{
-		
-	}
     if (strategy == Tragedy::Auto) {
         /* Use tight loop if period is 1 ms or less */
         if (interval_ns > 1000000)

@@ -46,7 +46,7 @@ class SG_COMMON_EXPORT background_timer {
     std::exception_ptr get_exception() const;
     bool has_exception() const;
 
-    /* gets the interval in seconds */
+    /* interval in nanoseconds */
     uint64_t interval() const;
     void set_interval(uint32_t interval_ns,
                       sg::AccurateSleeper::Tragedy strategy = sg::AccurateSleeper::Tragedy::Auto);
