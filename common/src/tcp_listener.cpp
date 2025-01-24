@@ -156,6 +156,7 @@ class SG_COMMON_EXPORT tcp_listener::impl : public sg::enable_lifetime_indicator
    }
 
    std::vector<sg::tcp_listener::buffer> get_buffer(client_id);
+   std::vector<sg::tcp_listener::buffer> get_buffer_copy(client_id) const;
    std::map<client_id, std::vector<tcp_listener::buffer>> get_buffers();
 
  private:
@@ -263,6 +264,19 @@ std::vector<sg::tcp_listener::buffer> tcp_listener::impl::get_buffer(client_id i
    }
 
    return buffers;
+}
+
+std::vector<sg::tcp_listener::buffer> tcp_listener::impl::get_buffer_copy(client_id id) const  {
+   std::lock_guard lock(m_mutex);
+   std::vector<sg::tcp_listener::buffer> buffers_copy;
+
+   for (const auto &buffer : m_clients.at(id)->data) {
+       auto new_buffer = sg::make_unique_c_buffer<std::byte>(buffer.size());
+       std::memcpy(new_buffer.get(), buffer.get(), sizeof(std::byte) * buffer.size());
+       buffers_copy.emplace_back(std::move(new_buffer));
+   }
+
+   return buffers_copy;
 }
 
 std::map<tcp_listener::client_id, std::vector<tcp_listener::buffer>>
@@ -508,6 +522,10 @@ void tcp_listener::write(client_id id, std::vector<std::byte> vec)
 
 std::vector<tcp_listener::buffer> tcp_listener::get_buffers(client_id id) {
    return pimpl->get_buffer(id);
+}
+
+std::vector<tcp_listener::buffer> tcp_listener::get_buffers_copy(client_id id) const {
+   return pimpl->get_buffer_copy(id);
 }
 
 std::vector<std::byte> tcp_listener::get_buffers_as_vector(client_id id) {

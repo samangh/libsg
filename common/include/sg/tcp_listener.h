@@ -65,6 +65,9 @@ class SG_COMMON_EXPORT tcp_listener : sg::enable_lifetime_indicator {
    /* Returns data read from a client */
    std::vector<buffer> get_buffers(client_id);
 
+   /* Returnns _a copy_ of the buffers for a client, leaving the buffer in place */
+   std::vector<buffer> get_buffers_copy(client_id) const;
+
    /* Returns data read from all clients */
    std::map<client_id, std::vector<buffer>> get_buffers();
 
@@ -74,7 +77,7 @@ class SG_COMMON_EXPORT tcp_listener : sg::enable_lifetime_indicator {
    /* Combines all data read from all client as a set of vector */
    std::map<client_id, std::vector<std::byte>> get_buffers_as_vector();
 
-   std::vector<std::byte> buffers_to_vector(std::vector<buffer>);
+   static std::vector<std::byte> buffers_to_vector(std::vector<buffer>);
 };
 
 } // namespace sg
