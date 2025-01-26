@@ -108,8 +108,7 @@ class SG_COMMON_EXPORT tcp_listener::impl : public sg::enable_lifetime_indicator
        };
 
        std::function<void(sg::libuv_wrapper *)> started_func = [&, this](sg::libuv_wrapper *) {
-           if (m_on_started_listening_cb)
-               m_on_started_listening_cb(m_parent_listener);
+
        };
 
        std::function<void(sg::libuv_wrapper *)> stopped_func = [&, this](sg::libuv_wrapper *) {
@@ -123,8 +122,14 @@ class SG_COMMON_EXPORT tcp_listener::impl : public sg::enable_lifetime_indicator
        m_libuv.start_task( setup_func, nullptr);
 
        auto listen_result = conn_promise.get_future().get();
-       if (!listen_result.success)
+       if (listen_result.success) {
+           if (m_on_started_listening_cb)
+               m_on_started_listening_cb(m_parent_listener);
+       } else
+       {
+           stop();
            throw std::runtime_error(listen_result.error_message);
+       }
    }
 
    void block_until_stopped() {
