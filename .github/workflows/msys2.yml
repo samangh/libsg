@@ -9,6 +9,7 @@ jobs:
   build:
     name: ${{matrix.config.sys}}
     runs-on: windows-latest
+    timeout-minutes: 20
     defaults:
       run:
         shell: msys2 {0}

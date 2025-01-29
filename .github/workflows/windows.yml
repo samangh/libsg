@@ -9,6 +9,7 @@ jobs:
   build:
     name: ${{matrix.config.name}}
     runs-on: windows-latest
+    timeout-minutes: 20
     strategy:
       fail-fast: false
       matrix:
