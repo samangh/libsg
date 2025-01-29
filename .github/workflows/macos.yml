@@ -56,4 +56,5 @@ jobs:
 
       - name: Test
         working-directory: ${{github.workspace}}/build
-        run: ./test/sg_test
+        run: ctest
+        # ./test/sg_test

@@ -52,4 +52,5 @@ jobs:
 
       - name: Test
         working-directory: ${{github.workspace}}/build
-        run: .\test\Release\sg_test.exe
+        run: ctest
+        # .\test\Release\sg_test.exe

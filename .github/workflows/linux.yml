@@ -53,13 +53,13 @@ jobs:
         working-directory: ${{github.workspace}}/build
         run: cmake --build .
 
-      - name: Test
-        working-directory: ${{github.workspace}}/build
-        run: ./test/sg_test
-
       - name: Install
         working-directory: ${{github.workspace}}/build
         run: cmake --install . --prefix ../prefix
+
+      - name: Test
+        working-directory: ${{github.workspace}}/build
+        run: ctest
 
       - name: List dependencies
         working-directory: ${{github.workspace}}/build
