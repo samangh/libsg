@@ -18,8 +18,8 @@ void notifiable_background_worker::start_async() {
     wait_for_stop();
 
     try {
-        m_promise = std::promise<void>();
-        m_future = m_promise.get_future();
+        m_result_promise = std::promise<void>();
+        m_result_future = m_result_promise.get_future();
 
         /* we set m_is_running, as usually there is a delay before a
          * thread gets going and so the user can call the is_running
@@ -98,13 +98,13 @@ void notifiable_background_worker::action() {
 
     m_is_running.store(false);
     if (ex)
-        m_promise.set_exception(ex);
+        m_result_promise.set_exception(ex);
     else
-        m_promise.set_value();
+        m_result_promise.set_value();
 }
 
 void notifiable_background_worker::notify() { m_semaphore_notifier.release(); }
 
-std::shared_future<void> notifiable_background_worker::future() const { return m_future; }
+std::shared_future<void> notifiable_background_worker::future() const { return m_result_future; }
 
 }  // namespace sg

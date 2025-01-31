@@ -137,8 +137,8 @@ class SG_COMMON_EXPORT notifiable_background_worker {
     callback_t m_started_cb;
     callback_t m_stopped_cb;
 
-    std::promise<void> m_promise;
-    std::shared_future<void> m_future;
+    std::promise<void> m_result_promise;
+    std::shared_future<void> m_result_future;
 
     bool m_correct_for_task_delay = false;
 
