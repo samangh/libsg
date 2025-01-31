@@ -61,7 +61,7 @@ class SG_COMMON_EXPORT notifiable_background_worker {
      */
     void start() {
         start_async();
-        m_semaphore_thread_started.acquire();
+        m_started_future.get();
     }
 
     /**
@@ -131,11 +131,13 @@ class SG_COMMON_EXPORT notifiable_background_worker {
                                          // because that has relaxed atomic ordering
 
     std::binary_semaphore m_semaphore_notifier {0};
-    std::binary_semaphore m_semaphore_thread_started {0};
 
     callback_t m_task;
     callback_t m_started_cb;
     callback_t m_stopped_cb;
+
+    std::promise<void> m_started_promise;
+    std::shared_future<void> m_started_future;
 
     std::promise<void> m_result_promise;
     std::shared_future<void> m_result_future;

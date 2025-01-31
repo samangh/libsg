@@ -18,6 +18,9 @@ void notifiable_background_worker::start_async() {
     wait_for_stop();
 
     try {
+        m_started_promise = std::promise<void>();
+        m_started_future = m_started_promise.get_future();
+
         m_result_promise = std::promise<void>();
         m_result_future = m_result_promise.get_future();
 
@@ -31,6 +34,7 @@ void notifiable_background_worker::start_async() {
         m_thread = std::jthread(&notifiable_background_worker::action, this);
     } catch (...) {
         m_is_running.store(false);
+        m_started_promise.set_exception(std::current_exception());
         throw;
     }
 }
@@ -65,7 +69,7 @@ void notifiable_background_worker::set_interval(std::chrono::nanoseconds interva
 }
 
 void notifiable_background_worker::action() {
-    m_semaphore_thread_started.release();
+    m_started_promise.set_value();
 
     /* catch latest exception */
     std::exception_ptr ex;
