@@ -77,14 +77,14 @@ class SG_COMMON_EXPORT libuv_wrapper {
 
     uv_loop_t *get_uv_loop();
 
-    /* Note that in C++ derived classes are destructed before the parent
+    /* Note that in C++ child classes are destructed before the parent
      * class. If any callbacks are defined in the parent class, and
      * those callbacks are called when libuv_wrapper is being detructed,
      * then you will have undefined behaviour because the parent class
      * and it's functions would have been destroyed.
      *
-     * Where possible, you SHOULD call stop() in the top-most derived
-     * class that defined any callbacks that could be called as libuv is
+     * Where possible, you SHOULD call stop() in the child class
+     * that defined any callbacks that could be called as libuv is
      * being shutdown.
      */
     virtual ~libuv_wrapper();
