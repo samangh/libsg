@@ -51,11 +51,13 @@ void notifiable_background_worker::wait_for_stop() {
 }
 
 bool notifiable_background_worker::is_running() const {
-    return m_thread.joinable() && m_is_running;
+    return m_is_running;
 }
 
-bool notifiable_background_worker::is_stop_requested() const {
-    return m_thread.get_stop_token().stop_requested();
+bool notifiable_background_worker::is_stop_requested() const noexcept {
+    // Even though we use our own stop atomic, jthread will still use the stop token if the
+    // thread gets destructed whilst running
+    return m_stop_requested.load(std::memory_order_acquire) || m_thread.get_stop_token().stop_requested();
 }
 
 std::chrono::nanoseconds notifiable_background_worker::interval() const { return m_interval; }
@@ -73,7 +75,7 @@ void notifiable_background_worker::action() {
     try {
         if (m_started_cb) m_started_cb(this);
 
-        while (!m_stop_requested.load(std::memory_order_acquire)) {
+        while (!is_stop_requested()) {
             if (m_correct_for_task_delay) {
                 auto t = std::chrono::high_resolution_clock::now();
                 m_task(this);
