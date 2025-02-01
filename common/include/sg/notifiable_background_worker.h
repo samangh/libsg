@@ -79,7 +79,7 @@ class SG_COMMON_EXPORT notifiable_background_worker {
     void wait_for_stop();
 
     bool is_running() const;
-    bool is_stop_requested() const noexcept;
+    bool stop_requested() const noexcept;
 
     /**
      * @brief causes the timer to tick immediately.

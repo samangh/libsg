@@ -121,3 +121,62 @@ TEST_CASE("SG::notifiable_background_worker: check exception handling",
     REQUIRE(counter == 1);
     CHECK_THROWS(worker.future().get());
 }
+
+
+TEST_CASE("SG::notifiable_background_worker: check you can't start multiple times",
+          "[SG::notifiable_background_worker]") {
+
+    sg::notifiable_background_worker::callback_t task = [&](sg::notifiable_background_worker*) {
+
+    };
+
+    sg::notifiable_background_worker worker =
+        sg::notifiable_background_worker(std::chrono::nanoseconds(10), task, nullptr, nullptr);
+    worker.start();
+
+    CHECK_THROWS(worker.start());
+}
+
+TEST_CASE("SG::notifiable_background_worker: check is_stop_requested() whilst thread is busy",
+          "[SG::notifiable_background_worker]") {
+    std::binary_semaphore sem{0}, sem_running{0};
+
+    sg::notifiable_background_worker::callback_t task = [&](sg::notifiable_background_worker*) {
+        sem_running.release();
+        sem.acquire();
+    };
+
+    sg::notifiable_background_worker worker =
+        sg::notifiable_background_worker(std::chrono::nanoseconds(10), task, nullptr, nullptr);
+    worker.set_interval(std::chrono::nanoseconds(1));
+
+    worker.start();
+
+    sem_running.acquire();
+    REQUIRE(worker.is_running());
+
+    worker.request_stop();
+    REQUIRE(worker.stop_requested());
+
+    sem.release();
+}
+
+    TEST_CASE("SG::notifiable_background_worker: check you can start/stop multiple times",
+              "[SG::notifiable_background_worker]") {
+    std::atomic<int> counter{0};
+
+    sg::notifiable_background_worker::callback_t task = [&](sg::notifiable_background_worker* w) {
+        counter++;
+        w->request_stop();
+    };
+
+    sg::notifiable_background_worker worker =
+        sg::notifiable_background_worker(std::chrono::nanoseconds(10), task, nullptr, nullptr);
+    worker.set_interval(std::chrono::nanoseconds(1));
+    worker.start();
+    worker.wait_for_stop();
+    worker.start();
+    worker.wait_for_stop();
+
+    CHECK(counter==2);
+}
