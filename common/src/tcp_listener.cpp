@@ -393,8 +393,10 @@ void tcp_listener::impl::on_write(uv_write_s *req, int status) {
 
    if (status < 0)
        a->on_error(_client_id, uv_strerror((int)status));
-
-   write_req->client_data_ptr->client_connection_details.bytes_sent += write_req->buffer.size();
+   else {
+       std::lock_guard lock(a->m_mutex);
+       write_req->client_data_ptr->client_connection_details.bytes_sent += write_req->buffer.size();
+   }
    a->remove_write_request(_write_id);
 }
 
