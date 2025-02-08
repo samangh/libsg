@@ -67,10 +67,8 @@ class SG_COMMON_EXPORT tcp_listener::impl : public sg::enable_lifetime_indicator
        // Clean previous use data
        {
            std::lock_guard lock(m_mutex);
-           m_write_request_counter = 0;
            m_client_counter = 0;
            m_clients.clear();
-           m_write_requests.clear();
        }
 
        /* for holding result of listening attempt*/
@@ -107,7 +105,7 @@ class SG_COMMON_EXPORT tcp_listener::impl : public sg::enable_lifetime_indicator
            }
        };
 
-       std::function<void(sg::libuv_wrapper *)> started_func = [&, this](sg::libuv_wrapper *) {
+       std::function<void(sg::libuv_wrapper *)> started_func = [](sg::libuv_wrapper *) {
 
        };
 
@@ -153,22 +151,38 @@ class SG_COMMON_EXPORT tcp_listener::impl : public sg::enable_lifetime_indicator
    }
 
    size_t number_of_clients() const;
-   void write(client_id, sg::shared_c_buffer<std::byte> buffer);
+   void write(client_id, buffer&& data);
 
    connection_details client_connection_details(client_id id) const {
-       std::lock_guard lock(m_mutex);
-       return m_clients.at(id)->client_connection_details;
-   }
+       std::shared_lock lock(m_mutex);
+       auto client =  &m_clients.at(id);
 
-   std::vector<sg::tcp_listener::buffer> get_buffer(client_id);
-   std::vector<sg::tcp_listener::buffer> get_buffer_copy(client_id) const;
-   std::map<client_id, std::vector<tcp_listener::buffer>> get_buffers();
+       std::shared_lock lock2(client->get()->mutex);
+       return client->get()->client_connection_details;
+   }
 
  private:
    tcp_listener& m_parent_listener;
    int port;
 
    sg::libuv_wrapper m_libuv;
+
+   struct client_data;
+   struct write_request {
+       write_request(client_data& _client,
+                     write_req_id _write_id,
+                     buffer&& data)
+           : write_id(_write_id),
+             data(std::move(data)),
+             client_data_ptr(_client),
+             uv_write_req_handle(std::make_unique<uv_write_t>()) {
+           uv_write_req_handle->data = this;
+       }
+       write_req_id write_id;
+       buffer data;
+       client_data& client_data_ptr;
+       std::unique_ptr<uv_write_t> uv_write_req_handle;
+   };
 
    struct client_data {
        client_data(impl *_listener, client_id _id)
@@ -178,32 +192,41 @@ class SG_COMMON_EXPORT tcp_listener::impl : public sg::enable_lifetime_indicator
        {
            uv_tcp_handle->data = this;
        }
+       mutable std::shared_mutex mutex;
 
        impl *listener;
-
        client_id id;
        std::unique_ptr<uv_tcp_t> uv_tcp_handle;
-       std::vector<sg::tcp_listener::buffer> data;
        connection_details client_connection_details;
-   };
-   struct write_request {
-       write_request(std::shared_ptr<client_data> _client,
-                     write_req_id _write_id,
-                     sg::shared_c_buffer<std::byte> buffer)
-           : write_id(_write_id),
-             buffer(buffer),
-             client_data_ptr(_client),
-             uv_write_req_handle(std::make_unique<uv_write_t>()) {
-           uv_write_req_handle->data = this;
+
+       write_req_id m_write_request_counter;
+       std::map<write_req_id, std::unique_ptr<write_request>> m_write_requests;
+
+       void write(buffer&& data) {
+           uv_buf_t wrbuf = uv_buf_init((char *)data.get(),
+                                        static_cast<unsigned int>(data.size()));
+
+           std::unique_lock lock(mutex);
+           auto req_number = m_write_request_counter++;
+
+           auto req = std::make_unique<write_request>(*this, req_number, std::move(data));
+           auto uv_write_req_ = req->uv_write_req_handle.get();
+           auto uv_stream_ = (uv_stream_t *)req->client_data_ptr.uv_tcp_handle.get();
+
+           uv_write_req_->data = req.get();
+           m_write_requests.emplace(req_number, std::move(req));
+           uv_write(uv_write_req_, uv_stream_, &wrbuf, 1, &on_write);
+
        }
-       write_req_id write_id;
-       sg::shared_c_buffer<std::byte> buffer;
-       std::shared_ptr<client_data> client_data_ptr;
-       std::unique_ptr<uv_write_t> uv_write_req_handle;
+
+       void remove_write_request(write_req_id id) {
+          std::unique_lock lock(mutex);
+          m_write_requests.erase(id);
+       }
    };
 
+
    void remove_write_request(write_req_id);
-   write_request *add_write_request(client_id id, sg::shared_c_buffer<std::byte>);
 
    void populate_client_details(std::shared_ptr<client_data> client);
 
@@ -224,14 +247,13 @@ class SG_COMMON_EXPORT tcp_listener::impl : public sg::enable_lifetime_indicator
    sg::tcp_listener::on_stopped_fn m_on_stopped_listening_cb;
 
    /* clients*/
-   mutable std::shared_mutex m_mutex; /* Mutex for getting modifying m_clients*/
+   mutable std::shared_mutex m_mutex; /* Mutex for m_clients*/
    size_t m_client_counter;
    std::map<client_id, std::shared_ptr<client_data>> m_clients;
 
    /* write requets*/
-   mutable std::shared_mutex m_write_req_mutex; /* Mutex for getting data*/
-   write_req_id m_write_request_counter;
-   std::map<write_req_id, std::unique_ptr<write_request>> m_write_requests;
+   mutable std::shared_mutex m_write_req_mutex; /* Mutex for writing data*/
+
 
    /* libuv stuff*/
    std::unique_ptr<uv_tcp_t> m_sock;     /* Socket used for connection */
@@ -247,60 +269,13 @@ size_t tcp_listener::impl::number_of_clients() const {
    return m_clients.size();
 }
 
-void tcp_listener::impl::write(client_id id, sg::shared_c_buffer<std::byte> bytes) {
-   /* we must move or copy the bytes, as the buffer must be kept until the callback is called */
-   auto write_req = add_write_request(id, std::move(bytes));
-
-   uv_buf_t wrbuf = uv_buf_init((char *)write_req->buffer.get(),
-                                static_cast<unsigned int>(write_req->buffer.size()));
-
-   auto req = write_req->uv_write_req_handle.get();
-   auto stream = (uv_stream_t *)write_req->client_data_ptr->uv_tcp_handle.get();
-   uv_write(req, stream, &wrbuf, 1, &on_write);
-}
-
-std::vector<sg::tcp_listener::buffer> tcp_listener::impl::get_buffer(client_id id) {
-   std::vector<sg::tcp_listener::buffer> buffers;
-
-   /* swap buffers, do this to minimise locking time*/
-   {
-       std::lock_guard lock(m_mutex);
-       m_clients.at(id)->data.swap(buffers);
-   }
-
-   return buffers;
-}
-
-std::vector<sg::tcp_listener::buffer> tcp_listener::impl::get_buffer_copy(client_id id) const  {
-   std::lock_guard lock(m_mutex);
-   std::vector<sg::tcp_listener::buffer> buffers_copy;
-
-   for (const auto &buffer : m_clients.at(id)->data) {
-       auto new_buffer = sg::make_unique_c_buffer<std::byte>(buffer.size());
-       std::memcpy(new_buffer.get(), buffer.get(), sizeof(std::byte) * buffer.size());
-       buffers_copy.emplace_back(std::move(new_buffer));
-   }
-
-   return buffers_copy;
-}
-
-std::map<tcp_listener::client_id, std::vector<tcp_listener::buffer>>
-tcp_listener::impl::get_buffers() {
-   std::map<tcp_listener::client_id, std::vector<sg::tcp_listener::buffer>> buffer_map;
-
-   /* swap buffers, do this to minimise locking time*/
-   std::lock_guard lock(m_mutex);
-   for (auto &[id, val] : m_clients)
-       if (!val->data.empty()) {
-           std::vector<sg::tcp_listener::buffer> _client_buffers;
-           val->data.swap(_client_buffers);
-           buffer_map.emplace(id, std::move(_client_buffers));
-       }
-
-   return buffer_map;
+void tcp_listener::impl::write(client_id id, buffer&& data) {
+    std::shared_lock lock(m_mutex);
+    m_clients.at(id)->write(std::move(data));
 }
 
 void tcp_listener::impl::on_read(uv_stream_t *client, ssize_t nread, const uv_buf_t *buf) {
+   auto client_dat  = (client_data *)client->data;
    auto a = ((client_data *)client->data)->listener;
    auto id = ((client_data *)client->data)->id;
 
@@ -313,16 +288,15 @@ void tcp_listener::impl::on_read(uv_stream_t *client, ssize_t nread, const uv_bu
        return;
    }
 
-   /* Take ownership of the buffer, as it is now ours. */
    {
-       std::lock_guard lock(a->m_mutex);
-       auto b = sg::tcp_listener::buffer(reinterpret_cast<std::byte *>(buf->base), nread);
-       a->m_clients.at(id)->data.emplace_back(std::move(b));
-       a->m_clients.at(id)->client_connection_details.bytes_received += nread;
+       std::unique_lock lock(a->m_mutex);
+       client_dat->client_connection_details.bytes_received += nread;
    }
 
+   /* Take ownership of the buffer, as it is now ours. */
+   auto buffer = sg::tcp_listener::buffer(reinterpret_cast<std::byte *>(buf->base), nread);
    if (a->m_on_data_available != nullptr)
-       a->m_on_data_available(a->m_parent_listener, id, nread);
+       a->m_on_data_available(a->m_parent_listener, id, std::move(buffer));
 }
 
 void tcp_listener::impl::on_new_connection(uv_stream_t *server, int status) {
@@ -335,7 +309,7 @@ void tcp_listener::impl::on_new_connection(uv_stream_t *server, int status) {
    client_id id;
    std::shared_ptr<client_data> client;
    {
-       std::lock_guard lock(a->m_mutex);
+       std::unique_lock lock(a->m_mutex);
 
        /* increment client id, check that it's not in use (in case of overflow) */
        while(true)
@@ -386,34 +360,17 @@ void tcp_listener::impl::on_client_disconnected(uv_handle_t *handle) {
 
 void tcp_listener::impl::on_write(uv_write_s *req, int status) {
    auto write_req  = ((write_request *)req->data);
+   auto& client = write_req->client_data_ptr;
 
-   impl *a = write_req->client_data_ptr->listener;
-   auto _client_id = write_req->client_data_ptr->id;
-   auto _write_id = write_req->write_id;
+   auto listener = client.listener;
 
    if (status < 0)
-       a->on_error(_client_id, uv_strerror((int)status));
+       listener->on_error(client.id, uv_strerror((int)status));
    else {
-       std::lock_guard lock(a->m_mutex);
-       write_req->client_data_ptr->client_connection_details.bytes_sent += write_req->buffer.size();
+       std::lock_guard lock(client.mutex);
+       client.client_connection_details.bytes_sent += write_req->data.size();
    }
-   a->remove_write_request(_write_id);
-}
-
-void tcp_listener::impl::remove_write_request(write_req_id id) {
-   std::lock_guard lock(m_mutex);
-   m_write_requests.erase(id);
-}
-
-tcp_listener::impl::write_request *
-tcp_listener::impl::add_write_request(client_id id, sg::shared_c_buffer<std::byte> buffer) {
-   std::lock_guard lock(m_mutex);
-
-   auto req_number = m_write_request_counter++;
-   auto req = std::make_unique<write_request>(m_clients.at(id), req_number, buffer);
-   m_write_requests.emplace(req_number, std::move(req));
-
-   return m_write_requests.at(req_number).get();
+   client.remove_write_request(write_req->write_id);
 }
 
 void tcp_listener::impl::populate_client_details(std::shared_ptr<client_data> client)
@@ -514,43 +471,20 @@ tcp_listener::connection_details tcp_listener::client_details(client_id id) cons
 }
 
 
-void tcp_listener::write(client_id id, sg::shared_c_buffer<std::byte> bytes) {
+void tcp_listener::write(client_id id, buffer&& bytes) {
     pimpl->write(id, std::move(bytes));
 }
 
-void tcp_listener::write(client_id id, std::vector<std::byte> vec)
+void tcp_listener::write(client_id id, const std::vector<std::byte>& vec)
 {
     auto count =vec.size();
-    auto a = sg::make_shared_c_buffer<std::byte>(count);
+    auto a = sg::make_unique_c_buffer<std::byte>(count);
     std::memcpy(a.get(), vec.data(), count * sizeof(std::byte));
 
     write(id, std::move(a));
 }
 
-std::vector<tcp_listener::buffer> tcp_listener::get_buffers(client_id id) {
-   return pimpl->get_buffer(id);
-}
 
-std::vector<tcp_listener::buffer> tcp_listener::get_buffers_copy(client_id id) const {
-   return pimpl->get_buffer_copy(id);
-}
-
-std::vector<std::byte> tcp_listener::get_buffers_as_vector(client_id id) {
-   auto client_buffers = this->get_buffers(id);
-   return tcp_listener::buffers_to_vector(std::move(client_buffers));
-}
-
-std::map<tcp_listener::client_id, std::vector<std::byte>> tcp_listener::get_buffers_as_vector() {
-   auto buffer_map = this->get_buffers();
-   std::map<tcp_listener::client_id, std::vector<std::byte>> result;
-
-   for (auto &[id, buffers] : buffer_map) {
-       auto vec = tcp_listener::buffers_to_vector(std::move(buffers));
-       result.emplace(id, std::move(vec));
-   }
-
-   return result;
-}
 
 std::vector<std::byte> tcp_listener::buffers_to_vector(std::vector<buffer> buffers) {
    size_t total_size = 0;
@@ -566,8 +500,5 @@ std::vector<std::byte> tcp_listener::buffers_to_vector(std::vector<buffer> buffe
    return result;
 }
 
-std::map<tcp_listener::client_id, std::vector<tcp_listener::buffer>> tcp_listener::get_buffers() {
-   return pimpl->get_buffers();
-}
 
 } // namespace sg
