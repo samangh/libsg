@@ -17,7 +17,7 @@ jobs:
       fail-fast: false
       matrix:
         config:
-          - { sys: clang64, CXXFLAGS: -fexperimental-library  }
+          - { sys: clang64, CXXFLAGS: ""  }
           # We don't use these, as GCC (as of v14.10 on 02/2025) has a bug when using semaphores,
           # see https://gcc.gnu.org/bugzilla/show_bug.cgi?id=104928
           # - { sys: mingw64, CXXFLAGS: "" }

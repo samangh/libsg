@@ -52,6 +52,7 @@ setup_library(
     $<IF:$<BOOL:${USE_STATIC_LIBS}>,zstd::libzstd_static,zstd::libzstd_shared>
   COMPILE_OPTIONS_INTERFACE
   COMPILE_OPTIONS_PUBLIC
+    $<$<AND:$<CXX_COMPILER_ID:Clang>,$<STREQUAL:${STANDARD_LIBRARY},c++>>:-fexperimental-library> # for std::jthread with libc++
   COMPILE_OPTIONS_PRIVATE
   COMPILE_FEATURES_INTERFACE
   COMPILE_FEATURES_PUBLIC
