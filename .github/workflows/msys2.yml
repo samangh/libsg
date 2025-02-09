@@ -17,10 +17,11 @@ jobs:
       fail-fast: false
       matrix:
         config:
-          - { sys: mingw64, CXXFLAGS: "" }
-          - { sys: ucrt64, CXXFLAGS: "" }
           - { sys: clang64, CXXFLAGS: -fexperimental-library  }
-
+          # We don't use these, as GCC (as of v14.10 on 02/2025) has a bug when using semaphores,
+          # see https://gcc.gnu.org/bugzilla/show_bug.cgi?id=104928
+          # - { sys: mingw64, CXXFLAGS: "" }
+          # - { sys: ucrt64, CXXFLAGS: "" }
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
