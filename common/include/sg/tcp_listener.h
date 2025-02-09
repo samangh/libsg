@@ -52,6 +52,8 @@ class SG_COMMON_EXPORT tcp_listener : sg::enable_lifetime_indicator {
    void stop_async();
    void stop();
 
+   void disconnect_async(client_id);
+
    bool is_stopped() const;
    bool is_stopped_or_stopping() const;
 

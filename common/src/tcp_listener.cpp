@@ -130,6 +130,12 @@ class SG_COMMON_EXPORT tcp_listener::impl : public sg::enable_lifetime_indicator
        }
    }
 
+   void disconnect_async(client_id id) {
+       std::shared_lock lock(m_mutex);
+       uv_close((uv_handle_t*)m_clients.at(id)->uv_tcp_handle.get(), nullptr);
+   }
+
+
    void block_until_stopped() {
        m_libuv.block_until_stopped();
    }
@@ -449,12 +455,14 @@ void tcp_listener::start(const std::string& address,
                  on_data_available_cb);
 }
 
-void tcp_listener::stop_async()
-{
- pimpl->stop_async();
-}
+void tcp_listener::stop_async() { pimpl->stop_async(); }
 
 void tcp_listener::stop() { pimpl->stop(); }
+
+void tcp_listener::disconnect_async(client_id id)
+{
+    pimpl->disconnect_async(id);
+}
 
 bool tcp_listener::is_stopped() const
 {
