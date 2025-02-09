@@ -64,6 +64,10 @@ class SG_COMMON_EXPORT tcp_listener : sg::enable_lifetime_indicator {
    void write(client_id, buffer&&);
    void write(client_id, const std::vector<std::byte>&);
 
+   /* enabl/dsiable keepalive, this is enabled by default */
+   void keepalive_enable(bool);
+   void keepalive_delay(unsigned int);
+
    static std::vector<std::byte> buffers_to_vector(std::vector<buffer>);
 };
 

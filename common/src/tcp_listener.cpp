@@ -167,6 +167,13 @@ class SG_COMMON_EXPORT tcp_listener::impl : public sg::enable_lifetime_indicator
        return client->get()->client_connection_details;
    }
 
+   void keepalive_enable(bool en) {
+       m_keepalive_emabled = en;
+   }
+   void keepalive_delay(unsigned int delay) {
+       m_keepalive_delay = delay;
+   }
+
  private:
    tcp_listener& m_parent_listener;
    int port;
@@ -263,6 +270,10 @@ class SG_COMMON_EXPORT tcp_listener::impl : public sg::enable_lifetime_indicator
 
    /* libuv stuff*/
    std::unique_ptr<uv_tcp_t> m_sock;     /* Socket used for connection */
+
+   /* keepalive stuff */
+   bool m_keepalive_emabled {true};
+   unsigned int m_keepalive_delay {1};
 };
 
 void close_handle(uv_handle_s *handle, void *) {
@@ -334,6 +345,9 @@ void tcp_listener::impl::on_new_connection(uv_stream_t *server, int status) {
 
    /* uv_acceppt is guaraneed to succeeed */
    uv_accept(server, (uv_stream_t *)tcp_handle);
+
+   if (a->m_keepalive_emabled)
+    THROW_ON_LIBUV_ERROR(uv_tcp_keepalive(tcp_handle, 1, a->m_keepalive_delay));
 
    /* store source address, etc */
    a->populate_client_details(client);
@@ -492,6 +506,15 @@ void tcp_listener::write(client_id id, const std::vector<std::byte>& vec)
     write(id, std::move(a));
 }
 
+void tcp_listener::keepalive_enable(bool en)
+{
+    pimpl->keepalive_enable(en);
+}
+
+void tcp_listener::keepalive_delay(unsigned int delay)
+{
+    pimpl->keepalive_delay(delay);
+}
 
 
 std::vector<std::byte> tcp_listener::buffers_to_vector(std::vector<buffer> buffers) {
