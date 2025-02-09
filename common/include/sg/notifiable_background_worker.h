@@ -1,7 +1,6 @@
 #pragma once
 
 #include "sg/export/common.h"
-#include "sg/jthread.h"
 
 #include <atomic>
 #include <chrono>
@@ -11,6 +10,7 @@
 #include <mutex>
 #include <shared_mutex>
 #include <semaphore>
+#include <thread>
 
 #include <future>
 
@@ -44,7 +44,7 @@ class SG_COMMON_EXPORT notifiable_background_worker {
                                  const callback_t &task,
                                  const callback_t &start_cb,
                                  const callback_t &stopped_cb);
-    virtual ~notifiable_background_worker() = default;
+    virtual ~notifiable_background_worker();
 
     /**
      * @brief start_async asynchronously starts the worker.
@@ -125,10 +125,15 @@ class SG_COMMON_EXPORT notifiable_background_worker {
     /* needs to be atomic because we can change it */
     std::atomic<std::chrono::nanoseconds> m_interval;
 
-    std::jthread m_thread;
+    // We don't use `std::jthread` because:
+    //
+    //  * in MSVC/MSYS it seemed that the stop_token is buggy/not thread safe;
+    //  * in some implementations the stop_token uses relaxed memory ordering,
+    //    which is not thead safe
+
+    std::thread m_thread;
     std::atomic<bool> m_is_running;
-    std::atomic<bool> m_stop_requested;  // We don't use the built-in stop_token in std:jthread,
-                                         // because that has relaxed atomic ordering
+    std::atomic<bool> m_stop_requested;
 
     std::binary_semaphore m_semaphore_notifier {0};
     std::binary_semaphore m_semaphore_thread_started {0};

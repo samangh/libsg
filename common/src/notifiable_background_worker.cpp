@@ -11,6 +11,11 @@ notifiable_background_worker::notifiable_background_worker(std::chrono::nanoseco
       m_started_cb(start_cb),
       m_stopped_cb(stopped_cb) {}
 
+notifiable_background_worker::~notifiable_background_worker() {
+    request_stop();
+    wait_for_stop();
+}
+
 void notifiable_background_worker::start_async() {
     if (is_running()) throw std::runtime_error("this worker is already running");
 
@@ -28,7 +33,7 @@ void notifiable_background_worker::start_async() {
         m_stop_requested.store(false);
 
         /* start */
-        m_thread = std::jthread(&notifiable_background_worker::action, this);
+        m_thread = std::thread(&notifiable_background_worker::action, this);
     } catch (...) {
         m_is_running.store(false);
         throw;
@@ -36,7 +41,7 @@ void notifiable_background_worker::start_async() {
 }
 
 void notifiable_background_worker::request_stop() {
-    m_stop_requested.store(true);
+    m_stop_requested.store(true, std::memory_order_release);
     notify();  // notify so that the loop immediately sees the stop event
 }
 
@@ -57,13 +62,14 @@ bool notifiable_background_worker::is_running() const {
 bool notifiable_background_worker::stop_requested() const noexcept {
     // Even though we use our own stop atomic, jthread will still use the stop token if the
     // thread gets destructed whilst running
-    return m_stop_requested.load(std::memory_order_acquire) || m_thread.get_stop_token().stop_requested();
+    return m_stop_requested.load(std::memory_order_acquire);
 }
 
-std::chrono::nanoseconds notifiable_background_worker::interval() const { return m_interval; }
+std::chrono::nanoseconds notifiable_background_worker::interval() const { return m_interval.load(std::memory_order_acquire);
+}
 
 void notifiable_background_worker::set_interval(std::chrono::nanoseconds interval) {
-    m_interval = interval;
+    m_interval.store(interval, std::memory_order_release);
 }
 
 void notifiable_background_worker::action() {
@@ -80,10 +86,10 @@ void notifiable_background_worker::action() {
                 auto t = std::chrono::high_resolution_clock::now();
                 m_task(this);
                 auto time_taken = std::chrono::high_resolution_clock::now() - t;
-                m_semaphore_notifier.try_acquire_for(m_interval.load() - time_taken);
+                std::ignore = m_semaphore_notifier.try_acquire_for(m_interval.load(std::memory_order_acquire) - time_taken);
             } else {
                 m_task(this);
-                m_semaphore_notifier.try_acquire_for(m_interval.load());
+                std::ignore = m_semaphore_notifier.try_acquire_for(m_interval.load(std::memory_order_acquire));
             }
         }
     } catch (...) {
