@@ -116,3 +116,50 @@ TEST_CASE("sg::tcp_listener: check can disconnect client", "[sg::tcp_listener]")
     REQUIRE_NOTHROW(th.join());
 }
 
+TEST_CASE("sg::tcp_listener: check templated write", "[sg::tcp_listener]") {
+    sg::tcp_listener l;
+
+    sg::tcp_listener::on_client_connected_fn on_conn =
+        [](sg::tcp_listener& l, sg::tcp_listener::client_id id) {
+            l.write(id, "HELLO");
+        };
+
+    sg::tcp_listener::on_client_disconnected_fn on_disconn =
+        [](sg::tcp_listener& l, sg::tcp_listener::client_id) { l.stop_async(); };
+
+    l.start("127.0.0.1", PORT, nullptr, on_conn, on_disconn, nullptr, nullptr, nullptr);
+
+    std::jthread th = std::jthread([]() {
+        using boost::asio::ip::tcp;
+
+        boost::asio::io_context io_context;
+
+        tcp::resolver resolver(io_context);
+        tcp::resolver::results_type endpoints = resolver.resolve("127.0.0.1", std::to_string(PORT));
+
+        tcp::socket socket(io_context);
+        boost::asio::connect(socket, endpoints);
+
+        boost::system::error_code error;
+        std::array<char, 6> buf_check = {'H', 'E', 'L', 'L', 'O', '\0'};
+        std::array<char, 6> buf_read;
+
+        for (;;)
+        {
+            auto len = socket.read_some(boost::asio::buffer(buf_read), error);
+            if (len!=0)
+                break;
+        }
+
+        if (buf_check != buf_read) throw std::runtime_error("error");
+
+        if (error) throw boost::system::system_error(error);
+
+        socket.shutdown(tcp::socket::shutdown_type::shutdown_both);
+        socket.close();
+    });
+
+    REQUIRE_NOTHROW(th.join());
+}
+
+

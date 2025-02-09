@@ -6,6 +6,7 @@
 #include "sg/net.h"
 
 #include <cstdint>
+#include <cstring>
 #include <functional>
 #include <map>
 #include <string>
@@ -62,7 +63,25 @@ class SG_COMMON_EXPORT tcp_listener : sg::enable_lifetime_indicator {
    connection_details client_details(client_id) const;
 
    void write(client_id, buffer&&);
-   void write(client_id, const std::vector<std::byte>&);
+   void write(client_id id, const void* ptr, size_t size);
+
+   template <typename RangeT>
+       requires(std::ranges::contiguous_range<RangeT> &&
+                std::is_trivially_copyable_v<std::ranges::range_value_t<RangeT>> &&
+                std::has_unique_object_representations_v<std::ranges::range_value_t<RangeT>>)
+   void write(client_id id, const RangeT& range) {
+       write(id,
+             (void *)std::ranges::begin(range),
+             std::size(range) * sizeof(std::ranges::range_value_t<RangeT>));
+   }
+
+   template <typename T>
+       requires(std::is_trivially_copyable_v<T> && std::has_unique_object_representations_v<T>
+                && ! std::is_pointer_v<T>
+                && ! std::ranges::range<T>)
+   void write(client_id id, const T& obj) {
+       write(id, &obj, sizeof(obj));
+   }
 
    /* enabl/dsiable keepalive, this is enabled by default */
    void keepalive_enable(bool);

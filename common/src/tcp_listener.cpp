@@ -497,13 +497,11 @@ void tcp_listener::write(client_id id, buffer&& bytes) {
     pimpl->write(id, std::move(bytes));
 }
 
-void tcp_listener::write(client_id id, const std::vector<std::byte>& vec)
-{
-    auto count =vec.size();
-    auto a = sg::make_unique_c_buffer<std::byte>(count);
-    std::memcpy(a.get(), vec.data(), count * sizeof(std::byte));
 
-    write(id, std::move(a));
+void tcp_listener::write(client_id id, const void *ptr, size_t size) {
+    auto buf = sg::make_unique_c_buffer<std::byte>(size);
+    std::memcpy(buf.get(), ptr, size);
+    write(id, std::move(buf));
 }
 
 void tcp_listener::keepalive_enable(bool en)
