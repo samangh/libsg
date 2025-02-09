@@ -9,7 +9,7 @@
 #include <semaphore>
 #include <string>
 
-#define PORT 55555
+#define PORT 4444 // 55555 can't be used on macOS!
 
 TEST_CASE("sg::tcp_listener: check start/stop callback", "[sg::tcp_listener]") {
     std::atomic_int stop_count{0};
