@@ -25,7 +25,7 @@ jobs:
 
       - name: Install dependencies
         run: |
-             vcpkg --triplet ${{ matrix.config.triplet }} install boost-crc sdl2 fmt libuv zstd
+             vcpkg --triplet ${{ matrix.config.triplet }} install boost-crc sdl2 fmt libuv zstd boost-asio
              vcpkg integrate install
 
       - name: Run CMake

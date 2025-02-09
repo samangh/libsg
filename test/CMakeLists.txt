@@ -39,7 +39,7 @@ setup_executable(
     ${DP_THREAD_POOL_DIR}/include
   INCLUDE_PRIVATE
     Boost::Boost
-
+    Boost::Asio
   LINK_PRIVATE
     SG::common
     $<$<BOOL:${BENCHMARK}>:nanobench>
