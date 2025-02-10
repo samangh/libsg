@@ -54,7 +54,6 @@ TEST_CASE("SG::notifiable_background_worker: check start/stop callbacks get call
 
 TEST_CASE("SG::notifiable_background_worker: check worker can stop itself",
           "[SG::notifiable_background_worker]") {
-    std::binary_semaphore loop_run{0};
     std::atomic<int> counter{0};
 
     sg::notifiable_background_worker::callback_t task = [&](sg::notifiable_background_worker* w) {

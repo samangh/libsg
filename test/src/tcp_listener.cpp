@@ -14,7 +14,6 @@
 TEST_CASE("sg::tcp_listener: check start/stop callback", "[sg::tcp_listener]") {
     std::atomic_int stop_count{0};
     std::binary_semaphore start_sem{0};
-    std::binary_semaphore stop_sem{0};
 
     sg::tcp_listener::on_started_fn started_cb = [&](sg::tcp_listener&) { start_sem.release(); };
     sg::tcp_listener::on_stopped_fn stopped_cb = [&](sg::tcp_listener&) { stop_count++; };
