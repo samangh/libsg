@@ -1,11 +1,22 @@
 #pragma once
 
 #include <vector>
+#include <ranges>
 
 namespace sg::vector {
 
-template <typename T> void append(std::vector<T> &base, const std::vector<T> &to_add) {
+template <typename T, typename RangeT>
+requires(std::ranges::range<RangeT> &&
+         std::is_same_v<std::ranges::range_value_t<RangeT>,T>)
+void append(std::vector<T> &base, const RangeT& to_add) {
     base.insert(std::end(base), std::begin(to_add), std::end(to_add));
+}
+
+template <typename T, typename RangeT>
+requires(std::ranges::range<RangeT> &&
+         std::is_same_v<std::ranges::range_value_t<RangeT>,T>)
+void append(std::vector<T> &base, RangeT&& to_add) {
+    base.insert(std::end(base), make_move_iterator(std::begin(to_add)), make_move_iterator(std::end(to_add)));
 }
 
 /**
