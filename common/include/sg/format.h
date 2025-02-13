@@ -1,6 +1,7 @@
 #pragma once
 
 #include "bytes.h"
+#include "vector.h"
 
 #include <fmt/compile.h>
 #include <fmt/format.h>
@@ -14,34 +15,42 @@ namespace sg::format {
 
 /*!
  * \brief Convert container items to hex string.
- *        Item type must be trivially covertible to std::byte.
  *
- * \param range Tnput range
+ *        Note: will do at least two copy operations.
+ * \param rangeT input range
  * \param separator The sperator between each byte
  * \return The hex representation as string, without the starting 0x.
  */
 template <typename RangeT>
-requires(std::ranges::range<RangeT>&&
-             std::is_convertible_v<std::ranges::range_value_t<RangeT>, std::byte>)
+    requires(std::ranges::contiguous_range<RangeT> &&
+             std::is_trivially_copyable_v<std::ranges::range_value_t<RangeT>> &&
+             std::has_unique_object_representations_v<std::ranges::range_value_t<RangeT>>)
 [[nodiscard]] std::string to_hex(const RangeT& range, std::string_view separator = "") {
-    // limit type to std::byte, so that we can use fixed {:0X} representation with padding if
-    // required.
-    return fmt::format("{:02X}", fmt::join(range, separator));
+    auto result = sg::bytes::to_bytes(range);
+    return fmt::format("{:02X}", fmt::join(std::begin(result), std::end(result), separator));
 }
 
-/*!
+ /**
  * \brief Convert container items to hex string.
- *        Item type must be trivially covertible to std::byte.
  *
- * \param range Tnput range
+ *        Note: will do at least two copy operations.
  * \param separator The sperator between each byte
  * \return The hex representation as string, without the starting 0x.
  */
-template <std::input_iterator BeginT, std::sentinel_for<BeginT> SentinelT>
-requires(std::is_convertible_v<std::iter_value_t<BeginT>, std::byte>)
 
-[[nodiscard]] std::string to_hex(const BeginT begin, const SentinelT end, std::string_view separator = "") {
-    return fmt::format("{:02X}", fmt::join(begin, end, separator));
+template <std::input_iterator BeginT, std::sentinel_for<BeginT> SentinelT>
+    requires(std::is_trivially_copyable_v<std::iter_value_t<BeginT>> &&
+             std::has_unique_object_representations_v<std::iter_value_t<BeginT>>)
+[[nodiscard]] std::string to_hex(const BeginT begin,
+                                 const SentinelT end,
+                                 std::string_view separator = "") {
+    auto size = (end - begin) * sizeof(std::iter_value_t<BeginT>);
+
+    std::vector<std::byte> result;
+    result.reserve(size);
+    for (BeginT it = begin; it != end; it++) sg::vector::append(result, sg::bytes::to_bytes(*it));
+
+    return fmt::format("{:02X}", fmt::join(std::begin(result), std::end(result), separator));
 }
 
 /*!
@@ -55,9 +64,12 @@ requires(std::is_convertible_v<std::iter_value_t<BeginT>, std::byte>)
  * \return The hex representation as string, without the starting 0x.
  */
 template <typename T>
+    requires(std::is_trivially_copyable_v<T> && std::has_unique_object_representations_v<T> &&
+             !std::is_pointer_v<T> && !std::ranges::range<T>)
 [[nodiscard]] std::string to_hex(const T& item, std::string_view separator = "") {
-    // return fmt::format("{:0{}X}", sizeof(T), item);
-    return to_hex(sg::bytes::to_bytes(item), separator);
+    auto result = sg::bytes::to_bytes(item);
+    return fmt::format("{:02X}", fmt::join(std::begin(result), std::end(result), separator));
+
 }
 
 }  // namespace sg::format
