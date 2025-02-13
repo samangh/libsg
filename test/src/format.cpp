@@ -5,7 +5,7 @@
 #include <string>
 #include <vector>
 
-TEST_CASE("SG::common sg::format: check to_hex(...) family") {
+TEST_CASE("sg::common sg::format: check to_hex(...) family", "[sg::format]") {
     const std::vector<std::byte> byte_vec{std::byte{0x01},
                                           std::byte{0x02},
                                           std::byte{0x03},
