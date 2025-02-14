@@ -1,6 +1,7 @@
 #pragma once
 
-#include "sg/memory.h"
+#include "memory.h"
+#include "iterator.h"
 
 #include <memory>
 #include <type_traits>
@@ -43,12 +44,22 @@ namespace sg {
  */
 
 /* Interface for all buffer classes */
-template <typename T> class IBuffer {
+template <typename T>
+requires(std::contiguous_iterator<sg::contiguous_iterator<T>> &&
+         std::contiguous_iterator<sg::contiguous_iterator<const T>>)
+class IBuffer {
   public:
+    typedef std::size_t                      size_type;
+    typedef sg::contiguous_iterator<T>       iterator_type;
+    typedef sg::contiguous_iterator<const T> const_iterator_type;
+    typedef T&                               reference;
+    typedef const T&                         const_reference;
+
     virtual ~IBuffer() = default;
 
     /* Return the stored pointer.*/
-    virtual T *get() const noexcept = 0;
+    virtual const T *get() const noexcept = 0;
+    virtual T *get() noexcept = 0;
 
     /* Returns the number of elements */
     virtual size_t size() const noexcept = 0;
@@ -64,11 +75,26 @@ template <typename T> class IBuffer {
      */
     virtual void reset(T *, size_t) noexcept = 0;
 
-    virtual T *begin() const noexcept = 0;
-    virtual T *end() const noexcept = 0;
+    /* iterators */
+    constexpr iterator_type begin() { return iterator_type(get()); }
+    constexpr iterator_type end() { return begin() + size(); }
 
-    virtual T&       operator[](size_t i) = 0;
-    virtual const T& operator[](size_t i) const = 0;
+    /* const interators */
+    constexpr const_iterator_type begin() const { return const_iterator_type(get()); }
+    constexpr const_iterator_type end() const { return begin() + size(); }
+    constexpr const_iterator_type cbegin() const { return begin(); }
+    constexpr const_iterator_type cend() const { return end(); }
+
+    /* front/back */
+    reference front() { return *begin(); }
+    reference back() { return *(end() - 1); }
+
+    /* const front/back */
+    const_reference front() const {return *begin();}
+    const_reference back() const {return *(end() - 1);;}
+
+    T&       operator[](size_t i) { return get()[i]; };
+    const T& operator[](size_t i) const { return get()[i]; };
 };
 
 template <typename T> class buffer_base : public IBuffer<T> {
@@ -79,18 +105,14 @@ template <typename T> class buffer_base : public IBuffer<T> {
   public:
     T *operator->() const noexcept { return ptr->get(); }
 
-    virtual T *get() const noexcept override { return ptr->get(); }
+    virtual const T *get() const noexcept override{ return ptr->get(); };
+    virtual T *get() noexcept override{ return ptr->get(); };
+
     virtual size_t size() const noexcept override { return ptr->size(); }
     virtual void reset() noexcept override { ptr->reset(); }
     virtual void reset(T *_ptr, size_t _length) noexcept override {
         return ptr->reset(_ptr, _length);
     }
-
-    virtual T *begin() const noexcept override { return ptr->begin(); };
-    virtual T *end() const noexcept override { return ptr->end(); };
-
-    virtual T&       operator[](size_t i) override { return ptr->get()[i]; };
-    virtual const T& operator[](size_t i) const override { return ptr->get()[i]; };
 };
 
 /* Creates unique opaque buffer */
@@ -165,7 +187,8 @@ class unique_buffer : public IBuffer<T> {
     unique_buffer(unique_buffer &&) = default;
     unique_buffer &operator=(unique_buffer &&data) = default;
 
-    T *get() const noexcept override { return ptr.get(); }
+    virtual const T *get() const noexcept override{ return ptr.get(); };
+    virtual T *get() noexcept override{ return ptr.get(); };
 
     /* Exchange the pointer and the associated length */
     void swap(unique_buffer<T, deleter> &other) noexcept {
@@ -186,12 +209,6 @@ class unique_buffer : public IBuffer<T> {
         this->length = _length;
     }
     void reset() noexcept override { reset(nullptr, 0); }
-
-    T *begin() const noexcept override { return ptr.get(); }
-    T *end() const noexcept override { return ptr.get() + length; }
-
-    T&       operator[](size_t i) override { return (ptr.get())[i]; };
-    const T& operator[](size_t i) const override { return (ptr.get())[i]; };
 };
 
 /**
@@ -230,7 +247,8 @@ class shared_buffer : public IBuffer<T> {
     shared_buffer &operator=(const shared_buffer &data) = default;
     shared_buffer(const shared_buffer&) = default;
 
-    T *get() const noexcept override { return ptr.get(); }
+    virtual const T *get() const noexcept override{ return ptr.get(); };
+    virtual T *get() noexcept override{ return ptr.get(); };
 
     /* Exchange the pointer and the associated length */
     void swap(shared_buffer<T, deleter> &other) noexcept {
@@ -248,12 +266,6 @@ class shared_buffer : public IBuffer<T> {
         this->length = _length;
     }
     void reset() noexcept override { reset(nullptr, 0); }
-
-    virtual T *begin() const noexcept override { return ptr.get(); }
-    virtual T *end() const noexcept override { return ptr.get() + length; }
-
-    virtual T&       operator[](size_t i) override { return (ptr.get())[i]; };
-    virtual const T& operator[](size_t i) const override { return (ptr.get())[i]; };
 };
 
 /* A version of unique_buffer that uses C-style free() to delete the base pointer */
