@@ -448,7 +448,15 @@ void tcp_listener::impl::on_error(client_id id, const std::string &message) {
 
 tcp_listener::tcp_listener() : pimpl(*this) {}
 
-tcp_listener::~tcp_listener()  = default;
+tcp_listener::~tcp_listener() {
+  // this is required here, because tcp_listener& is passed an argument to all
+  // callbacks. If the tcp_listener get's destructed, but a callback is in
+  // progress, then the callback will have a dangling refernce.
+  //
+  // Calling stop() makes sure that all the callbacks, etcs have been called.
+
+  stop();
+};
 
 
 void tcp_listener::start(const std::string& address,
