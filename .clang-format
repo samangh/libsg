@@ -1,4 +1,4 @@
-BasedOnStyle: Google
+#-*- mode: conf -*-
 IndentWidth: '4'
 IndentPPDirectives: BeforeHash
 ColumnLimit: 100
@@ -12,6 +12,6 @@ BinPackArguments: false
 BinPackParameters: false
 
 ## Only valid in clang >19
-# BreakTemplateDeclarations: 'Yes'
+BreakTemplateDeclarations: 'Yes'
 
 IncludeBlocks: Regroup
