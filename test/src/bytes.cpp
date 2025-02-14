@@ -15,12 +15,21 @@ TEST_CASE("SG::common sg::bytes: check byteswap(...) family") {
     REQUIRE(int64_t(0xEFCDAB8967452301) == sg::bytes::byteswap(int64_t(0x0123456789ABCDEFull)));
 }
 
+TEST_CASE("sg::common sg::bytes: check to_bytes(const RangeT& range)") {
+    auto uint_vec = std::vector<uint16_t>{0xAABB, 0xCCDD};
+    auto correct_ans =
+        std::vector<std::byte>{std::byte{0xBB}, std::byte{0xAA}, std::byte{0xDD}, std::byte{0xCC}};
+
+    REQUIRE(correct_ans == sg::bytes::to_bytes(uint_vec));
+}
+
 TEST_CASE("SG::common sg::bytes: check to_bytes(...) and to_integral(...)") {
     /* check to_bytes */
     auto uint8_test = sg::bytes::to_bytes(uint8_t(0xAA));
     auto uint16_test = sg::bytes::to_bytes(uint16_t(0xAABB));
     auto uint32_test = sg::bytes::to_bytes(uint32_t(0xAABBCCDD));
     auto uint64_test = sg::bytes::to_bytes(uint64_t(0xAABBCCDDEEFF0011));
+
     REQUIRE(std::array<std::byte, 1>{std::byte{0xAA}} == uint8_test);
     REQUIRE(std::array<std::byte, 2>{std::byte{0xBB}, std::byte{0xAA}} == uint16_test);
     REQUIRE(std::array<std::byte, 4>{
