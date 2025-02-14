@@ -72,6 +72,7 @@ TEST_CASE("sg::tcp_listener: check read/write", "[sg::tcp_listener]") {
     });
 
     REQUIRE_NOTHROW(th.join());
+    l.stop();
 }
 
 TEST_CASE("sg::tcp_listener: check can disconnect client", "[sg::tcp_listener]") {
@@ -113,6 +114,7 @@ TEST_CASE("sg::tcp_listener: check can disconnect client", "[sg::tcp_listener]")
     });
 
     REQUIRE_NOTHROW(th.join());
+    l.stop();
 }
 
 TEST_CASE("sg::tcp_listener: check templated write", "[sg::tcp_listener]") {
@@ -159,6 +161,7 @@ TEST_CASE("sg::tcp_listener: check templated write", "[sg::tcp_listener]") {
     });
 
     REQUIRE_NOTHROW(th.join());
+    l.stop();
 }
 
 
