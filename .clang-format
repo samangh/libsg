@@ -1,4 +1,6 @@
 #-*- mode: conf -*-
+Language: Cpp
+
 IndentWidth: '4'
 IndentPPDirectives: BeforeHash
 ColumnLimit: 100
@@ -12,6 +14,10 @@ BinPackArguments: false
 BinPackParameters: false
 
 ## Only valid in clang >19
-BreakTemplateDeclarations: 'Yes'
+# BreakTemplateDeclarations: 'Yes'
 
 IncludeBlocks: Regroup
+
+## ensure loop and new code block body is in new line
+AllowShortLoopsOnASingleLine: true
+AllowShortBlocksOnASingleLine: true
