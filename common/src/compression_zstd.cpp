@@ -20,18 +20,12 @@ struct decompression_context_deleter {
     void operator()(ZSTD_DCtx *ctx) { ZSTD_freeDCtx(ctx); }
 };
 
-/* Thread-local settings, we set these only if there is a change,
- * as there is a performance penalty */
-thread_local std::unique_ptr<ZSTD_CCtx, compression_context_deleter> comp_context;
-thread_local std::unique_ptr<ZSTD_DCtx, decompression_context_deleter> decomp_context;
-
 }
 
 namespace sg::compression::zstd {
 
 size_t compress(const void *src, size_t srcSize, void *dst, size_t dstSize, int cLevel, int noThreads) {
-    if (!comp_context)
-        comp_context = std::unique_ptr<ZSTD_CCtx, compression_context_deleter>(ZSTD_createCCtx());
+    thread_local auto comp_context = std::unique_ptr<ZSTD_CCtx, compression_context_deleter>(ZSTD_createCCtx());
 
     /* Set parameters */
     ZSTD_THROW_ON_ERROR(ZSTD_CCtx_setParameter(comp_context.get(), ZSTD_c_nbWorkers, noThreads));
@@ -44,7 +38,6 @@ size_t compress(const void *src, size_t srcSize, void *dst, size_t dstSize, int 
 
     return cSize;
 }
-
 
 unique_c_buffer<std::byte> compress(const void *src,
                                     size_t srcSize,
@@ -65,9 +58,8 @@ unique_c_buffer<std::byte> compress(const void *src,
 
 
 void decompress(const void *src, size_t srcSize, void* dst, size_t uncompressedSize) {
-    if (!decomp_context)
-        decomp_context =
-            std::unique_ptr<ZSTD_DCtx, decompression_context_deleter>(ZSTD_createDCtx());
+    thread_local auto decomp_context =
+        std::unique_ptr<ZSTD_DCtx, decompression_context_deleter>(ZSTD_createDCtx());
 
     ZSTD_THROW_ON_ERROR(ZSTD_decompressDCtx(
         decomp_context.get(), dst, uncompressedSize, src, srcSize));
