@@ -1,5 +1,6 @@
 #pragma once
 
+#include "sg/export/common.h"
 #include "buffer.h"
 
 #include <cstddef>
@@ -8,12 +9,12 @@ namespace sg::compression::zstd {
 
 /************************ Helper functions *************************/
 
-[[nodiscard]] int min_compression_level();
-[[nodiscard]] int max_compression_level();
-[[nodiscard]] int default_compresssion_level();
+[[nodiscard]] SG_COMMON_EXPORT int min_compression_level();
+[[nodiscard]] SG_COMMON_EXPORT int max_compression_level();
+[[nodiscard]] SG_COMMON_EXPORT int default_compresssion_level();
 
-[[nodiscard]] size_t get_uncompressed_size(const void* src, size_t src_size);
-[[nodiscard]] size_t get_max_compressed_size(size_t src_size);
+[[nodiscard]] SG_COMMON_EXPORT size_t get_uncompressed_size(const void* src, size_t src_size);
+[[nodiscard]] SG_COMMON_EXPORT size_t get_max_compressed_size(size_t src_size);
 
 /********************** Compression functions **********************/
 
@@ -31,7 +32,7 @@ namespace sg::compression::zstd {
  * @param  noThreads Number of threads to use
  * @return Number of bytes actually written to buffer
  */
-[[nodiscard]] size_t compress(const void *src, size_t srcSize, void *dst, size_t dstSize, int cLevel, int noThreads);
+[[nodiscard]] SG_COMMON_EXPORT size_t compress(const void *src, size_t srcSize, void *dst, size_t dstSize, int cLevel, int noThreads);
 
 /**
  *  @brief Compresses given object using ZStandard algorithm
@@ -42,7 +43,7 @@ namespace sg::compression::zstd {
  *  @param  noThreads Number of threads to use
  *  @return buffer containing compressed data
  **/
-[[nodiscard]] unique_c_buffer<std::byte> compress(const void *src, size_t srcSize, int cLevel, int noThreads);
+[[nodiscard]] SG_COMMON_EXPORT unique_c_buffer<std::byte> compress(const void *src, size_t srcSize, int cLevel, int noThreads);
 
 template <typename RangeT>
     requires(std::ranges::contiguous_range<RangeT> &&
@@ -64,7 +65,7 @@ void decompress(const void *src, size_t srcSize, void* dst, size_t uncompressedS
  *  @param  srcSize   Size of source data (in bytes, i.e. count * sizeof(..))
  *  @return buffer containing de-compressed data
  **/
-[[nodiscard]] unique_c_buffer<std::byte> decompress(const void *src, size_t srcSize);
+[[nodiscard]] SG_COMMON_EXPORT unique_c_buffer<std::byte> decompress(const void *src, size_t srcSize);
 
 /**
  *  @brief decompresses given object using ZStandard algorithm
