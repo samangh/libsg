@@ -9,12 +9,13 @@ namespace sg::compression::zstd {
 
 /************************ Helper functions *************************/
 
-[[nodiscard]] SG_COMMON_EXPORT int min_compression_level();
-[[nodiscard]] SG_COMMON_EXPORT int max_compression_level();
 [[nodiscard]] SG_COMMON_EXPORT int default_compresssion_level();
 
 [[nodiscard]] SG_COMMON_EXPORT size_t get_uncompressed_size(const void* src, size_t src_size);
 [[nodiscard]] SG_COMMON_EXPORT size_t get_max_compressed_size(size_t src_size);
+
+[[nodiscard]] SG_COMMON_EXPORT std::pair<int, int> bounds_nothread();
+[[nodiscard]] SG_COMMON_EXPORT std::pair<int, int> bounds_compression_level();
 
 /********************** Compression functions **********************/
 
@@ -56,7 +57,7 @@ compress(const RangeT& srcBuffer, int compressionLevel, int noThreads) {
 }
 
 /********************** Decompression functions **********************/
-void decompress(const void *src, size_t srcSize, void* dst, size_t uncompressedSize);
+SG_COMMON_EXPORT void decompress(const void *src, size_t srcSize, void* dst, size_t uncompressedSize);
 
 /**
  *  @brief recompresses given object using ZStandard algorithm

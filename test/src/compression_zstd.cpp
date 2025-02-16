@@ -2,10 +2,10 @@
 
 #include <catch2/catch_test_macros.hpp>
 
-TEST_CASE("sg::compression::zstd check byteswap(...) family", "[sg::compression::zstd]") {
+void test_zstd(int level, int thread_count) {
     std::vector<int> in{123,456,789};
 
-    auto comp = sg::compression::zstd::compress((void*)in.data(), sizeof(int)* in.size(), 3, 1);
+    auto comp = sg::compression::zstd::compress((void*)in.data(), sizeof(int)* in.size(), level, thread_count);
 
     /********* decomp using input buffer *********/
     // To int uffer
@@ -40,5 +40,22 @@ TEST_CASE("sg::compression::zstd check byteswap(...) family", "[sg::compression:
         for (decltype(in)::size_type i = 0; i < in.size(); i++)
             REQUIRE(in[i] == ((int *)decmp_ptr.get())[i]);
     }
+}
 
+TEST_CASE("sg::compression::zstd check compress(...) and decompress(...) family", "[sg::compression::zstd]") {
+    // Test level 3 compression with 0=singlethreaded, 1=multithreaded with 1 thread, and 2 threads
+    test_zstd(3, 0);
+    test_zstd(3, 1);
+    test_zstd(3, 2);
+}
+
+TEST_CASE("sg::compression::zstd check utility functions", "[sg::compression::zstd]") {
+    auto bounds_clevel = sg::compression::zstd::bounds_compression_level();
+    auto default_level = sg::compression::zstd::default_compresssion_level();
+    REQUIRE(default_level >= bounds_clevel.first);
+    REQUIRE(default_level <=  bounds_clevel.second);
+
+    auto bounds_nthread = sg::compression::zstd::bounds_nothread();
+    REQUIRE(bounds_nthread.first==0);
+    REQUIRE(bounds_nthread.second>=0);
 }

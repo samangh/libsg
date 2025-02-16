@@ -79,10 +79,6 @@ unique_c_buffer<std::byte> decompress(const void *src, size_t srcSize) {
 
 /************************ Helper functions *************************/
 
-int min_compression_level() { return ZSTD_minCLevel(); }
-
-int max_compression_level() { return ZSTD_maxCLevel(); }
-
 int default_compresssion_level() { return ZSTD_defaultCLevel(); }
 
 size_t get_uncompressed_size(const void* src, size_t src_size) {
@@ -100,6 +96,16 @@ size_t get_max_compressed_size(size_t src_size) {
     auto size = ZSTD_compressBound(src_size);
     ZSTD_THROW_ON_ERROR(size);
     return size;
+}
+
+std::pair<int, int> bounds_nothread() {
+    auto b = ZSTD_cParam_getBounds(ZSTD_c_nbWorkers);
+    return std::pair<int,int>{b.lowerBound, b.upperBound};
+}
+
+std::pair<int, int> bounds_compression_level() {
+    auto b = ZSTD_cParam_getBounds(ZSTD_c_compressionLevel);
+    return std::pair<int,int>{b.lowerBound, b.upperBound};
 }
 
 }  // namespace sg::compression::zstd
