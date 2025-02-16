@@ -37,6 +37,7 @@ jobs:
         run: |
              sudo apt update
              sudo apt install coreutils libboost-dev libsdl2-dev libuv1-dev libfmt-dev libzstd-dev
+             sudo apt install lcov gcovr
              # brew install zstd
 
       - name: Run CMake
@@ -65,3 +66,20 @@ jobs:
       - name: List dependencies
         working-directory: ${{github.workspace}}/build
         run: ldd test/sg_test
+
+      - name: Generate coverage report
+        working-directory: ${{github.workspace}}/build/test/CMakeFiles/sg_test.dir
+        if: matrix.compiler.cc == 'gcc'
+        run: |
+          # Run code generation
+          lcov --directory . --capture --output-file coverage.info
+          lcov --remove coverage.info '*/test/*' --output-file coverage.info #filter test files
+          lcov --remove coverage.info '/usr/*' --output-file coverage.info #filter system-files
+          lcov --remove coverage.info '*/_deps/*' --output-file coverage.info #filter CPM deps
+
+      - name: Upload coverage reports to Codecov
+        uses: codecov/codecov-action@v5
+        if: matrix.compiler.cc == 'gcc'
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          files: ${{github.workspace}}/build/test/CMakeFiles/sg_test.dir/coverage.info
