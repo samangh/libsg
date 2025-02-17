@@ -45,8 +45,12 @@ void test_zstd(int level, int thread_count) {
 TEST_CASE("sg::compression::zstd check compress(...) and decompress(...) family", "[sg::compression::zstd]") {
     // Test level 3 compression with 0=singlethreaded, 1=multithreaded with 1 thread, and 2 threads
     test_zstd(3, 0);
-    test_zstd(3, 1);
-    test_zstd(3, 2);
+
+    /* multi-threaded libzstd is not enabled in static libzstd builds */
+    if (sg::compression::zstd::bounds_nothread().second >=2) {
+        test_zstd(3, 1);
+        test_zstd(3, 2);
+    }
 }
 
 TEST_CASE("sg::compression::zstd check utility functions", "[sg::compression::zstd]") {
