@@ -14,21 +14,17 @@ void append(std::vector<T> &base, const RangeT& to_add) {
 
 template <typename T, typename RangeT>
 requires(std::ranges::range<RangeT> &&
-         std::is_same_v<std::ranges::range_value_t<RangeT>,T>)
+         std::is_same_v<std::ranges::range_value_t<RangeT>,T>&&
+         !std::is_lvalue_reference_v<RangeT>)
 void append(std::vector<T> &base, RangeT&& to_add) {
-    base.insert(std::end(base), make_move_iterator(std::begin(to_add)), make_move_iterator(std::end(to_add)));
-}
+    /* in template, use !std::is_lvalue_reference_v<RangeT> to ensure that the
+     * input is not an lvalue.
+     *
+     * Note that std::is_lvalue_reference_v<RangeT>  will not work, see
+     * https://stackoverflow.com/questions/53758796/why-does-stdis-rvalue-reference-not-do-what-it-is-advertised-to-do
+     */
 
-/**
- * @brief Move contents of one vector to the end of another.
- *
- * There is no point in using this for basic types where a move is
- * equivalent to copy (e.g. ini, double). But for more complex types
- * this is useful.
- */
-template <typename T> void append(std::vector<T> &base, std::vector<T> &&to_add) {
-    base.insert(
-        std::end(base), make_move_iterator(to_add.begin()), make_move_iterator(to_add.end()));
+    base.insert(std::end(base), make_move_iterator(std::begin(to_add)), make_move_iterator(std::end(to_add)));
 }
 
 /**
