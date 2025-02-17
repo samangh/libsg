@@ -313,4 +313,21 @@ template <typename T> shared_opaque_buffer<T> make_shared_opaque_buffer(size_t l
     return shared_opaque_buffer<T>(base);
 }
 
+template <typename T, typename RangeT, typename RangeValT=std::ranges::range_value_t<RangeT>>
+    requires(std::ranges::range<RangeT> &&
+             std::derived_from<IBuffer<T>, RangeValT>)
+std::vector<T> tcp_listener::buffers_to_vector(RangeT&& buffers) {
+    size_t total_size = 0;
+    for (const auto &buf : buffers)
+        total_size += buf.size();
+
+    std::vector<std::byte> result;
+    result.reserve(total_size);
+
+    for (auto &buf : buffers)
+        result.insert(result.end(), buf.begin(), buf.end());
+
+    return result;
+}
+
 } // namespace sg
