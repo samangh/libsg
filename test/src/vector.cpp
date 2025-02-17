@@ -22,6 +22,42 @@ TEST_CASE("sg::vector: check append for intrinsic types", "[sg::vector]") {
     }
 }
 
+template <typename T>
+using vec = std::vector<T>;
+
+TEST_CASE("sg::vector: nested range flatenning", "[sg::vector]") {
+    auto top = vec<vec<vec<int>>>();
+    auto mid1 = vec<vec<int>>();
+    auto mid2 = vec<vec<int>>();
+    auto bot = vec<int>{1, 2, 3};
+
+    mid1.push_back(bot);
+    mid1.push_back(bot);
+
+    mid2.push_back(bot);
+    mid2.push_back(bot);
+
+    top.push_back(mid1);
+    top.push_back(mid2);
+
+    //flatenning down to base init
+    {
+        auto flattened = sg::vector::flatten<int>(top);
+        auto correc_resut = vec<int>{1,2,3, 1,2,3, 1,2,3, 1,2,3};
+
+        REQUIRE(sg::vector::flatenned_size<int>(top) == 12);
+        REQUIRE(flattened == correc_resut);
+    }
+
+    //flatenning down to vec<int>
+    {
+        auto flattened = sg::vector::flatten<vec<int>>(top);
+        auto correc_resut = vec<vec<int>>{{1,2,3},{1,2,3},{1,2,3},{1,2,3} };
+
+        REQUIRE(sg::vector::flatenned_size<vec<int>>(top) == 4);
+        REQUIRE(flattened == correc_resut);
+    }
+}
 
 size_t moved=0;
 size_t copy_or_constructed=0;
