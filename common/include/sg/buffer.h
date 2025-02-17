@@ -2,6 +2,7 @@
 
 #include "memory.h"
 #include "iterator.h"
+#include "vector.h"
 
 #include <memory>
 #include <type_traits>
