@@ -26,27 +26,39 @@ It flatten_copy_to_iterator(It& it, RangeRangeT&& buffers) {
 
 namespace sg::vector {
 
-template <typename T, typename RangeT>
-requires(std::ranges::range<RangeT> &&
-         std::is_same_v<std::ranges::range_value_t<RangeT>,T>)
-void append(std::vector<T> &base, const RangeT& to_add) {
-    base.insert(std::end(base), std::begin(to_add), std::end(to_add));
+template <typename BaseRangeT, typename RangeT>
+    requires(std::ranges::range<RangeT> && std::ranges::range<BaseRangeT> &&
+        std::is_same_v<std::ranges::range_value_t<RangeT>,
+                       std::ranges::range_value_t<BaseRangeT>>)
+void append(BaseRangeT& baseRange, const RangeT& to_add) {
+    baseRange.insert(std::end(baseRange), std::begin(to_add), std::end(to_add));
 }
 
-template <typename T, typename RangeT>
-requires(std::ranges::range<RangeT> &&
-         std::is_same_v<std::ranges::range_value_t<RangeT>,T>&&
-         !std::is_lvalue_reference_v<RangeT>)
-void append(std::vector<T> &base, RangeT&& to_add) {
-    /* in template, use !std::is_lvalue_reference_v<RangeT> to ensure that the
-     * input is not an lvalue.
-     *
-     * Note that std::is_lvalue_reference_v<RangeT>  will not work, see
-     * https://stackoverflow.com/questions/53758796/why-does-stdis-rvalue-reference-not-do-what-it-is-advertised-to-do
-     */
-
-    base.insert(std::end(base), make_move_iterator(std::begin(to_add)), make_move_iterator(std::end(to_add)));
+template <typename BaseRangeT, typename RangeT>
+    requires(std::ranges::range<RangeT> && std::ranges::range<BaseRangeT> &&
+             std::is_same_v<std::ranges::range_value_t<RangeT>,
+                            std::ranges::range_value_t<BaseRangeT>> &&
+             !std::is_lvalue_reference_v<RangeT>)
+void append(BaseRangeT& baseRange, RangeT&& to_add) {
+    baseRange.insert(std::end(baseRange),
+                     make_move_iterator(std::begin(to_add)),
+                     make_move_iterator(std::end(to_add)));
 }
+
+// template <typename T, typename RangeT, typename Alloc>
+// requires(std::ranges::range<RangeT> &&
+//          std::is_same_v<std::ranges::range_value_t<RangeT>,T>&&
+//          !std::is_lvalue_reference_v<RangeT>)
+// void append(std::vector<T,Alloc> &base, RangeT&& to_add) {
+//     /* in template, use !std::is_lvalue_reference_v<RangeT> to ensure that the
+//      * input is not an lvalue.
+//      *
+//      * Note that std::is_lvalue_reference_v<RangeT>  will not work, see
+//      * https://stackoverflow.com/questions/53758796/why-does-stdis-rvalue-reference-not-do-what-it-is-advertised-to-do
+//      */
+
+//     base.insert(std::end(base), make_move_iterator(std::begin(to_add)), make_move_iterator(std::end(to_add)));
+// }
 
 /**
  * @brief Allocator adaptor that interposes construct() calls to
