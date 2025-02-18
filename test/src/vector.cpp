@@ -57,6 +57,24 @@ TEST_CASE("sg::vector: nested range flatenning", "[sg::vector]") {
         REQUIRE(sg::vector::flatenned_size<vec<int>>(top) == 4);
         REQUIRE(flattened == correc_resut);
     }
+
+    //flatenning down to base init with custom no-init allocator
+    {
+        auto flattened = sg::vector::flatten<int, sg::vector::allocator_no_init<int>>(top);
+        auto correc_resut = sg::vector::vector_no_init<int>{1,2,3, 1,2,3, 1,2,3, 1,2,3};
+
+        REQUIRE(sg::vector::flatenned_size<int>(top) == 12);
+        REQUIRE(flattened == correc_resut);
+    }
+
+    //flatenning down to base init with flatten_no_init
+    {
+        auto flattened = sg::vector::flatten_no_init<int>(top);
+        auto correc_resut = sg::vector::vector_no_init<int>{1,2,3, 1,2,3, 1,2,3, 1,2,3};
+
+        REQUIRE(sg::vector::flatenned_size<int>(top) == 12);
+        REQUIRE(flattened == correc_resut);
+    }
 }
 
 size_t moved=0;

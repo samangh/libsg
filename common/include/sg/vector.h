@@ -55,7 +55,7 @@ void append(std::vector<T> &base, RangeT&& to_add) {
  *        Pass to std::vector, to create a vector that does not initialise
  *        the values.
  */
-template <typename T, typename A = std::allocator<T>> class default_init_allocator : public A {
+template <typename T, typename A = std::allocator<T>> class allocator_no_init : public A {
     /* From:
      * https://stackoverflow.com/questions/21028299/is-this-behavior-of-vectorresizesize-type-n-under-c11-and-boost-container/21028912
      */
@@ -63,7 +63,7 @@ template <typename T, typename A = std::allocator<T>> class default_init_allocat
 
   public:
     template <typename U> struct rebind {
-        using other = default_init_allocator<U, typename a_t::template rebind_alloc<U>>;
+        using other = allocator_no_init<U, typename a_t::template rebind_alloc<U>>;
     };
 
     using A::A;
@@ -78,7 +78,7 @@ template <typename T, typename A = std::allocator<T>> class default_init_allocat
 };
 
 /* a std::vector<T> that does not initialise new members when doing resize(...) */
-template <typename T> using vector_no_alloc = std::vector<T, default_init_allocator<T>>;
+template <typename T> using vector_no_init = std::vector<T, allocator_no_init<T>>;
 
 /****************** size ******************/
 template <typename DataT, typename RangeT>
@@ -100,16 +100,22 @@ size_t flatenned_size(RangeRangeT&& buffers) {
 
 /****************** flatten to vector ******************/
 
-template <typename DataT, typename RangeT>
-    requires(std::ranges::range<RangeT>)
-std::vector<DataT> flatten(RangeT&& buffers) {
+template <typename DataT, typename Alloc = std::allocator<DataT>, typename RangeT>
+    requires(std::ranges::range<RangeT> && std::derived_from<Alloc, std::allocator<DataT>>)
+std::vector<DataT, Alloc> flatten(RangeT&& buffers) {
     auto size = flatenned_size<DataT>(buffers);
 
-    std::vector<DataT> result(size);
+    std::vector<DataT, Alloc> result(size);
     auto iterator = result.begin();
     sg::internal::flatten_copy_to_iterator(iterator, buffers);
 
     return result;
+}
+
+template <typename DataT, typename RangeT>
+    requires(std::ranges::range<RangeT>)
+sg::vector::vector_no_init<DataT> flatten_no_init(RangeT&& buffers) {
+    return flatten<DataT,sg::vector::allocator_no_init<DataT>>(buffers);
 }
 
 } // namespace sg::vector
