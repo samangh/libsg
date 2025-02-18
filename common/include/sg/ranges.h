@@ -24,7 +24,7 @@ It flatten_copy_to_iterator(It& it, RangeRangeT&& buffers) {
 }
 } // namespace sg::internal
 
-namespace sg::vector {
+namespace sg::ranges {
 
 template <typename BaseRangeT, typename RangeT>
     requires(std::ranges::range<RangeT> && std::ranges::range<BaseRangeT> &&
@@ -44,21 +44,6 @@ void append(BaseRangeT& baseRange, RangeT&& to_add) {
                      make_move_iterator(std::begin(to_add)),
                      make_move_iterator(std::end(to_add)));
 }
-
-// template <typename T, typename RangeT, typename Alloc>
-// requires(std::ranges::range<RangeT> &&
-//          std::is_same_v<std::ranges::range_value_t<RangeT>,T>&&
-//          !std::is_lvalue_reference_v<RangeT>)
-// void append(std::vector<T,Alloc> &base, RangeT&& to_add) {
-//     /* in template, use !std::is_lvalue_reference_v<RangeT> to ensure that the
-//      * input is not an lvalue.
-//      *
-//      * Note that std::is_lvalue_reference_v<RangeT>  will not work, see
-//      * https://stackoverflow.com/questions/53758796/why-does-stdis-rvalue-reference-not-do-what-it-is-advertised-to-do
-//      */
-
-//     base.insert(std::end(base), make_move_iterator(std::begin(to_add)), make_move_iterator(std::end(to_add)));
-// }
 
 /**
  * @brief Allocator adaptor that interposes construct() calls to
@@ -126,8 +111,8 @@ std::vector<DataT, Alloc> flatten(RangeT&& buffers) {
 
 template <typename DataT, typename RangeT>
     requires(std::ranges::range<RangeT>)
-sg::vector::vector_no_init<DataT> flatten_no_init(RangeT&& buffers) {
-    return flatten<DataT,sg::vector::allocator_no_init<DataT>>(buffers);
+sg::ranges::vector_no_init<DataT> flatten_no_init(RangeT&& buffers) {
+    return flatten<DataT,sg::ranges::allocator_no_init<DataT>>(buffers);
 }
 
 } // namespace sg::vector

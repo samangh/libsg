@@ -1,7 +1,7 @@
 #pragma once
 
 #include "sg/export/common.h"
-#include "vector.h"
+#include "ranges.h"
 
 #include <algorithm>
 #include <array>
@@ -55,7 +55,7 @@ template <typename RangeT>
     std::vector<std::byte> result;
     result.reserve(size);
     std::ranges::for_each(
-        range, [&result](const auto& item) { sg::vector::append(result, to_bytes(item)); });
+        range, [&result](const auto& item) { sg::ranges::append(result, to_bytes(item)); });
 
     return result;
 }

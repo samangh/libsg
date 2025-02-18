@@ -1,1 +1,0 @@
-#include <sg/vector.h>

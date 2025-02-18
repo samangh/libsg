@@ -1,7 +1,7 @@
 #pragma once
 
 #include "bytes.h"
-#include "vector.h"
+#include "ranges.h"
 
 #include <fmt/compile.h>
 #include <fmt/format.h>
@@ -48,7 +48,7 @@ template <std::input_iterator BeginT, std::sentinel_for<BeginT> SentinelT>
 
     std::vector<std::byte> result;
     result.reserve(size);
-    for (BeginT it = begin; it != end; it++) sg::vector::append(result, sg::bytes::to_bytes(*it));
+    for (BeginT it = begin; it != end; it++) sg::ranges::append(result, sg::bytes::to_bytes(*it));
 
     return fmt::format("{:02X}", fmt::join(std::begin(result), std::end(result), separator));
 }
