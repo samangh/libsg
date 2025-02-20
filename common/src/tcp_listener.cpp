@@ -132,7 +132,7 @@ class SG_COMMON_EXPORT tcp_listener::impl : public sg::enable_lifetime_indicator
 
    void disconnect_async(client_id id) {
        std::shared_lock lock(m_mutex);
-       uv_close((uv_handle_t*)m_clients.at(id)->uv_tcp_handle.get(), nullptr);
+       uv_close((uv_handle_t*)m_clients.at(id)->uv_tcp_handle.get(), on_client_disconnected );
    }
 
 
