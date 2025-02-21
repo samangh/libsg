@@ -18,6 +18,31 @@ do {                                                                            
             throw std::runtime_error(uv_strerror(err));                                            \
 } while (0)
 
+namespace sg::uv {
+
+template <typename T>
+struct deleter_uv_handle {
+    void operator()(T *ctx) {
+        if (uv_loop_alive(ctx->loop) && !uv_is_closing((uv_handle_t*) ctx))
+            uv_close((uv_handle_t*)ctx, [](uv_handle_t * handle){
+                if (handle)
+                    delete handle;
+            });
+        else
+            if (ctx)
+                delete ctx;
+    }
+};
+
+template <typename T> using unqiue_uv_handle = std::unique_ptr<T, uv::deleter_uv_handle<T>>;
+
+template <typename T>
+unqiue_uv_handle<T> make_unique_uv_handle() {
+    return  unqiue_uv_handle<T>(new T);
+}
+
+}
+
 namespace sg {
 
 /* wrapper around libuv, helps with starting and stopping it properly */
@@ -94,8 +119,8 @@ class SG_COMMON_EXPORT libuv_wrapper {
     uv_loop_t m_loop;
 
     mutable std::thread m_thread;                     /* mutable because of block_until_stopped() */
-    std::unique_ptr<uv_async_t> m_async;              /* For stopping the loop */
-    std::unique_ptr<uv_async_t> m_loop_started_async; /* For calling te on_loop_started callbacks */
+    sg::uv::unqiue_uv_handle<uv_async_t> m_async;              /* For stopping the loop */
+    sg::uv::unqiue_uv_handle<uv_async_t> m_loop_started_async; /* For calling te on_loop_started callbacks */
 
     mutable std::mutex m_tasks_mutex;
     std::map<callback_id_t, cb_t> m_started_cbs;
