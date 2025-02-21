@@ -97,9 +97,13 @@ void libuv_wrapper::start_libuv() {
              *  and there are still active handles or  requests. Returns zero in
              *  all other cases. */
             if (loop_stop_requested)
-                uv_run(&m_loop, UV_RUN_ONCE);
+            {
+                THROW_ON_LIBUV_ERROR(uv_run(&m_loop, UV_RUN_ONCE));
+            }
             else
-                uv_run(&m_loop, UV_RUN_DEFAULT);
+            {
+                THROW_ON_LIBUV_ERROR(uv_run(&m_loop, UV_RUN_DEFAULT));
+            }
 
             loop_stop_requested = true;
             {

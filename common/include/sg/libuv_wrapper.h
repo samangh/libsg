@@ -11,11 +11,12 @@
 
 #include <uv.h>
 
-#define THROW_ON_LIBUV_ERROR(err)                                                                  \
-    do {                                                                                           \
+#define THROW_ON_LIBUV_ERROR(fn)                                                                   \
+do {                                                                                               \
+        auto const err = (fn);                                                                     \
         if (err < 0)                                                                               \
             throw std::runtime_error(uv_strerror(err));                                            \
-    } while (0);
+} while (0)
 
 namespace sg {
 
