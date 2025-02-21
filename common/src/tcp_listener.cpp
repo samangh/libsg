@@ -9,12 +9,9 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#include <iostream>
 #include <memory>
 #include <mutex>
 #include <shared_mutex>
-#include <system_error>
-#include <thread>
 #include <vector>
 
 #ifdef _WIN32
@@ -316,7 +313,6 @@ void tcp_listener::impl::write(client_id id, buffer&& data) {
 }
 
 void tcp_listener::impl::on_read(uv_stream_t *client, ssize_t nread, const uv_buf_t *buf) {
-   auto client_dat  = (client_data *)client->data;
    auto a = ((client_data *)client->data)->listener;
    auto id = ((client_data *)client->data)->id;
 
@@ -327,11 +323,6 @@ void tcp_listener::impl::on_read(uv_stream_t *client, ssize_t nread, const uv_bu
        if (nread != UV_EOF)
            a->on_error(id, uv_strerror((int)nread));
        return;
-   }
-
-   {
-       std::unique_lock lock(client_dat->mutex);
-       client_dat->client_connection_details.bytes_received += nread;
    }
 
    /* Take ownership of the buffer, as it is now ours. */
@@ -410,10 +401,6 @@ void tcp_listener::impl::on_write(uv_write_s *req, int status) {
 
    if (status < 0)
        listener->on_error(client.id, uv_strerror((int)status));
-   else {
-       std::lock_guard lock(client.mutex);
-       client.client_connection_details.bytes_sent += write_req->data.size();
-   }
    client.remove_write_request(write_req->write_id);
 }
 
@@ -455,9 +442,6 @@ void tcp_listener::impl::populate_client_details(std::shared_ptr<client_data> cl
         THROW_ON_LIBUV_ERROR(uv_ip_name((struct sockaddr *)&addr, ip_str, sizeof(ip_str)));
         client->client_connection_details.local_address = ip_str;
     }
-
-    client->client_connection_details.bytes_sent=0;
-    client->client_connection_details.bytes_received=0;
 }
 
 

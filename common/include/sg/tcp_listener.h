@@ -34,8 +34,6 @@ class SG_COMMON_EXPORT tcp_listener : sg::enable_lifetime_indicator {
        std::string source_address;
        std::string local_address;
        sg::net::address_family address_family;
-       size_t bytes_sent;
-       size_t bytes_received;
    };
 
    /* Consructs a TCP listener, callbacks can be nullptr */
