@@ -54,6 +54,7 @@ setup_library(
   COMPILE_OPTIONS_PUBLIC
     $<$<AND:$<OR:$<CXX_COMPILER_ID:Clang>,$<CXX_COMPILER_ID:AppleClang>>,$<STREQUAL:${STANDARD_LIBRARY},c++>>:-fexperimental-library> # for std::jthread with libc++
   COMPILE_OPTIONS_PRIVATE
+      $<$<NOT:$<CXX_COMPILER_ID:MSVC>>:-fno-strict-aliasing> # recommended by LibUV, otherwise libuv is not safe with optimisations
   COMPILE_FEATURES_INTERFACE
   COMPILE_FEATURES_PUBLIC
     cxx_std_20
