@@ -22,6 +22,7 @@ include(DefaultPreamble)
 ##
 option(BENCHMARK "Run benchmarks" OFF)
 option(LIBSG_IMGUI "Include IMGUI stuff" ON)
+option(LIBSG_OWN_LIBUV "Use our own copy of libuv" OFF)
 
 ##
 ## Packages

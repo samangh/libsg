@@ -1,5 +1,15 @@
+if(LIBSG_OWN_LIBUV)
+CPMAddPackage(NAME libuv
+  GITHUB_REPOSITORY libuv/libuv
+  VERSION 1.50.0
+  GIT_SHALLOW
+  OPTIONS
+    "BUILD_TESTING OFF")
+else()
+  find_package(libuv REQUIRED)
+endif()
+
 find_package(Threads REQUIRED)
-find_package(LibUV REQUIRED)
 find_package(fmt REQUIRED)
 find_package(zstd REQUIRED)
 
@@ -41,7 +51,7 @@ setup_library(
     Boost::Boost
   LINK_INTERFACE
   LINK_PUBLIC
-    LibUV::LibUV
+    libuv::libuv
     fmt::fmt
   LINK_PRIVATE
     $<$<BOOL:${SSE_SSE42_FOUND}>:SSE::SSE42> # For hardware accelerated CRC32
