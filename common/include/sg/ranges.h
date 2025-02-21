@@ -81,14 +81,14 @@ template <typename T> using vector_no_init = std::vector<T, allocator_no_init<T>
 template <typename DataT, typename RangeT>
     requires(std::ranges::range<RangeT> &&
              std::is_same_v<DataT, std::ranges::range_value_t<RangeT>>)
-size_t flatenned_size(RangeT&& buffers) {
+size_t flatenned_size(const RangeT& buffers) {
     return std::size(buffers);
 }
 
 template <typename DataT, typename RangeRangeT, typename RangeT = std::ranges::range_value_t<RangeRangeT>>
     requires(std::ranges::range<RangeRangeT> && std::ranges::range<RangeT>
              && ! std::is_same_v<DataT,RangeT>)
-size_t flatenned_size(RangeRangeT&& buffers) {
+size_t flatenned_size(const RangeRangeT& buffers) {
     size_t size = 0;
     for (const auto& buf : buffers)
         size += flatenned_size<DataT>(buf);
