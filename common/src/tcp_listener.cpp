@@ -132,7 +132,12 @@ class SG_COMMON_EXPORT tcp_listener::impl : public sg::enable_lifetime_indicator
 
    void disconnect_async(client_id id) {
        std::shared_lock lock(m_mutex);
-       uv_close((uv_handle_t*)m_clients.at(id)->uv_tcp_handle.get(), on_client_disconnected );
+
+       /*check that the client has not been deleted already by something else / different callback
+        *
+        *  no need to have a mutex on the client itself */
+       if (auto client = m_clients.find(id);  client != m_clients.end())
+           client->second->disconnect_async();
    }
 
 
@@ -200,10 +205,21 @@ class SG_COMMON_EXPORT tcp_listener::impl : public sg::enable_lifetime_indicator
    struct client_data {
        client_data(impl *_listener, client_id _id)
            : listener(_listener),
-             id(_id),                                    //
-             uv_tcp_handle(std::make_unique<uv_tcp_t>()) //
+             id(_id),
+             uv_tcp_handle(std::make_unique<uv_tcp_t>()),
+             m_disconnect_async(std::make_unique<uv_async_t>())
        {
            uv_tcp_handle->data = this;
+
+           /* manual stop callback
+            *
+            * Create this here, because then if the async_disconnect() is called multiple times
+            * during a libuv loop, the close action will still only be called once */
+           m_disconnect_async.get()->data = uv_tcp_handle.get();
+           uv_async_init(
+               listener->m_libuv.get_uv_loop(), m_disconnect_async.get(), [](uv_async_t* handle) {
+                   uv_close((uv_handle_t*)handle->data, on_client_disconnected);
+               });
        }
        mutable std::shared_mutex mutex;
 
@@ -236,6 +252,14 @@ class SG_COMMON_EXPORT tcp_listener::impl : public sg::enable_lifetime_indicator
           std::unique_lock lock(mutex);
           m_write_requests.erase(id);
        }
+
+       void disconnect_async() {
+           THROW_ON_LIBUV_ERROR(uv_async_send(m_disconnect_async.get()));
+       }
+
+     private:
+       std::unique_ptr<uv_async_t> m_disconnect_async;
+
    };
 
 
@@ -306,7 +330,7 @@ void tcp_listener::impl::on_read(uv_stream_t *client, ssize_t nread, const uv_bu
    }
 
    {
-       std::unique_lock lock(a->m_mutex);
+       std::unique_lock lock(client_dat->mutex);
        client_dat->client_connection_details.bytes_received += nread;
    }
 
