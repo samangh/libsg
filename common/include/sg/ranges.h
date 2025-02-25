@@ -26,6 +26,7 @@ It flatten_copy_to_iterator(It& it, RangeRangeT&& buffers) {
 
 namespace sg::ranges {
 
+/**************************** append ****************************/
 template <typename BaseRangeT, typename RangeT>
     requires(std::ranges::range<RangeT> && std::ranges::range<BaseRangeT> &&
         std::is_same_v<std::ranges::range_value_t<RangeT>,
@@ -43,6 +44,13 @@ void append(BaseRangeT& baseRange, RangeT&& to_add) {
     baseRange.insert(std::end(baseRange),
                      make_move_iterator(std::begin(to_add)),
                      make_move_iterator(std::end(to_add)));
+}
+
+/**************************** copy ****************************/
+template <typename InputRangeT, typename OutputIter>
+OutputIter copy(InputRangeT to_add, OutputIter to_copy) {
+    return std::copy(std::begin(to_add),
+                     std::end(to_add), to_copy);
 }
 
 /**
