@@ -43,6 +43,7 @@ template <typename T> class IContigiousChannel : public IChannelBase {
     std::string m_name;
     std::vector<std::string> m_hierarchy;
 
+    typedef T                                value_type;
     typedef std::size_t                      size_type;
     typedef sg::contiguous_iterator<T>       iterator_type;
     typedef sg::contiguous_iterator<const T> const_iterator_type;
