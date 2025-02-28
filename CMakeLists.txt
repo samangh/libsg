@@ -23,6 +23,7 @@ include(DefaultPreamble)
 option(BENCHMARK "Run benchmarks" OFF)
 option(LIBSG_IMGUI "Include IMGUI stuff" ON)
 option(LIBSG_OWN_LIBUV "Use our own copy of libuv" OFF)
+option(LIBSG_BUILD_TESTING "Build test suite" ${BUILD_TESTING})
 
 ##
 ## Packages
@@ -42,7 +43,7 @@ if(LIBSG_IMGUI)
 endif()
 
 include(CTest)
-if(BUILD_TESTING)
+if(LIBSG_BUILD_TESTING)
   add_subdirectory(test)
 endif()
 
