@@ -1,3 +1,4 @@
+#include "sg/buffer.h"
 #include <sg/bytes.h>
 
 #include <catch2/catch_test_macros.hpp>
@@ -81,4 +82,32 @@ TEST_CASE("SG::common sg::bytes: check to_double(...) and from_bytes(double)") {
                                      std::byte{0xDE},
                                      std::byte{0x1B}} ==
             sg::bytes::to_bytes((double)1.23456789, std::endian::big));
+}
+
+TEST_CASE("sg::bytes: check to_integral_and_advance_...(...) family", "[sg::bytes]") {
+    /*create byte array */
+    std::vector<uint64_t> vec {1,2};
+    auto buf = sg::make_unique_c_buffer<std::byte>(vec.size()*sizeof(uint64_t));
+    std::memcpy(buf.get(), (void*)vec.data(), buf.size());
+
+    // iterator access
+    {
+        auto it = buf.begin();
+        auto result1 = sg::bytes::to_integral_and_advance_iterator<uint64_t>(it, buf.end());
+        auto result2 = sg::bytes::to_integral_and_advance_iterator<uint64_t>(it, buf.end());
+
+        REQUIRE(result1 == 1);
+        REQUIRE(result2 == 2);
+        REQUIRE_THROWS(sg::bytes::to_integral_and_advance_iterator<uint64_t>(it, buf.end()));
+    }
+
+    // pointer access
+    {
+        auto ptr = buf.get();
+        auto result1 = sg::bytes::to_integral_and_advance_ptr<uint64_t>(&ptr);
+        auto result2 = sg::bytes::to_integral_and_advance_ptr<uint64_t>(&ptr);
+
+        REQUIRE(result1 == 1);
+        REQUIRE(result2 == 2);
+    }
 }
