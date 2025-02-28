@@ -200,12 +200,11 @@ class SG_COMMON_EXPORT tcp_listener::impl : public sg::enable_lifetime_indicator
    };
 
    struct client_data {
-       client_data(impl *_listener, client_id _id)
+       client_data(impl* _listener, client_id _id)
            : listener(_listener),
              id(_id),
              uv_tcp_handle(std::make_unique<uv_tcp_t>()),
-             m_disconnect_async(std::make_unique<uv_async_t>())
-       {
+             m_disconnect_async(sg::uv::make_unique_uv_handle<uv_async_t>()) {
            uv_tcp_handle->data = this;
 
            /* manual stop callback
@@ -218,6 +217,7 @@ class SG_COMMON_EXPORT tcp_listener::impl : public sg::enable_lifetime_indicator
                    uv_close((uv_handle_t*)handle->data, on_client_disconnected);
                });
        }
+
        mutable std::shared_mutex mutex;
 
        impl *listener;
@@ -255,7 +255,7 @@ class SG_COMMON_EXPORT tcp_listener::impl : public sg::enable_lifetime_indicator
        }
 
      private:
-       std::unique_ptr<uv_async_t> m_disconnect_async;
+       sg::uv::unqiue_uv_handle<uv_async_t> m_disconnect_async;
 
    };
 

@@ -61,7 +61,6 @@ void libuv_wrapper::start_libuv() {
 
     /* setup UV loop */
     THROW_ON_LIBUV_ERROR(uv_loop_init(&m_loop));
-    m_loop.data = this;
 
     /* task setup callacks */
     for (auto& [index, cb] : libuv_setup_task_cbs)
@@ -69,13 +68,13 @@ void libuv_wrapper::start_libuv() {
     libuv_setup_task_cbs.clear();
 
     /* Setup handle for stopping the loop */
-    m_async = std::make_unique<uv_async_t>();
+    m_async = sg::uv::make_unique_uv_handle<uv_async_t>();
     uv_async_init(&m_loop, m_async.get(), [](uv_async_t *handle) {
         uv_stop(handle->loop);
     });
 
     /* Setup handle for calling the on_start callbacks from within the libuv loop */
-    m_loop_started_async = std::make_unique<uv_async_t>();
+    m_loop_started_async = sg::uv::make_unique_uv_handle<uv_async_t>();
     m_loop_started_async->data = this;
     uv_async_init(&m_loop, m_loop_started_async.get(), [](uv_async_t *handle) {
         auto uv_wrap = (sg::libuv_wrapper *)handle->data;
@@ -90,6 +89,9 @@ void libuv_wrapper::start_libuv() {
     m_uvloop_running = true;
     m_thread = std::thread([&, this]() {
         bool loop_stop_requested = false;
+
+        //data means we are running, this is used by deleter_uv_handle
+        m_loop.data = (void*)&m_loop;
 
         while (true) {                        
             /*  Runs the event loop until there are no more active and referenced
@@ -128,7 +130,8 @@ void libuv_wrapper::start_libuv() {
 
             /* Close callbacks */
             uv_walk(&m_loop, [](uv_handle_s *handle, void *) {
-                uv_close(handle, nullptr);
+                if(!uv_is_closing(handle))
+                    uv_close(handle, nullptr);
             }, nullptr);
 
             /* Check if there are any remaining callbacks*/
@@ -137,6 +140,7 @@ void libuv_wrapper::start_libuv() {
         }
 
         m_uvloop_running = false;
+        m_loop.data = nullptr;
 
         {
             std::lock_guard lock(m_tasks_mutex);

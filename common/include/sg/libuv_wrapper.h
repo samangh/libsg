@@ -18,6 +18,66 @@ do {                                                                            
             throw std::runtime_error(uv_strerror(err));                                            \
 } while (0)
 
+namespace sg::uv {
+
+template <typename T>
+struct deleter_uv_handle {
+    void operator()(T* ptr) {
+        /* if the loop is not running, just delete.
+         *
+         * uv_loop_alive is not reliable, so we also use ptr->loop->data */
+        if (!uv_loop_alive(ptr->loop) || !ptr->loop->data)
+        {
+            delete ptr;
+            ptr=nullptr;
+            return;
+        }
+
+        /* the uv_loop is running, we have to:
+         * - create an async_t object
+         * - in the async object callback, request closure of the part
+         * - in the callback fo the closure, delete this pointer and also the async pointer
+         *   itself */
+
+        // should not throw exceptions in deleters, if above malloc failes just quit
+        uv_async_t* async_handle = (uv_async_t*)malloc(sizeof(uv_async_t));
+        if (!(void*)async_handle)
+            return;
+
+        auto async_func = [](uv_async_t* async_handle) {
+            auto hndl_to_close = (uv_handle_t*)async_handle->data;
+
+            if(!uv_is_closing(hndl_to_close))
+                uv_close(hndl_to_close, [](uv_handle_t* handle) {
+                    delete handle;
+                    handle=nullptr;
+                });
+
+            // remove the async handle itself
+            uv_close((uv_handle_t*)async_handle,  [](uv_handle_t* h) {
+                delete h;
+                h=nullptr;
+            });
+
+        };
+
+
+        if (uv_async_init(ptr->loop, async_handle, async_func)==0){
+            // to the pointer to be deleted/closed in teh async handle
+            async_handle->data = ptr;
+            uv_async_send(async_handle);
+        }
+    };
+};
+template <typename T> using unqiue_uv_handle = std::unique_ptr<T, uv::deleter_uv_handle<T>>;
+
+template <typename T>
+unqiue_uv_handle<T> make_unique_uv_handle() {
+    return  unqiue_uv_handle<T>(new T);
+}
+
+}
+
 namespace sg {
 
 /* wrapper around libuv, helps with starting and stopping it properly */
@@ -88,14 +148,15 @@ class SG_COMMON_EXPORT libuv_wrapper {
      * that defined any callbacks that could be called as libuv is
      * being shutdown.
      */
+
     virtual ~libuv_wrapper();
 
   private:
     uv_loop_t m_loop;
+    sg::uv::unqiue_uv_handle<uv_async_t> m_async;              /* For stopping the loop */
+    sg::uv::unqiue_uv_handle<uv_async_t> m_loop_started_async; /* For calling te on_loop_started callbacks */
 
     mutable std::thread m_thread;                     /* mutable because of block_until_stopped() */
-    std::unique_ptr<uv_async_t> m_async;              /* For stopping the loop */
-    std::unique_ptr<uv_async_t> m_loop_started_async; /* For calling te on_loop_started callbacks */
 
     mutable std::mutex m_tasks_mutex;
     std::map<callback_id_t, cb_t> m_started_cbs;
@@ -115,6 +176,7 @@ class SG_COMMON_EXPORT libuv_wrapper {
     void start_libuv();
 
     callback_id_t add_setup_task_cb(cb_t setup, cb_wrapup_t wrapup);
+
 };
 
 libuv_wrapper& get_global_uv_holder();
