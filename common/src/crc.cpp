@@ -31,7 +31,7 @@ uint32_t crc32_tabular_2_bytes(const void* M,
                                uint32_t* crcTable) {
     const uint16_t* M16 = (const uint16_t*)M;
     uint32_t R = prev;
-
+    auto bytes_left = bytes;
     for (uint32_t i = 0; i < bytes >> 1; ++i)
     {
         if constexpr (std::endian::native == std::endian::big) {
@@ -44,12 +44,14 @@ uint32_t crc32_tabular_2_bytes(const void* M,
                 crcTable[0 * 256 + uint8_t(R >> 8)] ^
                 crcTable[1 * 256 + uint8_t(R >> 0)];
         }
+        bytes_left-=2;
     }
-    return R;
+    return crc32_tabular_1_byte(M16, bytes_left, R, crcTable);
 }
 uint32_t crc32_tabular_4_bytes(const void* M, size_t bytes, uint32_t prev, uint32_t* crcTable) {
     const uint32_t* M32 = (const uint32_t*)M;
     uint32_t R = prev;
+    auto bytes_left = bytes;
     for (uint32_t i = 0; i < bytes >> 2; ++i)
     {
         if constexpr (std::endian::native == std::endian::big) {
@@ -65,8 +67,9 @@ uint32_t crc32_tabular_4_bytes(const void* M, size_t bytes, uint32_t prev, uint3
             crcTable[2 * 256 + uint8_t(R >>  8)] ^
             crcTable[3 * 256 + uint8_t(R >>  0)];
         }
+        bytes_left -=4;
     }
-    return R;
+    return crc32_tabular_2_bytes(M32, bytes_left, R, crcTable);
 }
 uint32_t crc32_tabular_8_bytes(const void* M,
                                std::size_t bytes,
@@ -103,7 +106,7 @@ uint32_t crc32_tabular_8_bytes(const void* M,
     }
 
     // Run 1-byte algorithm on any remaning bytes
-    return crc32_tabular_1_byte(M32, bytes, R, crcTable);
+    return crc32_tabular_4_bytes(M32, bytes, R, crcTable);
 }
 uint32_t crc32_tabular_16_bytes(const void* M,
                                 std::size_t bytes,
@@ -208,20 +211,18 @@ bool can_do_crc32c_hardware() {
 #endif
 }
 
-uint32_t crc32c(const void* data, std::size_t length) {
+uint32_t crc32c(const void* data, std::size_t length, uint32_t remainder) {
     /* Notes:
      *   - we invert (use ~) the result this is equivalent to XORing with 0xFFFFFFFF
      *   - the CRC32C initial remainder is 0xFFFFFFFFU */
-
-    const uint32_t initial_remainder = 0xFFFFFFFFU;
 
 #ifdef HAVE_HARDWARE_CRC32
     /* If available, use hardware assited version*/
     switch (sg::cpu::current_cpu_vendor()) {
     case sg::cpu::cpu_vendor::Amd:
-        return ~_internal::crc32c_hardware_amd(data, length, initial_remainder);
+        return ~_internal::crc32c_hardware_amd(data, length, remainder);
     case sg::cpu::cpu_vendor::Intel:
-        return ~_internal::crc32c_hardware_intel(data, length, initial_remainder);
+        return ~_internal::crc32c_hardware_intel(data, length, remainder);
     default:
         // For other vendors, go to tabular implementation
         break;
@@ -230,12 +231,12 @@ uint32_t crc32c(const void* data, std::size_t length) {
 
     /* If can't use hardware, use 'Slicing' lookup tables*/
     static auto pTbl = compute_tabular_method_tables(0x82f63b78U);
-    return ~crc32c_tabular(data, length, initial_remainder, pTbl.get());
+    return ~crc32c_tabular(data, length, remainder, pTbl.get());
 }
 
-uint32_t crc32(const void* data, std::size_t length) {
+uint32_t crc32(const void* data, std::size_t length, uint32_t remainder) {
     static auto pTbl = compute_tabular_method_tables(0xEDB88320);
-    return ~crc32c_tabular(data, length, 0xFFFFFFFFU, pTbl.get());
+    return ~crc32c_tabular(data, length, remainder, pTbl.get());
 }
 
 uint16_t crc16(const void* data, std::size_t length) {

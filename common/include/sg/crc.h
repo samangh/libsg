@@ -24,11 +24,12 @@ namespace sg::checksum {
  *
  * @param data      Input data to checksum
  * @param length    Length of input data
+ * @param remainder Remainder, rember you have to invert this with ~ if using result of a previous crc
  * @return
  */
-[[nodiscard]] SG_COMMON_EXPORT uint32_t crc32c(const void *data, std::size_t length);
+[[nodiscard]] SG_COMMON_EXPORT uint32_t crc32c(const void *data, std::size_t length, uint32_t remainder = 0xFFFFFFFFU);
 
-[[nodiscard]] SG_COMMON_EXPORT uint32_t crc32(const void *data, std::size_t length);
+[[nodiscard]] SG_COMMON_EXPORT uint32_t crc32(const void *data, std::size_t length, uint32_t remainder = 0xFFFFFFFFU);
 
 [[nodiscard]] SG_COMMON_EXPORT uint16_t crc16(const void *data, std::size_t length);
 
