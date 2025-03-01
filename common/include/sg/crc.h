@@ -22,9 +22,13 @@ namespace sg::checksum {
  *  - Reflex output remainder: yes
  *  - Invert output remainder: yes (i.e. flip all bits, equivalent to XOR wih 0xFFFFFFFF)
  *
+ * The SSE hardrawre CRC effectively starts with 0^0xFFFFFFFF (=0xFFFFFFFF=~0) and ends with
+ * final-remainer^0xFFFFFFFF (=~final-remainder) to pre- and post- process the results.
+ *
  * @param data      Input data to checksum
  * @param length    Length of input data
- * @param remainder Remainder, rember you have to invert this with ~ if using result of a previous crc
+ * @param remainder Remainder, rember you have to invert this with ~ if using result of a previous
+ *                  crc
  * @return
  */
 [[nodiscard]] SG_COMMON_EXPORT uint32_t crc32c(const void *data, std::size_t length, uint32_t remainder = 0xFFFFFFFFU);

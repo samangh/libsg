@@ -10,6 +10,7 @@ namespace _internal {
 
 uint32_t crc32c_hardware_amd(const void *M, uint32_t bytes, uint32_t prev);
 uint32_t crc32c_hardware_intel(const void *M, uint32_t bytes, uint32_t prev);
+uint32_t crc32c_hardware_32bit(const void *M, uint32_t bytes, uint32_t prev);
 
 } // namespace _internal
 

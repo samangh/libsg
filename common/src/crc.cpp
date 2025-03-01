@@ -1,13 +1,11 @@
-#include <sg/crc.h>
-
-#include <sg/cpu.h>
-#include <sg/bytes.h>
-
 #include "include/internal_crc32c.h"
 
-#include <memory>
 #include <bit>
 #include <boost/crc.hpp>
+#include <memory>
+#include <sg/bytes.h>
+#include <sg/cpu.h>
+#include <sg/crc.h>
 
 /* Tabular functions
  *
@@ -199,6 +197,7 @@ uint32_t crc32c_tabular(const void *data,
         return crc32_tabular_2_bytes(data, no_of_bytes, initial_remainder, crcTable);
     return crc32_tabular_1_byte(data, no_of_bytes, initial_remainder, crcTable);
 }
+
 } // namespace
 
 namespace sg::checksum {
@@ -218,6 +217,11 @@ uint32_t crc32c(const void* data, std::size_t length, uint32_t remainder) {
 
 #ifdef HAVE_HARDWARE_CRC32
     /* If available, use hardware assited version*/
+
+    /* If a 32-bit library, use my basic 32-bit hardware version */
+    if constexpr (sizeof(void *)==4)
+        return ~_internal::crc32c_hardware_32bit(data, length, remainder);
+
     switch (sg::cpu::current_cpu_vendor()) {
     case sg::cpu::cpu_vendor::Amd:
         return ~_internal::crc32c_hardware_amd(data, length, remainder);
