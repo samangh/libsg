@@ -7,16 +7,16 @@
 TEST_CASE("SG::common sg::checksum: check crc", "[sg::checksum]") {
     // see https://crccalc.com/
 
-    std::string input = "123456789";
-
+    /* long input, as lots of bytes (>144 for intel, >112 for AMD) are needed to kick-in the harware CR32*/
+    std::string input = "123456781234567812345678123456781234567812345678123456781234567812345678123456781234567812345678123456781234567812345678123456781234567812345678123456781234567812345678123456781234567812345678123456781234567812345678123456781234567812345678123456781234567812345678123456781234567812345678123456781234567812345678123456781234567812345678123456781234567812345678123456781234567812345678";
     {
         auto crc16 = sg::checksum::crc16(input.c_str(), input.length());
         auto crc32 = sg::checksum::crc32(input.c_str(), input.length());
         auto crc32c = sg::checksum::crc32c(input.c_str(), input.length());
 
-        REQUIRE(crc16 == 0xBB3D);
-        REQUIRE(crc32 == 0xCBF43926);
-        REQUIRE(crc32c == 0xE3069283);
+        REQUIRE(crc16 == 0xFBC7);
+        REQUIRE(crc32 == 0x385631DF);
+        REQUIRE(crc32c == 0x2891D639);
     }
 
     //partial crc32 - 1 byte
