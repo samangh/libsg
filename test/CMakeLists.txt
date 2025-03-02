@@ -14,13 +14,6 @@ CPMAddPackage("gh:catchorg/catch2@3.7.0")
 target_compile_features(Catch2 PRIVATE cxx_std_20)
 target_compile_features(Catch2WithMain PRIVATE cxx_std_20)
 
-if (BENCHMARK)
-  CPMAddPackage(NAME nanobench
-    GITHUB_REPOSITORY martinus/nanobench
-    VERSION 4.3.11
-    GIT_SHALLOW)
-endif()
-
 ##
 ## Source files
 ##
@@ -42,7 +35,6 @@ setup_executable(
     Boost::Asio
   LINK_PRIVATE
     SG::common
-    $<$<BOOL:${BENCHMARK}>:nanobench>
     Catch2::Catch2WithMain
 
   COMPILE_FEATURES_PUBLIC
