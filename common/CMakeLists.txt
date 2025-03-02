@@ -72,8 +72,36 @@ setup_library(
 
   COMPILE_DEFINITIONS_PUBLIC
     FMT_HEADER_ONLY
+
   ## Options
   GENERATE_EXPORT_HEADER
+  DONT_RECURSE_SRC_DIR
   # STATIC
 )
 
+target_sources(sg_common
+  PRIVATE
+    src/accurate_sleeper.cpp
+    src/background_timer.cpp
+    src/bytes.cpp
+    src/compression_zstd.cpp
+    src/cpu.cpp
+    src/data_attribute.cpp
+    src/data_source.cpp
+    src/data_view.cpp
+    src/debug.cpp
+    src/file_writer.cpp
+    src/file_writer_uv.cpp
+    src/gettimeofday.cpp
+    src/math.cpp
+    src/net.cpp
+    src/notifiable_background_worker.cpp
+    src/progress.cpp
+    src/version.cpp
+    src/tcp_listener.cpp
+    src/libuv_wrapper.cpp
+    src/crc32c_hardware_32bit.cpp
+    src/crc32c_hardware_amd.cpp
+    src/crc32c_hardware_intel.cpp
+    src/crc.cpp
+)
