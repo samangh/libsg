@@ -1,6 +1,6 @@
 #include "include/internal_crc32c.h"
 
-#ifdef HAVE_HARDWARE_CRC32
+#if defined(HAVE_HARDWARE_CRC32) && defined(ENV_64BIT)
 
 #include <immintrin.h>
 

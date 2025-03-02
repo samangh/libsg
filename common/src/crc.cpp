@@ -219,9 +219,9 @@ uint32_t crc32c(const void* data, std::size_t length, uint32_t remainder) {
     /* If available, use hardware assited version*/
 
     /* If a 32-bit library, use my basic 32-bit hardware version */
-    if constexpr (sizeof(void *)==4)
-        return ~_internal::crc32c_hardware_32bit(data, length, remainder);
-
+    #ifdef ENV_32BIT
+    return ~_internal::crc32c_hardware_32bit(data, length, remainder);
+    #else
     switch (sg::cpu::current_cpu_vendor()) {
     case sg::cpu::cpu_vendor::Amd:
         return ~_internal::crc32c_hardware_amd(data, length, remainder);
@@ -231,6 +231,7 @@ uint32_t crc32c(const void* data, std::size_t length, uint32_t remainder) {
         // For other vendors, go to tabular implementation
         break;
     }
+    #endif
 #endif
 
     /* If can't use hardware, use 'Slicing' lookup tables*/

@@ -1,5 +1,6 @@
 #pragma once
 
+#include <sg/environment.h>
 #include <cstdint>
 
 /* Optimized hardware assisted CRC32C needs SSE4.2, CRC32 and CLMUL support from the CPU  */
@@ -8,9 +9,11 @@
 
 namespace _internal {
 
-uint32_t crc32c_hardware_amd(const void *M, uint32_t bytes, uint32_t prev);
-uint32_t crc32c_hardware_intel(const void *M, uint32_t bytes, uint32_t prev);
-uint32_t crc32c_hardware_32bit(const void *M, uint32_t bytes, uint32_t prev);
+    #ifdef ENV_64BIT
+uint32_t crc32c_hardware_amd(const void* M, uint32_t bytes, uint32_t prev);
+uint32_t crc32c_hardware_intel(const void* M, uint32_t bytes, uint32_t prev);
+    #endif
+uint32_t crc32c_hardware_32bit(const void* M, uint32_t bytes, uint32_t prev);
 
 } // namespace _internal
 
