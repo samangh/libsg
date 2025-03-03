@@ -100,8 +100,5 @@ target_sources(sg_common
     src/version.cpp
     src/tcp_listener.cpp
     src/libuv_wrapper.cpp
-    src/crc32c_hardware_32bit.cpp
-    src/crc32c_hardware_amd.cpp
-    src/crc32c_hardware_intel.cpp
     src/crc.cpp
 )

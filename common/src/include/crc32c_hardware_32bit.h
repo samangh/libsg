@@ -1,4 +1,4 @@
-#include "include/internal_crc32c.h"
+#include "crc32c_defs.h"
 
 #ifdef HAVE_HARDWARE_CRC32
     #include <cstddef>
@@ -17,14 +17,13 @@ uint32_t crc32c_32bit_1byte(const void *data,
     return R;
 }
 
-}
+
 
 /* Hardware-assited CRC-32c
  *
  * Basic 32-bit version
  */
-
-uint32_t _internal::crc32c_hardware_32bit(const void * data, uint32_t no_of_bytes, uint32_t prev){
+uint32_t crc32c_hardware_32bit(const void * data, uint32_t no_of_bytes, uint32_t prev){
     auto R = prev;
     auto M = (const uint8_t*)data;
     uint32_t i = 0;
@@ -34,6 +33,8 @@ uint32_t _internal::crc32c_hardware_32bit(const void * data, uint32_t no_of_byte
     }
 
     return crc32c_32bit_1byte(&M[i], no_of_bytes - i, R);
+}
+
 }
 
 #endif

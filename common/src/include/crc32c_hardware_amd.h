@@ -1,8 +1,7 @@
-#include "include/internal_crc32c.h"
+#include "crc32c_defs.h"
 
 #if defined(HAVE_HARDWARE_CRC32) && defined(ENV_64BIT)
-
-#include <immintrin.h>
+    #include <immintrin.h>
 
 #ifdef __GNUC__
     #pragma GCC diagnostic ignored "-Wimplicit-fallthrough"
@@ -52,9 +51,7 @@ static constexpr uint32_t g_lut_amd[] = {
     // must be >= 16
     static constexpr uint32_t LEAF_SIZE_AMD = 7 * 16;
 
-}
-
-uint32_t _internal::crc32c_hardware_amd(const void *M, uint32_t bytes, uint32_t prev) {
+uint32_t crc32c_hardware_amd(const void *M, uint32_t bytes, uint32_t prev) {
     uint64_t pA = (uint64_t)M;
     // uint64_t crcA = (uint64_t)(uint32_t)(~prev); // if you want to invert prev
     uint64_t crcA = prev;
@@ -88,6 +85,8 @@ uint32_t _internal::crc32c_hardware_amd(const void *M, uint32_t bytes, uint32_t 
 
     // return ~(uint32_t)crcA; // if you want to invert the result
     return (uint32_t)crcA;
+}
+
 }
 
 #endif
