@@ -1,7 +1,7 @@
 #include "include/internal_crc32c.h"
 
 #ifdef HAVE_HARDWARE_CRC32
-
+    #include <cstddef>
     #include <immintrin.h>
 
 namespace {
