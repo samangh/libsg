@@ -28,8 +28,8 @@ uint32_t crc32_tabular_2_bytes(const void* M,
                                uint32_t* crcTable) {
     const uint16_t* M16 = (const uint16_t*)M;
     uint32_t R = prev;
-    auto bytes_left = bytes;
-    for (uint32_t i = 0; i < bytes >> 1; ++i)
+    uint32_t i = 0;
+    for (; i < bytes >> 1; ++i)
     {
         if constexpr (std::endian::native == std::endian::big) {
             R = M16[i] ^ sg::bytes::byteswap(R);
@@ -41,15 +41,14 @@ uint32_t crc32_tabular_2_bytes(const void* M,
                 crcTable[0 * 256 + uint8_t(R >> 8)] ^
                 crcTable[1 * 256 + uint8_t(R >> 0)];
         }
-        bytes_left-=2;
     }
-    return crc32_tabular_1_byte(M16, bytes_left, R, crcTable);
+    return crc32_tabular_1_byte(&((uint8_t*)M)[2*i], bytes-2*i, R, crcTable);
 }
 uint32_t crc32_tabular_4_bytes(const void* M, size_t bytes, uint32_t prev, uint32_t* crcTable) {
     const uint32_t* M32 = (const uint32_t*)M;
     uint32_t R = prev;
-    auto bytes_left = bytes;
-    for (uint32_t i = 0; i < bytes >> 2; ++i)
+    uint32_t i = 0;
+    for (; i < bytes >> 2; ++i)
     {
         if constexpr (std::endian::native == std::endian::big) {
             R = M32[i] ^ sg::bytes::byteswap(R);
@@ -63,10 +62,9 @@ uint32_t crc32_tabular_4_bytes(const void* M, size_t bytes, uint32_t prev, uint3
                 crcTable[1 * 256 + uint8_t(R >> 16)] ^
                 crcTable[2 * 256 + uint8_t(R >>  8)] ^
                 crcTable[3 * 256 + uint8_t(R >>  0)];
-        }
-        bytes_left -=4;
+        }        
     }
-    return crc32_tabular_2_bytes(M32, bytes_left, R, crcTable);
+    return crc32_tabular_2_bytes(&((uint8_t*)M)[4*i], bytes-4*i, R, crcTable);
 }
 uint32_t crc32_tabular_8_bytes(const void* M,
                                std::size_t bytes,
@@ -102,7 +100,7 @@ uint32_t crc32_tabular_8_bytes(const void* M,
         bytes -= 8;
     }
 
-           // Run 1-byte algorithm on any remaning bytes
+    // Run 1-byte algorithm on any remaning byte
     return crc32_tabular_4_bytes(M32, bytes, R, crcTable);
 }
 uint32_t crc32_tabular_16_bytes(const void* M,
@@ -151,7 +149,7 @@ uint32_t crc32_tabular_16_bytes(const void* M,
         bytes -= 16;
     }
 
-           // Run 1-byte algorithm on any remaning bytes
+    // Run 1-byte algorithm on any remaning bytes
     return crc32_tabular_8_bytes(M32, bytes, R, crcTable);
 }
 std::unique_ptr<uint32_t[]> compute_tabular_method_tables(uint32_t polynomial) {

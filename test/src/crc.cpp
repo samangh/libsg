@@ -110,4 +110,10 @@ TEST_CASE("SG::common sg::checksum: check crc", "[sg::checksum]") {
         auto remainder2 = sg::checksum::crc32c(input2.c_str(), input2.length(), ~remainder1);
         REQUIRE(remainder2 == 0x9F754A85);
     }
+
+    //whole chain: 16+8+4+2+1
+    {
+        std::string input = "1234567812345678123456781234121";
+        REQUIRE(sg::checksum::crc32c(input.c_str(), input.length()) == 0x46BB7D06);
+    }
 }
