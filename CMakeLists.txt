@@ -20,8 +20,9 @@ include(DefaultPreamble)
 ##
 ## Additional Options
 ##
-option(LIBSG_IMGUI "Include IMGUI stuff" ON)
 option(LIBSG_BUILD_TESTING "Build test suite" ${BUILD_TESTING})
+option(LIBSG_IMGUI "Include IMGUI stuff" ON)
+option(LIBSG_ZSTD "Include zstd stuff" ON)
 
 ##
 ## Packages

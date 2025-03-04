@@ -1,4 +1,6 @@
-find_package(zstd REQUIRED)
+if(LIBSG_ZSTD)
+  find_package(zstd REQUIRED)
+endif()
 
 # Needed hardware-assited CRC32C checksum, optional as the SSE package
 # will set pre-processor header definitions and the code will check for
@@ -46,7 +48,7 @@ setup_library(
     $<$<BOOL:${SSE_CLMUL_FOUND}>:SSE::CLMUL> # For hardware accelerated CRC32
     Threads::Threads
     $<$<BOOL:${WIN32}>:Winmm>
-    $<IF:$<BOOL:${USE_STATIC_LIBS}>,zstd::libzstd_static,zstd::libzstd_shared>
+    $<$<BOOL:${LIBSG_ZSTD}>:$<IF:$<BOOL:${USE_STATIC_LIBS}>,zstd::libzstd_static,zstd::libzstd_shared>>
   COMPILE_OPTIONS_INTERFACE
   COMPILE_OPTIONS_PUBLIC
     $<$<AND:$<OR:$<CXX_COMPILER_ID:Clang>,$<CXX_COMPILER_ID:AppleClang>>,$<STREQUAL:${STANDARD_LIBRARY},c++>>:-fexperimental-library> # for std::jthread with libc++
@@ -71,7 +73,6 @@ target_sources(sg_common
     src/accurate_sleeper.cpp
     src/background_timer.cpp
     src/bytes.cpp
-    src/compression_zstd.cpp
     src/cpu.cpp
     src/data_attribute.cpp
     src/data_source.cpp
@@ -89,3 +90,9 @@ target_sources(sg_common
     src/libuv_wrapper.cpp
     src/crc.cpp
 )
+
+if(LIBSG_ZSTD)
+  target_sources(sg_common
+    PRIVATE
+      src/compression_zstd.cpp)
+endif()
