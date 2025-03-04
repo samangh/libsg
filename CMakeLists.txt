@@ -28,7 +28,11 @@ option(LIBSG_BUILD_TESTING "Build test suite" ${BUILD_TESTING})
 ##
 
 find_package(Threads REQUIRED)
-find_package(fmt REQUIRED)
+
+# Some platforms don't have a Findfmt file, so search if the user has used ONE_LIBFMT first
+if(NOT OWN_LIBFMT)
+  find_package(fmt REQUIRED)
+endif()
 
 ##
 ## Targets/Sources
