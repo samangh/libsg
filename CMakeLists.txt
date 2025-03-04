@@ -21,7 +21,6 @@ include(DefaultPreamble)
 ## Additional Options
 ##
 option(LIBSG_IMGUI "Include IMGUI stuff" ON)
-option(LIBSG_OWN_LIBUV "Use our own copy of libuv" OFF)
 option(LIBSG_BUILD_TESTING "Build test suite" ${BUILD_TESTING})
 
 ##
