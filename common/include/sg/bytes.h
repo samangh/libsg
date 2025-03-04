@@ -89,7 +89,7 @@ template <std::integral T, typename It>
         throw std::runtime_error("not enough bytes to convert the required item");
 
     T val;
-    memcpy(&val, &it, sizeof(T));
+    memcpy(&val, &*it, sizeof(T));
 
     if (std::endian::native != src_endian)
         return sg::bytes::byteswap(val);
