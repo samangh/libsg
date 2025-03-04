@@ -34,6 +34,10 @@ if(NOT OWN_LIBFMT)
   find_package(fmt REQUIRED)
 endif()
 
+if(NOT OWN_LIBUV)
+  find_package(libuv REQUIRED)
+endif()
+
 ##
 ## Targets/Sources
 ##
