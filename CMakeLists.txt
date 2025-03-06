@@ -31,11 +31,11 @@ option(LIBSG_ZSTD "Include zstd stuff" ON)
 find_package(Threads REQUIRED)
 
 # Some platforms don't have a Findfmt file, so search if the user has used ONE_LIBFMT first
-if(NOT OWN_LIBFMT)
+if(NOT OWN_FMT)
   find_package(fmt REQUIRED)
 endif()
 
-if(NOT OWN_LIBUV)
+if(NOT OWN_UV)
   find_package(libuv REQUIRED)
 endif()
 
