@@ -1,10 +1,11 @@
 #include <sg/crc.h>
+#include <sg/random.h>
 
-#include <catch2/catch_test_macros.hpp>
+#include <catch2/catch_all.hpp>
 
 #include <string>
 
-TEST_CASE("SG::common sg::checksum: check crc", "[sg::checksum]") {
+TEST_CASE("sg::checksum: check crc", "[sg::checksum]") {
     // see https://crccalc.com/
 
     /* long input, as lots of bytes (>144 for intel, >112 for AMD) are needed to kick-in the harware CR32*/
@@ -116,4 +117,13 @@ TEST_CASE("SG::common sg::checksum: check crc", "[sg::checksum]") {
         std::string input = "1234567812345678123456781234121";
         REQUIRE(sg::checksum::crc32c(input.c_str(), input.length()) == 0x46BB7D06);
     }
+}
+
+TEST_CASE("sg::checksum: check crc performnce", "[sg::checksum]" ){
+    BENCHMARK_ADVANCED("crc32c(...), 1 MB input")(Catch::Benchmark::Chronometer meter) {
+        auto dat = sg::random::genrate<uint8_t>(1000*1000);
+        meter.measure([&dat] {
+            return sg::checksum::crc32c(dat.data(), dat.size());
+        });
+    };
 }
