@@ -1,6 +1,6 @@
 #include "crc32c_defs.h"
 
-#ifdef HAVE_HARDWARE_CRC32
+#ifdef HAVE_HARDWARE_CRC32_32
     #include <cstddef>
     #include <immintrin.h>
 

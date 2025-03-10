@@ -1,6 +1,5 @@
 #include "include/crc32c_hardware_32bit.h"
 #include "include/crc32c_hardware_intel.h"
-#include "include/crc32c_hardware_amd.h"
 #include "include/crc32c_tabular.h"
 
 #include <boost/crc.hpp>
@@ -12,7 +11,7 @@
 namespace sg::checksum {
 
 bool can_do_crc32c_hardware() {
-#ifdef HAVE_HARDWARE_CRC32
+#ifdef CPU_SUPPORTS_SSE42
     return true;
 #else
     return false;
@@ -20,20 +19,12 @@ bool can_do_crc32c_hardware() {
 }
 
 uint32_t crc32c(const void* data, std::size_t length, uint32_t remainder) {
-    /* If available, use hardware assited version. Otherwise, use tabular verion. */
-#ifdef HAVE_HARDWARE_CRC32
-    #ifdef ENV_32BIT
+    /* If available, use hardware assited version. Otherwise, use
+     * tabular verion. */
+#if defined(HAVE_HARDWARE_CRC32_64)
+    return ~crc32c_hardware_intel(data, length, remainder);
+#elif defined(HAVE_HARDWARE_CRC32_32)
     return ~crc32c_hardware_32bit(data, length, remainder);
-    #else
-    switch (sg::cpu::current_cpu_vendor()) {
-    case sg::cpu::cpu_vendor::Amd:
-        return ~crc32c_hardware_amd(data, length, remainder);
-    case sg::cpu::cpu_vendor::Intel:
-        return ~crc32c_hardware_intel(data, length, remainder);
-    default:
-        return ~crc32c_hardware_32bit(data, length, remainder);
-    }
-    #endif
 #else
     static auto pTbl = compute_tabular_method_tables(0x82f63b78U);
     return ~crc32c_tabular(data, length, remainder, pTbl.get());

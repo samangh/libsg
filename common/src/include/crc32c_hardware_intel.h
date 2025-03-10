@@ -1,6 +1,6 @@
 #include "crc32c_defs.h"
 
-#if defined(HAVE_HARDWARE_CRC32) && defined(ENV_64BIT)
+#if defined(HAVE_HARDWARE_CRC32_64)
     #include <immintrin.h>
 
 #ifdef __GNUC__
@@ -8,7 +8,11 @@
 #endif
 
 /* Hardware-assited CRC with polynomial 0x82f63b78U
- * Modified from https://github.com/komrad36/CRC */
+ * Modified from https://github.com/komrad36/CRC
+ *
+ * Testing shows that the "intel" version is superior,
+ * even on AMD. So we go with that.
+ */
 
 namespace  {
 
