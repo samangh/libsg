@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <random>
 #include <vector>
+#include <numeric>
 
 namespace sg::random {
 
