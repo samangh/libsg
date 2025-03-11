@@ -6,7 +6,7 @@
 
 namespace {
 
-uint32_t crc32c_32bit_1byte(const void *data,
+inline uint32_t crc32c_32bit_1byte(const void *data,
                             std::size_t no_of_bytes,
                             uint32_t remainder) {
     auto R = remainder;
@@ -23,7 +23,7 @@ uint32_t crc32c_32bit_1byte(const void *data,
  *
  * Basic 32-bit version
  */
-uint32_t crc32c_hardware_32bit(const void * data, uint32_t no_of_bytes, uint32_t prev){
+inline uint32_t crc32c_hardware_32bit(const void * data, uint32_t no_of_bytes, uint32_t prev){
     auto R = prev;
     auto M = (const uint8_t*)data;
     uint32_t i = 0;
