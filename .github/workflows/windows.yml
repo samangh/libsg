@@ -53,5 +53,5 @@ jobs:
 
       - name: Test
         working-directory: ${{github.workspace}}/build
-        run: ctest --output-on-failure
-        # .\test\Release\sg_test.exe
+        run: .\test\Release\sg_test.exe -d yes
+        # ctest --output-on-failure

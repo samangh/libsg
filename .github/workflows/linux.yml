@@ -61,7 +61,8 @@ jobs:
 
       - name: Test
         working-directory: ${{github.workspace}}/build
-        run: ctest --output-on-failure
+        run: ./test/sg_test -d yes
+        # ctest --output-on-failure
 
       - name: List dependencies
         working-directory: ${{github.workspace}}/build
