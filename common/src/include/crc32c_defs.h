@@ -20,3 +20,7 @@
 #elif defined(CPU_SUPPORTS_ARM_CRC)
     #define HAVE_HARDWARE_CRC32C_ARMV7
 #endif
+
+#if defined(CPU_SUPPORTS_ARM_CRC)
+    #define HAVE_HARDWARE_CRC32_ARMV7
+#endif

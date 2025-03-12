@@ -80,7 +80,6 @@ do {                             \
 inline uint32_t crc32c_hardware_armv8(const void * data, uint32_t no_of_bytes, uint32_t prev){
     auto M = (const uint8_t*)data;
     auto crc=prev;
-    int64_t length = no_of_bytes;
 
     uint32_t crc0, crc1, crc2, crc3;
     uint64_t t0, t1, t2;
