@@ -15,3 +15,6 @@
     #define HAVE_HARDWARE_CRC32_32 1
 #endif
 
+#if defined(CPU_SUPPORTS_ARM_CRC)
+    #define HAVE_HARDWARE_CRC32_ARMV7
+#endif
