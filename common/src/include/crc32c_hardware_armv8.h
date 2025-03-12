@@ -35,7 +35,7 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifdef HAVE_HARDWARE_CRC32_ARMV8
+#ifdef HAVE_HARDWARE_CRC32C_ARMV8
 #include <arm_acle.h>
 #include <arm_neon.h>
 

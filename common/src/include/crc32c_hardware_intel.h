@@ -1,6 +1,6 @@
 #include "crc32c_defs.h"
 
-#if defined(HAVE_HARDWARE_CRC32_64)
+#if defined(HAVE_HARDWARE_CRC32C_64)
     #include <immintrin.h>
 
 #ifdef __GNUC__

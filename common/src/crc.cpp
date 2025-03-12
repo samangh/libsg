@@ -23,9 +23,9 @@ bool can_do_crc32c_hardware() {
 uint32_t crc32c(const void* data, std::size_t length, uint32_t remainder) {
     /* If available, use hardware assited version. Otherwise, use
      * tabular verion. */
-#if defined(HAVE_HARDWARE_CRC32_64)
+#if defined(HAVE_HARDWARE_CRC32C_64)
     return ~crc32c_hardware_intel(data, length, ~remainder);
-#elif defined(HAVE_HARDWARE_CRC32_32)
+#elif defined(HAVE_HARDWARE_CRC32C_32)
     return ~crc32c_hardware_32bit(data, length, ~remainder);
 #elif defined(HAVE_HARDWARE_CRC32_ARMV7)
     return ~crc32c_hardware_armv7(data, length, ~remainder);
