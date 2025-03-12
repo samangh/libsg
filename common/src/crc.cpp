@@ -23,20 +23,20 @@ uint32_t crc32c(const void* data, std::size_t length, uint32_t remainder) {
     /* If available, use hardware assited version. Otherwise, use
      * tabular verion. */
 #if defined(HAVE_HARDWARE_CRC32_64)
-    return ~crc32c_hardware_intel(data, length, remainder);
+    return ~crc32c_hardware_intel(data, length, ~remainder);
 #elif defined(HAVE_HARDWARE_CRC32_32)
-    return ~crc32c_hardware_32bit(data, length, remainder);
+    return ~crc32c_hardware_32bit(data, length, ~remainder);
 #elif defined(HAVE_HARDWARE_CRC32_ARMV7)
-    return ~crc32c_hardware_armv7(data, length, remainder);
+    return ~crc32c_hardware_armv7(data, length, ~remainder);
 #else
     static auto pTbl = compute_tabular_method_tables(0x82f63b78U);
-    return ~crc32c_tabular(data, length, remainder, pTbl.get());
+    return ~crc32c_tabular(data, length, ~remainder, pTbl.get());
 #endif
 }
 
 uint32_t crc32(const void* data, std::size_t length, uint32_t remainder) {
     static auto pTbl = compute_tabular_method_tables(0xEDB88320);
-    return ~crc32c_tabular(data, length, remainder, pTbl.get());
+    return ~crc32c_tabular(data, length, ~remainder, pTbl.get());
 }
 
 uint16_t crc16(const void* data, std::size_t length) {

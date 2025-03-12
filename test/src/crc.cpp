@@ -66,7 +66,7 @@ TEST_CASE("sg::checksum: check crc", "[sg::checksum]") {
         std::string input2 = "1";
 
         auto remainder1 = sg::checksum::crc32c(input1.c_str(), input1.length());
-        auto remainder2 = sg::checksum::crc32c(input2.c_str(), input2.length(), ~remainder1);
+        auto remainder2 = sg::checksum::crc32c(input2.c_str(), input2.length(), remainder1);
         REQUIRE(remainder2 == 0xF1405F45);
     }
 
@@ -80,7 +80,7 @@ TEST_CASE("sg::checksum: check crc", "[sg::checksum]") {
         std::string input2 = "12";
 
         auto remainder1 = sg::checksum::crc32c(input1.c_str(), input1.length());
-        auto remainder2 = sg::checksum::crc32c(input2.c_str(), input2.length(), ~remainder1);
+        auto remainder2 = sg::checksum::crc32c(input2.c_str(), input2.length(), remainder1);
         REQUIRE(remainder2 == 0xC8258745);
     }
 
@@ -94,7 +94,7 @@ TEST_CASE("sg::checksum: check crc", "[sg::checksum]") {
         std::string input2 = "1234";
 
         auto remainder1 = sg::checksum::crc32c(input1.c_str(), input1.length());
-        auto remainder2 = sg::checksum::crc32c(input2.c_str(), input2.length(), ~remainder1);
+        auto remainder2 = sg::checksum::crc32c(input2.c_str(), input2.length(), remainder1);
         REQUIRE(remainder2 == 0x6F921B16);
     }
 
@@ -108,7 +108,7 @@ TEST_CASE("sg::checksum: check crc", "[sg::checksum]") {
         std::string input2 = "12345678";
 
         auto remainder1 = sg::checksum::crc32c(input1.c_str(), input1.length());
-        auto remainder2 = sg::checksum::crc32c(input2.c_str(), input2.length(), ~remainder1);
+        auto remainder2 = sg::checksum::crc32c(input2.c_str(), input2.length(), remainder1);
         REQUIRE(remainder2 == 0x9F754A85);
     }
 

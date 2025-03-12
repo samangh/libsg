@@ -17,23 +17,18 @@ namespace sg::checksum {
  * 0x82F63B78).
  *
  * Assumptions:
- *  - Initial remainder:       0xFFFFFFFF
- *  - Reflect input bytes:     yes
- *  - Reflex output remainder: yes
- *  - Invert output remainder: yes (i.e. flip all bits, equivalent to XOR wih 0xFFFFFFFF)
- *
- * The SSE hardrawre CRC effectively starts with 0^0xFFFFFFFF (=0xFFFFFFFF=~0) and ends with
- * final-remainer^0xFFFFFFFF (=~final-remainder) to pre- and post- process the results.
+ *  - Reflect input remainder: yes (i.e. do ~remainder or remainder^0xFFFFFFFF)
+ *  - Reflex output remainder: yes (i.e. do ~result or result^0xFFFFFFFF)
  *
  * @param data      Input data to checksum
  * @param length    Length of input data
- * @param remainder Remainder, rember you have to invert this with ~ if using result of a previous
+ * @param remainder Remainder. No need to flip (i.e. start with 0, not 0xFFFFFFFF)
  *                  crc
  * @return
  */
-[[nodiscard]] SG_COMMON_EXPORT uint32_t crc32c(const void *data, std::size_t length, uint32_t remainder = 0xFFFFFFFFU);
+[[nodiscard]] SG_COMMON_EXPORT uint32_t crc32c(const void *data, std::size_t length, uint32_t remainder = 0);
 
-[[nodiscard]] SG_COMMON_EXPORT uint32_t crc32(const void *data, std::size_t length, uint32_t remainder = 0xFFFFFFFFU);
+[[nodiscard]] SG_COMMON_EXPORT uint32_t crc32(const void *data, std::size_t length, uint32_t remainder = 0);
 
 [[nodiscard]] SG_COMMON_EXPORT uint16_t crc16(const void *data, std::size_t length);
 
