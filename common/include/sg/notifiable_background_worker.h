@@ -73,6 +73,14 @@ class SG_COMMON_EXPORT notifiable_background_worker {
     void request_stop();
 
     /**
+     * @brief request_stop_after_iterations stops after the provider number of iterations have been
+     *        done
+     * @param iteration_count, note if this is called inside the worker then it does NOT include the
+     *        current iteration
+     */
+    void request_stop_after_iterations(size_t iteration_count);
+
+    /**
      * @brief wait_for_stop blocks until the thread has stopped.
      *        Note: this does not initiate a stop request, you have to do that separately.
      */
@@ -124,6 +132,9 @@ class SG_COMMON_EXPORT notifiable_background_worker {
   private:
     /* needs to be atomic because we can change it */
     std::atomic<std::chrono::nanoseconds> m_interval;
+
+    std::atomic<bool> m_stop_after_interations;
+    std::atomic<size_t> m_stop_after_interations_count;
 
     // We don't use `std::jthread` because:
     //
