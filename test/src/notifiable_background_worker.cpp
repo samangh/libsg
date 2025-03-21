@@ -179,3 +179,41 @@ TEST_CASE("SG::notifiable_background_worker: check is_stop_requested() whilst th
 
     CHECK(counter==2);
 }
+
+TEST_CASE("SG::notifiable_background_worker: check request_stop_after_iterartions(...) with non-zero input",
+          "[SG::notifiable_background_worker]") {
+    std::atomic<int> counter{0};
+    std::atomic<bool> requested{false};
+
+    sg::notifiable_background_worker::callback_t task = [&](sg::notifiable_background_worker* w) {
+        counter++;
+        if(!requested.exchange(true))
+            w->request_stop_after_iterations(2);
+    };
+
+    sg::notifiable_background_worker worker =
+        sg::notifiable_background_worker(std::chrono::nanoseconds(100), task, nullptr, nullptr);
+    worker.start();
+    worker.wait_for_stop();
+
+    REQUIRE(counter == 3);
+}
+
+TEST_CASE("SG::notifiable_background_worker: check request_stop_after_iterartions(...) with zero input",
+          "[SG::notifiable_background_worker]") {
+    std::atomic<int> counter{0};
+    std::atomic<bool> requested{false};
+
+    sg::notifiable_background_worker::callback_t task = [&](sg::notifiable_background_worker* w) {
+        counter++;
+        if(!requested.exchange(true))
+            w->request_stop_after_iterations(0);
+    };
+
+    sg::notifiable_background_worker worker =
+        sg::notifiable_background_worker(std::chrono::nanoseconds(100), task, nullptr, nullptr);
+    worker.start();
+    worker.wait_for_stop();
+
+    REQUIRE(counter == 1);
+}

@@ -31,6 +31,7 @@ void notifiable_background_worker::start_async() {
          * function duringt this delay */
         m_is_running.store(true);
         m_stop_requested.store(false);
+        m_stop_after_interations.store(false);
 
         /* start */
         m_thread = std::thread(&notifiable_background_worker::action, this);
@@ -43,6 +44,17 @@ void notifiable_background_worker::start_async() {
 void notifiable_background_worker::request_stop() {
     m_stop_requested.store(true, std::memory_order_release);
     notify();  // notify so that the loop immediately sees the stop event
+}
+
+void notifiable_background_worker::request_stop_after_iterations(size_t iteration_count){
+    if(iteration_count==0){
+        request_stop();
+        return;
+    }
+
+    m_stop_after_interations_count.store(iteration_count, std::memory_order_release);
+    m_stop_after_interations.store(true, std::memory_order_release);
+    notify();
 }
 
 void notifiable_background_worker::wait_for_stop() {
@@ -78,19 +90,37 @@ void notifiable_background_worker::action() {
     /* catch latest exception */
     std::exception_ptr ex;
 
-    try {
+    /* we use this placeholder in case of "stop_after_iterations" request because:
+     *
+     *  - if we are meant to stop *after* this iteration, we don't want to do request_stop() before the iteration
+     *    in case the worker action checks for it (e.g. if it's a long-lived operation).
+     *
+     *  - we don't want to do request_stop() after, because then we have waited for the interval for not reason
+     */
+    bool stop_after_iteration =false;
+
+    try {        
         if (m_started_cb) m_started_cb(this);
 
         while (!stop_requested()) {
+            if (m_stop_after_interations.load(std::memory_order_acquire))
+                if(--m_stop_after_interations_count == 0)
+                    stop_after_iteration=true;
+
             if (m_correct_for_task_delay) {
                 auto t = std::chrono::high_resolution_clock::now();
                 m_task(this);
                 auto time_taken = std::chrono::high_resolution_clock::now() - t;
+                if (stop_after_iteration)
+                    break;
                 std::ignore = m_semaphore_notifier.try_acquire_for(m_interval.load(std::memory_order_acquire) - time_taken);
             } else {
                 m_task(this);
+                if (stop_after_iteration)
+                    break;
                 std::ignore = m_semaphore_notifier.try_acquire_for(m_interval.load(std::memory_order_acquire));
             }
+
         }
     } catch (...) {
         ex = std::current_exception();
