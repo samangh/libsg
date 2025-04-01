@@ -216,6 +216,7 @@ TEST_CASE("sg::state_machine: check expections are caught in tick callbacks", "[
     sm.wait_for_stop();
 
     REQUIRE_THROWS(sm.future().get());
+    REQUIRE_THROWS(sm.future_get_once());
 }
 
 TEST_CASE("sg::state_machine: check expections are caught in entry callback of starting state", "[sg::state_machine]") {
@@ -243,6 +244,8 @@ TEST_CASE("sg::state_machine: check expections are caught in entry callback of s
 
     REQUIRE(counter == 0);  // the tick must not be called!
     REQUIRE_THROWS(sm.future().get());
+    REQUIRE_THROWS(sm.future_get_once());
+
 }
 
 TEST_CASE("sg::state_machine: check expections are caught in exit callbacks of last state", "[sg::state_machine]") {
@@ -273,6 +276,7 @@ TEST_CASE("sg::state_machine: check expections are caught in exit callbacks of l
 
     REQUIRE(counter == 1);  // the tick must not be called!
     REQUIRE_THROWS(sm.future().get());
+    REQUIRE_THROWS(sm.future_get_once());
 }
 
 TEST_CASE("sg::state_machine: check expections are caught a state tick", "[sg::state_machine]") {
@@ -297,6 +301,7 @@ TEST_CASE("sg::state_machine: check expections are caught a state tick", "[sg::s
 
     REQUIRE(counter == 1);  // the tick must not be called!
     REQUIRE_THROWS(sm.future().get());
+    REQUIRE_THROWS(sm.future_get_once());
 }
 
 TEST_CASE("sg::state_machine: check expections are caught in main state machine start tick", "[sg::state_machine]") {
@@ -326,6 +331,7 @@ TEST_CASE("sg::state_machine: check expections are caught in main state machine 
 
     REQUIRE(counter == 0);  // the tick must not be called!
     REQUIRE_THROWS(sm.future().get());
+    REQUIRE_THROWS(sm.future_get_once());
 }
 
 TEST_CASE("sg::state_machine: check expections are caught in main state machine stop tick", "[sg::state_machine]") {
@@ -356,6 +362,7 @@ TEST_CASE("sg::state_machine: check expections are caught in main state machine 
 
     REQUIRE(counter == 1);  // the tick must not be called!
     REQUIRE_THROWS(sm.future().get());
+    REQUIRE_THROWS(sm.future_get_once());
 }
 
 TEST_CASE("sg::state_machine: check notify", "[sg::state_machine]") {
@@ -388,4 +395,5 @@ TEST_CASE("sg::state_machine: check notify", "[sg::state_machine]") {
 
     REQUIRE(counter == 2);  // the tick must not be called!
     REQUIRE_NOTHROW(sm.future().get());
+    REQUIRE_NOTHROW(sm.future_get_once());
 }

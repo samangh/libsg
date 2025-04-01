@@ -44,7 +44,7 @@ class SG_COMMON_EXPORT notifiable_background_worker {
                                  const callback_t &task,
                                  const callback_t &start_cb,
                                  const callback_t &stopped_cb);
-    virtual ~notifiable_background_worker();
+    virtual ~notifiable_background_worker() noexcept(false);
 
     /**
      * @brief start_async asynchronously starts the worker.
@@ -93,7 +93,18 @@ class SG_COMMON_EXPORT notifiable_background_worker {
      * @brief causes the timer to tick immediately.
      */
     void notify();
+
     std::shared_future<void> future() const;
+
+    /**
+     * @brief future_get_once will wait until the worker is finished.
+     *
+     * If this this the first time this function is called, it will check the future() result and so
+     * will throw if it contains an exception
+     *
+     * If this is not the first time, the future() is not checked.
+     */
+    void future_get_once();
 
     /* interval in nanoseconds */
     /**
@@ -135,6 +146,9 @@ class SG_COMMON_EXPORT notifiable_background_worker {
 
     std::atomic<bool> m_stop_after_interations;
     std::atomic<size_t> m_stop_after_interations_count;
+
+    mutable std::mutex m_checked_future_mutex;
+    std::atomic<bool> m_checked_future;
 
     // We don't use `std::jthread` because:
     //

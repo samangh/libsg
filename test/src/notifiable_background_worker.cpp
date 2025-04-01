@@ -96,7 +96,7 @@ TEST_CASE("SG::notifiable_background_worker: check notifier works",
     REQUIRE(counter == 2);
 }
 
-TEST_CASE("SG::notifiable_background_worker: check exception handling",
+TEST_CASE("SG::notifiable_background_worker: check future() can throw errors",
           "[SG::notifiable_background_worker]") {
     std::binary_semaphore loop_run{0};
     std::atomic<int> counter{0};
@@ -119,6 +119,66 @@ TEST_CASE("SG::notifiable_background_worker: check exception handling",
 
     REQUIRE(counter == 1);
     CHECK_THROWS(worker.future().get());
+    REQUIRE_THROWS(worker.future_get_once());
+}
+
+TEST_CASE("SG::notifiable_background_worker: check future_get_once() throws errors only once",
+          "[SG::notifiable_background_worker]") {
+    std::binary_semaphore loop_run{0};
+    std::atomic<int> counter{0};
+
+    sg::notifiable_background_worker::callback_t task = [&](sg::notifiable_background_worker*) {
+        counter++;
+        loop_run.release();
+        throw std::runtime_error("err");
+    };
+
+    sg::notifiable_background_worker worker =
+        sg::notifiable_background_worker(std::chrono::nanoseconds(10), task, nullptr, nullptr);
+    worker.start();
+
+    loop_run.acquire();
+    std::this_thread::sleep_for(std::chrono::milliseconds(100));
+
+    // Worker will stop on it's own due to error
+
+    REQUIRE_THROWS(worker.future_get_once());
+    REQUIRE_NOTHROW(worker.future_get_once());
+    REQUIRE(counter == 1);
+}
+
+TEST_CASE("SG::notifiable_background_worker: check destructor can throw an error",
+          "[SG::notifiable_background_worker]") {
+    std::binary_semaphore loop_run{0};
+
+    sg::notifiable_background_worker::callback_t task = [&](sg::notifiable_background_worker*) {
+        loop_run.release();
+        throw std::runtime_error("err");
+    };
+
+    // Should throw
+    REQUIRE_THROWS([&](){
+        loop_run.release(0);
+
+        sg::notifiable_background_worker worker =
+            sg::notifiable_background_worker(std::chrono::nanoseconds(10), task, nullptr, nullptr);
+        worker.start();
+        loop_run.acquire();
+    }());
+
+    // Should not throw
+    REQUIRE_NOTHROW([&](){
+        loop_run.release(0);
+
+        sg::notifiable_background_worker worker =
+            sg::notifiable_background_worker(std::chrono::nanoseconds(10), task, nullptr, nullptr);
+        worker.start();
+        loop_run.acquire();
+
+        try {
+        worker.future_get_once();
+        } catch(...){}
+    }());
 }
 
 

@@ -5,7 +5,6 @@
 #include <functional>
 #include <map>
 #include <stdexcept>
-#include <utility>
 #include <vector>
 
 namespace sg {
@@ -32,7 +31,7 @@ class state_machine {
     TState state() const { return m_current_state; }
 
     state_machine() =default;
-    virtual ~state_machine() = default;
+    virtual ~state_machine() noexcept(false) = default;
 
     void add_state(TState state) {
         if (is_running()) throw std::runtime_error("can't add/remove states whilst running");
@@ -92,6 +91,8 @@ class state_machine {
     bool is_running() const {
         return m_worker && m_worker->is_running();
     }
+
+    void future_get_once() { m_worker->future_get_once(); }
 
     std::shared_future<void> future() const {
         return m_worker->future();
