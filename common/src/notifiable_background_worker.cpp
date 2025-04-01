@@ -11,9 +11,12 @@ notifiable_background_worker::notifiable_background_worker(std::chrono::nanoseco
       m_started_cb(start_cb),
       m_stopped_cb(stopped_cb) {}
 
-notifiable_background_worker::~notifiable_background_worker() {
+notifiable_background_worker::~notifiable_background_worker() noexcept(false) {
     request_stop();
     wait_for_stop();
+
+    /* throw error if no one else has checked for it! */
+    future_get_once();
 }
 
 void notifiable_background_worker::start_async() {
@@ -32,6 +35,7 @@ void notifiable_background_worker::start_async() {
         m_is_running.store(true);
         m_stop_requested.store(false);
         m_stop_after_interations.store(false);
+        m_checked_future.store(false);
 
         /* start */
         m_thread = std::thread(&notifiable_background_worker::action, this);
@@ -144,5 +148,12 @@ void notifiable_background_worker::action() {
 void notifiable_background_worker::notify() { m_semaphore_notifier.release(); }
 
 std::shared_future<void> notifiable_background_worker::future() const { return m_result_future; }
+
+void notifiable_background_worker::future_get_once(){
+    std::lock_guard lock(m_checked_future_mutex);
+    if (!m_checked_future.exchange(true))
+        if (auto fut=future(); fut.valid())
+            fut.get();
+}
 
 }  // namespace sg
