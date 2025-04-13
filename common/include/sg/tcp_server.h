@@ -52,6 +52,12 @@ class tcp_session :  public std::enable_shared_from_this<tcp_session>{
         write_msgs_.push_back(std::move(msg));
         m_timer.cancel_one();
     }
+
+    void  stop(){
+        m_socket.shutdown(boost::asio::ip::tcp::socket::shutdown_type::shutdown_both);
+        m_socket.close();
+        m_timer.cancel();
+    }
   private:
     boost::asio::ip::tcp::socket m_socket;
     boost::asio::steady_timer m_timer;
@@ -113,6 +119,11 @@ class tcp_server {
     typedef std::function<void(tcp_server&, session_id_t, const std::byte*, size_t)> session_data_available_cb_t;
     typedef std::function<void(tcp_server&, session_id_t, std::optional<std::exception>)> session_disconnected_cb_t;
 
+    ~tcp_server() {
+        stop_async();
+        m_worker->wait_for_stop();
+    }
+
     void start(std::vector<end_point> endpoints, started_listening_cb_t onStartListening, stopped_listening_cb_t onStopListeniing, session_data_available_cb_t onDataAvailCb,  session_disconnected_cb_t onDisconnCb) noexcept(false) {
         if (m_worker && m_worker->is_running())
             throw std::runtime_error("tcp_server is already running");
@@ -141,8 +152,8 @@ class tcp_server {
     }
 
     void stop_async() {
-        if (m_worker->is_running())
-            m_io_context_ptr.get()->stop();
+        if (!m_io_context_ptr.stopped())
+            m_io_context_ptr.stop();
     }
 
     void write(session_id_t id, tcp_session::buffer_t buffer)    {
@@ -164,7 +175,7 @@ class tcp_server {
 
     std::vector<end_point> m_endpoints;
     std::promise<void> m_promise_started_listening;
-    std::unique_ptr<boost::asio::io_context> m_io_context_ptr;
+    boost::asio::io_context m_io_context_ptr;
 
     session_data_available_cb_t m_on_data_read_user_cb;
     session_disconnected_cb_t m_on_disconnect_user_cb;
@@ -194,14 +205,12 @@ class tcp_server {
     }
 
     void on_worker_start(notifiable_background_worker*) {
-        m_io_context_ptr = std::make_unique<boost::asio::io_context>(1);
-
         for (auto e : m_endpoints) {
             boost::asio::ip::tcp::endpoint ep(boost::asio::ip::address::from_string(e.ip),
                                               static_cast<boost::asio::ip::port_type>(e.port));
             boost::asio::co_spawn(
-                *(m_io_context_ptr.get()),
-                listener(boost::asio::ip::tcp::acceptor(*(m_io_context_ptr.get()), ep)),
+                m_io_context_ptr,
+                listener(boost::asio::ip::tcp::acceptor(m_io_context_ptr, ep)),
                 boost::asio::detached);
         }
 
@@ -215,7 +224,7 @@ class tcp_server {
     }
 
     void server_thread_task(notifiable_background_worker* worker) {
-        m_io_context_ptr->run();
+        m_io_context_ptr.run();
         worker->request_stop();
     }
 
@@ -230,6 +239,7 @@ class tcp_server {
             m_on_disconnect_user_cb(*this, id, ex);
 
         std::unique_lock lock(m_mutex);
+        m_sessions.at(id)->stop();
         m_sessions.erase(id);
     }
 };
