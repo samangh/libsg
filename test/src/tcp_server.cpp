@@ -2,6 +2,7 @@
 
 #include <sg/tcp_server.h>
 #include <sg/jthread.h>
+#include <sg/random.h>
 
 #include <boost/asio.hpp>
 
@@ -55,16 +56,12 @@ TEST_CASE("sg::net::tcp_server: check read/write", "[sg::net::tcp_server]") {
             l.write(id, w);
         };
 
-    tcp_server::session_disconnected_cb_t on_disconn = [](tcp_server& l, sg::net::tcp_server::session_id_t, std::optional<std::exception>){
-        l.stop_async();
-    };
-
     sg::net::end_point ep("0.0.0.0", PORT);
 
     tcp_server l;
-    l.start({ep}, nullptr, nullptr, on_data, on_disconn);
+    l.start({ep}, nullptr, nullptr, on_data, nullptr);
 
-    std::jthread th = std::jthread([]() {
+    auto func = []() {
         using boost::asio::ip::tcp;
 
         boost::asio::io_context io_context;
@@ -76,8 +73,10 @@ TEST_CASE("sg::net::tcp_server: check read/write", "[sg::net::tcp_server]") {
         boost::asio::connect(socket, endpoints);
 
         boost::system::error_code error;
-        std::array<char, 5> buf_write = {'H', 'E', 'L', 'L', 'O'};
-        std::array<char, 5> buf_read;
+        auto buf_write = sg::random::genrate<char>(20);
+        std::vector<char> buf_read(20);
+
+        //std::array<char, 20> buf_read;
 
         socket.write_some(boost::asio::buffer(buf_write), error);
         socket.read_some(boost::asio::buffer(buf_read), error);
@@ -88,9 +87,14 @@ TEST_CASE("sg::net::tcp_server: check read/write", "[sg::net::tcp_server]") {
 
         socket.shutdown(tcp::socket::shutdown_type::shutdown_both);
         socket.close();
-    });
+    };
 
-    REQUIRE_NOTHROW(th.join());
+    std::vector<std::thread> threads;
+    for (int i=0; i <100; i++)
+        threads.emplace_back(std::thread(func));
+
+    for (auto& th: threads)
+        REQUIRE_NOTHROW(th.join());
 }
 
 TEST_CASE("sg::net::tcp_server: check can disconnect client", "[sg::net::tcp_server]") {
