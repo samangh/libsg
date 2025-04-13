@@ -116,6 +116,7 @@ class tcp_server {
 
     typedef std::function<void(tcp_server&)> started_listening_cb_t;
     typedef std::function<void(tcp_server&)> stopped_listening_cb_t;
+    typedef std::function<void(tcp_server&, session_id_t)> new_session_cb_t;
     typedef std::function<void(tcp_server&, session_id_t, const std::byte*, size_t)> session_data_available_cb_t;
     typedef std::function<void(tcp_server&, session_id_t, std::optional<std::exception>)> session_disconnected_cb_t;
 
@@ -124,12 +125,18 @@ class tcp_server {
         m_worker->wait_for_stop();
     }
 
-    void start(std::vector<end_point> endpoints, started_listening_cb_t onStartListening, stopped_listening_cb_t onStopListeniing, session_data_available_cb_t onDataAvailCb,  session_disconnected_cb_t onDisconnCb) noexcept(false) {
+    void start(std::vector<end_point> endpoints,
+               started_listening_cb_t onStartListening,
+               stopped_listening_cb_t onStopListeniing,
+               new_session_cb_t onNewSession,
+               session_data_available_cb_t onDataAvailCb,
+               session_disconnected_cb_t onDisconnCb) noexcept(false) {
         if (m_worker && m_worker->is_running())
             throw std::runtime_error("tcp_server is already running");
 
         m_on_started_listening_cb = onStartListening;
         m_on_stopped_listening_cb = onStopListeniing;
+        m_new_session_cb = std::move(onNewSession),
         m_on_data_read_user_cb = std::move(onDataAvailCb);
         m_on_disconnect_user_cb = std::move(onDisconnCb);
 
@@ -177,6 +184,7 @@ class tcp_server {
     std::promise<void> m_promise_started_listening;
     boost::asio::io_context m_io_context_ptr;
 
+    new_session_cb_t m_new_session_cb;
     session_data_available_cb_t m_on_data_read_user_cb;
     session_disconnected_cb_t m_on_disconnect_user_cb;
     started_listening_cb_t m_on_started_listening_cb;
@@ -200,6 +208,10 @@ class tcp_server {
                 std::unique_lock lock(m_mutex);
                 m_sessions.emplace(id, sess);
             }
+
+            if (m_new_session_cb)
+                m_new_session_cb(*this, id);
+
             sess->start();
         }
     }

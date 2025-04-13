@@ -18,7 +18,7 @@ TEST_CASE("sg::net::tcp_server: check bad endpoint throws exception during start
     ep.ip = "8.8.8.8";
 
     sg::net::tcp_server l;
-    REQUIRE_THROWS(l.start({ep}, nullptr, nullptr, nullptr, nullptr));
+    REQUIRE_THROWS(l.start({ep}, nullptr, nullptr,nullptr, nullptr, nullptr));
 }
 
 TEST_CASE("sg::net::tcp_server: check start/stop callback", "[sg::net::tcp_server]") {
@@ -36,7 +36,7 @@ TEST_CASE("sg::net::tcp_server: check start/stop callback", "[sg::net::tcp_serve
     sg::net::end_point ep("127.0.0.1", PORT);
 
     tcp_server l;
-    l.start({ep}, onStart, onStop, nullptr, nullptr);
+    l.start({ep}, onStart, onStop, nullptr, nullptr,nullptr);
 
     start_sem.acquire();
     REQUIRE(stop_count == 0);
@@ -46,8 +46,12 @@ TEST_CASE("sg::net::tcp_server: check start/stop callback", "[sg::net::tcp_serve
     REQUIRE(stop_count == 1);
 }
 
-TEST_CASE("sg::net::tcp_server: check read/write", "[sg::net::tcp_server]") {
+TEST_CASE("sg::net::tcp_server: check read/write with many simultanious clients", "[sg::net::tcp_server]") {
     using namespace sg::net;
+
+    int count =100;
+    std::atomic_int counterNew{0};
+    std::atomic_int counterClosed{0};
 
     tcp_server::session_data_available_cb_t on_data =
         [](tcp_server&l,tcp_server::session_id_t id, const std::byte* dat, size_t size) {
@@ -56,10 +60,19 @@ TEST_CASE("sg::net::tcp_server: check read/write", "[sg::net::tcp_server]") {
             l.write(id, w);
         };
 
+    tcp_server::new_session_cb_t onNew = [&counterNew](tcp_server&, tcp_server::session_id_t) {
+        counterNew++;
+    };
+
+    tcp_server::session_disconnected_cb_t onClose = [&counterClosed](tcp_server&, tcp_server::session_id_t, std::optional<std::exception>) {
+        counterClosed++;
+    };
+
+
     sg::net::end_point ep("0.0.0.0", PORT);
 
     tcp_server l;
-    l.start({ep}, nullptr, nullptr, on_data, nullptr);
+    l.start({ep}, nullptr, nullptr, onNew, on_data, onClose);
 
     auto func = []() {
         using boost::asio::ip::tcp;
@@ -90,11 +103,14 @@ TEST_CASE("sg::net::tcp_server: check read/write", "[sg::net::tcp_server]") {
     };
 
     std::vector<std::thread> threads;
-    for (int i=0; i <100; i++)
+    for (int i=0; i <count; i++)
         threads.emplace_back(std::thread(func));
 
     for (auto& th: threads)
         REQUIRE_NOTHROW(th.join());
+
+    REQUIRE(counterNew==count);
+    REQUIRE(counterClosed==count);
 }
 
 TEST_CASE("sg::net::tcp_server: check can disconnect client", "[sg::net::tcp_server]") {
@@ -112,7 +128,7 @@ TEST_CASE("sg::net::tcp_server: check can disconnect client", "[sg::net::tcp_ser
     sg::net::end_point ep("0.0.0.0", PORT);
 
     tcp_server l;
-    l.start({ep}, nullptr, nullptr, on_data, on_disconn);
+    l.start({ep}, nullptr, nullptr, nullptr, on_data, on_disconn);
 
     std::jthread th = std::jthread([]() {
         using boost::asio::ip::tcp;
