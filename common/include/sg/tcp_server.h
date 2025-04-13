@@ -111,13 +111,17 @@ class tcp_session :  public std::enable_shared_from_this<tcp_session>{
 
 class tcp_server {
   public:
+    typedef std::function<void(tcp_server&)> started_listening_cb_t;
+    typedef std::function<void(tcp_server&)> stopped_listening_cb_t;
     typedef std::function<void(session_id_t, const std::byte*, size_t)> session_data_available_cb_t;
     typedef std::function<void(session_id_t, std::optional<std::exception>)> session_disconnected_cb_t;
 
-    void start(std::vector<end_point> endpoints, session_data_available_cb_t onDataAvailCb,  session_disconnected_cb_t onDisconnCb) noexcept(false) {
+    void start(std::vector<end_point> endpoints, started_listening_cb_t onStartListening, stopped_listening_cb_t onStopListeniing, session_data_available_cb_t onDataAvailCb,  session_disconnected_cb_t onDisconnCb) noexcept(false) {
         if (m_worker && m_worker->is_running())
             throw std::runtime_error("tcp_server is already running");
 
+        m_on_started_listening_cb = onStartListening;
+        m_on_stopped_listening_cb = onStopListeniing;
         m_on_data_read_user_cb = std::move(onDataAvailCb);
         m_on_disconnect_user_cb = std::move(onDisconnCb);
 
@@ -131,6 +135,8 @@ class tcp_server {
         m_worker->start();
 
         m_promise_started_listening.get_future().get();
+        if (onStartListening)
+            onStartListening(*this);
     }
 
     void future_get_once() noexcept(false) {
@@ -166,6 +172,8 @@ class tcp_server {
 
     session_data_available_cb_t m_on_data_read_user_cb;
     session_disconnected_cb_t m_on_disconnect_user_cb;
+    started_listening_cb_t m_on_started_listening_cb;
+    stopped_listening_cb_t m_on_stopped_listening_cb;
 
     boost::asio::awaitable<void> listener(boost::asio::ip::tcp::acceptor acceptor) {
         while (true) {
