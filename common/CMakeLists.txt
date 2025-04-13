@@ -36,12 +36,14 @@ setup_library(
   INCLUDE_INTERFACE
   INCLUDE_PUBLIC
     ${DP_THREAD_POOL_DIR}/include
+    Boost::Asio # Needed for some Boost ASIO functions, can move to LINK_PRIVATE when tcp_server implementation is moved outside headers
   INCLUDE_PRIVATE
     Boost::Boost
   LINK_INTERFACE
   LINK_PUBLIC
     libuv::libuv
     fmt::fmt
+    $<$<BOOL:${MSYS2}>:Mswsock> # Needed for some Boost ASIO functions, can move to LINK_PRIVATE when tcp_server implementation is moved outside headers
   LINK_PRIVATE
     Threads::Threads
     $<$<BOOL:${WIN32}>:Winmm>
