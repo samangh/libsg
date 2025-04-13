@@ -45,6 +45,8 @@ jobs:
         env:
           CC: ${{ matrix.compiler.cc }}
           CXX: ${{ matrix.compiler.cxx }}
+          CXXFLAGS: "-fprofile-update=prefer-atomic"
+          CFLAGS: "-fprofile-update=prefer-atomic"
           # CMAKE_PREFIX_PATH: /home/linuxbrew
         run: |
              mkdir build
