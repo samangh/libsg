@@ -34,6 +34,9 @@ class tcp_session :  public std::enable_shared_from_this<tcp_session>{
           on_error_cb(std::move(onErrorCb))
     {
         m_timer.expires_at(std::chrono::steady_clock::time_point::max());
+
+        boost::asio::socket_base::keep_alive option(true);
+        m_socket.set_option(option);
     }
 
     void start() {
