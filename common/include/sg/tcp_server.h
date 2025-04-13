@@ -126,17 +126,17 @@ class tcp_server {
         m_on_disconnect_user_cb = std::move(onDisconnCb);
 
         m_endpoints = endpoints;
+        m_last_id = 0;
 
         m_promise_started_listening = std::promise<void>();
 
         auto serverThreadTask = std::bind(&tcp_server::server_thread_task, &*this, std::placeholders::_1);
-        m_worker = std::make_unique<notifiable_background_worker>(
-            std::chrono::seconds(1), serverThreadTask, nullptr, nullptr);
-        m_worker->start();
+        auto serverSetupTask = std::bind(&tcp_server::on_worker_start, &*this, std::placeholders::_1);
+        auto serverStopTask = std::bind(&tcp_server::on_worker_stop, &*this, std::placeholders::_1);
 
-        m_promise_started_listening.get_future().get();
-        if (onStartListening)
-            onStartListening(*this);
+        m_worker = std::make_unique<notifiable_background_worker>(
+            std::chrono::seconds(1), serverThreadTask, serverSetupTask, serverStopTask);
+        m_worker->start();
     }
 
     void future_get_once() noexcept(false) {
@@ -145,7 +145,7 @@ class tcp_server {
 
     void stop_async() {
         if (m_worker->is_running())
-            m_io_context_ptr.load()->stop();
+            m_io_context_ptr.get()->stop();
     }
 
     void write(session_id_t id, tcp_session::buffer_t buffer)    {
@@ -159,16 +159,15 @@ class tcp_server {
   private:
     typedef std::shared_ptr<tcp_session> ptr;
 
-
     std::unique_ptr<notifiable_background_worker> m_worker;
 
     std::shared_mutex m_mutex;
     std::map<session_id_t, ptr> m_sessions;
-    std::atomic<size_t> m_last_id{0};
+    std::atomic<size_t> m_last_id;
 
     std::vector<end_point> m_endpoints;
     std::promise<void> m_promise_started_listening;
-    std::atomic<boost::asio::io_context*> m_io_context_ptr;
+    std::unique_ptr<boost::asio::io_context> m_io_context_ptr;
 
     session_data_available_cb_t m_on_data_read_user_cb;
     session_disconnected_cb_t m_on_disconnect_user_cb;
@@ -197,26 +196,29 @@ class tcp_server {
         }
     }
 
-    void server_thread_task(notifiable_background_worker* worker) {
-        boost::asio::io_context m_io_context;
-        m_io_context_ptr = &m_io_context;
+    void on_worker_start(notifiable_background_worker*) {
+        m_io_context_ptr = std::make_unique<boost::asio::io_context>(1);
 
-        try {
-            for (auto e : m_endpoints) {
-                boost::asio::ip::tcp::endpoint ep(boost::asio::ip::address::from_string(e.ip),
-                                                  static_cast<boost::asio::ip::port_type>(e.port));
-                boost::asio::co_spawn(m_io_context,
-                                      listener(boost::asio::ip::tcp::acceptor(m_io_context, ep)),
-                                      boost::asio::detached);
-            }
-            m_promise_started_listening.set_value();
-        } catch (...) {
-            m_promise_started_listening.set_exception(std::current_exception());
-            worker->request_stop();
-            return;
+        for (auto e : m_endpoints) {
+            boost::asio::ip::tcp::endpoint ep(boost::asio::ip::address::from_string(e.ip),
+                                              static_cast<boost::asio::ip::port_type>(e.port));
+            boost::asio::co_spawn(
+                *(m_io_context_ptr.get()),
+                listener(boost::asio::ip::tcp::acceptor(*(m_io_context_ptr.get()), ep)),
+                boost::asio::detached);
         }
 
-        m_io_context.run();
+        if (m_on_started_listening_cb)
+            m_on_started_listening_cb(*this);
+    }
+
+    void on_worker_stop(notifiable_background_worker*) {
+        if (m_on_stopped_listening_cb)
+            m_on_stopped_listening_cb(*this);
+    }
+
+    void server_thread_task(notifiable_background_worker* worker) {
+        m_io_context_ptr->run();
         worker->request_stop();
     }
 
