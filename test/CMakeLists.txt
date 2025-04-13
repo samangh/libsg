@@ -48,6 +48,11 @@ setup_executable(
     $<$<BOOL:${BENCHMARK}>:BENCHMARK>
 )
 
+target_sources(sg_test
+  PRIVATE
+    src/tcp_server.cpp
+)
+
 ##
 ## Enable testing
 ##

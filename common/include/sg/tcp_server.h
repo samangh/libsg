@@ -110,8 +110,8 @@ class tcp_server {
 
     typedef std::function<void(tcp_server&)> started_listening_cb_t;
     typedef std::function<void(tcp_server&)> stopped_listening_cb_t;
-    typedef std::function<void(session_id_t, const std::byte*, size_t)> session_data_available_cb_t;
-    typedef std::function<void(session_id_t, std::optional<std::exception>)> session_disconnected_cb_t;
+    typedef std::function<void(tcp_server&, session_id_t, const std::byte*, size_t)> session_data_available_cb_t;
+    typedef std::function<void(tcp_server&, session_id_t, std::optional<std::exception>)> session_disconnected_cb_t;
 
     void start(std::vector<end_point> endpoints, started_listening_cb_t onStartListening, stopped_listening_cb_t onStopListeniing, session_data_available_cb_t onDataAvailCb,  session_disconnected_cb_t onDisconnCb) noexcept(false) {
         if (m_worker && m_worker->is_running())
@@ -221,13 +221,13 @@ class tcp_server {
 
     void inform_user_of_data(session_id_t id, const std::byte* data, size_t size) {
         if (m_on_data_read_user_cb)
-            m_on_data_read_user_cb(id, data, size);
+            m_on_data_read_user_cb(*this, id, data, size);
     }
 
     void drop_connection(session_id_t id, std::optional<std::exception> ex)
     {
         if (m_on_disconnect_user_cb)
-            m_on_disconnect_user_cb(id, ex);
+            m_on_disconnect_user_cb(*this, id, ex);
 
         std::unique_lock lock(m_mutex);
         m_sessions.erase(id);
