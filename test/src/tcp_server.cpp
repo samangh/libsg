@@ -49,7 +49,7 @@ TEST_CASE("sg::net::tcp_server: check start/stop callback", "[sg::net::tcp_serve
 TEST_CASE("sg::net::tcp_server: check read/write with many simultanious clients", "[sg::net::tcp_server]") {
     using namespace sg::net;
 
-    int count =50;
+    int count =100;
     std::atomic_int counterNew{0};
     std::atomic_int counterClosed{0};
 
@@ -64,8 +64,10 @@ TEST_CASE("sg::net::tcp_server: check read/write with many simultanious clients"
         counterNew++;
     };
 
-    tcp_server::session_disconnected_cb_t onClose = [&counterClosed](tcp_server&, tcp_server::session_id_t, std::optional<std::exception>) {
+    tcp_server::session_disconnected_cb_t onClose = [&counterClosed, count](tcp_server& l, tcp_server::session_id_t, std::optional<std::exception>) {
         counterClosed++;
+        if (counterClosed == count)
+            l.stop_async();
     };
 
 
@@ -109,7 +111,6 @@ TEST_CASE("sg::net::tcp_server: check read/write with many simultanious clients"
     for (auto& th: threads)
         REQUIRE_NOTHROW(th.join());
 
-    l.stop_async();
     l.future_get_once();
 
     REQUIRE(counterNew.load() ==count);
