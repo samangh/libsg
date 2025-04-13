@@ -23,18 +23,23 @@ class tcp_session :  public std::enable_shared_from_this<tcp_session>{
   public:
     typedef sg::shared_c_buffer<std::byte> buffer_t;
     typedef std::function<void(const std::byte*, size_t)> on_data_available_cb_t;
-    typedef std::function<void(const std::exception&)> on_error_cb_t;
+    typedef std::function<void(std::optional<std::exception>)> on_disconnected_cb_t;
 
-    tcp_session(boost::asio::ip::tcp::socket socket, on_data_available_cb_t onReadCb, on_error_cb_t onErrorCb)
+    tcp_session(boost::asio::ip::tcp::socket socket, on_data_available_cb_t onReadCb, on_disconnected_cb_t onErrorCb)
         : m_socket(std::move(socket)),
           m_timer(m_socket.get_executor()),
           m_on_data_cb(std::move(onReadCb)),
-          on_error_cb(std::move(onErrorCb))
+          m_on_disconnected_cb(std::move(onErrorCb))
     {
         m_timer.expires_at(std::chrono::steady_clock::time_point::max());
 
         boost::asio::socket_base::keep_alive option(true);
         m_socket.set_option(option);
+    }
+
+    ~tcp_session(){
+        if (!m_disconnected_cb_called.exchange(true) && m_on_disconnected_cb)
+            m_on_disconnected_cb({});
     }
 
     void start() {
@@ -53,20 +58,30 @@ class tcp_session :  public std::enable_shared_from_this<tcp_session>{
         m_timer.cancel_one();
     }
 
-    void  stop(){
-        m_socket.shutdown(boost::asio::ip::tcp::socket::shutdown_type::shutdown_both);
-        m_socket.close();
-        m_timer.cancel();
+    void stop(){
+        stop({});
     }
   private:
     boost::asio::ip::tcp::socket m_socket;
     boost::asio::steady_timer m_timer;
 
     on_data_available_cb_t m_on_data_cb;
-    on_error_cb_t  on_error_cb;
+    on_disconnected_cb_t  m_on_disconnected_cb;
 
     std::mutex m_mutex;
     dp::thread_safe_queue<buffer_t> write_msgs_;
+
+    std::atomic<bool> m_disconnected_cb_called {false};
+
+    void stop(std::optional<std::exception> ex){
+        m_disconnected_cb_called.store(true);
+        if (m_on_disconnected_cb)
+            m_on_disconnected_cb(ex);
+
+        m_socket.shutdown(boost::asio::ip::tcp::socket::shutdown_type::shutdown_both);
+        m_socket.close();
+        m_timer.cancel();
+    }
 
     boost::asio::awaitable<void> reader()
     {
@@ -86,8 +101,7 @@ class tcp_session :  public std::enable_shared_from_this<tcp_session>{
         }
         catch (const std::exception& ex)
         {
-            if (on_error_cb)
-                on_error_cb(ex);
+            stop(ex);
         }
     }
 
@@ -104,8 +118,7 @@ class tcp_session :  public std::enable_shared_from_this<tcp_session>{
                 }
 
         } catch (const std::exception& ex) {
-            if (on_error_cb)
-                on_error_cb(ex);
+            stop(ex);
         }
     }
 };
@@ -120,7 +133,8 @@ class tcp_server {
     typedef std::function<void(tcp_server&, session_id_t, const std::byte*, size_t)> session_data_available_cb_t;
     typedef std::function<void(tcp_server&, session_id_t, std::optional<std::exception>)> session_disconnected_cb_t;
 
-    ~tcp_server() {
+    ~tcp_server() {        
+        disconnect_all();
         stop_async();
         m_worker->wait_for_stop();
     }
@@ -176,8 +190,27 @@ class tcp_server {
     }
 
     void disconnect(session_id_t id) {
-        drop_connection(id, {});
+        ptr sess;
+        {
+            std::shared_lock lock(m_mutex);
+            sess =m_sessions.at(id);
+        }
+
+        sess->stop();
     }
+
+    void disconnect_all() {
+        std::vector<ptr> vec;
+        {
+            std::shared_lock lock(m_mutex);
+            for (auto [_, sess]: m_sessions)
+                vec.push_back(sess);
+        }
+
+        for (auto& sess: vec)
+            sess->stop();
+    }
+
   private:
     typedef std::shared_ptr<tcp_session> ptr;
 
@@ -201,15 +234,15 @@ class tcp_server {
         while (true) {
             auto id = m_last_id++;
 
-            auto onError = [this, id](const std::exception& ex) {
-                drop_connection(id, ex);
+            auto onSessionDisconnected = [this, id](std::optional<std::exception> ex) {
+                on_session_stopped(id, ex);
             };
             auto onData = [this, id](const std::byte* data, size_t size) {
                 inform_user_of_data(id, data, size);
             };
 
             auto sess = std::make_shared<tcp_session>(
-                co_await acceptor.async_accept(boost::asio::use_awaitable), onData, onError);
+                co_await acceptor.async_accept(boost::asio::use_awaitable), onData, onSessionDisconnected);
 
             {
                 std::unique_lock lock(m_mutex);
@@ -252,13 +285,12 @@ class tcp_server {
             m_on_data_read_user_cb(*this, id, data, size);
     }
 
-    void drop_connection(session_id_t id, std::optional<std::exception> ex)
+    void on_session_stopped(session_id_t id, std::optional<std::exception> ex)
     {
         if (m_on_disconnect_user_cb)
             m_on_disconnect_user_cb(*this, id, ex);
 
         std::unique_lock lock(m_mutex);
-        m_sessions.at(id)->stop();
         m_sessions.erase(id);
     }
 };
