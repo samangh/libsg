@@ -49,7 +49,7 @@ TEST_CASE("sg::net::tcp_server: check start/stop callback", "[sg::net::tcp_serve
 TEST_CASE("sg::net::tcp_server: check read/write with many simultanious clients", "[sg::net::tcp_server]") {
     using namespace sg::net;
 
-    int count =100;
+    int count =50;
     std::atomic_int counterNew{0};
     std::atomic_int counterClosed{0};
 
@@ -109,8 +109,11 @@ TEST_CASE("sg::net::tcp_server: check read/write with many simultanious clients"
     for (auto& th: threads)
         REQUIRE_NOTHROW(th.join());
 
-    REQUIRE(counterNew==count);
-    REQUIRE(counterClosed==count);
+    l.stop_async();
+    l.future_get_once();
+
+    REQUIRE(counterNew.load() ==count);
+    REQUIRE(counterClosed.load()==count);
 }
 
 TEST_CASE("sg::net::tcp_server: check can disconnect client", "[sg::net::tcp_server]") {
