@@ -11,6 +11,7 @@
 #include <boost/asio/ip/tcp.hpp>
 #include <boost/asio/redirect_error.hpp>
 #include <boost/asio/write.hpp>
+
 #include <map>
 #include <optional>
 #include <thread_pool/thread_safe_queue.h>
@@ -126,15 +127,17 @@ class tcp_server {
             std::chrono::seconds(1), serverThreadTask, nullptr, nullptr);
         m_worker->start();
     }
-    void stop() noexcept(false) {
+
+    void future_get_once() noexcept(false) {
+        m_worker->wait_for_stop();
+    }
+
+    void stop() {
         if (m_worker->is_running()) {
             m_io_context_ptr.load()->stop();
             m_worker->stop_requested();
             m_worker->wait_for_stop();
         }
-
-        //may throw!
-        m_worker->future_get_once();
     }
 
     void write(session_id_t id, tcp_session::buffer_t buffer)    {
@@ -213,8 +216,6 @@ class tcp_server {
         std::unique_lock lock(m_mutex);
         m_sessions.erase(id);
     }
-
-
 };
 
 }
