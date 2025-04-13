@@ -163,6 +163,13 @@ class tcp_server {
             m_io_context_ptr.stop();
     }
 
+
+    void write(session_id_t id, const void* data, size_t size) {
+        auto ptr = sg::make_shared_c_buffer<std::byte>(size);
+        std::memcpy(ptr.get(), data, size);
+        write(id, ptr);
+    }
+
     void write(session_id_t id, tcp_session::buffer_t buffer)    {
         std::shared_lock lock(m_mutex);
         m_sessions.at(id)->write(buffer);
@@ -218,7 +225,7 @@ class tcp_server {
 
     void on_worker_start(notifiable_background_worker*) {
         for (auto e : m_endpoints) {
-            boost::asio::ip::tcp::endpoint ep(boost::asio::ip::address::from_string(e.ip),
+            boost::asio::ip::tcp::endpoint ep(boost::asio::ip::make_address(e.ip),
                                               static_cast<boost::asio::ip::port_type>(e.port));
             boost::asio::co_spawn(
                 m_io_context_ptr,
