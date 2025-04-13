@@ -5,6 +5,7 @@
 #include <functional>
 #include <map>
 #include <stdexcept>
+#include <utility>
 #include <vector>
 
 namespace sg {
@@ -16,7 +17,6 @@ class state_machine {
     struct state_change_details {
         TState new_state;
         TState old_state;
-        bool is_starting_state = false;
         bool is_stopping_state = false;
     };
 
@@ -129,10 +129,21 @@ class state_machine {
     std::atomic<TState> m_current_state;
     std::atomic<TState> m_requested_state;
 
+
+    bool just_started;
     std::map<TState, state_config> m_states;
     std::unique_ptr<sg::notifiable_background_worker> m_worker;
 
     void tick_action(sg::notifiable_background_worker*) {
+        /* run entry action if just started */
+        if (std::exchange(just_started, false))
+        {
+            state_change_details det{
+                                     .new_state = m_current_state, .old_state = m_current_state};
+            for (state_change_callback_t& entry_cbs : m_states.at(m_current_state).m_entry_cb)
+                entry_cbs(*this, det);
+        }
+
         /* if there is a state change */
         if (m_current_state != m_requested_state)
         {
@@ -160,15 +171,13 @@ class state_machine {
         if (m_on_start_cb)
             m_on_start_cb(*this);
 
-        state_change_details det{
-            .new_state = m_current_state, .old_state = m_current_state, .is_starting_state = true};
-        for (state_change_callback_t& entry_cbs : m_states.at(m_current_state).m_entry_cb)
-            entry_cbs(*this, det);
+        /* cause the worker to run the entry actions for the initial state */
+        just_started=true;
     }
     void worker_on_stop (notifiable_background_worker*) {
         /* do the state's exit callbacks first, then the overall state machine one*/
         state_change_details det{
-            .new_state = m_current_state, .old_state = m_current_state, .is_stopping_state = true};
+            .new_state = m_current_state, .old_state = m_current_state};
         for (state_change_callback_t& cbs: m_states.at(m_current_state).m_exit_cb)
             cbs(*this, det);
 

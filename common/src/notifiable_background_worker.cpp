@@ -19,7 +19,7 @@ notifiable_background_worker::~notifiable_background_worker() noexcept(false) {
     future_get_once();
 }
 
-void notifiable_background_worker::start_async() {
+void notifiable_background_worker::start() {
     if (is_running()) throw std::runtime_error("this worker is already running");
 
     /* if the thread has finished executing code,but has not been joined yet */
@@ -27,6 +27,7 @@ void notifiable_background_worker::start_async() {
 
     try {
         m_result_promise = std::promise<void>();
+        m_start_promise = std::promise<void>();
         m_result_future = m_result_promise.get_future();
 
         /* we set m_is_running, as usually there is a delay before a
@@ -39,8 +40,12 @@ void notifiable_background_worker::start_async() {
 
         /* start */
         m_thread = std::thread(&notifiable_background_worker::action, this);
+
+        /* wait for startactions to be done fully */
+        m_start_promise.get_future().get();
     } catch (...) {
         m_is_running.store(false);
+        m_result_promise.set_value();
         throw;
     }
 }
@@ -91,6 +96,17 @@ void notifiable_background_worker::set_interval(std::chrono::nanoseconds interva
 void notifiable_background_worker::action() {
     m_semaphore_thread_started.release();
 
+    try {
+        if (m_started_cb)
+            m_started_cb(this);
+        m_start_promise.set_value();
+    } catch(...) {
+        m_start_promise.set_exception(std::current_exception());
+        request_stop();
+        return;
+    }
+
+
     /* catch latest exception */
     std::exception_ptr ex;
 
@@ -103,9 +119,7 @@ void notifiable_background_worker::action() {
      */
     bool stop_after_iteration =false;
 
-    try {        
-        if (m_started_cb) m_started_cb(this);
-
+    try {
         while (!stop_requested()) {
             if (m_stop_after_interations.load(std::memory_order_acquire))
                 if(--m_stop_after_interations_count == 0)
@@ -143,6 +157,7 @@ void notifiable_background_worker::action() {
         m_result_promise.set_exception(ex);
     else
         m_result_promise.set_value();
+
 }
 
 void notifiable_background_worker::notify() { m_semaphore_notifier.release(); }

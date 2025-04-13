@@ -30,10 +30,12 @@ class SG_COMMON_EXPORT notifiable_background_worker {
      *
      *        Notes:
      *         * all callbacks are done on the worker thread.
-     *         * all exceptions in the start or task callbacks are
-     *           stored in future.
-     *         * stop callback WILL be called even if there is an error
+     *         * stop callback WILL NOT be called even if is an error
      *           in the start callback.
+     *         * if there is an exception in the start callback, the start()
+     *           functon will throw
+     *         * exceptions in the task or stopcallbacks are
+     *           stored in future.
      *
      * @param interval_ns
      * @param task is the callback/action that is done on every iteration.
@@ -46,23 +48,13 @@ class SG_COMMON_EXPORT notifiable_background_worker {
                                  const callback_t &stopped_cb);
     virtual ~notifiable_background_worker() noexcept(false);
 
-    /**
-     * @brief start_async asynchronously starts the worker.
-     *        Note that the acutal thread may not have started when this call returns.
-     *
-     * @throws if the thread could not be started for any reason.
-     */
-    void start_async();
 
     /**
      * @brief start syncrhonously starts the thread
      *
      * @throws if the thread could not be started for any reason.
      */
-    void start() {
-        start_async();
-        m_semaphore_thread_started.acquire();
-    }
+    void start();
 
     /**
      * @brief request_stop asynchronously stops the thread.
@@ -166,6 +158,8 @@ class SG_COMMON_EXPORT notifiable_background_worker {
     callback_t m_task;
     callback_t m_started_cb;
     callback_t m_stopped_cb;
+
+    std::promise<void> m_start_promise;
 
     std::promise<void> m_result_promise;
     std::shared_future<void> m_result_future;

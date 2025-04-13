@@ -326,12 +326,12 @@ TEST_CASE("sg::state_machine: check expections are caught in main state machine 
     sm.add_tick_callback(state::add_to_counter1, counter1_tick);
 
     sm.set_machine_started_cb(started_cb);
-    sm.start(state::add_to_counter1, std::chrono::seconds(1));
+    REQUIRE_THROWS(sm.start(state::add_to_counter1, std::chrono::seconds(1)));
     sm.wait_for_stop();
 
     REQUIRE(counter == 0);  // the tick must not be called!
-    REQUIRE_THROWS(sm.future().get());
-    REQUIRE_THROWS(sm.future_get_once());
+    REQUIRE_NOTHROW(sm.future().get());
+    REQUIRE_NOTHROW(sm.future_get_once());
 }
 
 TEST_CASE("sg::state_machine: check expections are caught in main state machine stop tick", "[sg::state_machine]") {

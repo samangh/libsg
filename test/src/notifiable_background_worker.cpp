@@ -2,54 +2,42 @@
 
 #include <catch2/catch_test_macros.hpp>
 #include <semaphore>
-#include <string>
 
 //TODO: add more tests aroudn exception handling in started / stopped / action callbacks
 
 TEST_CASE("SG::notifiable_background_worker: check start/stop callbacks get called in right order",
           "[SG::notifiable_background_worker]") {
-    std::binary_semaphore sem{0};
-    std::binary_semaphore loop_run{0};
-    std::atomic<int> counter{-1};
-    std::atomic<int> at_stop_value{0};
+    std::atomic<int> counter{0};
 
-    std::atomic<bool> ran_already = false;
+    std::atomic<bool> start_called = false;
+    std::atomic<bool> start_called_value_during_stop = false;
 
-    sg::notifiable_background_worker::callback_t task = [&](sg::notifiable_background_worker*) {
-        // Ensure we run once only
-        if (ran_already.exchange(true)) return;
+    sg::notifiable_background_worker::callback_t task = [&](sg::notifiable_background_worker* w) {
+        if (!start_called)
+            w->request_stop();
 
-        // counter is -1 here
-        sem.acquire();
-        // counter is 0 after the semaphore is acquired
         counter++;
-        // counter is +1 here
-
-        loop_run.release();
+        w->request_stop();
     };
 
     sg::notifiable_background_worker::callback_t start_cb =
-        [&counter, &sem](sg::notifiable_background_worker*) {
-            counter++;
-            // counter should be incremented to 0 here
-            sem.release();
+        [&start_called](sg::notifiable_background_worker*) {
+            start_called =true;
         };
 
     sg::notifiable_background_worker::callback_t stopped_cb =
-        [&at_stop_value, &counter](sg::notifiable_background_worker*) {
-            at_stop_value.store(counter);
+        [&start_called, &start_called_value_during_stop](sg::notifiable_background_worker*) {
+            start_called_value_during_stop.store(start_called);
         };
 
     sg::notifiable_background_worker worker =
         sg::notifiable_background_worker(std::chrono::nanoseconds(100), task, start_cb, stopped_cb);
     worker.start();
-
-    /* Need to make sure we run at least one loop - wait until loop is rune once then stop */
-    loop_run.acquire();
-    worker.request_stop();
     worker.wait_for_stop();
 
-    REQUIRE(at_stop_value == 1);
+    REQUIRE(counter == 1);
+    REQUIRE(start_called == true);
+    REQUIRE(start_called_value_during_stop == 1);
 }
 
 TEST_CASE("SG::notifiable_background_worker: check worker can stop itself",
@@ -98,28 +86,35 @@ TEST_CASE("SG::notifiable_background_worker: check notifier works",
 
 TEST_CASE("SG::notifiable_background_worker: check future() can throw errors",
           "[SG::notifiable_background_worker]") {
-    std::binary_semaphore loop_run{0};
-    std::atomic<int> counter{0};
 
-    sg::notifiable_background_worker::callback_t task = [&](sg::notifiable_background_worker*) {
-        counter++;
-        loop_run.release();
-        throw std::runtime_error("err");
+
+    sg::notifiable_background_worker::callback_t emptyTask = [&](sg::notifiable_background_worker*) {
+    };
+    sg::notifiable_background_worker::callback_t taskWithExc = [&](sg::notifiable_background_worker*) {
+        throw std::runtime_error("hello!");
     };
 
-    sg::notifiable_background_worker worker =
-        sg::notifiable_background_worker(std::chrono::nanoseconds(10), task, nullptr, nullptr);
-    worker.start();
+    // Exception in main action
+    {
+        sg::notifiable_background_worker worker = sg::notifiable_background_worker(
+            std::chrono::milliseconds(100), taskWithExc, nullptr, nullptr);
+        worker.start();
 
-    loop_run.acquire();
-    std::this_thread::sleep_for(std::chrono::milliseconds(100));
+        REQUIRE_THROWS(worker.future().get());
+        REQUIRE_THROWS(worker.future_get_once());
+    }
 
-    // Don't call stop_request() - the worker should stop on it's own
-    worker.wait_for_stop();
+    // Exception in stop cb
+    {
+        sg::notifiable_background_worker worker = sg::notifiable_background_worker(
+            std::chrono::milliseconds(100), emptyTask, nullptr, taskWithExc);
+        worker.start();
+        worker.request_stop_after_iterations(1);
+        worker.wait_for_stop();
 
-    REQUIRE(counter == 1);
-    CHECK_THROWS(worker.future().get());
-    REQUIRE_THROWS(worker.future_get_once());
+        REQUIRE_THROWS(worker.future().get());
+        REQUIRE_THROWS(worker.future_get_once());
+    }
 }
 
 TEST_CASE("SG::notifiable_background_worker: check future_get_once() throws errors only once",
@@ -181,7 +176,6 @@ TEST_CASE("SG::notifiable_background_worker: check destructor can throw an error
     }());
 }
 
-
 TEST_CASE("SG::notifiable_background_worker: check you can't start multiple times",
           "[SG::notifiable_background_worker]") {
 
@@ -220,8 +214,8 @@ TEST_CASE("SG::notifiable_background_worker: check is_stop_requested() whilst th
     sem.release();
 }
 
-    TEST_CASE("SG::notifiable_background_worker: check you can start/stop multiple times",
-              "[SG::notifiable_background_worker]") {
+TEST_CASE("SG::notifiable_background_worker: check you can start/stop multiple times",
+          "[SG::notifiable_background_worker]") {
     std::atomic<int> counter{0};
 
     sg::notifiable_background_worker::callback_t task = [&](sg::notifiable_background_worker* w) {
@@ -276,4 +270,54 @@ TEST_CASE("SG::notifiable_background_worker: check request_stop_after_iterartion
     worker.wait_for_stop();
 
     REQUIRE(counter == 1);
+}
+
+TEST_CASE("SG::notifiable_background_worker: check start(...) will throw if the start callback has an error",
+          "[SG::notifiable_background_worker]") {
+    std::atomic<int> counter{0};
+
+    sg::notifiable_background_worker::callback_t startCb = [&](sg::notifiable_background_worker*) {
+        throw std::runtime_error("catch!");
+    };
+    sg::notifiable_background_worker::callback_t task = [&](sg::notifiable_background_worker*) {
+        counter++;
+    };
+
+    sg::notifiable_background_worker worker =
+        sg::notifiable_background_worker(std::chrono::nanoseconds(100), task, startCb, task);
+
+    REQUIRE_THROWS(worker.start());
+    REQUIRE(counter == 00);
+    REQUIRE(worker.is_running() == false);
+}
+
+TEST_CASE("SG::notifiable_background_worker: check call callbacks are done in the worker thread",
+          "[SG::notifiable_background_worker]") {
+
+    // You can't use thread_id of a stopped thread, so I use a hash instead.
+
+    std::hash<std::thread::id> hasher;
+    auto this_thread_id = hasher(std::this_thread::get_id());
+    std::atomic<size_t> startId, taskId, stopId;
+
+    sg::notifiable_background_worker::callback_t startCb = [&](sg::notifiable_background_worker*) {
+        startId = hasher(std::this_thread::get_id());
+    };
+    sg::notifiable_background_worker::callback_t task = [&](sg::notifiable_background_worker*) {
+        taskId = hasher(std::this_thread::get_id());
+    };
+    sg::notifiable_background_worker::callback_t stopCb = [&](sg::notifiable_background_worker*) {
+        stopId = hasher(std::this_thread::get_id());
+    };
+
+    sg::notifiable_background_worker worker =
+        sg::notifiable_background_worker(std::chrono::nanoseconds(100), task, startCb, stopCb);
+
+    worker.start();
+    worker.request_stop_after_iterations(1);
+    worker.wait_for_stop();
+
+    REQUIRE(startId != this_thread_id);
+    REQUIRE(startId == taskId);
+    REQUIRE(startId == stopId);
 }
