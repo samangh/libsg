@@ -19,17 +19,14 @@
 
 namespace sg::net {
 
-typedef size_t session_id_t;
-
 class tcp_session :  public std::enable_shared_from_this<tcp_session>{
   public:
     typedef sg::shared_c_buffer<std::byte> buffer_t;
     typedef std::function<void(const std::byte*, size_t)> on_data_available_cb_t;
     typedef std::function<void(const std::exception&)> on_error_cb_t;
 
-    tcp_session(session_id_t id, boost::asio::ip::tcp::socket socket, on_data_available_cb_t onReadCb, on_error_cb_t onErrorCb)
-        :m_id(id),
-          m_socket(std::move(socket)),
+    tcp_session(boost::asio::ip::tcp::socket socket, on_data_available_cb_t onReadCb, on_error_cb_t onErrorCb)
+        : m_socket(std::move(socket)),
           m_timer(m_socket.get_executor()),
           m_on_data_cb(std::move(onReadCb)),
           on_error_cb(std::move(onErrorCb))
@@ -56,7 +53,6 @@ class tcp_session :  public std::enable_shared_from_this<tcp_session>{
         m_timer.cancel_one();
     }
   private:
-    session_id_t m_id;
     boost::asio::ip::tcp::socket m_socket;
     boost::asio::steady_timer m_timer;
 
@@ -108,9 +104,10 @@ class tcp_session :  public std::enable_shared_from_this<tcp_session>{
     }
 };
 
-
 class tcp_server {
   public:
+    typedef size_t session_id_t;
+
     typedef std::function<void(tcp_server&)> started_listening_cb_t;
     typedef std::function<void(tcp_server&)> stopped_listening_cb_t;
     typedef std::function<void(session_id_t, const std::byte*, size_t)> session_data_available_cb_t;
@@ -186,7 +183,7 @@ class tcp_server {
             };
 
             auto sess = std::make_shared<tcp_session>(
-                id, co_await acceptor.async_accept(boost::asio::use_awaitable), onData, onError);
+                co_await acceptor.async_accept(boost::asio::use_awaitable), onData, onError);
 
             {
                 std::unique_lock lock(m_mutex);
