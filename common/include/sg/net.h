@@ -8,6 +8,7 @@
 namespace sg::net {
 
 enum class address_family { IPv4, IPv6 };
+typedef uint16_t port_t;
 
 struct interface_details {
     address_family family;
@@ -17,6 +18,13 @@ struct interface_details {
     bool is_internal;
 };
 
+struct end_point{
+    end_point(){}
+    end_point(std::string ip,  port_t port): ip(ip), port(port) {}
+
+    std::string ip;
+    port_t port;
+};
 /**
  * @brief returns vector of all system interfaces
  * @return vector of all system interfaces

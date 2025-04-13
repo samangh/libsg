@@ -1,6 +1,7 @@
 #ifndef TCP_SERVER_H
 #define TCP_SERVER_H
 
+#include "net.h"
 #include "buffer.h"
 #include "notifiable_background_worker.h"
 
@@ -18,7 +19,6 @@
 
 namespace sg::net {
 
-typedef uint16_t port_t;
 typedef size_t session_id_t;
 
 class tcp_session :  public std::enable_shared_from_this<tcp_session>{
@@ -108,36 +108,38 @@ class tcp_session :  public std::enable_shared_from_this<tcp_session>{
     }
 };
 
+
 class tcp_server {
   public:
     typedef std::function<void(session_id_t, const std::byte*, size_t)> session_data_available_cb_t;
     typedef std::function<void(session_id_t, std::optional<std::exception>)> session_disconnected_cb_t;
 
-    void start(std::vector<port_t> ports, session_data_available_cb_t onDataAvailCb,  session_disconnected_cb_t onDisconnCb) {
+    void start(std::vector<end_point> endpoints, session_data_available_cb_t onDataAvailCb,  session_disconnected_cb_t onDisconnCb) noexcept(false) {
         if (m_worker && m_worker->is_running())
             throw std::runtime_error("tcp_server is already running");
 
         m_on_data_read_user_cb = std::move(onDataAvailCb);
         m_on_disconnect_user_cb = std::move(onDisconnCb);
 
-        m_ports = ports;
+        m_endpoints = endpoints;
+
+        m_promise_started_listening = std::promise<void>();
 
         auto serverThreadTask = std::bind(&tcp_server::server_thread_task, &*this, std::placeholders::_1);
         m_worker = std::make_unique<notifiable_background_worker>(
             std::chrono::seconds(1), serverThreadTask, nullptr, nullptr);
         m_worker->start();
+
+        m_promise_started_listening.get_future().get();
     }
 
     void future_get_once() noexcept(false) {
-        m_worker->wait_for_stop();
+        m_worker->future_get_once();
     }
 
-    void stop() {
-        if (m_worker->is_running()) {
+    void stop_async() {
+        if (m_worker->is_running())
             m_io_context_ptr.load()->stop();
-            m_worker->stop_requested();
-            m_worker->wait_for_stop();
-        }
     }
 
     void write(session_id_t id, tcp_session::buffer_t buffer)    {
@@ -151,20 +153,21 @@ class tcp_server {
   private:
     typedef std::shared_ptr<tcp_session> ptr;
 
-    std::vector<port_t> m_ports;
-    std::unique_ptr<notifiable_background_worker> m_worker;
 
-    std::atomic<size_t> m_last_id{0};
+    std::unique_ptr<notifiable_background_worker> m_worker;
 
     std::shared_mutex m_mutex;
     std::map<session_id_t, ptr> m_sessions;
+    std::atomic<size_t> m_last_id{0};
+
+    std::vector<end_point> m_endpoints;
+    std::promise<void> m_promise_started_listening;
     std::atomic<boost::asio::io_context*> m_io_context_ptr;
 
     session_data_available_cb_t m_on_data_read_user_cb;
     session_disconnected_cb_t m_on_disconnect_user_cb;
 
     boost::asio::awaitable<void> listener(boost::asio::ip::tcp::acceptor acceptor) {
-
         while (true) {
             auto id = m_last_id++;
 
@@ -190,16 +193,22 @@ class tcp_server {
         boost::asio::io_context m_io_context;
         m_io_context_ptr = &m_io_context;
 
-        for (auto port : m_ports)
-            boost::asio::co_spawn(
-                m_io_context,
-                listener(boost::asio::ip::tcp::acceptor(
-                    m_io_context,
-                    {boost::asio::ip::tcp::v4(), static_cast<boost::asio::ip::port_type>(port)})),
-                boost::asio::detached);
-        m_io_context.run();
+        try {
+            for (auto e : m_endpoints) {
+                boost::asio::ip::tcp::endpoint ep(boost::asio::ip::address::from_string(e.ip),
+                                                  static_cast<boost::asio::ip::port_type>(e.port));
+                boost::asio::co_spawn(m_io_context,
+                                      listener(boost::asio::ip::tcp::acceptor(m_io_context, ep)),
+                                      boost::asio::detached);
+            }
+            m_promise_started_listening.set_value();
+        } catch (...) {
+            m_promise_started_listening.set_exception(std::current_exception());
+            worker->request_stop();
+            return;
+        }
 
-        /* stop after one run */
+        m_io_context.run();
         worker->request_stop();
     }
 
