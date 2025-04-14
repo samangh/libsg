@@ -139,6 +139,7 @@ class tcp_session :  public std::enable_shared_from_this<tcp_session>{
 class tcp_server {
   public:
     typedef size_t session_id_t;
+    typedef std::shared_ptr<tcp_session> ptr;
 
     typedef std::function<void(tcp_server&)> started_listening_cb_t;
     typedef std::function<void(tcp_server&)> stopped_listening_cb_t;
@@ -231,9 +232,12 @@ class tcp_server {
             sess->stop();
     }
 
-  private:
-    typedef std::shared_ptr<tcp_session> ptr;
+    ptr session(session_id_t id){
+        std::shared_lock lock(m_mutex);
+        return m_sessions.at(id);
+    }
 
+  private:
     std::unique_ptr<notifiable_background_worker> m_worker;
 
     std::shared_mutex m_mutex;
