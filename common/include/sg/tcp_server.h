@@ -79,9 +79,8 @@ class tcp_session :  public std::enable_shared_from_this<tcp_session>{
             m_on_disconnected_cb(ex);
 
         try {
-			m_socket.shutdown(boost::asio::ip::tcp::socket::shutdown_type::shutdown_both);
-			m_socket.close();
-        } catch(...) {}
+            m_socket.close();
+        } catch (...) {}
         m_timer.cancel();
     }
 
