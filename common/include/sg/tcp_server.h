@@ -59,7 +59,10 @@ class tcp_session :  public std::enable_shared_from_this<tcp_session>{
     }
 
     void stop(){
-        stop({});
+        /* close the socket, all the other callbacks get called when read/write functions throw */
+        try{
+            m_socket.close();
+        } catch (...) {}
     }
   private:
     boost::asio::ip::tcp::socket m_socket;
@@ -178,6 +181,13 @@ class tcp_server {
             m_io_context_ptr.stop();
     }
 
+    bool is_stopped() const {
+        if (m_worker)
+            return !(m_worker->is_running());
+
+        return true;
+    }
+
 
     void write(session_id_t id, const void* data, size_t size) {
         auto ptr = sg::make_shared_c_buffer<std::byte>(size);
@@ -185,7 +195,7 @@ class tcp_server {
         write(id, ptr);
     }
 
-    void write(session_id_t id, tcp_session::buffer_t buffer)    {
+    void write(session_id_t id, sg::shared_c_buffer<std::byte> buffer)    {
         std::shared_lock lock(m_mutex);
         m_sessions.at(id)->write(buffer);
     }
