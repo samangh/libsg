@@ -64,6 +64,15 @@ class tcp_session :  public std::enable_shared_from_this<tcp_session>{
             m_socket.close();
         } catch (...) {}
     }
+    sg::net::end_point local_endpoint() {
+        auto asioEp = m_socket.local_endpoint();
+        return sg::net::end_point(asioEp.address().to_string(), asioEp.port());
+    }
+
+    sg::net::end_point remote_endpoint() {
+        auto asioEp = m_socket.remote_endpoint();
+        return sg::net::end_point(asioEp.address().to_string(), asioEp.port());
+    }
   private:
     boost::asio::ip::tcp::socket m_socket;
     boost::asio::steady_timer m_timer;
