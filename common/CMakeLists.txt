@@ -43,7 +43,7 @@ setup_library(
   LINK_PUBLIC
     libuv::libuv
     fmt::fmt
-    $<$<BOOL:${MSYS2}>:Mswsock> # Needed for some Boost ASIO functions, can move to LINK_PRIVATE when tcp_server implementation is moved outside headers
+    $<$<OR:$<BOOL:${MSYS2}>,$<BOOL:${WIN32}>>:Mswsock> # Needed for some Boost ASIO functions, can move to LINK_PRIVATE when tcp_server implementation is moved outside headers
   LINK_PRIVATE
     Threads::Threads
     $<$<BOOL:${WIN32}>:Winmm>
