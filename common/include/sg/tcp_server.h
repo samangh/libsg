@@ -54,16 +54,18 @@ class tcp_session :  public std::enable_shared_from_this<tcp_session>{
 
     void write(sg::shared_c_buffer<std::byte> msg)
     {
+        if (m_stop_requested.load(std::memory_order::acquire))
+            throw std::runtime_error("attemp to write to tcp_session after a disconnection was requested");
+
         write_msgs_.push_back(std::move(msg));
         m_timer.cancel_one();
     }
 
     void stop(){
-        /* close the socket, all the other callbacks get called when read/write functions throw */
-        try{
-            m_socket.close();
-        } catch (...) {}
+        m_stop_requested.store(true, std::memory_order::release);
+        m_timer.cancel_one();
     }
+
     sg::net::end_point local_endpoint() {
         auto asioEp = m_socket.local_endpoint();
         return sg::net::end_point(asioEp.address().to_string(), asioEp.port());
@@ -84,8 +86,9 @@ class tcp_session :  public std::enable_shared_from_this<tcp_session>{
     dp::thread_safe_queue<buffer_t> write_msgs_;
 
     std::atomic<bool> m_disconnected_cb_called {false};
+    std::atomic<bool> m_stop_requested{false};
 
-    void stop(std::optional<std::exception> ex){
+    void close(std::optional<std::exception> ex){
         m_disconnected_cb_called.store(true);
         if (m_on_disconnected_cb)
             m_on_disconnected_cb(ex);
@@ -107,21 +110,38 @@ class tcp_session :  public std::enable_shared_from_this<tcp_session>{
             auto data= std::make_unique<std::byte[]>(size);
             while (true)
             {
-                std::size_t n = co_await m_socket.async_read_some(boost::asio::buffer(data.get(), size), boost::asio::use_awaitable);
+                std::size_t n = co_await m_socket.async_read_some(boost::asio::buffer(data.get(), size), boost::asio::use_awaitable);                
                 if (m_on_data_cb)
                     m_on_data_cb(data.get(), n);
             }
         }
         catch (const std::exception& ex)
         {
-            stop(ex);
+            /* if clean closing, do not throw error */
+            if (m_stop_requested.load(std::memory_order::acquire))
+                close({});
+            else
+                close(ex);
         }
+
+        co_return;
     }
 
     boost::asio::awaitable<void> writer() {
         try {
             while (m_socket.is_open())
-                if (write_msgs_.empty()) {
+            {
+                /* if shutdown is requested, then wait until all message is written
+                 *
+                 * Once the shutdown request is sent, the reader() will throw an error which will cause
+                 * stop(ex) to be called.
+                 */
+                if (m_stop_requested.load(std::memory_order::acquire) && write_msgs_.empty()){
+                    m_socket.shutdown(m_socket.shutdown_both);
+                    co_return;
+                }
+
+                if (write_msgs_.empty()) {                                        
                     boost::system::error_code ec;
                     co_await m_timer.async_wait(boost::asio::redirect_error(boost::asio::use_awaitable, ec));
                 } else {
@@ -129,10 +149,11 @@ class tcp_session :  public std::enable_shared_from_this<tcp_session>{
                     co_await boost::asio::async_write(
                         m_socket, boost::asio::buffer(front->get(), front->size()), boost::asio::use_awaitable);
                 }
-
+            }
         } catch (const std::exception& ex) {
-            stop(ex);
+            close(ex);
         }
+        co_return;
     }
 };
 
@@ -211,13 +232,8 @@ class tcp_server {
     }
 
     void disconnect(session_id_t id) {
-        ptr sess;
-        {
-            std::shared_lock lock(m_mutex);
-            sess =m_sessions.at(id);
-        }
-
-        sess->stop();
+        std::shared_lock lock(m_mutex);
+        m_sessions.at(id)->stop();
     }
 
     void disconnect_all() {

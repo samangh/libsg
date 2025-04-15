@@ -91,8 +91,6 @@ TEST_CASE("sg::net::tcp_server: check read/write with many simultanious clients"
         auto buf_write = sg::random::genrate<char>(20);
         std::vector<char> buf_read(20);
 
-        //std::array<char, 20> buf_read;
-
         socket.write_some(boost::asio::buffer(buf_write), error);
         socket.read_some(boost::asio::buffer(buf_read), error);
 
@@ -170,9 +168,7 @@ TEST_CASE("sg::net::tcp_server: check session(...)", "[sg::net::tcp_server]") {
         [](tcp_server&l,tcp_server::session_id_t id, const std::byte* dat, size_t size) {
             auto w =sg::make_shared_c_buffer<std::byte>(size);
             std::memcpy(w.get(), dat, size);
-
-            auto sess = l.session(id);
-            sess->write(w);
+            l.session(id)->write(w);
         };
 
     tcp_server::session_disconnected_cb_t on_disconn = [](tcp_server& l, sg::net::tcp_server::session_id_t, std::optional<std::exception>){
@@ -203,13 +199,13 @@ TEST_CASE("sg::net::tcp_server: check session(...)", "[sg::net::tcp_server]") {
             std::array<char, 5> buf_read;
 
             socket.read_some(boost::asio::buffer(buf_read), error);
-            if (error == boost::asio::error::eof)
+            if (buf_read == buf_write)
                 break;
-            else if (error)
+            if (error)
                 throw boost::system::system_error(error);
         }
     });
 
-    l.future_get_once();
     REQUIRE_NOTHROW(th.join());
+    l.future_get_once();
 }
