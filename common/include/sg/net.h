@@ -20,7 +20,7 @@ struct interface_details {
 };
 
 struct end_point{
-    end_point(){}
+    end_point() = default;
     end_point(std::string ip,  port_t port): ip(ip), port(port) {}
 
     std::string ip;
