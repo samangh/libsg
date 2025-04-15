@@ -4,6 +4,7 @@
 #include "net.h"
 #include "buffer.h"
 #include "notifiable_background_worker.h"
+#include "jthread.h"
 
 #include <boost/asio/awaitable.hpp>
 #include <boost/asio/co_spawn.hpp>
@@ -89,7 +90,9 @@ class tcp_session :  public std::enable_shared_from_this<tcp_session>{
     std::atomic<bool> m_stop_requested{false};
 
     void close(std::optional<std::exception> ex){
-        m_disconnected_cb_called.store(true);
+        if (m_disconnected_cb_called.exchange(true))
+            return;
+
         if (m_on_disconnected_cb)
             m_on_disconnected_cb(ex);
 
@@ -168,10 +171,29 @@ class tcp_server {
     typedef std::function<void(tcp_server&, session_id_t, const std::byte*, size_t)> session_data_available_cb_t;
     typedef std::function<void(tcp_server&, session_id_t, std::optional<std::exception>)> session_disconnected_cb_t;
 
-    ~tcp_server() {        
-        disconnect_all();
-        stop_async();
-        m_worker->wait_for_stop();
+    ~tcp_server() noexcept(false) {
+        if (m_worker && m_worker->is_running())
+        {
+            stop_async();
+            m_worker->future_get_once();
+        }
+    }
+
+    void stop_async() {
+        /* if stop thread not started, start */
+        if (m_stop_in_operation.exchange(true))
+            return;
+
+        m_stopping_thread = std::jthread([this]() {
+            disconnect_all();
+
+            /* wait untill all clients disconnected and all callbacks called, etc */
+            while (clients_count() != 0) std::this_thread::sleep_for(std::chrono::milliseconds(10));
+
+            if (!m_io_context_ptr.stopped())
+                m_io_context_ptr.stop();
+            m_worker->wait_for_stop();
+        });
     }
 
     void start(std::vector<end_point> endpoints,
@@ -188,6 +210,8 @@ class tcp_server {
         m_new_session_cb = std::move(onNewSession),
         m_on_data_read_user_cb = std::move(onDataAvailCb);
         m_on_disconnect_user_cb = std::move(onDisconnCb);
+
+        m_stop_in_operation.store(false);
 
         m_endpoints = endpoints;
         m_last_id = 0;
@@ -207,11 +231,6 @@ class tcp_server {
         m_worker->future_get_once();
     }
 
-    void stop_async() {
-        if (!m_io_context_ptr.stopped())
-            m_io_context_ptr.stop();
-    }
-
     bool is_stopped() const {
         if (m_worker)
             return !(m_worker->is_running());
@@ -219,6 +238,10 @@ class tcp_server {
         return true;
     }
 
+    size_t clients_count() const {
+        std::shared_lock lock(m_mutex);
+        return m_sessions.size();
+    }
 
     void write(session_id_t id, const void* data, size_t size) {
         auto ptr = sg::make_shared_c_buffer<std::byte>(size);
@@ -237,14 +260,8 @@ class tcp_server {
     }
 
     void disconnect_all() {
-        std::vector<ptr> vec;
-        {
-            std::shared_lock lock(m_mutex);
-            for (auto [_, sess]: m_sessions)
-                vec.push_back(sess);
-        }
-
-        for (auto& sess: vec)
+        std::shared_lock lock(m_mutex);
+        for (auto [_, sess]: m_sessions)
             sess->stop();
     }
 
@@ -256,7 +273,7 @@ class tcp_server {
   private:
     std::unique_ptr<notifiable_background_worker> m_worker;
 
-    std::shared_mutex m_mutex;
+    mutable std::shared_mutex m_mutex;
     std::map<session_id_t, ptr> m_sessions;
     std::atomic<size_t> m_last_id;
 
@@ -269,6 +286,9 @@ class tcp_server {
     session_disconnected_cb_t m_on_disconnect_user_cb;
     started_listening_cb_t m_on_started_listening_cb;
     stopped_listening_cb_t m_on_stopped_listening_cb;
+
+    std::atomic<bool> m_stop_in_operation;
+    std::jthread m_stopping_thread;
 
     boost::asio::awaitable<void> listener(boost::asio::ip::tcp::acceptor acceptor) {
         while (true) {
@@ -333,6 +353,7 @@ class tcp_server {
         std::unique_lock lock(m_mutex);
         m_sessions.erase(id);
     }
+
 };
 
 }

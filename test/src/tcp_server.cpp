@@ -302,3 +302,88 @@ TEST_CASE("sg::net::tcp_server: check reaction to client immediate disconnection
     REQUIRE(boolCon==true);
     REQUIRE(boolDis==true);
 }
+
+TEST_CASE("sg::net::tcp_server: check dropping tcp_server drops allconnections", "[sg::net::tcp_server]") {
+    using namespace sg::net;
+
+    std::binary_semaphore sem{0};
+    std::atomic_int stop_count{0};
+
+    tcp_server::new_session_cb_t onConn = [&](tcp_server&, tcp_server::session_id_t) { sem.release(); };
+    tcp_server::stopped_listening_cb_t onStop = [&](tcp_server&) { stop_count++; };
+
+    sg::net::end_point ep("0.0.0.0", PORT);
+    std::jthread th;
+
+    {
+        tcp_server l;
+        l.start({ep}, nullptr, onStop, onConn, nullptr, nullptr);
+
+        th = std::jthread([]() {
+            using boost::asio::ip::tcp;
+
+            boost::asio::io_context io_context;
+
+            tcp::resolver resolver(io_context);
+            tcp::resolver::results_type endpoints =
+                resolver.resolve("127.0.0.1", std::to_string(PORT));
+
+            tcp::socket socket(io_context);
+            boost::asio::connect(socket, endpoints);
+
+            if (!socket.is_open())
+                return;
+        });
+
+        /* at least echo once */
+        sem.acquire();
+    }
+
+    // Check client disconnected
+    REQUIRE_NOTHROW(th.join());
+    REQUIRE(stop_count ==1);
+}
+
+TEST_CASE("sg::net::tcp_server: check stop_async() drops all connections", "[sg::net::tcp_server]") {
+    using namespace sg::net;
+
+    std::binary_semaphore sem{0};
+    std::atomic_int stop_count{0};
+
+    tcp_server::new_session_cb_t onConn = [&](tcp_server&, tcp_server::session_id_t) {
+        sem.release(); }
+    ;
+    tcp_server::stopped_listening_cb_t onStop = [&](tcp_server&) { stop_count++; };
+
+    sg::net::end_point ep("0.0.0.0", PORT);
+    std::jthread th;
+
+    tcp_server l;
+    l.start({ep}, nullptr, onStop, onConn, nullptr, nullptr);
+
+    th = std::jthread([]() {
+        using boost::asio::ip::tcp;
+
+        boost::asio::io_context io_context;
+
+        tcp::resolver resolver(io_context);
+        tcp::resolver::results_type endpoints = resolver.resolve("127.0.0.1", std::to_string(PORT));
+
+        tcp::socket socket(io_context);
+        boost::asio::connect(socket, endpoints);
+
+        if (!socket.is_open())
+            return;
+    });
+
+    /* at least echo once */
+    sem.acquire();
+
+    l.stop_async();
+    l.future_get_once();
+
+    // Check client disconnected
+    REQUIRE_NOTHROW(th.join());
+    REQUIRE(stop_count ==1);
+}
+
