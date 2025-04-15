@@ -244,6 +244,9 @@ class tcp_server {
     }
 
     void write(session_id_t id, const void* data, size_t size) {
+        if (m_stop_in_operation.load(std::memory_order::acquire))
+            throw std::runtime_error("can't write as a stop has been requested");
+
         auto ptr = sg::make_shared_c_buffer<std::byte>(size);
         std::memcpy(ptr.get(), data, size);
         write(id, ptr);

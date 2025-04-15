@@ -387,3 +387,10 @@ TEST_CASE("sg::net::tcp_server: check stop_async() drops all connections", "[sg:
     REQUIRE(stop_count ==1);
 }
 
+TEST_CASE("sg::net::tcp_server: check destructor works if start(...) not started", "[sg::net::tcp_server]") {
+    using namespace sg::net;
+
+    {
+        tcp_server l;
+    }
+}
