@@ -213,7 +213,6 @@ TEST_CASE("sg::net::tcp_server: check session(...)", "[sg::net::tcp_server]") {
 TEST_CASE("sg::net::tcp_server: check local/remote_endpoint(...)", "[sg::net::tcp_server]") {
     using namespace sg::net;
 
-
     tcp_server::session_data_available_cb_t on_data =
         [](tcp_server&l,tcp_server::session_id_t id, const std::byte* dat, size_t size) {
             auto w =sg::make_shared_c_buffer<std::byte>(size);
@@ -264,4 +263,42 @@ TEST_CASE("sg::net::tcp_server: check local/remote_endpoint(...)", "[sg::net::tc
 
     REQUIRE_NOTHROW(th.join());
     l.future_get_once();
+}
+
+TEST_CASE("sg::net::tcp_server: check reaction to client immediate disconnection", "[sg::net::tcp_server]") {
+    using namespace sg::net;
+
+    std::atomic_bool boolCon {false};
+    std::atomic_bool boolDis {false};
+
+    tcp_server::new_session_cb_t on_conn = [&](tcp_server&, sg::net::tcp_server::session_id_t){
+        boolCon = true;
+    };
+    tcp_server::session_disconnected_cb_t on_disconn = [&](tcp_server& l, sg::net::tcp_server::session_id_t, std::optional<std::exception>){
+        boolDis = true;
+        l.stop_async();
+    };
+
+    sg::net::end_point ep("0.0.0.0", PORT);
+
+    tcp_server l;
+    l.start({ep}, nullptr, nullptr, on_conn, nullptr, on_disconn);
+
+    std::jthread th = std::jthread([]() {
+        using boost::asio::ip::tcp;
+
+        boost::asio::io_context io_context;
+
+        tcp::resolver resolver(io_context);
+        tcp::resolver::results_type endpoints = resolver.resolve("127.0.0.1", std::to_string(PORT));
+
+        tcp::socket socket(io_context);
+        boost::asio::connect(socket, endpoints);
+    });
+
+    REQUIRE_NOTHROW(th.join());
+    l.future_get_once();
+
+    REQUIRE(boolCon==true);
+    REQUIRE(boolDis==true);
 }
