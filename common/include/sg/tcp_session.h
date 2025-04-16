@@ -13,7 +13,7 @@
 
 namespace sg::net {
 
-class tcp_session :  public std::enable_shared_from_this<tcp_session>{
+class SG_COMMON_EXPORT tcp_session :  public std::enable_shared_from_this<tcp_session>{
   public:
     typedef std::function<void(const std::byte*, size_t)> on_data_available_cb_t;
     typedef std::function<void(std::optional<std::exception>)> on_disconnected_cb_t;

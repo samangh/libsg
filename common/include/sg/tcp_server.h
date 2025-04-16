@@ -1,5 +1,7 @@
 #pragma once
 
+#include "sg/export/common.h"
+
 #include "net.h"
 #include "buffer.h"
 #include "notifiable_background_worker.h"
@@ -16,7 +18,7 @@
 namespace sg::net {
 
 
-class tcp_server {
+class SG_COMMON_EXPORT tcp_server {
   public:
     typedef size_t session_id_t;
     typedef std::shared_ptr<tcp_session> ptr;
