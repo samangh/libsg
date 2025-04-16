@@ -60,7 +60,7 @@ TEST_CASE("sg::net::tcp_server: check read/write with many simultanious clients"
             l.write(id, w);
         };
 
-    tcp_server::new_session_cb_t onNew = [&counterNew](tcp_server&, tcp_server::session_id_t) {
+    tcp_server::session_created_cb_t onNew = [&counterNew](tcp_server&, tcp_server::session_id_t) {
         counterNew++;
     };
 
@@ -271,7 +271,7 @@ TEST_CASE("sg::net::tcp_server: check reaction to client immediate disconnection
     std::atomic_bool boolCon {false};
     std::atomic_bool boolDis {false};
 
-    tcp_server::new_session_cb_t on_conn = [&](tcp_server&, sg::net::tcp_server::session_id_t){
+    tcp_server::session_created_cb_t on_conn = [&](tcp_server&, sg::net::tcp_server::session_id_t){
         boolCon = true;
     };
     tcp_server::session_disconnected_cb_t on_disconn = [&](tcp_server& l, sg::net::tcp_server::session_id_t, std::optional<std::exception>){
@@ -309,7 +309,7 @@ TEST_CASE("sg::net::tcp_server: check dropping tcp_server drops allconnections",
     std::binary_semaphore sem{0};
     std::atomic_int stop_count{0};
 
-    tcp_server::new_session_cb_t onConn = [&](tcp_server&, tcp_server::session_id_t) { sem.release(); };
+    tcp_server::session_created_cb_t onConn = [&](tcp_server&, tcp_server::session_id_t) { sem.release(); };
     tcp_server::stopped_listening_cb_t onStop = [&](tcp_server&) { stop_count++; };
 
     sg::net::end_point ep("0.0.0.0", PORT);
@@ -350,7 +350,7 @@ TEST_CASE("sg::net::tcp_server: check stop_async() drops all connections", "[sg:
     std::binary_semaphore sem{0};
     std::atomic_int stop_count{0};
 
-    tcp_server::new_session_cb_t onConn = [&](tcp_server&, tcp_server::session_id_t) {
+    tcp_server::session_created_cb_t onConn = [&](tcp_server&, tcp_server::session_id_t) {
         sem.release(); }
     ;
     tcp_server::stopped_listening_cb_t onStop = [&](tcp_server&) { stop_count++; };

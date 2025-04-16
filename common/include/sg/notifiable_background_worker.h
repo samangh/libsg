@@ -4,9 +4,7 @@
 
 #include <atomic>
 #include <chrono>
-#include <exception>
 #include <functional>
-#include <memory>
 #include <mutex>
 #include <shared_mutex>
 #include <semaphore>

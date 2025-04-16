@@ -89,6 +89,7 @@ target_sources(sg_common
     src/libuv_wrapper.cpp
     src/crc.cpp
     src/tcp_session.cpp
+    src/tcp_server.cpp
 )
 
 if(LIBSG_ZSTD)
