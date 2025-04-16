@@ -110,4 +110,14 @@ TEST_CASE("sg::bytes: check to_integral_and_advance_...(...) family", "[sg::byte
         REQUIRE(result1 == 1);
         REQUIRE(result2 == 2);
     }
+
+    // using generic to_object
+    {
+        auto ptr = buf.get();
+        auto result1 = sg::bytes::to_object_and_advance_ptr<uint64_t>(&ptr);
+        auto result2 = sg::bytes::to_object_and_advance_ptr<uint64_t>(&ptr);
+
+        REQUIRE(result1 == 1);
+        REQUIRE(result2 == 2);
+    }
 }

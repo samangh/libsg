@@ -98,6 +98,18 @@ template <std::integral T, typename It>
 
 /****************************** to_integral_and_advance_iterator ******************************/
 
+template <typename T>
+    requires(std::is_trivially_copyable_v<T> &&
+             !std::is_pointer_v<T> && !std::ranges::range<T>)
+[[nodiscard]] T to_object_and_advance_ptr(std::byte** buff) {
+    T val;
+    memcpy(&val, *buff, sizeof(T));
+
+    *buff = *buff + sizeof(T);
+    return val;
+}
+
+
 template <std::integral T>
 [[nodiscard]] T to_integral_and_advance_ptr(std::byte** buff, std::endian src_endian = std::endian::native) {
     T val;
