@@ -121,13 +121,13 @@ class tcp_server {
 
     void disconnect(session_id_t id) {
         std::shared_lock lock(m_mutex);
-        m_sessions.at(id)->stop();
+        m_sessions.at(id)->stop_async();
     }
 
     void disconnect_all() {
         std::shared_lock lock(m_mutex);
         for (auto [_, sess]: m_sessions)
-            sess->stop();
+            sess->stop_async();
     }
 
     ptr session(session_id_t id){

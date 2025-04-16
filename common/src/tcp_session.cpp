@@ -1,5 +1,9 @@
 #include "sg/tcp_session.h"
 
+#include <boost/asio/redirect_error.hpp>
+#include <boost/asio/write.hpp>
+#include <boost/asio/detached.hpp>
+
 namespace sg::net {
 
 tcp_session::tcp_session(boost::asio::ip::tcp::socket socket,
@@ -41,7 +45,7 @@ void tcp_session::write(sg::shared_c_buffer<std::byte> msg) {
     m_timer.cancel_one();
 }
 
-void tcp_session::stop() {
+void tcp_session::stop_async() {
     m_stop_requested.store(true, std::memory_order::release);
     m_timer.cancel_one();
 }

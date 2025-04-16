@@ -36,7 +36,7 @@ setup_library(
   INCLUDE_INTERFACE
   INCLUDE_PUBLIC
     ${DP_THREAD_POOL_DIR}/include
-    Boost::Asio # Needed for some Boost ASIO functions, can move to LINK_PRIVATE when tcp_server implementation is moved outside headers
+    Boost::Asio
   INCLUDE_PRIVATE
     Boost::Boost
   LINK_INTERFACE

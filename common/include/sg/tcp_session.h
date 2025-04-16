@@ -5,11 +5,8 @@
 
 #include <boost/asio/awaitable.hpp>
 #include <boost/asio/co_spawn.hpp>
-#include <boost/asio/detached.hpp>
 #include <boost/asio/io_context.hpp>
 #include <boost/asio/ip/tcp.hpp>
-#include <boost/asio/redirect_error.hpp>
-#include <boost/asio/write.hpp>
 
 #include <optional>
 #include <thread_pool/thread_safe_queue.h>
@@ -25,7 +22,7 @@ class tcp_session :  public std::enable_shared_from_this<tcp_session>{
     ~tcp_session();
 
     void start();
-    void stop();
+    void stop_async();
 
     sg::net::end_point local_endpoint();
     sg::net::end_point remote_endpoint();
