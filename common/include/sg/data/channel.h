@@ -19,6 +19,7 @@ class IChannelBase {
 
     [[nodiscard]] virtual size_t byte_size() const noexcept = 0;
     [[nodiscard]] virtual size_t item_count() const noexcept = 0;
+    [[nodiscard]] virtual bool empty() const noexcept = 0;
 
     [[nodiscard]] virtual bool operator==(const IChannelBase &o) const {
         //TODO NEED UUID or GUID
@@ -66,6 +67,8 @@ template <typename T> class IContigiousChannel : public IChannelBase {
     [[nodiscard]] virtual const T *get() const noexcept = 0;
     [[nodiscard]] virtual T *get() noexcept = 0;
 
+    [[nodiscard]] virtual bool empty() const noexcept { return item_count() == 0; };
+
     /* iterators */
     [[nodiscard]] constexpr iterator_type begin() { return iterator_type(get()); }
     [[nodiscard]] constexpr iterator_type end() { return begin() + byte_size(); }
@@ -86,6 +89,9 @@ template <typename T> class IContigiousChannel : public IChannelBase {
 
     [[nodiscard]] T&       operator[](size_t i) { return get()[i]; };
     [[nodiscard]] const T& operator[](size_t i) const { return get()[i]; };
+
+    [[nodiscard]] reference at(size_t i){ return (*this)[i];}
+    [[nodiscard]] const_reference at(size_t i) const{ return (*this)[i];}
 };
 
 typedef sg::data::IContigiousChannel<double> t_chan_double;
