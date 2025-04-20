@@ -40,7 +40,14 @@ class IChannelBase {
     };
 };
 
-template <typename T> class IContigiousChannel : public IChannelBase {
+class IContigiousChannelBase: public IChannelBase {
+  public:
+    /* Return the stored pointer.*/
+    [[nodiscard]] virtual const void *get() const noexcept = 0;
+    [[nodiscard]] virtual void *get() noexcept = 0;
+};
+
+template <typename T> class IContigiousChannel : public IContigiousChannelBase {
     std::string m_name;
     std::vector<std::string> m_hierarchy;
 
@@ -64,10 +71,14 @@ template <typename T> class IContigiousChannel : public IChannelBase {
     void hierarchy(std::vector<std::string> hierarchy) noexcept { m_hierarchy = hierarchy; }
 
     /* Return the stored pointer.*/
-    [[nodiscard]] virtual const T *data() const noexcept = 0;
+    [[nodiscard]] const void* get() const noexcept override {return data();}
+    [[nodiscard]] void* get() noexcept override {return data();}
+
+    [[nodiscard]] virtual const T *data() const noexcept {return data();}
     [[nodiscard]] virtual T *data() noexcept = 0;
 
-    [[nodiscard]] virtual bool empty() const noexcept { return count() == 0; };
+    [[nodiscard]] size_t size_bytes() const noexcept override { return count() * sizeof(T); }
+    [[nodiscard]] virtual bool empty() const noexcept { return count() == 0; }
 
     /* iterators */
     [[nodiscard]] constexpr iterator_type begin() { return iterator_type(data()); }
