@@ -32,7 +32,10 @@ template <typename T> class vector_channel : public IContigiousChannel<T> {
 
     void clear() { m_data.clear(); };
     void push_back(const T& item) { m_data.push_back(item); };
-    void emplace_back(T&& item) { m_data.emplace_back(std::move(item)); };
+
+    template <typename... Args> void emplace_back(Args&&... args) {
+        m_data.emplace_back(std::forward<Args>(args)...);
+    };
 };
 
 typedef sg::data::vector_channel<double> t_chan_double_vec;
