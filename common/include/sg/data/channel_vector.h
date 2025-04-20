@@ -12,19 +12,19 @@ template <typename T> class vector_channel : public IContigiousChannel<T> {
     virtual ~vector_channel() = default;
 
   public:
-    size_t byte_size() const noexcept override {
+    size_t size_bytes() const noexcept override {
         return m_data.size() * sizeof(T);
     };
 
-    size_t item_count() const noexcept override {
+    size_t count() const noexcept override {
         return m_data.size();
     };
 
-    const T *get() const noexcept override {
+    const T *data() const noexcept override {
         return m_data.data();
     };
 
-    T *get() noexcept override {
+    T *data() noexcept override {
         return m_data.data();
     };
 

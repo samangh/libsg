@@ -17,13 +17,13 @@ class IChannelBase {
     [[nodiscard]] virtual std::vector<std::string> hierarchy() const noexcept = 0;
     virtual void hierarchy(std::vector<std::string>) noexcept = 0;
 
-    [[nodiscard]] virtual size_t byte_size() const noexcept = 0;
-    [[nodiscard]] virtual size_t item_count() const noexcept = 0;
+    [[nodiscard]] virtual size_t size_bytes() const noexcept = 0;
+    [[nodiscard]] virtual size_t count() const noexcept = 0;
     [[nodiscard]] virtual bool empty() const noexcept = 0;
 
     [[nodiscard]] virtual bool operator==(const IChannelBase &o) const {
         //TODO NEED UUID or GUID
-        return name() == o.name() && hierarchy() == o.hierarchy() && byte_size() == o.byte_size();
+        return name() == o.name() && hierarchy() == o.hierarchy() && size_bytes() == o.size_bytes();
     }
     [[nodiscard]] virtual bool operator<(const IChannelBase &o) const {
         //TODO NEED UUID or GUID
@@ -33,8 +33,8 @@ class IChannelBase {
         if (name() != o.name())
             return (name() < o.name());
 
-        if (byte_size() != o.byte_size())
-            return (byte_size() < o.byte_size());
+        if (size_bytes() != o.size_bytes())
+            return (size_bytes() < o.size_bytes());
 
         return false;
     };
@@ -57,25 +57,25 @@ template <typename T> class IContigiousChannel : public IChannelBase {
 
     virtual ~IContigiousChannel() = default;
 
-    std::string name() const noexcept { return m_name; }
+    [[nodiscard]] std::string name() const noexcept { return m_name; }
     void name(std::string name) noexcept { m_name = name; }
 
-    std::vector<std::string> hierarchy() const noexcept { return m_hierarchy; }
+    [[nodiscard]] std::vector<std::string> hierarchy() const noexcept { return m_hierarchy; }
     void hierarchy(std::vector<std::string> hierarchy) noexcept { m_hierarchy = hierarchy; }
 
     /* Return the stored pointer.*/
-    [[nodiscard]] virtual const T *get() const noexcept = 0;
-    [[nodiscard]] virtual T *get() noexcept = 0;
+    [[nodiscard]] virtual const T *data() const noexcept = 0;
+    [[nodiscard]] virtual T *data() noexcept = 0;
 
-    [[nodiscard]] virtual bool empty() const noexcept { return item_count() == 0; };
+    [[nodiscard]] virtual bool empty() const noexcept { return count() == 0; };
 
     /* iterators */
-    [[nodiscard]] constexpr iterator_type begin() { return iterator_type(get()); }
-    [[nodiscard]] constexpr iterator_type end() { return begin() + byte_size(); }
+    [[nodiscard]] constexpr iterator_type begin() { return iterator_type(data()); }
+    [[nodiscard]] constexpr iterator_type end() { return begin() + count(); }
 
     /* const interators */
-    [[nodiscard]] constexpr const_iterator_type begin() const { return const_iterator_type(get()); }
-    [[nodiscard]] constexpr const_iterator_type end() const { return begin() + byte_size(); }
+    [[nodiscard]] constexpr const_iterator_type begin() const { return const_iterator_type(data()); }
+    [[nodiscard]] constexpr const_iterator_type end() const { return begin() + count(); }
     [[nodiscard]] constexpr const_iterator_type cbegin() const { return begin(); }
     [[nodiscard]] constexpr const_iterator_type cend() const { return end(); }
 
@@ -85,10 +85,10 @@ template <typename T> class IContigiousChannel : public IChannelBase {
 
     /* const front/back */
     [[nodiscard]] const_reference front() const {return *begin();}
-    [[nodiscard]] const_reference back() const {return *(end() - 1);;}
+    [[nodiscard]] const_reference back() const {return *(end() - 1);}
 
-    [[nodiscard]] T&       operator[](size_t i) { return get()[i]; };
-    [[nodiscard]] const T& operator[](size_t i) const { return get()[i]; };
+    [[nodiscard]] reference       operator[](size_t i) { return data()[i]; };
+    [[nodiscard]] const_reference operator[](size_t i) const { return data()[i]; };
 
     [[nodiscard]] reference at(size_t i){ return (*this)[i];}
     [[nodiscard]] const_reference at(size_t i) const{ return (*this)[i];}
