@@ -63,7 +63,7 @@ template <typename T> class IContigiousChannel : public IContigiousChannelBase {
     [[nodiscard]] const void* get() const noexcept override {return data();}
     [[nodiscard]] void* get() noexcept override {return data();}
 
-    [[nodiscard]] virtual const T *data() const noexcept {return data();}
+    [[nodiscard]] virtual const T *data() const noexcept = 0;
     [[nodiscard]] virtual T *data() noexcept = 0;
 
     [[nodiscard]] size_t size_bytes() const noexcept override { return count() * sizeof(T); }

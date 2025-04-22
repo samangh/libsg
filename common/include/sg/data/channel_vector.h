@@ -25,7 +25,9 @@ template <typename T> class vector_channel : public IContigiousChannel<T> {
     void hierarchy(std::vector<std::string> hierarchy) noexcept override { m_hierarchy = hierarchy; }
 
     [[nodiscard]] size_t count() const noexcept override { return m_data.size(); };
-    [[nodiscard]] T* data() noexcept override { return m_data.data(); };
+
+    [[nodiscard]] T* data() noexcept override { return m_data.data(); }
+    [[nodiscard]] const T *data() const noexcept override { return m_data.data(); }
 
     void clear() { m_data.clear(); };
     void push_back(const T& item) { m_data.push_back(item); };
