@@ -67,7 +67,7 @@ template <typename T> class IContigiousChannel : public IContigiousChannelBase {
     [[nodiscard]] virtual T *data() noexcept = 0;
 
     [[nodiscard]] size_t size_bytes() const noexcept override { return count() * sizeof(T); }
-    [[nodiscard]] virtual bool empty() const noexcept { return count() == 0; }
+    [[nodiscard]] virtual bool empty() const noexcept override { return count() == 0; }
 
     /* iterators */
     [[nodiscard]] constexpr iterator_type begin() { return iterator_type(data()); }
