@@ -48,9 +48,6 @@ class IContigiousChannelBase: public IChannelBase {
 };
 
 template <typename T> class IContigiousChannel : public IContigiousChannelBase {
-    std::string m_name;
-    std::vector<std::string> m_hierarchy;
-
     typedef T                                value_type;
     typedef std::size_t                      size_type;
     typedef sg::contiguous_iterator<T>       iterator_type;
@@ -60,15 +57,7 @@ template <typename T> class IContigiousChannel : public IContigiousChannelBase {
 
   public:
     IContigiousChannel() =default;
-    IContigiousChannel(std::string name) :m_name(name) {}
-
     virtual ~IContigiousChannel() = default;
-
-    [[nodiscard]] std::string name() const noexcept { return m_name; }
-    void name(std::string name) noexcept { m_name = name; }
-
-    [[nodiscard]] std::vector<std::string> hierarchy() const noexcept { return m_hierarchy; }
-    void hierarchy(std::vector<std::string> hierarchy) noexcept { m_hierarchy = hierarchy; }
 
     /* Return the stored pointer.*/
     [[nodiscard]] const void* get() const noexcept override {return data();}
