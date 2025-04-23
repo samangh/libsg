@@ -46,6 +46,41 @@ TEST_CASE("sg::net::tcp_server: check start/stop callback", "[sg::net::tcp_serve
     REQUIRE(stop_count == 1);
 }
 
+struct tcp_server_test0 {
+    std::atomic_int stop_count{0};
+    std::binary_semaphore start_sem{0};
+
+    sg::net::tcp_server l;
+    void start() {
+        sg::net::end_point ep("127.0.0.1", PORT);
+        auto onstart = std::bind(&tcp_server_test0::on_start, this, std::placeholders::_1);
+        auto onstop = std::bind(&tcp_server_test0::on_stop, this, std::placeholders::_1);
+        l.start({ep}, onstart, onstop, nullptr, nullptr,nullptr);
+
+    }
+    void on_start(sg::net::tcp_server&) {
+       start_sem.release();
+    }
+    void on_stop(sg::net::tcp_server&) {
+        stop_count++;
+    }
+    void on_disconn(sg::net::tcp_server&, sg::net::tcp_server::session_id_t, std::optional<std::exception>) {
+        stop_count++;
+    }
+};
+
+TEST_CASE("sg::net::tcp_server: check start/stop callback as class member", "[sg::net::tcp_server]") {
+    tcp_server_test0 t;
+    t.start();
+    t.start_sem.acquire();
+    REQUIRE(t.stop_count == 0);
+
+    t.l.stop_async();
+    t.l.future_get_once();
+    REQUIRE(t.stop_count == 1);
+}
+
+
 TEST_CASE("sg::net::tcp_server: check read/write with many simultanious clients", "[sg::net::tcp_server]") {
     using namespace sg::net;
 
