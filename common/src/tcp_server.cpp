@@ -51,10 +51,9 @@ void tcp_server::start(std::vector<end_point> endpoints,
 
     m_promise_started_listening = std::promise<void>();
 
-    auto serverThreadTask =
-        std::bind(&tcp_server::on_worker_tick, &*this, std::placeholders::_1);
-    auto serverSetupTask = std::bind(&tcp_server::on_worker_start, &*this, std::placeholders::_1);
-    auto serverStopTask = std::bind(&tcp_server::on_worker_stop, &*this, std::placeholders::_1);
+    auto serverThreadTask = std::bind(&tcp_server::on_worker_tick, this, std::placeholders::_1);
+    auto serverSetupTask = std::bind(&tcp_server::on_worker_start, this, std::placeholders::_1);
+    auto serverStopTask = std::bind(&tcp_server::on_worker_stop, this, std::placeholders::_1);
 
     m_worker = std::make_unique<notifiable_background_worker>(
         std::chrono::seconds(1), serverThreadTask, serverSetupTask, serverStopTask);
