@@ -2,6 +2,7 @@
 
 #include <vector>
 #include <ranges>
+#include <algorithm>
 
 namespace sg::internal {
 /****************** copy to iterator ******************/
@@ -123,4 +124,14 @@ sg::ranges::vector_no_init<DataT> flatten_no_init(RangeT&& buffers) {
     return flatten<DataT,sg::ranges::allocator_no_init<DataT>>(buffers);
 }
 
-} // namespace sg::vector
+/********************** erase ************************/
+
+void erase_value(std::ranges::range auto& range, const auto& toRemove) {
+    range.erase(std::remove(std::begin(range), std::end(range), toRemove), std::end(range));
+}
+
+void erase_value_if(std::ranges::range auto& range, auto pred) {
+    range.erase(std::remove_if(std::begin(range), std::end(range), pred), std::end(range));
+}
+
+} // namespace sg::ranges

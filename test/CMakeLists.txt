@@ -52,6 +52,7 @@ target_sources(sg_test
   PRIVATE
     src/tcp_server.cpp
     src/data/channel_vector.cpp
+    src/raanges.cpp
 )
 
 ##
