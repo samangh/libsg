@@ -16,7 +16,7 @@ template <typename enumT>
 
 template <typename enumT>
     requires std::is_enum_v<enumT>
-[[nodiscard]] constexpr enumT& operator|=(enumT& lhs, enumT rhs) {
+constexpr enumT& operator|=(enumT& lhs, enumT rhs) {
     lhs = lhs | rhs;
     return lhs;
 }

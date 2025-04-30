@@ -53,6 +53,7 @@ target_sources(sg_test
     src/tcp_server.cpp
     src/data/channel_vector.cpp
     src/raanges.cpp
+    src/enumeration.cpp
 )
 
 ##
