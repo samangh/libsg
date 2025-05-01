@@ -8,6 +8,12 @@ enum class test_enum :int{
     E4 =4
 };
 
+enum class test_enum2 :int{
+    E1 =1 ,
+    E2 =2,
+    E4 =4
+};
+
 TEST_CASE("sg::common::enumeration check operator|(...)", "[sg::common::enumeration]") {
     using namespace sg::enumeration;
     test_enum b = test_enum::E1 | test_enum::E2;
@@ -54,4 +60,37 @@ TEST_CASE("sg::common::enumeration check from_underlying_value(...)", "[sg::comm
     REQUIRE(contains(b, test_enum::E1));
     REQUIRE(contains(b, test_enum::E2));
     REQUIRE(!contains(b, test_enum::E4));
+}
+
+template <>
+std::map<test_enum, std::string> sg::enumeration::enum_val_map<test_enum, std::string>() {
+    return std::map<test_enum, std::string>{
+        {test_enum::E1, "E1"},
+        {test_enum::E2, "E2"},
+        {test_enum::E4, "E4"},
+    };
+}
+
+template <>
+std::map<test_enum2, std::string> sg::enumeration::enum_val_map<test_enum2, std::string>() {
+    //bad on purpose
+    return std::map<test_enum2, std::string>{
+        {test_enum2::E1, "E1"},
+        {test_enum2::E2, "E1"},
+        {test_enum2::E4, "E4"},
+    };
+}
+
+TEST_CASE("sg::common::enumeration check enum_to_val(...)", "[sg::common::enumeration]") {
+    REQUIRE(sg::enumeration::enum_to_val<std::string>(test_enum::E1) == "E1");
+    REQUIRE(sg::enumeration::enum_to_val<std::string>(test_enum::E2) == "E2");
+    REQUIRE(sg::enumeration::enum_to_val<std::string>(test_enum::E4) == "E4");
+}
+
+TEST_CASE("sg::common::enumeration check enum_from_val(...)", "[sg::common::enumeration]") {
+    REQUIRE(sg::enumeration::enum_from_val<test_enum>(std::string("E1")) == test_enum::E1);
+    REQUIRE(sg::enumeration::enum_from_val<test_enum>(std::string("E2")) == test_enum::E2);
+    REQUIRE(sg::enumeration::enum_from_val<test_enum>(std::string("E4")) == test_enum::E4);
+
+    REQUIRE_THROWS(sg::enumeration::enum_from_val<test_enum2>(std::string("E1")));
 }
