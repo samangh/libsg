@@ -26,8 +26,9 @@ class SG_COMMON_EXPORT tcp_session :  public std::enable_shared_from_this<tcp_se
 
     sg::net::end_point local_endpoint();
     sg::net::end_point remote_endpoint();
-    void write(sg::shared_c_buffer<std::byte> msg);
 
+    void write(sg::shared_c_buffer<std::byte> msg);
+    void write(std::string_view msg);
   private:    
     boost::asio::ip::tcp::socket m_socket;
     boost::asio::steady_timer m_timer;

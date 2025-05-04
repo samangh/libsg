@@ -45,6 +45,12 @@ void tcp_session::write(sg::shared_c_buffer<std::byte> msg) {
     m_timer.cancel_one();
 }
 
+void tcp_session::write(std::string_view msg) {
+    auto buff = sg::make_shared_c_buffer<std::byte>(msg.size());
+    std::memcpy(buff.get(), msg.data(), msg.size());
+    write(buff);
+}
+
 void tcp_session::stop_async() {
     m_stop_requested.store(true, std::memory_order::release);
     m_timer.cancel_one();
