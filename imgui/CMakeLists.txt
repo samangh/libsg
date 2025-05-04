@@ -1,11 +1,19 @@
 set(SG_TARGET_NANE "imgui")
 set(TARGET "sg_${SG_TARGET_NANE}")
 
-CPMAddPackage("gh:ocornut/imgui@1.91.7-docking")
+CPMAddPackage(
+  NAME imgui
+  URL https://github.com/ocornut/imgui/archive/refs/tags/v1.91.9b-docking.zip
+  # GITHUB_REPOSITORY ocornut/imgui
+  # VERSION 1.91.9b-docking
+  # GIT_SHALLOW
+)
 CPMAddPackage(
   NAME implot
-  GITHUB_REPOSITORY epezent/implot
-  GIT_TAG f1b0792cd3e239f615d4f20b9647d37594de8c56
+  URL https://github.com/epezent/implot/archive/3da8bd34299965d3b0ab124df743fe3e076fa222.zip
+  # GITHUB_REPOSITORY epezent/implot
+  # GIT_TAG 3da8bd34299965d3b0ab124df743fe3e076fa222
+  # GIT_SHALLOW
 )
 
 set(PORTABLE_FILE_DIALOGS_DIR ${CMAKE_CURRENT_SOURCE_DIR}/../external/portable-file-dialogs)
