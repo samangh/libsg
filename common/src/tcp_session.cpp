@@ -22,6 +22,7 @@ tcp_session::tcp_session(boost::asio::ip::tcp::socket socket,
 tcp_session::~tcp_session() {
     if (!m_disconnected_cb_called.exchange(true) && m_on_disconnected_cb)
         m_on_disconnected_cb({});
+    m_stopped.release();
 }
 
 void tcp_session::start() {
@@ -56,6 +57,10 @@ void tcp_session::stop_async() {
     m_timer.cancel_one();
 }
 
+void tcp_session::wait_until_stopped() const {
+    m_stopped.acquire();
+}
+
 end_point tcp_session::local_endpoint() {
     auto asioEp = m_socket.local_endpoint();
     return sg::net::end_point(asioEp.address().to_string(), asioEp.port());
@@ -77,6 +82,8 @@ void tcp_session::close(std::optional<std::exception> ex) {
         m_socket.close();
     } catch (...) {}
     m_timer.cancel();
+
+    m_stopped.release();
 }
 
 boost::asio::awaitable<void> tcp_session::reader() {

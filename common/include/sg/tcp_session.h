@@ -1,14 +1,14 @@
 #pragma once
 
-#include "net.h"
 #include "buffer.h"
+#include "net.h"
 
 #include <boost/asio/awaitable.hpp>
 #include <boost/asio/co_spawn.hpp>
 #include <boost/asio/io_context.hpp>
 #include <boost/asio/ip/tcp.hpp>
-
 #include <optional>
+#include <semaphore>
 #include <thread_pool/thread_safe_queue.h>
 
 namespace sg::net {
@@ -19,10 +19,11 @@ class SG_COMMON_EXPORT tcp_session :  public std::enable_shared_from_this<tcp_se
     typedef std::function<void(std::optional<std::exception>)> on_disconnected_cb_t;
 
     tcp_session(boost::asio::ip::tcp::socket socket, on_data_available_cb_t onReadCb, on_disconnected_cb_t onErrorCb);
-    ~tcp_session();
+    virtual ~tcp_session();
 
     void start();
     void stop_async();
+    void wait_until_stopped() const;
 
     sg::net::end_point local_endpoint();
     sg::net::end_point remote_endpoint();
@@ -35,6 +36,8 @@ class SG_COMMON_EXPORT tcp_session :  public std::enable_shared_from_this<tcp_se
 
     on_data_available_cb_t m_on_data_cb;
     on_disconnected_cb_t  m_on_disconnected_cb;
+
+    mutable std::binary_semaphore m_stopped {0};
 
     std::mutex m_mutex;
     dp::thread_safe_queue<sg::shared_c_buffer<std::byte>> m_write_msgs;
