@@ -6,28 +6,39 @@
 
 namespace sg::net {
 
-tcp_server::~tcp_server() noexcept(false) {
-    if (m_worker && m_worker->is_running()) {
-        stop_async();
-        m_worker->future_get_once();
-    }
-}
-
 void tcp_server::stop_async() {
     /* if stop thread not started, start */
     if (m_stop_in_operation.exchange(true))
         return;
 
     m_stopping_thread = std::jthread([this]() {
+        /* stop accepting new connections */
+        {
+            std::lock_guard lock(m_mutex);
+            for (auto& acceptor : m_acceptors)
+                if (acceptor->is_open())
+                    acceptor->close();
+        }
+
         disconnect_all();
 
         /* wait untill all clients disconnected and all callbacks called, etc */
         while (clients_count() != 0) std::this_thread::sleep_for(std::chrono::milliseconds(10));
 
-        if (!m_io_context_ptr.stopped())
-            m_io_context_ptr.stop();
-        m_worker->wait_for_stop();
+        on_stop();
     });
+}
+
+tcp_server::tcp_server() : m_context(tcp_context::create()) {}
+
+tcp_server::tcp_server(std::shared_ptr<tcp_context> context) : m_context(context) {}
+
+tcp_server::~tcp_server() {
+    if (!m_is_running)
+        return;
+
+    stop_async();
+    wait_until_stopped();
 }
 
 void tcp_server::start(std::vector<end_point> endpoints,
@@ -36,37 +47,34 @@ void tcp_server::start(std::vector<end_point> endpoints,
                        session_created_cb_t onNewSession,
                        session_data_available_cb_t onDataAvailCb,
                        session_disconnected_cb_t onDisconnCb) noexcept(false) {
-    if (m_worker && m_worker->is_running())
-        throw std::runtime_error("tcp_server is already running");
+    if (m_is_running.exchange(true))
+        throw std::runtime_error("this tcp_server is already running");
 
-    m_on_started_listening_cb = onStartListening;
-    m_on_stopped_listening_cb = onStopListeniing;
-    m_new_session_cb = std::move(onNewSession), m_on_data_read_user_cb = std::move(onDataAvailCb);
-    m_on_disconnect_user_cb = std::move(onDisconnCb);
+    try {
+        m_on_started_listening_cb = onStartListening;
+        m_on_stopped_listening_cb = onStopListeniing;
+        m_new_session_cb = std::move(onNewSession),
+        m_on_data_read_user_cb = std::move(onDataAvailCb);
+        m_on_disconnect_user_cb = std::move(onDisconnCb);
 
-    m_stop_in_operation.store(false);
+        m_stop_in_operation.store(false);
 
-    m_endpoints = endpoints;
-    m_last_id = 0;
+        m_endpoints = endpoints;
+        m_acceptors.clear();
+        m_last_id = 0;
 
-    m_promise_started_listening = std::promise<void>();
+        m_promise_started_listening = std::promise<void>();
 
-    auto serverThreadTask = std::bind(&tcp_server::on_worker_tick, this, std::placeholders::_1);
-    auto serverSetupTask = std::bind(&tcp_server::on_worker_start, this, std::placeholders::_1);
-    auto serverStopTask = std::bind(&tcp_server::on_worker_stop, this, std::placeholders::_1);
+        listen_on_endpoints();
+        m_context->run();
+    } catch (...) {
+        m_is_running.exchange(false);
+        m_is_running.notify_all();
+        throw;
+    }
 
-    m_worker = std::make_unique<notifiable_background_worker>(
-        std::chrono::seconds(1), serverThreadTask, serverSetupTask, serverStopTask);
-    m_worker->start();
-}
-
-void tcp_server::future_get_once() noexcept(false) { m_worker->future_get_once(); }
-
-bool tcp_server::is_stopped() const {
-    if (m_worker)
-        return !(m_worker->is_running());
-
-    return true;
+    if (m_on_started_listening_cb)
+        m_on_started_listening_cb(*this);
 }
 
 size_t tcp_server::clients_count() const {
@@ -103,56 +111,74 @@ tcp_server::ptr tcp_server::session(session_id_t id) {
     return m_sessions.at(id);
 }
 
-boost::asio::awaitable<void> tcp_server::listener(boost::asio::ip::tcp::acceptor acceptor) {
-    while (true) {
-        auto id = m_last_id++;
+void tcp_server::wait_until_stopped() const {
+    /* work around spuris wakeups */
+    while(m_is_running.load(std::memory_order::acquire))
+        m_is_running.wait(true);
+}
 
-        auto onSessionDisconnected = [this, id](std::optional<std::exception> ex) {
-            on_session_stopped(id, ex);
-        };
-        auto onData = [this, id](const std::byte* data, size_t size) {
-            inform_user_of_data(id, data, size);
-        };
+boost::asio::awaitable<void> tcp_server::listener(boost::asio::ip::tcp::acceptor* acceptor) {
+    /* async_accept can throw errors */
+    try {
+        while (!m_stop_in_operation.load(std::memory_order::acquire)) {
+            auto id = m_last_id++;
 
-        auto sess = std::make_shared<tcp_session>(
-            co_await acceptor.async_accept(boost::asio::use_awaitable),
-            onData,
-            onSessionDisconnected);
+            auto onSessionDisconnected = [this, id](std::optional<std::exception> ex) {
+                on_session_stopped(id, ex);
+            };
+            auto onData = [this, id](const std::byte* data, size_t size) {
+                inform_user_of_data(id, data, size);
+            };
 
-        {
-            std::unique_lock lock(m_mutex);
-            m_sessions.emplace(id, sess);
+            auto sess = std::make_shared<tcp_session>(
+                co_await acceptor->async_accept(boost::asio::use_awaitable),
+                onData,
+                onSessionDisconnected);
+
+            {
+                std::unique_lock lock(m_mutex);
+                m_sessions.emplace(id, sess);
+            }
+
+            if (m_new_session_cb)
+                m_new_session_cb(*this, id);
+
+            sess->start();
         }
+    } catch (...) { stop_async(); }
+}
 
-        if (m_new_session_cb)
-            m_new_session_cb(*this, id);
+void tcp_server::listen_on_endpoints() {
+    std::lock_guard lock(m_mutex);
 
-        sess->start();
+    /* exception will be thrown if can't listen to endpoint */
+    try {
+        for (auto e : m_endpoints) {
+            boost::asio::ip::tcp::endpoint ep(boost::asio::ip::make_address(e.ip),
+                                              static_cast<boost::asio::ip::port_type>(e.port));
+
+            auto acceptor =
+                std::make_unique<boost::asio::ip::tcp::acceptor>(m_context->context(), ep);
+            boost::asio::co_spawn(
+                m_context->context(), listener(acceptor.get()), boost::asio::detached);
+
+            m_acceptors.emplace_back(std::move(acceptor));
+        }
+    } catch (...) {
+        for (auto& acceptor: m_acceptors)
+            acceptor->close();
+        throw;
     }
 }
 
-void tcp_server::on_worker_start(notifiable_background_worker*) {
-    for (auto e : m_endpoints) {
-        boost::asio::ip::tcp::endpoint ep(boost::asio::ip::make_address(e.ip),
-                                          static_cast<boost::asio::ip::port_type>(e.port));
-        boost::asio::co_spawn(m_io_context_ptr,
-                              listener(boost::asio::ip::tcp::acceptor(m_io_context_ptr, ep)),
-                              boost::asio::detached);
-    }
-
-    if (m_on_started_listening_cb)
-        m_on_started_listening_cb(*this);
-}
-
-void tcp_server::on_worker_stop(notifiable_background_worker*) {
+void tcp_server::on_stop() {
     if (m_on_stopped_listening_cb)
         m_on_stopped_listening_cb(*this);
+
+    m_is_running.store(false, std::memory_order::release);
+    m_is_running.notify_all();
 }
 
-void tcp_server::on_worker_tick(notifiable_background_worker* worker) {
-    m_io_context_ptr.run();
-    worker->request_stop();
-}
 
 void tcp_server::inform_user_of_data(session_id_t id, const std::byte* data, size_t size) {
     if (m_on_data_read_user_cb)

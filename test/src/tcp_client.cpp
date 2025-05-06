@@ -24,7 +24,7 @@ TEST_CASE("sg::net::tcp_client: check connect", "[sg::net::tcp_client]") {
 
         auto context = sg::net::tcp_context::create();
 
-        sg::net::tcp_server server;
+        sg::net::tcp_server server(context);
         server.start({ep}, nullptr, nullptr, nullptr, on_data, nullptr);
 
         auto client = sg::net::tcp_client(context);

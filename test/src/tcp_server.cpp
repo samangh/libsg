@@ -42,7 +42,7 @@ TEST_CASE("sg::net::tcp_server: check start/stop callback", "[sg::net::tcp_serve
     REQUIRE(stop_count == 0);
 
     l.stop_async();
-    l.future_get_once();
+    l.wait_until_stopped();
     REQUIRE(stop_count == 1);
 }
 
@@ -76,7 +76,7 @@ TEST_CASE("sg::net::tcp_server: check start/stop callback as class member", "[sg
     REQUIRE(t.stop_count == 0);
 
     t.l.stop_async();
-    t.l.future_get_once();
+    t.l.wait_until_stopped();
     REQUIRE(t.stop_count == 1);
 }
 
@@ -144,7 +144,7 @@ TEST_CASE("sg::net::tcp_server: check read/write with many simultanious clients"
     for (auto& th: threads)
         REQUIRE_NOTHROW(th.join());
 
-    l.future_get_once();
+    l.wait_until_stopped();
 
     REQUIRE(counterNew.load() ==count);
     REQUIRE(counterClosed.load()==count);
@@ -242,7 +242,7 @@ TEST_CASE("sg::net::tcp_server: check session(...)", "[sg::net::tcp_server]") {
     });
 
     REQUIRE_NOTHROW(th.join());
-    l.future_get_once();
+    l.wait_until_stopped();
 }
 
 TEST_CASE("sg::net::tcp_server: check local/remote_endpoint(...)", "[sg::net::tcp_server]") {
@@ -297,7 +297,7 @@ TEST_CASE("sg::net::tcp_server: check local/remote_endpoint(...)", "[sg::net::tc
     });
 
     REQUIRE_NOTHROW(th.join());
-    l.future_get_once();
+    l.wait_until_stopped();
 }
 
 TEST_CASE("sg::net::tcp_server: check reaction to client immediate disconnection", "[sg::net::tcp_server]") {
@@ -332,7 +332,7 @@ TEST_CASE("sg::net::tcp_server: check reaction to client immediate disconnection
     });
 
     REQUIRE_NOTHROW(th.join());
-    l.future_get_once();
+    l.wait_until_stopped();
 
     REQUIRE(boolCon==true);
     REQUIRE(boolDis==true);
@@ -415,7 +415,7 @@ TEST_CASE("sg::net::tcp_server: check stop_async() drops all connections", "[sg:
     sem.acquire();
 
     l.stop_async();
-    l.future_get_once();
+    l.wait_until_stopped();
 
     // Check client disconnected
     REQUIRE_NOTHROW(th.join());

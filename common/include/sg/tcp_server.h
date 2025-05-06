@@ -6,6 +6,7 @@
 #include "buffer.h"
 #include "notifiable_background_worker.h"
 #include "jthread.h"
+#include "tcp_context.h"
 #include "tcp_session.h"
 
 #include <boost/asio/awaitable.hpp>
@@ -16,7 +17,6 @@
 #include <optional>
 
 namespace sg::net {
-
 
 class SG_COMMON_EXPORT tcp_server {
   public:
@@ -29,7 +29,9 @@ class SG_COMMON_EXPORT tcp_server {
     typedef std::function<void(tcp_server&, session_id_t, const std::byte*, size_t)> session_data_available_cb_t;
     typedef std::function<void(tcp_server&, session_id_t, std::optional<std::exception>)> session_disconnected_cb_t;
 
-    ~tcp_server() noexcept(false);
+    tcp_server();
+    tcp_server(std::shared_ptr<tcp_context> context);
+    ~tcp_server();
 
     void start(std::vector<end_point> endpoints,
                started_listening_cb_t onStartListening,
@@ -39,8 +41,7 @@ class SG_COMMON_EXPORT tcp_server {
                session_disconnected_cb_t onDisconnCb) noexcept(false);
 
     void stop_async();
-    void future_get_once() noexcept(false);
-    bool is_stopped() const;
+    void wait_until_stopped() const;
 
     size_t clients_count() const;
 
@@ -53,7 +54,7 @@ class SG_COMMON_EXPORT tcp_server {
     ptr session(session_id_t id);
 
   private:
-    std::unique_ptr<notifiable_background_worker> m_worker;
+    std::shared_ptr<tcp_context> m_context;
 
     mutable std::shared_mutex m_mutex;
     std::map<session_id_t, ptr> m_sessions;
@@ -61,7 +62,6 @@ class SG_COMMON_EXPORT tcp_server {
 
     std::vector<end_point> m_endpoints;
     std::promise<void> m_promise_started_listening;
-    boost::asio::io_context m_io_context_ptr;
 
     session_created_cb_t m_new_session_cb;
     session_data_available_cb_t m_on_data_read_user_cb;
@@ -72,11 +72,14 @@ class SG_COMMON_EXPORT tcp_server {
     std::atomic<bool> m_stop_in_operation;
     std::jthread m_stopping_thread;
 
-    boost::asio::awaitable<void> listener(boost::asio::ip::tcp::acceptor acceptor);
+    std::atomic<bool> m_is_running{false};
 
-    void on_worker_start(notifiable_background_worker*);
-    void on_worker_stop(notifiable_background_worker*);
-    void on_worker_tick(notifiable_background_worker*);
+    boost::asio::awaitable<void> listener(boost::asio::ip::tcp::acceptor* acceptor);
+
+    std::vector<std::unique_ptr<boost::asio::ip::tcp::acceptor>> m_acceptors;
+
+    void listen_on_endpoints();
+    void on_stop();
 
     void inform_user_of_data(session_id_t id, const std::byte* data, size_t size);
     void on_session_stopped(session_id_t id, std::optional<std::exception> ex);
