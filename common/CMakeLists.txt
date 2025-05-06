@@ -90,6 +90,8 @@ target_sources(sg_common
     src/crc.cpp
     src/tcp_session.cpp
     src/tcp_server.cpp
+    src/tcp_context.cpp
+    src/tcp_client.cpp
 )
 
 if(LIBSG_ZSTD)

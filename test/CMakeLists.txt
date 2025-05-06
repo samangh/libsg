@@ -54,6 +54,7 @@ target_sources(sg_test
     src/data/channel_vector.cpp
     src/ranges.cpp
     src/enumeration.cpp
+    src/tcp_client.cpp
 )
 
 ##
