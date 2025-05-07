@@ -14,7 +14,7 @@
 
 namespace sg {
 
-class SG_COMMON_EXPORT tcp_listener : sg::enable_lifetime_indicator {
+class SG_COMMON_DEPRECATED_EXPORT tcp_listener : sg::enable_lifetime_indicator {
    class impl;
    sg::pimpl<impl> pimpl;
 

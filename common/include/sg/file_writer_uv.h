@@ -11,7 +11,7 @@
 
 namespace sg {
 
-class SG_COMMON_EXPORT file_writer_uv: public sg::enable_lifetime_indicator {
+class SG_COMMON_DEPRECATED_EXPORT file_writer_uv: public sg::enable_lifetime_indicator {
     class impl;
     sg::pimpl<impl> pimpl;
 
