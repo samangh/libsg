@@ -28,10 +28,10 @@ TEST_CASE("sg::net::tcp_server: check start/stop callback", "[sg::net::tcp_serve
     using namespace sg::net;
 
     tcp_server::started_listening_cb_t onStart = [&](tcp_server&) { start_sem.release(); };
-    tcp_server::stopped_listening_cb_t onStop = [&](tcp_server&) { stop_count++; };
+    tcp_server::stopped_listening_cb_t onStop = [&](tcp_server&, std::exception_ptr) { stop_count++; };
 
     tcp_server::session_disconnected_cb_t onDisconn =
-        [&](tcp_server&, tcp_server::session_id_t, std::optional<std::exception>) { stop_count++; };
+        [&](tcp_server&, tcp_server::session_id_t, std::exception_ptr) { stop_count++; };
 
     sg::net::end_point ep("127.0.0.1", PORT);
 
@@ -54,17 +54,17 @@ struct tcp_server_test0 {
     void start() {
         sg::net::end_point ep("127.0.0.1", PORT);
         auto onstart = std::bind(&tcp_server_test0::on_start, this, std::placeholders::_1);
-        auto onstop = std::bind(&tcp_server_test0::on_stop, this, std::placeholders::_1);
+        auto onstop = std::bind(&tcp_server_test0::on_stop, this, std::placeholders::_1, std::placeholders::_2);
         l.start({ep}, onstart, onstop, nullptr, nullptr,nullptr);
 
     }
     void on_start(sg::net::tcp_server&) {
        start_sem.release();
     }
-    void on_stop(sg::net::tcp_server&) {
+    void on_stop(sg::net::tcp_server&, std::exception_ptr) {
         stop_count++;
     }
-    void on_disconn(sg::net::tcp_server&, sg::net::tcp_server::session_id_t, std::optional<std::exception>) {
+    void on_disconn(sg::net::tcp_server&, sg::net::tcp_server::session_id_t, std::exception_ptr) {
         stop_count++;
     }
 };
@@ -79,7 +79,6 @@ TEST_CASE("sg::net::tcp_server: check start/stop callback as class member", "[sg
     t.l.wait_until_stopped();
     REQUIRE(t.stop_count == 1);
 }
-
 
 TEST_CASE("sg::net::tcp_server: check read/write with many simultanious clients", "[sg::net::tcp_server]") {
     using namespace sg::net;
@@ -99,7 +98,7 @@ TEST_CASE("sg::net::tcp_server: check read/write with many simultanious clients"
         counterNew++;
     };
 
-    tcp_server::session_disconnected_cb_t onClose = [&counterClosed, count](tcp_server& l, tcp_server::session_id_t, std::optional<std::exception>) {
+    tcp_server::session_disconnected_cb_t onClose = [&counterClosed, count](tcp_server& l, tcp_server::session_id_t, std::exception_ptr) {
         counterClosed++;
         if (counterClosed == count)
             l.stop_async();
@@ -158,7 +157,7 @@ TEST_CASE("sg::net::tcp_server: check can disconnect client", "[sg::net::tcp_ser
             l.disconnect(id);
         };
 
-    tcp_server::session_disconnected_cb_t on_disconn = [](tcp_server& l, sg::net::tcp_server::session_id_t, std::optional<std::exception>){
+    tcp_server::session_disconnected_cb_t on_disconn = [](tcp_server& l, sg::net::tcp_server::session_id_t, std::exception_ptr){
         l.stop_async();
     };
 
@@ -196,6 +195,75 @@ TEST_CASE("sg::net::tcp_server: check can disconnect client", "[sg::net::tcp_ser
     REQUIRE_NOTHROW(th.join());
 }
 
+TEST_CASE("sg::net::tcp_server: check what happens if client disconnects", "[sg::net::tcp_server]") {
+    using namespace sg::net;
+
+    std::atomic_bool has_exception{false};
+
+    tcp_server::session_disconnected_cb_t on_disconn = [&](tcp_server& l, sg::net::tcp_server::session_id_t, std::exception_ptr ex){
+        if (ex)
+            has_exception=true;
+        l.stop_async();
+    };
+
+    sg::net::end_point ep("0.0.0.0", PORT);
+
+    tcp_server l;
+    l.start({ep}, nullptr, nullptr, nullptr, nullptr, on_disconn);
+
+    std::jthread th = std::jthread([]() {
+        using boost::asio::ip::tcp;
+
+        boost::asio::io_context io_context;
+
+        tcp::resolver resolver(io_context);
+        tcp::resolver::results_type endpoints = resolver.resolve("127.0.0.1", std::to_string(PORT));
+
+        tcp::socket socket(io_context);
+        boost::asio::connect(socket, endpoints);
+
+        boost::system::error_code error;
+        std::array<char, 5> buf_write = {'H', 'E', 'L', 'L', 'O'};
+        socket.write_some(boost::asio::buffer(buf_write), error);
+    });
+
+    REQUIRE_NOTHROW(th.join());
+
+    l.wait_until_stopped();
+    REQUIRE(has_exception);
+}
+
+TEST_CASE("sg::net::tcp_server: check what happens if there is an exception in started_listening_cb_t cb", "[sg::net::tcp_server]") {
+    using namespace sg::net;
+
+    tcp_server::started_listening_cb_t onListening =
+        [](tcp_server&) {
+            throw std::runtime_error("bad error!");
+        };
+
+
+    sg::net::end_point ep("0.0.0.0", PORT);
+    tcp_server l;
+
+    REQUIRE_THROWS(l.start({ep}, onListening, nullptr, nullptr, nullptr, nullptr));
+}
+
+TEST_CASE("sg::net::tcp_server: check what happens if there is an exception in stopped_listening_cb_t cb", "[sg::net::tcp_server]") {
+    using namespace sg::net;
+
+    tcp_server::stopped_listening_cb_t onStop =
+        [](tcp_server&, std::exception_ptr) {
+            throw std::runtime_error("bad error!");
+        };
+
+    sg::net::end_point ep("0.0.0.0", PORT);
+    auto l = tcp_server();
+    l.start({ep}, nullptr, onStop, nullptr, nullptr, nullptr);
+    l.stop_async();
+    REQUIRE_THROWS(l.get_future_once());
+}
+
+
 TEST_CASE("sg::net::tcp_server: check session(...)", "[sg::net::tcp_server]") {
     using namespace sg::net;
 
@@ -206,7 +274,7 @@ TEST_CASE("sg::net::tcp_server: check session(...)", "[sg::net::tcp_server]") {
             l.session(id)->write(w);
         };
 
-    tcp_server::session_disconnected_cb_t on_disconn = [](tcp_server& l, sg::net::tcp_server::session_id_t, std::optional<std::exception>){
+    tcp_server::session_disconnected_cb_t on_disconn = [](tcp_server& l, sg::net::tcp_server::session_id_t, std::exception_ptr){
         l.stop_async();
     };
 
@@ -261,7 +329,7 @@ TEST_CASE("sg::net::tcp_server: check local/remote_endpoint(...)", "[sg::net::tc
             l.session(id)->write(w);
         };
 
-    tcp_server::session_disconnected_cb_t on_disconn = [](tcp_server& l, sg::net::tcp_server::session_id_t, std::optional<std::exception>){
+    tcp_server::session_disconnected_cb_t on_disconn = [](tcp_server& l, sg::net::tcp_server::session_id_t, std::exception_ptr){
         l.stop_async();
     };
 
@@ -309,7 +377,7 @@ TEST_CASE("sg::net::tcp_server: check reaction to client immediate disconnection
     tcp_server::session_created_cb_t on_conn = [&](tcp_server&, sg::net::tcp_server::session_id_t){
         boolCon = true;
     };
-    tcp_server::session_disconnected_cb_t on_disconn = [&](tcp_server& l, sg::net::tcp_server::session_id_t, std::optional<std::exception>){
+    tcp_server::session_disconnected_cb_t on_disconn = [&](tcp_server& l, sg::net::tcp_server::session_id_t, std::exception_ptr){
         boolDis = true;
         l.stop_async();
     };
@@ -345,7 +413,7 @@ TEST_CASE("sg::net::tcp_server: check dropping tcp_server drops allconnections",
     std::atomic_int stop_count{0};
 
     tcp_server::session_created_cb_t onConn = [&](tcp_server&, tcp_server::session_id_t) { sem.release(); };
-    tcp_server::stopped_listening_cb_t onStop = [&](tcp_server&) { stop_count++; };
+    tcp_server::stopped_listening_cb_t onStop = [&](tcp_server&, std::exception_ptr) { stop_count++; };
 
     sg::net::end_point ep("0.0.0.0", PORT);
     std::jthread th;
@@ -388,7 +456,7 @@ TEST_CASE("sg::net::tcp_server: check stop_async() drops all connections", "[sg:
     tcp_server::session_created_cb_t onConn = [&](tcp_server&, tcp_server::session_id_t) {
         sem.release(); }
     ;
-    tcp_server::stopped_listening_cb_t onStop = [&](tcp_server&) { stop_count++; };
+    tcp_server::stopped_listening_cb_t onStop = [&](tcp_server&, std::exception_ptr) { stop_count++; };
 
     sg::net::end_point ep("0.0.0.0", PORT);
     std::jthread th;

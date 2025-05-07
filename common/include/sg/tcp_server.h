@@ -5,7 +5,6 @@
 #include "net.h"
 #include "buffer.h"
 #include "notifiable_background_worker.h"
-#include "jthread.h"
 #include "tcp_context.h"
 #include "tcp_session.h"
 
@@ -14,7 +13,6 @@
 #include <boost/asio/ip/tcp.hpp>
 
 #include <map>
-#include <optional>
 
 namespace sg::net {
 
@@ -24,14 +22,14 @@ class SG_COMMON_EXPORT tcp_server {
     typedef std::shared_ptr<tcp_session> ptr;
 
     typedef std::function<void(tcp_server&)> started_listening_cb_t;
-    typedef std::function<void(tcp_server&)> stopped_listening_cb_t;
+    typedef std::function<void(tcp_server&, std::exception_ptr)> stopped_listening_cb_t;
     typedef std::function<void(tcp_server&, session_id_t)> session_created_cb_t;
     typedef std::function<void(tcp_server&, session_id_t, const std::byte*, size_t)> session_data_available_cb_t;
-    typedef std::function<void(tcp_server&, session_id_t, std::optional<std::exception>)> session_disconnected_cb_t;
+    typedef std::function<void(tcp_server&, session_id_t, std::exception_ptr)> session_disconnected_cb_t;
 
     tcp_server();
     tcp_server(std::shared_ptr<tcp_context> context);
-    ~tcp_server();
+    ~tcp_server() noexcept(false);
 
     void start(std::vector<end_point> endpoints,
                started_listening_cb_t onStartListening,
@@ -42,6 +40,7 @@ class SG_COMMON_EXPORT tcp_server {
 
     void stop_async();
     void wait_until_stopped() const;
+    void get_future_once() const;
 
     size_t clients_count() const;
 
@@ -70,9 +69,12 @@ class SG_COMMON_EXPORT tcp_server {
     stopped_listening_cb_t m_on_stopped_listening_cb;
 
     std::atomic<bool> m_stop_in_operation;
-    std::jthread m_stopping_thread;
+    std::unique_ptr<sg::notifiable_background_worker> m_stopping_thread;
 
     std::atomic<bool> m_is_running{false};
+
+    std::mutex  m_listening_exception_mutex;
+    std::exception_ptr m_listening_exception;
 
     boost::asio::awaitable<void> listener(boost::asio::ip::tcp::acceptor* acceptor);
 
@@ -82,7 +84,7 @@ class SG_COMMON_EXPORT tcp_server {
     void on_stop();
 
     void inform_user_of_data(session_id_t id, const std::byte* data, size_t size);
-    void on_session_stopped(session_id_t id, std::optional<std::exception> ex);
+    void on_session_stopped(session_id_t id, std::exception_ptr ex);
 
 };
 

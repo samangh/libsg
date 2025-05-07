@@ -71,7 +71,7 @@ end_point tcp_session::remote_endpoint() {
     return sg::net::end_point(asioEp.address().to_string(), asioEp.port());
 }
 
-void tcp_session::close(std::optional<std::exception> ex) {
+void tcp_session::close(std::exception_ptr ex) {
     if (m_disconnected_cb_called.exchange(true))
         return;
 
@@ -99,12 +99,12 @@ boost::asio::awaitable<void> tcp_session::reader() {
             if (m_on_data_cb)
                 m_on_data_cb(data.get(), n);
         }
-    } catch (const std::exception& ex) {
+    } catch (...) {
         /* if clean closing, do not throw error */
         if (m_stop_requested.load(std::memory_order::acquire))
             close({});
         else
-            close(ex);
+            close(std::current_exception());
     }
 
     co_return;
@@ -134,7 +134,7 @@ boost::asio::awaitable<void> tcp_session::writer() {
                                                   boost::asio::use_awaitable);
             }
         }
-    } catch (const std::exception& ex) { close(ex); }
+    } catch (...) { close(std::current_exception()); }
     co_return;
 }
 }

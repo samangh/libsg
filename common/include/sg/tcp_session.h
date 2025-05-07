@@ -16,7 +16,7 @@ namespace sg::net {
 class SG_COMMON_EXPORT tcp_session :  public std::enable_shared_from_this<tcp_session>{
   public:
     typedef std::function<void(const std::byte*, size_t)> on_data_available_cb_t;
-    typedef std::function<void(std::optional<std::exception>)> on_disconnected_cb_t;
+    typedef std::function<void(std::exception_ptr)> on_disconnected_cb_t;
 
     tcp_session(boost::asio::ip::tcp::socket socket, on_data_available_cb_t onReadCb, on_disconnected_cb_t onErrorCb);
     virtual ~tcp_session();
@@ -45,7 +45,7 @@ class SG_COMMON_EXPORT tcp_session :  public std::enable_shared_from_this<tcp_se
     std::atomic<bool> m_disconnected_cb_called {false};
     std::atomic<bool> m_stop_requested{false};
 
-    void close(std::optional<std::exception> ex);
+    void close(std::exception_ptr ex);
 
     boost::asio::awaitable<void> reader();
     boost::asio::awaitable<void> writer();
