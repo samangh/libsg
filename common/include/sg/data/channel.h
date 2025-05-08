@@ -53,6 +53,7 @@ class IContigiousChannelBase: public IChannelBase {
 };
 
 template <typename T> class IContigiousChannel : public IContigiousChannelBase {
+  public:
     typedef T                                value_type;
     typedef std::size_t                      size_type;
     typedef sg::contiguous_iterator<T>       iterator_type;
@@ -60,7 +61,6 @@ template <typename T> class IContigiousChannel : public IContigiousChannelBase {
     typedef T&                               reference;
     typedef const T&                         const_reference;
 
-  public:
     IContigiousChannel() =default;
     virtual ~IContigiousChannel() = default;
 
