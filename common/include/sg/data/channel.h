@@ -92,6 +92,8 @@ template <typename T> class IContigiousChannel : public IContigiousChannelBase {
 
     [[nodiscard]] reference at(size_t i){ return (*this)[i];}
     [[nodiscard]] const_reference at(size_t i) const{ return (*this)[i];}
+
+    [[nodiscard]] virtual std::string back_as_string() const =0;
 };
 
 typedef sg::data::IContigiousChannel<double> t_chan_double;

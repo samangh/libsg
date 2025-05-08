@@ -35,7 +35,7 @@ template <typename T> class vector_channel : public IContigiousChannel<T> {
         m_data.emplace_back(std::forward<Args>(args)...);
     };
 
-    [[nodiscard]] std::string back_as_string() const { return sg::math::to_string(m_data.back()); };
+    [[nodiscard]] std::string back_as_string() const override { return sg::math::to_string(m_data.back()); };
 
 };
 
