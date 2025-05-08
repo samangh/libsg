@@ -38,10 +38,4 @@ template <typename T, typename = typename std::enable_if<std::is_unsigned<T>::va
   return number - (number>>1);
 }
 
-/* Fast number to string conversion */
-template <typename T, typename = typename std::enable_if<std::is_arithmetic<T>::value>::type>
-[[nodiscard]] inline std::string to_string(T number) {
-    return (fmt::to_string(number));
-}
-
-}
+} // namespace sg::math

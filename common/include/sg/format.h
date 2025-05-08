@@ -72,4 +72,10 @@ template <typename T>
 
 }
 
+/* Fast to string conversion */
+template <typename T>
+[[nodiscard]] inline std::string to_string(const T& val) {
+    return (fmt::to_string(val));
+}
+
 }  // namespace sg::format
