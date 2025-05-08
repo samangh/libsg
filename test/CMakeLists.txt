@@ -55,6 +55,7 @@ target_sources(sg_test
     src/ranges.cpp
     src/enumeration.cpp
     src/tcp_client.cpp
+    src/uuid.cpp
 )
 
 ##
