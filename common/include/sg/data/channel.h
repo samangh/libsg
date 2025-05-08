@@ -2,13 +2,17 @@
 
 #include <sg/buffer.h>
 #include <sg/math.h>
+#include <sg/uuid.h>
 
 #include <string>
 
 namespace sg::data {
 
 class IChannelBase {
+    sg::uuids::uuid m_uuid;
   public:
+    IChannelBase() = default;
+    IChannelBase(sg::uuids::uuid uuid): m_uuid(uuid) {}
     virtual ~IChannelBase() = default;
 
     [[nodiscard]] virtual std::string name() const noexcept = 0;
@@ -21,12 +25,13 @@ class IChannelBase {
     [[nodiscard]] virtual size_t count() const noexcept = 0;
     [[nodiscard]] virtual bool empty() const noexcept = 0;
 
-    [[nodiscard]] virtual bool operator==(const IChannelBase &o) const {
-        //TODO NEED UUID or GUID
-        return name() == o.name() && hierarchy() == o.hierarchy() && size_bytes() == o.size_bytes();
+    [[nodiscard]] virtual sg::uuids::uuid uuid() const noexcept { return m_uuid; };
+
+    [[nodiscard]] virtual bool operator==(const IChannelBase& o) const {
+        return o.uuid() == uuid();
     }
-    [[nodiscard]] virtual bool operator<(const IChannelBase &o) const {
-        //TODO NEED UUID or GUID
+
+    [[nodiscard]] virtual bool operator<(const IChannelBase& o) const {
         if (hierarchy() != o.hierarchy())
             return (hierarchy() < o.hierarchy());
 
@@ -36,7 +41,7 @@ class IChannelBase {
         if (size_bytes() != o.size_bytes())
             return (size_bytes() < o.size_bytes());
 
-        return false;
+        return (uuid() < o.uuid());
     };
 };
 
@@ -92,8 +97,6 @@ template <typename T> class IContigiousChannel : public IContigiousChannelBase {
 
     [[nodiscard]] reference at(size_t i){ return (*this)[i];}
     [[nodiscard]] const_reference at(size_t i) const{ return (*this)[i];}
-
-    [[nodiscard]] virtual std::string back_as_string() const =0;
 };
 
 typedef sg::data::IContigiousChannel<double> t_chan_double;

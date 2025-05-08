@@ -45,3 +45,10 @@ TEST_CASE("sg::data check channel_vector<>(...) family", "[sg::data]") {
         moveVec.emplace_back(std::move(ptr));
     }
 }
+
+TEST_CASE("sg::data: vector_channel: check operator==", "[sg::data]") {
+    sg::data::vector_channel<int> chA;
+    sg::data::vector_channel<int> chB;
+
+    REQUIRE(chA != chB);
+}
