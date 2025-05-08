@@ -1,3 +1,9 @@
+#ifdef _MSC_VER
+    #pragma warning(disable : 4996)
+#else
+    #pragma GCC diagnostic ignored "-Wdeprecated-declarations"
+#endif
+
 #include <cstring>
 #include <sg/file_writer_uv.h>
 
