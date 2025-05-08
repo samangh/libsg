@@ -38,9 +38,6 @@ class IChannelBase {
         if (name() != o.name())
             return (name() < o.name());
 
-        if (size_bytes() != o.size_bytes())
-            return (size_bytes() < o.size_bytes());
-
         return (uuid() < o.uuid());
     };
 };
