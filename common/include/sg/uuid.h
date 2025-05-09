@@ -1,13 +1,16 @@
-#include <array>
-#include <string>
+#include "sg/export/common.h"
 
 #include <boost/uuid/uuid.hpp>
+
+#include <array>
+#include <cstring>
+#include <string>
 
 namespace sg::uuids {
 
 //typedef boost::uuids::uuid uuid;
 
-class uuid {
+class SG_COMMON_EXPORT uuid {
     boost::uuids::uuid m_uuid;
   public:
     uuid();
@@ -25,11 +28,7 @@ class uuid {
     void swap(uuid& rhs ) noexcept;
 
     std::string to_sting() const;
-    std::array<uint8_t, 16> data() const {
-        std::array<uint8_t, 16> arr;
-        std::memcpy(arr.data(), m_uuid.data, 16);
-        return arr;
-    }
+    std::array<uint8_t, 16> data() const;
 };
 
 
