@@ -25,6 +25,11 @@ class uuid {
     void swap(uuid& rhs ) noexcept;
 
     std::string to_sting() const;
+    std::array<uint8_t, 16> data() const {
+        std::array<uint8_t, 16> arr;
+        std::memcpy(arr.data(), m_uuid.data, 16);
+        return arr;
+    }
 };
 
 
