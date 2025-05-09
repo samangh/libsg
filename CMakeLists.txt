@@ -28,8 +28,6 @@ option(LIBSG_ZSTD "Include zstd stuff" ON)
 ## Packages
 ##
 
-find_package(Threads REQUIRED)
-
 # Some platforms don't have a Findfmt file, so search if the user has used ONE_LIBFMT first
 if(NOT OWN_FMT)
   find_package(fmt REQUIRED)
