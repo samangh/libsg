@@ -12,6 +12,7 @@ template <typename T> class vector_channel : public IContigiousChannel<T> {
     std::vector<std::string> m_hierarchy;
   public:
     vector_channel() =default;
+    vector_channel(std::initializer_list<T> init):m_data(init){};
     vector_channel(std::string name) :m_name(name) {}
 
     void reserve(size_t size) { m_data.reserve(size); }

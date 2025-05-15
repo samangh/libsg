@@ -35,7 +35,28 @@ TEST_CASE("sg::data check channel_vector<>(...) family", "[sg::data]") {
 
         REQUIRE(vec.count() ==3);
         REQUIRE(vec.size_bytes()  == 3*sizeof(int));
+    }
 
+    /* checking constness */
+    {
+        const sg::data::vector_channel<int> vec{0,2,5};
+
+        REQUIRE(vec.at(0)==0);
+        REQUIRE(vec.at(1)==2);
+        REQUIRE(vec.at(2)==5);
+
+        REQUIRE(vec.front() == 0);
+        REQUIRE(vec.back() == 5);
+
+        REQUIRE(vec.begin() == vec.cbegin());
+        REQUIRE(vec.end() == vec.cend());
+
+        REQUIRE(vec.end() - vec.begin() == 3);
+        REQUIRE(*(vec.begin() + 1) == 2);
+        REQUIRE(*(vec.end() - 1) == 5);
+
+        REQUIRE(vec.count() ==3);
+        REQUIRE(vec.size_bytes()  == 3*sizeof(int));
     }
 
     /* do move-only */

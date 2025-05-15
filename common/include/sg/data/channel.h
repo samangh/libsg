@@ -42,14 +42,14 @@ class IChannelBase {
     };
 };
 
-class IContigiousChannelBase: public IChannelBase {
+class IContigiousChannelBase: public virtual IChannelBase {
   public:
     /* Return the stored pointer.*/
     [[nodiscard]] virtual const void *get() const noexcept = 0;
     [[nodiscard]] virtual void *get() noexcept = 0;
 };
 
-template <typename T> class IContigiousChannel : public IContigiousChannelBase {
+template <typename T> class IContigiousChannel : public virtual IContigiousChannelBase {
   public:
     typedef T                                value_type;
     typedef std::size_t                      size_type;
@@ -72,14 +72,14 @@ template <typename T> class IContigiousChannel : public IContigiousChannelBase {
     [[nodiscard]] virtual bool empty() const noexcept override { return count() == 0; }
 
     /* iterators */
-    [[nodiscard]] constexpr iterator_type begin() { return iterator_type(data()); }
-    [[nodiscard]] constexpr iterator_type end() { return begin() + count(); }
+    [[nodiscard]] iterator_type begin() { return iterator_type(data()); }
+    [[nodiscard]] iterator_type end() { return begin() + count(); }
 
     /* const interators */
-    [[nodiscard]] constexpr const_iterator_type begin() const { return const_iterator_type(data()); }
-    [[nodiscard]] constexpr const_iterator_type end() const { return begin() + count(); }
-    [[nodiscard]] constexpr const_iterator_type cbegin() const { return begin(); }
-    [[nodiscard]] constexpr const_iterator_type cend() const { return end(); }
+    [[nodiscard]] const_iterator_type begin() const { return const_iterator_type(data()); }
+    [[nodiscard]] const_iterator_type end() const { return begin() + count(); }
+    [[nodiscard]] const_iterator_type cbegin() const { return begin(); }
+    [[nodiscard]] const_iterator_type cend() const { return end(); }
 
     /* front/back */
     [[nodiscard]] reference front() { return *begin(); }
