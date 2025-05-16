@@ -42,7 +42,7 @@ class IChannelBase {
     };
 };
 
-class IContigiousChannelBase: public virtual IChannelBase {
+class IContigiousChannelBase: public IChannelBase {
   public:
     /* Return the stored pointer.*/
     [[nodiscard]] virtual const void *get() const noexcept = 0;
