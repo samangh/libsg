@@ -62,19 +62,16 @@ TEST_CASE("sg::common::enumeration check from_underlying_value(...)", "[sg::comm
     REQUIRE(!contains(b, test_enum::E4));
 }
 
-template <>
-std::map<test_enum, std::string> sg::enumeration::enum_val_map<test_enum, std::string>() {
-    return std::map<test_enum, std::string>{
+void populate_enum_value_map(std::map<test_enum, std::string>& map) {
+    map = std::map<test_enum, std::string>{
         {test_enum::E1, "E1"},
         {test_enum::E2, "E2"},
         {test_enum::E4, "E4"},
     };
 }
 
-template <>
-std::map<test_enum2, std::string> sg::enumeration::enum_val_map<test_enum2, std::string>() {
-    //bad on purpose
-    return std::map<test_enum2, std::string>{
+void populate_enum_value_map(std::map<test_enum2, std::string>& map) {
+    map = std::map<test_enum2, std::string>{
         {test_enum2::E1, "E1"},
         {test_enum2::E2, "E1"},
         {test_enum2::E4, "E4"},
