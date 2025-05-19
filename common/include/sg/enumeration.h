@@ -3,10 +3,40 @@
 #include "sg/debug.h"
 
 #include <fmt/format.h>
+
+#include <boost/bimap.hpp>
+
 #include <map>
 #include <string>
 #include <type_traits>
 #include <utility>
+
+namespace sg::internal::enumeration {
+
+/* generates boost bimap from standard std::map */
+template<typename TEnum ,typename TValue>
+    requires(std::is_enum_v<TEnum>)
+[[nodiscard]] auto generate_enum_val_bimap() {
+    typedef boost::bimap<boost::bimaps::set_of<TEnum>,
+                         boost::bimaps::set_of<TValue>> TReturn;
+
+    /* get std::map map */
+    std::map<TEnum, TValue> map_;
+    populate_enum_value_map(map_);
+
+    TReturn bimap;
+    for (auto& [en,val] : map_)
+    {
+        if (bimap.right.find(val) != bimap.right.end())
+            throw std::logic_error(
+                fmt::format("duplicate enum value specified for {}", sg::type_name<TEnum>()));
+        bimap.insert(typename TReturn::value_type(en, val));
+    }
+
+    return bimap;
+}
+
+}
 
 namespace sg::enumeration {
 
@@ -99,13 +129,8 @@ class helper {
 template<typename TVal,typename TEnum>
     requires(std::is_enum_v<TEnum>)
 [[nodiscard]] TVal enum_to_val(TEnum en) {
-    static auto map = []() {
-        std::map<TEnum, TVal> map_;
-        populate_enum_value_map(map_);
-        return map_;
-    }();
-
-    return map.at(en);
+    static auto bimap = sg::internal::enumeration::generate_enum_val_bimap<TEnum,TVal>();
+    return bimap.left.at(en);
 }
 
 /**
@@ -117,26 +142,8 @@ template<typename TVal,typename TEnum>
 template <typename TEnum, typename TValue>
     requires(std::is_enum_v<TEnum>)
 [[nodiscard]] TEnum enum_from_val(TValue val) {
-    static auto map_ = []() {
-        /* get map */
-        std::map<TEnum, TValue> map_;
-        populate_enum_value_map(map_);
-
-        /* reverse map */
-        std::map<TValue, TEnum> map_rev;
-
-        /* ensure there are no duplicates */
-        for (const auto& [e, v] : map_) {
-            if (map_rev.contains(v))
-                throw std::logic_error(fmt::format("duplicate enum name/value specified for {}",
-                                                   sg::type_name<TEnum>()));
-            map_rev.emplace(v, e);
-        }
-
-        return map_rev;
-    }();
-
-    return map_.at(val);
+    static auto bimap = sg::internal::enumeration::generate_enum_val_bimap<TEnum,TValue>();
+    return bimap.right.at(val);
 }
 
 } // namespace sg::enumeration

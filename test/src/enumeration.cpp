@@ -89,5 +89,6 @@ TEST_CASE("sg::common::enumeration check enum_from_val(...)", "[sg::common::enum
     REQUIRE(sg::enumeration::enum_from_val<test_enum>(std::string("E2")) == test_enum::E2);
     REQUIRE(sg::enumeration::enum_from_val<test_enum>(std::string("E4")) == test_enum::E4);
 
+    REQUIRE_THROWS(sg::enumeration::enum_to_val<std::string>(test_enum2::E4));
     REQUIRE_THROWS(sg::enumeration::enum_from_val<test_enum2>(std::string("E1")));
 }
