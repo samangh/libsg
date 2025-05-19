@@ -18,19 +18,22 @@ void IImGuiWrapper::initalise()
 {
     if (sg::enumeration::contains(m_configflags, ConfigFlags::IncludeImPlot))
         ImPlot::CreateContext();
-    m_on_start();
+    if (m_on_start)
+        m_on_start();
 }
 
 void IImGuiWrapper::iterate(bool& done)
 {
     if (sg::enumeration::contains(m_configflags, ConfigFlags::Docking))
         ImGui::DockSpaceOverViewport();
-    m_on_iteration(done);
+    if (m_on_iteration)
+        m_on_iteration(done);
 }
 
 void IImGuiWrapper::cleanup()
 {
-    m_on_end();
+    if (m_on_end)
+        m_on_end();
     if (sg::enumeration::contains(m_configflags, ConfigFlags::IncludeImPlot))
         ImPlot::CreateContext();
 }
