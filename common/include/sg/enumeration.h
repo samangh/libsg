@@ -1,42 +1,11 @@
 #pragma once
 
-#include "sg/debug.h"
-
-#include <fmt/format.h>
-
-#include <boost/bimap.hpp>
+#include "internal/enumeration.h"
 
 #include <map>
 #include <string>
 #include <type_traits>
 #include <utility>
-
-namespace sg::internal::enumeration {
-
-/* generates boost bimap from standard std::map */
-template<typename TEnum ,typename TValue>
-    requires(std::is_enum_v<TEnum>)
-[[nodiscard]] auto generate_enum_val_bimap() {
-    typedef boost::bimap<boost::bimaps::set_of<TEnum>,
-                         boost::bimaps::set_of<TValue>> TReturn;
-
-    /* get std::map map */
-    std::map<TEnum, TValue> map_;
-    populate_enum_value_map(map_);
-
-    TReturn bimap;
-    for (auto& [en,val] : map_)
-    {
-        if (bimap.right.find(val) != bimap.right.end())
-            throw std::logic_error(
-                fmt::format("duplicate enum value specified for {}", sg::type_name<TEnum>()));
-        bimap.insert(typename TReturn::value_type(en, val));
-    }
-
-    return bimap;
-}
-
-}
 
 namespace sg::enumeration {
 
@@ -81,10 +50,9 @@ template <typename enumT, typename T = std::underlying_type_t<enumT>>
     return static_cast<enumT>(underlying_value);
 }
 
-
 template<typename T>
     requires(std::is_enum_v<T>)
-class helper {
+class [[deprecated("Use enum_to_val(...) and enum_from_val(...) instead")]] helper {
   public:
     helper(){};
     helper(std::initializer_list<std::pair<T, std::string>> list) {
