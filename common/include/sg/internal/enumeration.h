@@ -17,7 +17,8 @@ namespace sg::internal::enumeration {
 template <typename TEnum, typename TValue>
     requires(std::is_enum_v<TEnum>)
 [[nodiscard]] auto generate_enum_val_bimap() {
-    typedef boost::bimap<boost::bimaps::set_of<TEnum>, boost::bimaps::set_of<TValue>> TReturn;
+    // don't define collection type, boost::bimap will assume a set
+    typedef boost::bimap<TEnum, TValue> TReturn;
 
     /* get std::map via argument-dependent lookup */
     std::map<TEnum, TValue> map_;
