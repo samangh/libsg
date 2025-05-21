@@ -56,6 +56,7 @@ target_sources(sg_test
     src/enumeration.cpp
     src/tcp_client.cpp
     src/uuid.cpp
+    src/gettimeofday.cpp
 )
 
 ##

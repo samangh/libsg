@@ -1,20 +1,7 @@
 #pragma once
 
-/* If in Windows, EXTERN_C is already defined in <windows.h>, use that
- * instead. Else define our own. */
-
-#ifdef _WIN32
-    #define WIN32_LEAN_AND_MEAN
-    #include <windows.h>
-#endif
-
-#ifndef EXTERN_C
-    #ifdef __cplusplus
-        #define EXTERN_C extern "C"
-    #else
-        #define EXTERN_C
-    #endif
-#endif
+/* Don't define EXTERn_C, as in windows that is defined in <windows.h>.
+ * Just write extern "C" fully, it's nto much longer. */
 
 #ifndef EXTERN_C_BEGIN
     #ifdef __cplusplus
