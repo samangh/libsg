@@ -35,7 +35,7 @@ void IImGuiWrapper::cleanup()
     if (m_on_end)
         m_on_end();
     if (sg::enumeration::contains(m_configflags, ConfigFlags::IncludeImPlot))
-        ImPlot::CreateContext();
+        ImPlot::DestroyContext();
 }
 
 void IImGuiWrapper::setup_io(ImGuiIO& io) {
