@@ -1,5 +1,10 @@
 #include "sg/tcp_client.h"
 
+#include <boost/asio/awaitable.hpp>
+#include <boost/asio/connect.hpp>
+#include <boost/asio/io_context.hpp>
+#include <boost/asio/ip/tcp.hpp>
+
 namespace sg::net {
 
 tcp_client::tcp_client() : m_context(tcp_context::create()) {}
