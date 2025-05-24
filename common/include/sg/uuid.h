@@ -15,7 +15,7 @@ class SG_COMMON_EXPORT uuid {
   public:
     uuid();
     uuid(const uuid& UUID);;
-    uuid(std::array<uint8_t, 16> bytes);;
+    explicit uuid(std::array<uint8_t, 16> bytes);;
 
     bool operator==(uuid const& rhs) const noexcept = default;
     bool operator!=(uuid const& rhs) const noexcept = default;
@@ -27,8 +27,8 @@ class SG_COMMON_EXPORT uuid {
 
     void swap(uuid& rhs ) noexcept;
 
-    std::string to_sting() const;
-    std::array<uint8_t, 16> data() const;
+    [[nodiscard]] std::string to_sting() const;
+    [[nodiscard]] std::array<uint8_t, 16> data() const;
 };
 
 
