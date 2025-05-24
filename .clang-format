@@ -1,7 +1,7 @@
 #-*- mode: conf -*-
 Language: Cpp
 
-IndentWidth: '4'
+IndentWidth: 4
 IndentPPDirectives: BeforeHash
 ColumnLimit: 100
 PackConstructorInitializers: CurrentLine
