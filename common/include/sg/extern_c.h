@@ -1,6 +1,6 @@
 #pragma once
 
-/* Don't define EXTERn_C, as in windows that is defined in <windows.h>.
+/* Don't define EXTERN_C, as in windows that is defined in <windows.h>.
  * Just write extern "C" fully, it's nto much longer. */
 
 #ifndef EXTERN_C_BEGIN
