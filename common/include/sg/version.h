@@ -11,11 +11,11 @@ namespace sg {
 class SG_COMMON_EXPORT version {
   public:
     version();
-    version(std::string);
+    explicit version(std::string);
 
     std::vector<unsigned int> versions;
 
-    operator std::string() const;
+    explicit operator std::string() const;
     bool operator<(const version &rhs) const;
     bool operator<=(const version &rhs) const;
     bool operator>(const version &rhs) const;
