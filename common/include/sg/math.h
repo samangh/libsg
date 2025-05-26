@@ -30,12 +30,17 @@ template <typename T>
 template <typename T>
     requires(std::is_unsigned_v<T>)
 [[nodiscard]] T largest_power_of_two(T number) {
-    number = number | (number >> 1);
-    number = number | (number >> 2);
-    number = number | (number >> 4);
-    number = number | (number >> 8);
-    number = number | (number >> 16);
+    for (size_t i=1; i<=sizeof(T)*8/2; i*=2)
+        number = number | (number >> i);
     return number - (number >> 1);
+
+    /* Effectively does (e.g. for uint32_t:
+     *    number = number | (number >> 1);
+     *    number = number | (number >> 2);
+     *    number = number | (number >> 4);
+     *    number = number | (number >> 8);
+     *    number = number | (number >> 16);
+     */
 }
 
 } // namespace sg::math
