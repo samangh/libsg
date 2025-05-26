@@ -73,13 +73,9 @@ target_sources(sg_common
     src/background_timer.cpp
     src/bytes.cpp
     src/cpu.cpp
-    src/data_attribute.cpp
-    src/data_source.cpp
-    src/data_view.cpp
     src/debug.cpp
     src/file_writer.cpp
     src/gettimeofday.cpp
-    src/math.cpp
     src/net.cpp
     src/notifiable_background_worker.cpp
     src/progress.cpp
