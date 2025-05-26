@@ -3,7 +3,7 @@
 #include <chrono>
 #include <iostream>
 #include <stdexcept>
-#include <string.h>
+#include <cstring>
 #include <string>
 
 #ifdef _WIN32
