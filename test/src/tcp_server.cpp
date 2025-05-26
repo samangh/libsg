@@ -123,7 +123,7 @@ TEST_CASE("sg::net::tcp_server: check read/write with many simultanious clients"
         boost::asio::connect(socket, endpoints);
 
         boost::system::error_code error;
-        auto buf_write = sg::random::genrate<char>(20);
+        auto buf_write = sg::random::generate<char>(20);
         std::vector<char> buf_read(20);
 
         socket.write_some(boost::asio::buffer(buf_write), error);

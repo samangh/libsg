@@ -121,7 +121,7 @@ TEST_CASE("sg::checksum: check crc", "[sg::checksum]") {
 
 TEST_CASE("sg::checksum: check crc performnce", "[sg::checksum]" ){
     BENCHMARK_ADVANCED("crc32c(...), 1 MB input")(Catch::Benchmark::Chronometer meter) {
-        auto dat = sg::random::genrate<uint8_t>(1000*1000);
+        auto dat = sg::random::generate<uint8_t>(1000*1000);
         meter.measure([&dat] {
             return sg::checksum::crc32c(dat.data(), dat.size());
         });
