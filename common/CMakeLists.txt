@@ -78,7 +78,6 @@ target_sources(sg_common
     src/data_view.cpp
     src/debug.cpp
     src/file_writer.cpp
-    src/file_writer_uv.cpp
     src/gettimeofday.cpp
     src/math.cpp
     src/net.cpp

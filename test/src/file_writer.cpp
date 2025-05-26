@@ -6,7 +6,6 @@
 
 #include <cstring>
 #include <sg/file_writer.h>
-#include <sg/file_writer_uv.h>
 
 #include <catch2/catch_test_macros.hpp>
 #include <catch2/catch_all.hpp>
@@ -140,7 +139,7 @@ TEST_CASE("SG::common sg::file_writer: test large sequental writes") {
     CHECK(std::filesystem::file_size(path)== 1024*2048);
 }
 
-TEST_CASE("SG::common file_writer and file_writer_uv performance", "[sg::file_writer]" ){
+TEST_CASE("SG::common benchmark file_writer", "[sg::file_writer]" ){
     std::string path = "benchmark-buffer";
 
     BENCHMARK_ADVANCED("sg::file_writer(..)")(Catch::Benchmark::Chronometer meter) {
@@ -149,21 +148,6 @@ TEST_CASE("SG::common file_writer and file_writer_uv performance", "[sg::file_wr
         meter.measure([path, &vec_data] {
             sg::file_writer writer;
             writer.start(path, nullptr, nullptr, nullptr);
-
-            for (const auto& buf : vec_data) {
-                auto data_buf = sg::make_shared_c_buffer<std::byte>(buf.size() * sizeof(uint64_t));
-                std::memcpy(data_buf.get(), &buf[0], buf.size() * sizeof(uint64_t));
-                writer.write_async(std::move(data_buf));
-            }
-            writer.stop();
-        });
-    };
-
-    BENCHMARK_ADVANCED("sg::file_writer_uv(..)")(Catch::Benchmark::Chronometer meter) {
-        auto vec_data = random_data(500, 1500);
-        meter.measure([path,&vec_data] {
-            sg::file_writer_uv writer;
-            writer.start(path, nullptr, nullptr, 100);
 
             for (const auto& buf : vec_data) {
                 auto data_buf = sg::make_shared_c_buffer<std::byte>(buf.size() * sizeof(uint64_t));
