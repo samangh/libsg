@@ -1,15 +1,17 @@
+#include <utility>
+
 #include "sg/notifiable_background_worker.h"
 
 namespace sg {
 
 notifiable_background_worker::notifiable_background_worker(std::chrono::nanoseconds interval_ns,
-                                                           const callback_t &task,
-                                                           const callback_t &start_cb,
-                                                           const callback_t &stopped_cb)
+                                                           callback_t task,
+                                                           callback_t start_cb,
+                                                           callback_t stopped_cb)
     : m_interval(interval_ns),
-      m_task(task),
-      m_started_cb(start_cb),
-      m_stopped_cb(stopped_cb) {}
+      m_task(std::move(task)),
+      m_started_cb(std::move(start_cb)),
+      m_stopped_cb(std::move(stopped_cb)) {}
 
 notifiable_background_worker::~notifiable_background_worker() noexcept(false) {
     request_stop();
@@ -32,7 +34,7 @@ void notifiable_background_worker::start() {
 
         /* we set m_is_running, as usually there is a delay before a
          * thread gets going and so the user can call the is_running
-         * function duringt this delay */
+         * function during this delay */
         m_is_running.store(true);
         m_stop_requested.store(false);
         m_stop_after_interations.store(false);
@@ -41,7 +43,6 @@ void notifiable_background_worker::start() {
         /* start */
         m_thread = std::thread(&notifiable_background_worker::action, this);
 
-        /* wait for startactions to be done fully */
         m_start_promise.get_future().get();
     } catch (...) {
         m_is_running.store(false);
@@ -91,6 +92,9 @@ std::chrono::nanoseconds notifiable_background_worker::interval() const { return
 
 void notifiable_background_worker::set_interval(std::chrono::nanoseconds interval) {
     m_interval.store(interval, std::memory_order_release);
+}
+void notifiable_background_worker::correct_for_task_delay(bool val) {
+    m_correct_for_task_delay = val;
 }
 
 void notifiable_background_worker::action() {
@@ -144,7 +148,7 @@ void notifiable_background_worker::action() {
         ex = std::current_exception();
     }
 
-    /* run m_stopped_cb even if theere was a previous exception */
+    /* run m_stopped_cb even if there was a previous exception */
     try {
         if (m_stopped_cb)
             m_stopped_cb(this);
@@ -167,7 +171,7 @@ std::shared_future<void> notifiable_background_worker::future() const { return m
 void notifiable_background_worker::future_get_once(){
     std::lock_guard lock(m_checked_future_mutex);
     if (!m_checked_future.exchange(true))
-        if (auto fut=future(); fut.valid())
+        if (const auto fut=future(); fut.valid())
             fut.get();
 }
 

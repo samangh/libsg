@@ -41,9 +41,9 @@ class SG_COMMON_EXPORT notifiable_background_worker {
      * @param stopped_cb s the callback/action that is called AFTER the worker starts
      */
     notifiable_background_worker(std::chrono::nanoseconds interval_ns,
-                                 const callback_t &task,
-                                 const callback_t &start_cb,
-                                 const callback_t &stopped_cb);
+                                 callback_t task,
+                                 callback_t start_cb,
+                                 callback_t stopped_cb);
     virtual ~notifiable_background_worker() noexcept(false);
 
 
@@ -89,7 +89,7 @@ class SG_COMMON_EXPORT notifiable_background_worker {
     /**
      * @brief future_get_once will wait until the worker is finished.
      *
-     * If this this the first time this function is called, it will check the future() result and so
+     * If this the first time this function is called, it will check the future() result and so
      * will throw if it contains an exception
      *
      * If this is not the first time, the future() is not checked.
