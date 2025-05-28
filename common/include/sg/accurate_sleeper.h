@@ -25,14 +25,8 @@ class SG_COMMON_EXPORT AccurateSleeper {
     AccurateSleeper();
     ~AccurateSleeper();
     template <class _reprsenetation, class _value>
-    void set_interval(const std::chrono::duration<_reprsenetation, _value> &duration,
-                      Tragedy strategy) {
-        if (duration > (std::chrono::nanoseconds::max)())
-            throw std::invalid_argument("The provided time internval is too long");
-
-        set_interval(std::chrono::duration_cast<std::chrono::nanoseconds>(duration).count(),
-                     strategy);
-    }
+    void set_interval(const std::chrono::duration<_reprsenetation, _value>& duration,
+                      Tragedy strategy);
     void set_interval(uint64_t interval_ns, Tragedy strategy);
     uint64_t interval() const;
     void enable_realtime();
@@ -44,11 +38,7 @@ class SG_COMMON_EXPORT AccurateSleeper {
     void sleep_remove_lag(uint64_t remove_from_interval_ns);
 
     template <class _reprsenetation, class _value>
-    void sleep(const std::chrono::duration<_reprsenetation, _value> &duration) {
-        if (duration > (std::chrono::nanoseconds::max)())
-            throw std::invalid_argument("the provided time internval is too long");
-        sleep_remove_lag(std::chrono::duration_cast<std::chrono::nanoseconds>(duration).count());
-    }
+    void sleep(const std::chrono::duration<_reprsenetation, _value>& duration);
 
   private:
     uint64_t m_interval_ns = 1000000000ULL; // default: 1 second
@@ -61,5 +51,21 @@ class SG_COMMON_EXPORT AccurateSleeper {
     std::unique_ptr<struct sched_param> m_previous_param;
 #endif
 };
+
+template <class _reprsenetation, class _value>
+void AccurateSleeper::set_interval(const std::chrono::duration<_reprsenetation, _value>& duration,
+                                   Tragedy strategy) {
+    if (duration > (std::chrono::nanoseconds::max)())
+        throw std::invalid_argument("The provided time internal is too long");
+
+    set_interval(std::chrono::duration_cast<std::chrono::nanoseconds>(duration).count(), strategy);
+}
+
+template <class _reprsenetation, class _value>
+void AccurateSleeper::sleep(const std::chrono::duration<_reprsenetation, _value>& duration) {
+    if (duration > (std::chrono::nanoseconds::max)())
+        throw std::invalid_argument("the provided time interval is too long");
+    sleep_remove_lag(std::chrono::duration_cast<std::chrono::nanoseconds>(duration).count());
+}
 
 } // namespace sg
