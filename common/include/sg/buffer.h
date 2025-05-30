@@ -59,11 +59,11 @@ class IBuffer {
     virtual ~IBuffer() = default;
 
     /* Return the stored pointer.*/
-    virtual const T *get() const noexcept = 0;
-    virtual T *get() noexcept = 0;
+    [[nodiscard]] virtual const T *get() const noexcept = 0;
+    [[nodiscard]] virtual T *get() noexcept = 0;
 
     /* Returns the number of elements */
-    virtual size_t size() const noexcept = 0;
+    [[nodiscard]] virtual size_t size() const noexcept = 0;
 
     /** Frees the stored pointer.
      *
@@ -77,25 +77,25 @@ class IBuffer {
     virtual void reset(T *, size_t) noexcept = 0;
 
     /* iterators */
-    constexpr iterator_type begin() { return iterator_type(get()); }
-    constexpr iterator_type end() { return begin() + size(); }
+    [[nodiscard]] constexpr iterator_type begin() { return iterator_type(get()); }
+    [[nodiscard]] constexpr iterator_type end() { return begin() + size(); }
 
-    /* const interators */
-    constexpr const_iterator_type begin() const { return const_iterator_type(get()); }
-    constexpr const_iterator_type end() const { return begin() + size(); }
-    constexpr const_iterator_type cbegin() const { return begin(); }
-    constexpr const_iterator_type cend() const { return end(); }
+    /* const iterators */
+    [[nodiscard]] constexpr const_iterator_type begin() const { return const_iterator_type(get()); }
+    [[nodiscard]] constexpr const_iterator_type end() const { return begin() + size(); }
+    [[nodiscard]] constexpr const_iterator_type cbegin() const { return begin(); }
+    [[nodiscard]] constexpr const_iterator_type cend() const { return end(); }
 
     /* front/back */
-    reference front() { return *begin(); }
-    reference back() { return *(end() - 1); }
+    [[nodiscard]] reference front() { return *begin(); }
+    [[nodiscard]] reference back() { return *(end() - 1); }
 
     /* const front/back */
-    const_reference front() const {return *begin();}
-    const_reference back() const {return *(end() - 1);;}
+    [[nodiscard]] const_reference front() const {return *begin();}
+    [[nodiscard]] const_reference back() const {return *(end() - 1);;}
 
-    T&       operator[](size_t i) { return get()[i]; };
-    const T& operator[](size_t i) const { return get()[i]; };
+    [[nodiscard]] T&       operator[](size_t i) { return get()[i]; };
+    [[nodiscard]] const T& operator[](size_t i) const { return get()[i]; };
 };
 
 template <typename T> class buffer_base : public IBuffer<T> {
