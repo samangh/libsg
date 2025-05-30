@@ -5,7 +5,6 @@
 #include "ranges.h"
 
 #include <memory>
-#include <type_traits>
 
 namespace sg {
 
@@ -101,19 +100,17 @@ class IBuffer {
 template <typename T> class buffer_base : public IBuffer<T> {
   protected:
     IBuffer<T> *ptr;
-    buffer_base(IBuffer<T> *buff) : ptr(buff) {}
+    explicit buffer_base(IBuffer<T> *buff) : ptr(buff) {}
 
   public:
-    T *operator->() const noexcept { return ptr->get(); }
+    [[nodiscard]] T* operator->() const noexcept { return ptr->get(); }
 
-    virtual const T *get() const noexcept override{ return ptr->get(); };
-    virtual T *get() noexcept override{ return ptr->get(); };
+    [[nodiscard]] const T* get() const noexcept override { return ptr->get(); };
+    [[nodiscard]] T* get() noexcept override { return ptr->get(); };
 
-    virtual size_t size() const noexcept override { return ptr->size(); }
-    virtual void reset() noexcept override { ptr->reset(); }
-    virtual void reset(T *_ptr, size_t _length) noexcept override {
-        return ptr->reset(_ptr, _length);
-    }
+    [[nodiscard]] size_t size() const noexcept override { return ptr->size(); }
+    void reset() noexcept override { ptr->reset(); }
+    void reset(T* _ptr, size_t _length) noexcept override { return ptr->reset(_ptr, _length); }
 };
 
 /* Creates unique opaque buffer */
@@ -128,7 +125,7 @@ template <typename T> class unique_opaque_buffer : public buffer_base<T> {
      *
      *  - only passing objects of type unique_buffer<T> makes sense
      *  - the buffer MUST be generated on the heap */
-    unique_opaque_buffer(IBuffer<T> *buff)
+    explicit unique_opaque_buffer(IBuffer<T> *buff)
         : buffer_base<T>(buff),
           buffer(std::unique_ptr<IBuffer<T>>(buff)) {}
 
@@ -149,7 +146,7 @@ template <typename T> class shared_opaque_buffer : public buffer_base<T> {
      *
      *  - only passing objects of type shared_buffer<T> makes sense
      *  - the buffer MUST be generated on the heap */
-    shared_opaque_buffer(IBuffer<T> *buff)
+    explicit shared_opaque_buffer(IBuffer<T> *buff)
         : buffer_base<T>(buff),
           buffer(std::shared_ptr<IBuffer<T>>(buff)) {}
 };
@@ -168,12 +165,12 @@ class unique_buffer : public IBuffer<T> {
     unique_buffer() noexcept //
         : length(0){};
 
-    /* Constrcts from bare pointer */
+    /* Constructs from bare pointer */
     unique_buffer(T *_ptr, size_t _length) noexcept
         : ptr(std::unique_ptr<T[], deleter>(_ptr)),
           length(_length) {}
 
-    /* Take owenership of bare pointer with custom deleter */
+    /* Take ownership of bare pointer with custom deleter */
     unique_buffer(T *_ptr, size_t _length, const deleter &del) noexcept
         : ptr(std::unique_ptr<T[], deleter>(_ptr, del)),
           length(_length) {}
@@ -184,12 +181,12 @@ class unique_buffer : public IBuffer<T> {
         : ptr(std::forward<U>(_ptr)),
           length(_length) {}
 
-    // Move constrcutor
+    // Move constructor
     unique_buffer(unique_buffer &&) = default;
     unique_buffer &operator=(unique_buffer &&data) = default;
 
-    virtual const T *get() const noexcept override{ return ptr.get(); };
-    virtual T *get() noexcept override{ return ptr.get(); };
+    [[nodiscard]] const T *get() const noexcept override{ return ptr.get(); };
+    [[nodiscard]] T *get() noexcept override{ return ptr.get(); };
 
     /* Exchange the pointer and the associated length */
     void swap(unique_buffer<T, deleter> &other) noexcept {
@@ -203,7 +200,7 @@ class unique_buffer : public IBuffer<T> {
     /* Release ownership of any stored pointer. */
     T* release() noexcept {return ptr.release(); }
 
-    size_t size() const noexcept override { return length; }
+    [[nodiscard]] size_t size() const noexcept override { return length; }
 
     void reset(T *_ptr, size_t _length) noexcept override {
         ptr.reset(_ptr);
@@ -225,7 +222,7 @@ class shared_buffer : public IBuffer<T> {
     /* Default constructor, creates a unique_ptr that owns nothing.*/
     shared_buffer() noexcept : length(0){};
 
-    /* Constrcts from bare pointer */
+    /* Constructs from bare pointer */
     shared_buffer(T *_ptr, size_t _length) noexcept
         : ptr(std::shared_ptr<T[]>(_ptr, deleter())),
           length(_length) {}
@@ -236,11 +233,11 @@ class shared_buffer : public IBuffer<T> {
         : ptr(std::forward<U>(_ptr)),
           length(_length) {}
 
-    shared_buffer(unique_buffer<T,deleter>&& _buff) noexcept //
+    explicit shared_buffer(unique_buffer<T,deleter>&& _buff) noexcept //
         : ptr(std::shared_ptr<T[]>(_buff.release(), deleter())), length(_buff.size())
     {}
 
-    // Move constrcutors
+    // Move constructors
     shared_buffer(shared_buffer &&) = default;
     shared_buffer &operator=(shared_buffer &&data) = default;
 
@@ -248,8 +245,8 @@ class shared_buffer : public IBuffer<T> {
     shared_buffer &operator=(const shared_buffer &data) = default;
     shared_buffer(const shared_buffer&) = default;
 
-    virtual const T *get() const noexcept override{ return ptr.get(); };
-    virtual T *get() noexcept override{ return ptr.get(); };
+    [[nodiscard]] const T *get() const noexcept override{ return ptr.get(); };
+    [[nodiscard]] T *get() noexcept override{ return ptr.get(); };
 
     /* Exchange the pointer and the associated length */
     void swap(shared_buffer<T, deleter> &other) noexcept {
@@ -260,7 +257,7 @@ class shared_buffer : public IBuffer<T> {
         length = other_length;
     }
 
-    size_t size() const noexcept override { return length; }
+    [[nodiscard]] size_t size() const noexcept override { return length; }
 
     void reset(T *_ptr, size_t _length) noexcept override {
         ptr.reset(_ptr);
@@ -275,9 +272,9 @@ template <typename T> using unique_c_buffer = unique_buffer<T, deleter_free<T>>;
 /* A version of shared_buffer that uses C-style free() to delete the base pointer */
 template <typename T> using shared_c_buffer = shared_buffer<T, deleter_free<T>>;
 
-/* Allocates memoery and creates a unique_buffer that uses C-style free as deleter */
+/* Allocates memory and creates a unique_buffer that uses C-style free as deleter */
 template <typename T> unique_buffer<T, deleter_free<T>> make_unique_c_buffer(size_t length) {
-    T *ptr = (T *)memory::MallocOrThrow(sizeof(T) * length);
+    T *ptr = static_cast<T*>(memory::MallocOrThrow(sizeof(T) * length));
     return unique_buffer<T, deleter_free<T>>(ptr, length);
 
     /* Note: this could also be done by doing
@@ -296,18 +293,18 @@ template <typename T> unique_buffer<T, deleter_free<T>> make_unique_c_buffer(siz
 
 /* Allocates memory and creates a unique_buffer that uses C-style free as deleter */
 template <typename T> shared_buffer<T, deleter_free<T>> make_shared_c_buffer(size_t length) {
-    T *ptr = (T *) memory::MallocOrThrow(sizeof(T) * length);
+    T *ptr = static_cast<T*>(memory::MallocOrThrow(sizeof(T) * length));
     return shared_buffer<T, deleter_free<T>>(ptr, length);
 }
 
-/* Allocates memory and creates a opaqwue_buffer */
+/* Allocates memory and creates an opaque_buffer */
 template <typename T> unique_opaque_buffer<T> make_unique_opaque_buffer(size_t length) {
     /* The base buffer MUST be in the heap. */
     auto base = new unique_buffer<T>(new T[length], length);
     return unique_opaque_buffer<T>(base);
 }
 
-/* Allocates memory and creates a opaqwue_buffer */
+/* Allocates memory and creates an opaque_buffer */
 template <typename T> shared_opaque_buffer<T> make_shared_opaque_buffer(size_t length) {
     /* The base buffer MUST be in the heap. */
     auto base = new shared_buffer<T>(new T[length], length);
