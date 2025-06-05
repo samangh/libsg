@@ -69,7 +69,6 @@ setup_library(
     $<BUILD_INTERFACE:${implot_SOURCE_DIR}>
     $<BUILD_INTERFACE:${IMGUI_FILE_BROWSER_DIR}>
   INCLUDE_PRIVATE
-    Boost::Boost
   LINK_INTERFACE
   LINK_PUBLIC
     SG::common

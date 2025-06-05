@@ -9,9 +9,6 @@ if (USE_SSE)
   find_package(SSE OPTIONAL_COMPONENTS SSE42 CRC32 CLMUL)
 endif ()
 
-# Boost is required for other CRC checksums
-find_package(Boost REQUIRED CONFIG)
-
 ##
 ## External files
 ##
@@ -36,13 +33,12 @@ setup_library(
   INCLUDE_INTERFACE
   INCLUDE_PUBLIC
     ${DP_THREAD_POOL_DIR}/include
-    Boost::Asio
   INCLUDE_PRIVATE
-    Boost::Boost
   LINK_INTERFACE
   LINK_PUBLIC
     libuv::libuv
     fmt::fmt
+    Boost::boost
     $<$<OR:$<BOOL:${MSYS2}>,$<BOOL:${WIN32}>>:Mswsock> # Needed for some Boost ASIO functions, can move to LINK_PRIVATE when tcp_server implementation is moved outside headers
   LINK_PRIVATE
     Threads::Threads

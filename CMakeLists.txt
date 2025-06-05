@@ -28,6 +28,9 @@ option(LIBSG_ZSTD "Include zstd stuff" ON)
 ## Packages
 ##
 
+# Boost is required
+find_package(Boost REQUIRED CONFIG)
+
 # Some platforms don't have a Findfmt file, so search if the user has used ONE_LIBFMT first
 if(NOT OWN_FMT)
   find_package(fmt REQUIRED)

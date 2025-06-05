@@ -31,10 +31,9 @@ setup_executable(
   INCLUDE_PUBLIC
     ${DP_THREAD_POOL_DIR}/include
   INCLUDE_PRIVATE
-    Boost::Boost
-    Boost::Asio
   LINK_PRIVATE
     SG::common
+    Boost::boost
     Catch2::Catch2WithMain
 
   COMPILE_FEATURES_PUBLIC
