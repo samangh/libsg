@@ -34,7 +34,13 @@ template <typename T> class vector_channel : public IContigiousChannel<T> {
     void push_back(const T& item) { m_data.push_back(item); };
     template <typename... Args> void emplace_back(Args&&... args) {
         m_data.emplace_back(std::forward<Args>(args)...);
-    };
+    }
+
+    template <typename InT>
+    requires(std::is_constructible_v<T,InT>)
+    void append(const IContigiousChannel<InT>& input) {
+        sg::ranges::append(m_data, input);
+    }
 };
 
 typedef sg::data::vector_channel<double> t_chan_double_vec;

@@ -73,3 +73,14 @@ TEST_CASE("sg::data: vector_channel: check operator==", "[sg::data]") {
 
     REQUIRE(chA != chB);
 }
+
+TEST_CASE("sg::data: vector_channel: check append(...)", "[sg::data]") {
+    sg::data::vector_channel<int> chA {0,1,2,3};
+    sg::data::vector_channel<int> chB {4,5,6,7};
+
+    chA.append(chB);
+
+    REQUIRE(chA.front()==0);
+    REQUIRE(chA[4]==4);
+    REQUIRE(chA.back()==7);
+}
