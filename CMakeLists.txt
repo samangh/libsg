@@ -3,7 +3,7 @@ cmake_minimum_required(VERSION 3.15)
 project(libsg
   VERSION "1.0.0"
   DESCRIPTION "libsg"
-  LANGUAGES C CXX)
+  LANGUAGES CXX)
 
 set(NAMESPACE SG)
 
