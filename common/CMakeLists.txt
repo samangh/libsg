@@ -2,13 +2,6 @@ if(LIBSG_ZSTD)
   find_package(zstd REQUIRED)
 endif()
 
-# Needed hardware-assited CRC32C checksum, optional as the SSE package
-# will set pre-processor header definitions and the code will check for
-# that
-if (USE_SSE)
-  find_package(SSE OPTIONAL_COMPONENTS SSE42 CRC32 CLMUL)
-endif ()
-
 ##
 ## External files
 ##
