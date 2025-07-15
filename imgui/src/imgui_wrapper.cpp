@@ -25,7 +25,7 @@ void IImGuiWrapper::initalise()
 void IImGuiWrapper::iterate(bool& done)
 {
     if (sg::enumeration::contains(m_configflags, ConfigFlags::Docking))
-        ImGui::DockSpaceOverViewport();
+        ImGui::DockSpaceOverViewport(0, nullptr, ImGuiDockNodeFlags_PassthruCentralNode, nullptr);
     if (m_on_iteration)
         m_on_iteration(done);
 }
