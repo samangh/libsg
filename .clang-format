@@ -8,6 +8,7 @@ PackConstructorInitializers: CurrentLine
 PointerAlignment: Left
 NamespaceIndentation: Inner
 #AlignConsecutiveDeclarations: true
+AlignConsecutiveAssignments: Consecutive
 
 # Have all arguments/parameters in one line, or one per line
 BinPackArguments: false
