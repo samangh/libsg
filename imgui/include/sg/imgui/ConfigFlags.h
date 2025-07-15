@@ -6,12 +6,12 @@
 
 namespace sg::imgui {
 
-enum class ConfigFlags {
-    None,
-    IncludeImPlot,
-    Docking,
-    ViewPort,
-    NoIni // Disable imgui.ini file
+enum class ConfigFlags : uint32_t {
+    None = 1 << 0,
+    IncludeImPlot = 1 << 1,
+    Docking = 1 << 2,
+    ViewPort = 1 << 3,
+    NoIni = 1 << 30 // Disable imgui.ini file
 };
 
 inline constexpr ConfigFlags operator|(ConfigFlags lhs, ConfigFlags rhs) {
