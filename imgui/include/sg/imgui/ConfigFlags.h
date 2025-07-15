@@ -11,7 +11,7 @@ enum class ConfigFlags : uint32_t {
     IncludeImPlot = 1 << 1,
     Docking = 1 << 2,
     ViewPort = 1 << 3,
-    NoIni = 1 << 30 // Disable imgui.ini file
+    NoIni = 1 << 4
 };
 
 inline constexpr ConfigFlags operator|(ConfigFlags lhs, ConfigFlags rhs) {
