@@ -3,7 +3,8 @@
 #include <atomic>
 #include <catch2/catch_test_macros.hpp>
 
-TEST_CASE("SG::common rolling_contiguous_buffer: check size() and capacity()") {
+TEST_CASE("sg::common rolling_contiguous_buffer: check size() and capacity()",
+          "[sg::rolling_contiguous_buffer]") {
     sg::rolling_contiguous_buffer<int> buffer(5);
 
     /* check size() */
@@ -15,7 +16,8 @@ TEST_CASE("SG::common rolling_contiguous_buffer: check size() and capacity()") {
     REQUIRE(buffer.capacity()== 5);
 }
 
-TEST_CASE("SG::common rolling_contiguous_buffer: check push_back()") {
+TEST_CASE("sg::common rolling_contiguous_buffer: check push_back()",
+          "[sg::rolling_contiguous_buffer]") {
     sg::rolling_contiguous_buffer<int> buffer(5);
 
     auto count=0;
@@ -29,7 +31,8 @@ TEST_CASE("SG::common rolling_contiguous_buffer: check push_back()") {
     REQUIRE(count== 5);
 }
 
-TEST_CASE("SG::common rolling_contiguous_buffer: check rolling works before memcpy()") {
+TEST_CASE("sg::common rolling_contiguous_buffer: check rolling works before memcpy()",
+          "[sg::rolling_contiguous_buffer]") {
     sg::rolling_contiguous_buffer<int> buffer(5);
     auto count=0;
 
@@ -48,7 +51,8 @@ TEST_CASE("SG::common rolling_contiguous_buffer: check rolling works before memc
     REQUIRE(buffer.size()== 5);
 }
 
-TEST_CASE("SG::common rolling_contiguous_buffer: check rolling works after memcpy()") {
+TEST_CASE("sg::common rolling_contiguous_buffer: check rolling works after memcpy()",
+          "[sg::rolling_contiguous_buffer]") {
     sg::rolling_contiguous_buffer<int> buffer(5);
     auto count=0;
 
@@ -67,7 +71,8 @@ TEST_CASE("SG::common rolling_contiguous_buffer: check rolling works after memcp
     REQUIRE(buffer.size()== 5);
 }
 
-TEST_CASE("SG::common rolling_contiguous_buffer: check resize() growth") {
+TEST_CASE("sg::common rolling_contiguous_buffer: check resize() growth",
+          "[sg::rolling_contiguous_buffer]") {
     sg::rolling_contiguous_buffer<int> buffer(5);
     auto                               count = 0;
 
@@ -96,7 +101,8 @@ TEST_CASE("SG::common rolling_contiguous_buffer: check resize() growth") {
     REQUIRE(buffer.size()== 10);
 }
 
-TEST_CASE("SG::common rolling_contiguous_buffer: check resize() reduction") {
+TEST_CASE("sg::common rolling_contiguous_buffer: check resize() reduction",
+          "[sg::rolling_contiguous_buffer]") {
     sg::rolling_contiguous_buffer<int> buffer(5);
     auto                               count = 0;
 
@@ -114,7 +120,8 @@ TEST_CASE("SG::common rolling_contiguous_buffer: check resize() reduction") {
     REQUIRE(count== 3+4);
 }
 
-TEST_CASE("SG::common rolling_contiguous_buffer: check for loop iteration") {
+TEST_CASE("sg::common rolling_contiguous_buffer: check for loop iteration",
+          "[sg::rolling_contiguous_buffer]") {
     sg::rolling_contiguous_buffer<int> buffer(5);
     auto                               count = 0;
 
@@ -143,7 +150,8 @@ TEST_CASE("SG::common rolling_contiguous_buffer: check for loop iteration") {
     REQUIRE(count== 5);
 }
 
-TEST_CASE("SG::common rolling_contiguous_buffer: check begin/end") {
+TEST_CASE("sg::common rolling_contiguous_buffer: check begin/end",
+          "[sg::rolling_contiguous_buffer]") {
     sg::rolling_contiguous_buffer<int> buffer(5);
 
     /* fill fully */
@@ -163,7 +171,8 @@ TEST_CASE("SG::common rolling_contiguous_buffer: check begin/end") {
     REQUIRE(counter== 6);
 }
 
-TEST_CASE("SG::common rolling_contiguous_buffer: modifying through []") {
+TEST_CASE("sg::common rolling_contiguous_buffer: modifying through []",
+          "[sg::rolling_contiguous_buffer]") {
     sg::rolling_contiguous_buffer<int> buffer(5);
 
     /* fill fully */
@@ -174,7 +183,8 @@ TEST_CASE("SG::common rolling_contiguous_buffer: modifying through []") {
     REQUIRE(buffer[1]== 2);
 }
 
-TEST_CASE("SG::common rolling_contiguous_buffer: check copy/move") {
+TEST_CASE("sg::common rolling_contiguous_buffer: check copy/move",
+          "[sg::rolling_contiguous_buffer]") {
     std::atomic_int ctr_count = 0;
     std::atomic_int dest_count = 0;
     std::atomic_int copy_count = 0;
