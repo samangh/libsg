@@ -13,7 +13,7 @@ namespace sg {
 /**
  * @brief a rolling buffer where the data is contiguously in memory.
  * @details This uses twice as much memory as allocated, to increase performance. Adding more than
- * twice the size will cause the buffer to "shift" and so there is a memory copyign cost.
+ * twice the size will cause the buffer to "shift" and so there is a memory copying cost.
  *
  * If contiguous memory is not required, it might be better to use  std::queue, std:deque, or
  * boost::circular_buffer instead.
@@ -40,8 +40,8 @@ template <typename T> class rolling_contiguous_buffer {
     }
 
     /* returns the capacity of the buffer */
-    size_t capacity() const { return m_cb_size; }
-    size_t size() const { return pos_end - pos_begin; }
+    [[nodiscard]] size_t capacity() const { return m_cb_size; }
+    [[nodiscard]] size_t size() const { return pos_end - pos_begin; }
 
     T*       data() { return &m_buff[pos_begin]; }
     const T* data() const { return &m_buff[pos_begin]; }
