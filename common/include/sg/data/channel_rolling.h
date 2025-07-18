@@ -32,10 +32,25 @@ template <typename T> class channel_rolling : public IContigiousChannel<T> {
     [[nodiscard]] const T *data() const noexcept override { return m_data.data(); }
 
     void clear() { m_data.clear(); };
+
     void push_back(const T& item) { m_data.push_back(item); };
     template <typename... Args> void emplace_back(Args&&... args) {
         m_data.emplace_back(std::forward<Args>(args)...);
     };
+
+    void append(std::initializer_list<T> ilist) {
+        m_data.append(std::move(ilist));
+    }
+
+    template <typename RangeT>
+    void append(RangeT&& to_add) {
+        m_data.append(std::forward<RangeT>(to_add));
+    }
+
+    template <typename InputIt> void append(InputIt&& start, InputIt&& end) {
+        m_data.append(std::forward<InputIt>(start), std::forward<InputIt>(end));
+    }
+
 };
 
 } // namespace sg::data
