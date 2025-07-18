@@ -4,8 +4,7 @@
 #include "sg/iterator.h"
 
 #include <cstring>
-#include <iostream>
-#include <memory>
+#include <utility>
 #include <vector>
 
 namespace sg {
@@ -21,40 +20,30 @@ namespace sg {
 
 template <typename T>
 class rolling_contiguous_buffer {
+    std::vector<T> m_data;
+
     size_t m_cb_size;
     size_t m_max_size;
     double m_reserve_factor;
 
-    std::vector<T> m_data;
-
     size_t pos_begin{0}; // index of first element (i.e. similar to begin())
     size_t pos_end{0};   // index after last element (i.e. similar to end())
 
-  public:
-    typedef std::size_t                  size_type;
-    typedef contiguous_iterator<T>       iterator_type;
-    typedef contiguous_iterator<const T> const_iterator_type;
-    typedef T&                           reference;
-    typedef const T&                     const_reference;
+    void advance_pos(size_t count) {
+        // iterate end
+        pos_end+=count;
 
-    explicit rolling_contiguous_buffer(size_t size, double reserveFactor = 1.0)
-        : m_cb_size(size),
-          m_max_size(size + static_cast<size_t>(size * reserveFactor)),
-            m_reserve_factor(reserveFactor){
-        static_assert(std::contiguous_iterator<iterator_type>);
-        static_assert(std::contiguous_iterator<const_iterator_type>);
+        // iterate beginning
+        if (pos_end - pos_begin > m_cb_size)
+            pos_begin=pos_end - m_cb_size;;
     }
 
-    /* returns the capacity of the buffer */
-    [[nodiscard]] size_t capacity() const { return m_cb_size; }
-    [[nodiscard]] size_t size() const { return pos_end - pos_begin; }
-
-    T*       data() { return &m_data[pos_begin]; }
-    const T* data() const { return &m_data[pos_begin]; }
-
     void ensure_space(size_t noNewPoints) {
-        /* check if reached maximum buffer size*/
+        /* if buffer is at max size */
         if (pos_end == m_max_size) {
+
+            /* if the new number points is bigger than the store size,
+             * just clear everything */
             if (noNewPoints >= m_cb_size) {
                 pos_begin=0;
                 pos_end=0;
@@ -63,7 +52,9 @@ class rolling_contiguous_buffer {
                 return;
             }
 
+            /* if there is enough reserve to just copy everything to the start */
             if (m_reserve_factor >=1) {
+                /* ensure destructor is called */
                 for (size_t i = 0; i < pos_begin+noNewPoints; ++i)
                     m_data[i].~T();
 
@@ -88,7 +79,6 @@ class rolling_contiguous_buffer {
                 pos_end = m_data.size();
             }
 
-
             return;
         }
 
@@ -98,17 +88,82 @@ class rolling_contiguous_buffer {
                 m_data.reserve(m_max_size);
     }
 
-    template <typename U> void push_back(U&& val) {
-        ensure_space(1);
-        m_data.emplace_back(std::forward<U>(val));
+  public:
+    typedef std::size_t                  size_type;
+    typedef contiguous_iterator<T>       iterator_type;
+    typedef contiguous_iterator<const T> const_iterator_type;
+    typedef T&                           reference;
+    typedef const T&                     const_reference;
 
-        // iterate end
-        pos_end++;
-
-        // iterate beginning
-        if (pos_end - pos_begin > m_cb_size)
-            ++pos_begin;
+    explicit rolling_contiguous_buffer(size_t size, double reserveFactor = 1.0)
+        : m_cb_size(size),
+          m_max_size(size + static_cast<size_t>(size * reserveFactor)),
+            m_reserve_factor(reserveFactor){
+        static_assert(std::contiguous_iterator<iterator_type>);
+        static_assert(std::contiguous_iterator<const_iterator_type>);
     }
+
+    /* returns the capacity of the buffer */
+    [[nodiscard]] size_t capacity() const { return m_cb_size; }
+    [[nodiscard]] size_t size() const { return pos_end - pos_begin; }
+
+    T*       data() { return &m_data[pos_begin]; }
+    const T* data() const { return &m_data[pos_begin]; }
+
+
+    void push_back(const T& val) {
+        ensure_space(1);
+        m_data.push_back(val);
+
+        advance_pos(1);
+    }
+
+    void emplace_back(T&& val) {
+        ensure_space(1);
+        m_data.emplace_back(std::forward<T>(val));
+
+        advance_pos(1);
+    }
+
+    template <typename InputIt> void append(InputIt&& start, InputIt&& end) {
+        auto count = std::distance(start,end);
+
+        /* if insertion size is longer than store size, trim
+         *
+         * use std::cmp_greater for comparison due to size_t and iterator::difference_type being
+         * different.
+         */
+        if (std::cmp_greater(count, m_cb_size)) {
+            // trim
+            std::advance(start, count - m_cb_size);
+            count = m_cb_size;
+        }
+
+        ensure_space(count);
+        m_data.insert(m_data.end(), std::forward<InputIt>(start), std::forward<InputIt>(end));
+
+        advance_pos(count);
+    }
+
+    void append(std::initializer_list<T> ilist) {
+        append(std::move_iterator(ilist.begin()), std::move_iterator(ilist.end()));
+    }
+
+    template <typename RangeT>
+        requires(std::ranges::range<RangeT> &&
+                 std::is_same_v<std::ranges::range_value_t<RangeT>, T>)
+    void append(const RangeT& to_add) {
+        append(to_add.begin(), to_add.end());
+    }
+
+    template <typename RangeT>
+        requires(std::ranges::range<RangeT> &&
+                 std::is_same_v<std::ranges::range_value_t<RangeT>, T> &&
+                 !std::is_lvalue_reference_v<RangeT>)
+    void append(RangeT&& to_add) {
+        append(std::move_iterator(to_add.begin()), std::move_iterator(to_add.end()));
+    }
+
 
     /**
      * @brief resize the buffer element count.

@@ -31,6 +31,73 @@ TEST_CASE("sg::common rolling_contiguous_buffer: check push_back()",
     REQUIRE(count== 5);
 }
 
+TEST_CASE("sg::common rolling_contiguous_buffer: check append(...)",
+          "[sg::rolling_contiguous_buffer]") {
+
+    /* with iterator */
+    {
+        sg::rolling_contiguous_buffer<int> buffer(5);
+        std::vector<int> v = {0, 1, 2, 3, 4};
+
+        buffer.append(v.begin(), v.end());
+        REQUIRE(buffer[0] == 0);
+        REQUIRE(buffer[4] == 4);
+
+        v = {5, 6, 7, 8, 9};
+        buffer.append(v.begin(), v.end());
+        REQUIRE(buffer[0] == 5);
+        REQUIRE(buffer[4] == 9);
+
+        v= {0, 1, 2, 3, 4, 5};
+        buffer.append(v.begin(), v.end());
+        REQUIRE(buffer[0] == 1);
+        REQUIRE(buffer[4] == 5);
+    }
+
+    /* with initializer_list */
+    {
+        sg::rolling_contiguous_buffer<int> buffer(5);
+        std::vector<int> v = {0, 1, 2, 3, 4};
+
+        buffer.append(v.begin(), v.end());
+        REQUIRE(buffer[0] == 0);
+        REQUIRE(buffer[4] == 4);
+
+        v = {5, 6, 7, 8, 9};
+        buffer.append(v.begin(), v.end());
+        REQUIRE(buffer[0] == 5);
+        REQUIRE(buffer[4] == 9);
+
+        v= {0, 1, 2, 3, 4, 5};
+        buffer.append(v.begin(), v.end());
+        REQUIRE(buffer[0] == 1);
+        REQUIRE(buffer[4] == 5);
+    }
+
+    /* with initializer_list */
+    {
+        sg::rolling_contiguous_buffer<int> buffer(5);
+
+        buffer.append({0, 1, 2, 3, 4});
+        REQUIRE(buffer[0] == 0);
+        REQUIRE(buffer[4] == 4);
+
+        buffer.append({5, 6, 7, 8, 9});
+        REQUIRE(buffer[0] == 5);
+        REQUIRE(buffer[4] == 9);
+
+        buffer.append({0, 1, 2, 3, 4, 5});
+        REQUIRE(buffer[0] == 1);
+        REQUIRE(buffer[4] == 5);
+    }
+}
+
+TEST_CASE("sg::common rolling_contiguous_buffer: check append(...) with initializer_list",
+          "[sg::rolling_contiguous_buffer]") {
+
+}
+
+
 TEST_CASE("sg::common rolling_contiguous_buffer: check rolling works before memcpy()",
           "[sg::rolling_contiguous_buffer]") {
     sg::rolling_contiguous_buffer<int> buffer(5);
