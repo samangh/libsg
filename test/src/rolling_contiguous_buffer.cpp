@@ -92,10 +92,6 @@ TEST_CASE("sg::common rolling_contiguous_buffer: check append(...)",
     }
 }
 
-TEST_CASE("sg::common rolling_contiguous_buffer: check append(...) with initializer_list",
-          "[sg::rolling_contiguous_buffer]") {
-
-}
 
 
 TEST_CASE("sg::common rolling_contiguous_buffer: check rolling works before memcpy()",
@@ -262,7 +258,7 @@ TEST_CASE("sg::common rolling_contiguous_buffer: check copy/move",
         std::atomic_int* dest_counter;
         std::atomic_int* copy_counter;
         std::atomic_int* ctr_counter;
-      public:
+    public:
         test(std::atomic_int* dest_counter, std::atomic_int* copy_counter, std::atomic_int* ctr_counter)
             : dest_counter(dest_counter),
               copy_counter(copy_counter),
@@ -315,7 +311,7 @@ TEST_CASE("sg::common rolling_contiguous_buffer: check copy/move",
     {
         sg::rolling_contiguous_buffer<test> buffer(5);
         for (int i = 0; i < 5; i++)
-            buffer.push_back(test(&dest_count, &copy_count, &ctr_count));
+            buffer.emplace_back(test(&dest_count, &copy_count, &ctr_count));
     }
 
     /* check that data was actually cleared only 5 times */

@@ -116,6 +116,10 @@ class rolling_contiguous_buffer {
         advance_pos(1);
     }
 
+    void push_back(T&& val) {
+        emplace_back(std::forward<T>(val));
+    }
+
     void emplace_back(T&& val) {
         ensure_space(1);
         m_data.emplace_back(std::forward<T>(val));
