@@ -19,12 +19,13 @@ namespace sg {
  */
 
 template <typename T>
+requires(std::contiguous_iterator<contiguous_iterator<T>> &&
+    std::contiguous_iterator<contiguous_iterator<const T>>)
 class rolling_contiguous_buffer {
     std::vector<T> m_data;
 
     size_t m_cb_size;
     size_t m_max_size;
-    double m_reserve_factor;
 
     size_t pos_begin{0}; // index of first element (i.e. similar to begin())
     size_t pos_end{0};   // index after last element (i.e. similar to end())
@@ -53,7 +54,7 @@ class rolling_contiguous_buffer {
             }
 
             /* if there is enough reserve to just copy everything to the start */
-            if (m_reserve_factor >=1) {
+            if (m_max_size - m_cb_size >=m_cb_size) {
                 /* ensure destructor is called */
                 for (size_t i = 0; i < pos_begin+noNewPoints; ++i)
                     m_data[i].~T();
@@ -95,13 +96,10 @@ class rolling_contiguous_buffer {
     typedef T&                           reference;
     typedef const T&                     const_reference;
 
-    explicit rolling_contiguous_buffer(size_t size, double reserveFactor = 1.0)
+    explicit rolling_contiguous_buffer(size_t size, size_t reserveSize)
         : m_cb_size(size),
-          m_max_size(size + static_cast<size_t>(size * reserveFactor)),
-            m_reserve_factor(reserveFactor){
-        static_assert(std::contiguous_iterator<iterator_type>);
-        static_assert(std::contiguous_iterator<const_iterator_type>);
-    }
+          m_max_size(size + reserveSize) {}
+    explicit rolling_contiguous_buffer(size_t size) : rolling_contiguous_buffer(size, size) {}
 
     /* returns the capacity of the buffer */
     [[nodiscard]] size_t capacity() const { return m_cb_size; }
@@ -171,7 +169,11 @@ class rolling_contiguous_buffer {
      * the buffer will be removed.
      * @param size the size to change to
      */
-    void resize(size_t size, double reserveFactor = 1.0) {
+    void resize(size_t size) {
+        resize(size,size);
+    }
+
+    void resize(size_t size, size_t reserve_size) {
         std::vector<T> newVec;
 
         auto toCopy = std::min(pos_end - pos_begin, size);
@@ -179,8 +181,7 @@ class rolling_contiguous_buffer {
         newVec.swap(m_data);
 
         m_cb_size = size;
-        m_max_size = size + static_cast<size_t>(reserveFactor * size);
-        m_reserve_factor = reserveFactor;
+        m_max_size = size + reserve_size;
 
         pos_begin = 0;
         pos_end = toCopy;

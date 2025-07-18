@@ -11,10 +11,11 @@ template <typename T> class channel_rolling : public IContigiousChannel<T> {
     std::string m_name;
     std::vector<std::string> m_hierarchy;
   public:
-    channel_rolling() =default;
-    channel_rolling(std::string name, size_t size, double reserverFactor = 1.0)
-        : m_data(size, reserverFactor),
+    channel_rolling() = default;
+    channel_rolling(std::string name, size_t size, size_t reservereSize)
+        : m_data(size, reservereSize),
           m_name(name) {}
+    channel_rolling(std::string name, size_t size) : channel_rolling(name, size, size) {}
 
     void reserve(size_t size, double reserverFactor = 1.0) { m_data.reserve(size, reserverFactor); }
     virtual ~channel_rolling() = default;
