@@ -20,7 +20,7 @@ namespace {
 
 #ifndef IS_ARM
 // From: https://stackoverflow.com/questions/1666093/cpuid-implementations-in-c
-// Note: does not work in Arm, may be we shudl use libuv cpuinfo instead?
+// Note: does not work in Arm, maybe we should use libuv cpuinfo instead?
 class CPUID {
     uint32_t regs[4];
 
@@ -37,10 +37,10 @@ class CPUID {
     #endif
     }
 
-    const uint32_t& EAX() const { return regs[0]; }
-    const uint32_t& EBX() const { return regs[1]; }
-    const uint32_t& ECX() const { return regs[2]; }
-    const uint32_t& EDX() const { return regs[3]; }
+    [[nodiscard]] const uint32_t& EAX() const { return regs[0]; }
+    [[nodiscard]] const uint32_t& EBX() const { return regs[1]; }
+    [[nodiscard]] const uint32_t& ECX() const { return regs[2]; }
+    [[nodiscard]] const uint32_t& EDX() const { return regs[3]; }
 };
 #endif
 
@@ -75,10 +75,14 @@ cpu_vendor current_cpu_vendor() {
     return singleton.result;
 }
 
-size_t available_parallelism()
-{
+size_t available_parallelism() {
     static size_t count = uv_available_parallelism();
     return count;
+}
+
+bool is_hypervisor_flag_set() {
+    const CPUID cpuID(0);
+    return (cpuID.ECX() & (1 << 31)) != 0;
 }
 
 std::vector<cpu_info_t> info()

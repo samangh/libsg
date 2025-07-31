@@ -24,4 +24,7 @@ struct cpu_info_t {
 /* Estimate of the default amount of parallelism a program should use */
 [[nodiscard]] SG_COMMON_EXPORT size_t available_parallelism();
 
+/* returns true if teh hypervisor flag is set on the CPU */
+[[nodiscard]] SG_COMMON_EXPORT bool is_hypervisor_flag_set();
+
 }
