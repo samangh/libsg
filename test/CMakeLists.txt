@@ -56,6 +56,7 @@ target_sources(sg_test
     src/tcp_client.cpp
     src/uuid.cpp
     src/gettimeofday.cpp
+    src/cpu.cpp
 )
 
 ##
