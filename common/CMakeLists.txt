@@ -77,6 +77,7 @@ target_sources(sg_common
     src/tcp_context.cpp
     src/tcp_client.cpp
     src/uuid.cpp
+    src/file.cpp
 )
 
 if(LIBSG_ZSTD)
