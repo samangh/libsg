@@ -36,6 +36,7 @@ setup_library(
   LINK_PRIVATE
     Threads::Threads
     $<$<BOOL:${WIN32}>:Winmm>
+    $<$<BOOL:${WIN32}>:Advapi32> #For RegGetValueA function
     $<$<BOOL:${LIBSG_ZSTD}>:$<IF:$<BOOL:${USE_STATIC_LIBS}>,zstd::libzstd_static,zstd::libzstd_shared>>
   COMPILE_OPTIONS_INTERFACE
   COMPILE_OPTIONS_PUBLIC
@@ -78,6 +79,7 @@ target_sources(sg_common
     src/tcp_client.cpp
     src/uuid.cpp
     src/file.cpp
+    src/hardware.cpp
 )
 
 if(LIBSG_ZSTD)
