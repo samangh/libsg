@@ -2,9 +2,10 @@
 
 #include <sg/export/common.h>
 
+#include <array>
+#include <cstdint>
 #include <string>
 #include <vector>
-#include <cstdint>
 
 namespace sg::net {
 
@@ -13,7 +14,7 @@ typedef uint16_t port_t;
 
 struct interface_details {
     address_family family;
-    std::string physical_address;
+    std::array<char, 6> physical_address;
     std::string address;
     std::string netmask;
     bool is_internal;

@@ -20,7 +20,7 @@ std::vector<sg::net::interface_details> interfaces()
         std::vector<sg::net::interface_details> vec;
         for (int i = 0; i < count; ++i) {
             sg::net::interface_details int_det;
-            int_det.physical_address = uv_interface[i].phys_addr;
+            std::copy(std::begin(uv_interface[i].phys_addr), std::end(uv_interface[i].phys_addr), std::begin(int_det.physical_address));
 
             THROW_ON_LIBUV_ERROR(
                 uv_ip_name((struct sockaddr *)&uv_interface[i].address, ip_str, sizeof(ip_str)));
