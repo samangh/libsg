@@ -81,8 +81,12 @@ size_t available_parallelism() {
 }
 
 bool is_hypervisor_flag_set() {
+#ifdef IS_ARM
+    return false;
+#else
     const CPUID cpuID(0);
     return (cpuID.ECX() & (1 << 31)) != 0;
+#endif
 }
 
 std::vector<cpu_info_t> info()
