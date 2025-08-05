@@ -222,10 +222,10 @@ TEST_CASE("sg::common rolling_contiguous_buffer: check begin/end",
         buffer.push_back(1);
 
     REQUIRE(buffer.begin()== &buffer[0]);
-    REQUIRE(buffer.end()== &buffer[5]);
+    REQUIRE(buffer.end()== &buffer[4]+1);
 
     REQUIRE(buffer.cbegin()== &buffer[0]);
-    REQUIRE(buffer.cend()== &buffer[5]);
+    REQUIRE(buffer.cend()== &buffer[4]+1);
 
     int counter=0;
     *buffer.begin()=2;
