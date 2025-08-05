@@ -29,33 +29,46 @@ namespace {
             vendors.push_back(str);
     }
 #elif defined(_WIN32)
-    for (int i = 0;; i++) {
-        DWORD bufferSize = 0;
-        auto index       = std::to_string(i);
-        LSTATUS result   = RegGetValueA(HKEY_LOCAL_MACHINE,
-                                      "SYSTEM\\CurrentControlSet\\Services\\disk\\Enum",
+    // Number of entries
+    uint32_t count=0;
+
+    DWORD countBufferSize = sizeof(count);
+    auto countResult      = RegGetValueA(HKEY_LOCAL_MACHINE,
+                                    R"(SYSTEM\CurrentControlSet\Services\disk\Enum)",
+                                    "Count",
+                                    RRF_RT_REG_DWORD,
+                                    nullptr,
+                                    &count,
+                                    &countBufferSize);
+
+    if (countResult == ERROR_SUCCESS)
+        for (int i = 0; i < count; i++) {
+            DWORD bufferSize = 0;
+            auto index       = std::to_string(i);
+
+            /* get size of entry */
+            LSTATUS result   = RegGetValueA(HKEY_LOCAL_MACHINE,
+                                          R"(SYSTEM\CurrentControlSet\Services\disk\Enum)",
+                                          index.c_str(),
+                                          RRF_RT_REG_SZ,
+                                          nullptr,
+                                          nullptr,
+                                          &bufferSize);
+
+            /* get actual entry */
+            if (result == ERROR_SUCCESS) {
+                std::string buffer(bufferSize, '\0');
+                result = RegGetValueA(HKEY_LOCAL_MACHINE,
+                                      R"(SYSTEM\CurrentControlSet\Services\disk\Enum)",
                                       index.c_str(),
                                       RRF_RT_REG_SZ,
                                       nullptr,
-                                      nullptr,
+                                      buffer.data(),
                                       &bufferSize);
-
-        if (result == ERROR_MORE_DATA) {
-            std::string buffer(bufferSize, '\0');
-            result = RegGetValueA(HKEY_LOCAL_MACHINE,
-                                  "SYSTEM\\CurrentControlSet\\Services\\disk\\Enum",
-                                  index.c_str(),
-                                  RRF_RT_REG_SZ,
-                                  nullptr,
-                                  buffer.data(),
-                                  &bufferSize);
-            if (result == ERROR_SUCCESS)
-                vendors.push_back(buffer.data());
-            else
-                break;
-        } else
-            break;
-    }
+                if (result == ERROR_SUCCESS)
+                    vendors.push_back(buffer);
+            }
+        }
 #endif
 
     return vendors;
