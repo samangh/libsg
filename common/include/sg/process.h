@@ -8,8 +8,13 @@
 
 namespace sg::process {
 
+#ifdef _WIN32
+typedef unsigned int pid_t;
+typedef unsigned int tid_t;
+#else
 typedef int pid_t;
 typedef int tid_t;
+#endif
 
 struct Thread {
     tid_t tid;               // Process/thread ID
@@ -19,7 +24,7 @@ struct Thread {
 
 struct Process {
     pid_t pid;               // Process/thread ID
-    int parent_pid;        // Parent process PID
+    pid_t parent_pid;        // Parent process PID
     bool is_kernel_process; // Is a kernel thread
     std::string name;
     std::vector<std::filesystem::path> cmdline;
