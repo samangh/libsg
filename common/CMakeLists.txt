@@ -51,6 +51,7 @@ setup_library(
     Threads::Threads
     $<$<BOOL:${WIN32}>:Winmm>
     $<$<BOOL:${WIN32}>:Advapi32> #For RegGetValueA function
+    $<$<BOOL:${WIN32}>:Kernel32.lib> #For sg::process functions
     $<$<BOOL:${LIBSG_ZSTD}>:$<IF:$<BOOL:${USE_STATIC_LIBS}>,zstd::libzstd_static,zstd::libzstd_shared>>
   COMPILE_OPTIONS_INTERFACE
   COMPILE_OPTIONS_PUBLIC
