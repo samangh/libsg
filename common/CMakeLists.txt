@@ -2,6 +2,19 @@ if(LIBSG_ZSTD)
   find_package(zstd REQUIRED)
 endif()
 
+if (LINUX)
+  CPMAddPackage(
+      NAME pfs
+      URL https://github.com/dtrugman/pfs/archive/refs/tags/v0.12.0.zip
+      # GITHUB_REPOSITORY ocornut/imgui
+      # VERSION 1.91.9b-docking
+      # GIT_SHALLOW
+      OPTIONS
+      "pfs_BUILD_SAMPLES OFF"
+      "pfs_BUILD_TESTS OFF"
+  )
+endif ()
+
 ##
 ## External files
 ##
@@ -33,6 +46,7 @@ setup_library(
     fmt::fmt
     Boost::boost
     $<$<OR:$<BOOL:${MSYS2}>,$<BOOL:${WIN32}>>:Mswsock> # Needed for some Boost ASIO functions, can move to LINK_PRIVATE when tcp_server implementation is moved outside headers
+    $<$<BOOL:${LINUX}>:pfs>
   LINK_PRIVATE
     Threads::Threads
     $<$<BOOL:${WIN32}>:Winmm>
@@ -80,6 +94,7 @@ target_sources(sg_common
     src/uuid.cpp
     src/file.cpp
     src/hardware.cpp
+    src/process.cpp
 )
 
 if(LIBSG_ZSTD)
