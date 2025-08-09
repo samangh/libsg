@@ -11,6 +11,9 @@ namespace sg::process {
 #ifdef _WIN32
 typedef unsigned int pid_t;
 typedef unsigned int tid_t;
+#elif (defined(__APPLE__) && defined(__MACH__))
+typedef uint32_t pid_t;
+typedef uint32_t tid_t;
 #else
 typedef int pid_t;
 typedef int tid_t;
@@ -26,6 +29,7 @@ struct Process {
     pid_t pid;               // Process/thread ID
     pid_t parent_pid;        // Parent process PID
     bool is_kernel_process; // Is a kernel thread
+    size_t thread_count;
     std::string name;
     std::vector<std::string> cmdline;
     std::map<tid_t,Thread> threads;

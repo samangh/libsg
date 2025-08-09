@@ -8,6 +8,8 @@
     #include <tlhelp32.h>
 #elif defined(__linux)
     #include <pfs/procfs.hpp>
+#elif (defined(__APPLE__) && defined(__MACH__))
+    #include <libproc.h>
 #endif
 
 namespace sg::process {
@@ -69,7 +71,7 @@ std::map<pid_t,Process> get_processes() {
             .parent_pid        = processStatus.ppid,
             .is_kernel_process = pfs::task::is_kernel_thread(p.get_stat()),
             .name              = processStatus.name,
-            .cmdline = std::vector<std::filesystem::path>(processCmds.begin(), processCmds.end()),
+            .cmdline = std::vector<std::string>(processCmds.begin(), processCmds.end()),
             .threads = {}
         };
 
@@ -84,6 +86,35 @@ std::map<pid_t,Process> get_processes() {
 
         result.emplace(p.id(), std::move(process));
     }
+    #elif (defined(__APPLE__) && defined(__MACH__))
+
+    // Get size of buffer
+    int bufferSize = proc_listpids(PROC_ALL_PIDS, 0, NULL, 0);
+
+    int *processBuffer = (int *)malloc(sizeof(int)*bufferSize);
+
+    // Then call again with int *buffer and nonzero buffersize.
+    // The return value is number of pids placed into buffer (<= buffersize).
+    int k = proc_listpids(PROC_ALL_PIDS, 0, processBuffer, bufferSize*sizeof(int));
+
+    for (int i = 0; i < k; i++) {
+        int pid = processBuffer[i];
+
+        struct proc_taskallinfo bsdInfo;
+        proc_pidinfo(pid, PROC_PIDTASKALLINFO, 0, &bsdInfo, sizeof(bsdInfo));
+
+        char path[PROC_PIDPATHINFO_MAXSIZE];
+        proc_pidpath(pid, path, sizeof(path));
+
+        result.emplace(pid, Process{.pid= bsdInfo.pbsd.pbi_pid,
+                                    .parent_pid = bsdInfo.pbsd.pbi_ppid,
+                                    .is_kernel_process = (pid==0),
+                                    .thread_count= (size_t)bsdInfo.ptinfo.pti_threadnum,
+                                    .name= bsdInfo.pbsd.pbi_name,
+                                    .cmdline = {path}});
+
+    }
+
     #else
     throw std::runtime_error("Not implemented");
     #endif
