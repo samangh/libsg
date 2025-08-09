@@ -34,14 +34,15 @@ std::map<pid_t,Process> get_processes() {
         if (!Process32First(hProcessSnap, &pe32))
             throw std::runtime_error("Failed getting first process");
         do {
-            result.emplace(pe32.th32ProcessID,
-                           Process {
-                               .pid        = pe32.th32ProcessID,
-                               .parent_pid = pe32.th32ParentProcessID,
-                               .is_kernel_process = (std::string(pe32.szExeFile) == "System" ||std::string(pe32.szExeFile) == "[System Process]" ),
-                               .name       = pe32.szExeFile,
-                               .cmdline = {pe32.szExeFile}
-                           });
+            result.emplace(
+                pe32.th32ProcessID,
+                Process{.pid               = pe32.th32ProcessID,
+                        .parent_pid        = pe32.th32ParentProcessID,
+                        .is_kernel_process = (std::string(pe32.szExeFile) == "System" ||
+                                              std::string(pe32.szExeFile) == "[System Process]"),
+                        .thread_count      = static_cast<size_t>(pe32.cntThreads),
+                        .name              = pe32.szExeFile,
+                        .cmdline           = {pe32.szExeFile}});
         } while (Process32Next(hProcessSnap, &pe32));
 
         /* loop through all threads */
@@ -51,9 +52,9 @@ std::map<pid_t,Process> get_processes() {
         do {
             auto& process = result.at(te32.th32OwnerProcessID);
             process.threads.emplace(te32.th32ThreadID,
-                                    Thread{.tid  = te32.th32ThreadID,
+                                    Thread{.tid              = te32.th32ThreadID,
                                            .is_kernel_thread = process.is_kernel_process,
-                                            .name = process.name});
+                                           .name             = process.name});
         } while (Thread32Next(hProcessSnap, &te32));
 
         CloseHandle(hProcessSnap);
@@ -70,6 +71,7 @@ std::map<pid_t,Process> get_processes() {
             .pid               = p.id(),
             .parent_pid        = processStatus.ppid,
             .is_kernel_process = pfs::task::is_kernel_thread(p.get_stat()),
+            .thread_count      = processStatus.threads,
             .name              = processStatus.name,
             .cmdline = std::vector<std::string>(processCmds.begin(), processCmds.end()),
             .threads = {}
@@ -91,11 +93,9 @@ std::map<pid_t,Process> get_processes() {
     // Get size of buffer
     int bufferSize = proc_listpids(PROC_ALL_PIDS, 0, NULL, 0);
 
-    int *processBuffer = (int *)malloc(sizeof(int)*bufferSize);
-
-    // Then call again with int *buffer and nonzero buffersize.
-    // The return value is number of pids placed into buffer (<= buffersize).
-    int k = proc_listpids(PROC_ALL_PIDS, 0, processBuffer, bufferSize*sizeof(int));
+    //Create and populate buffer
+    int* processBuffer = (int*)malloc(sizeof(int) * bufferSize);
+    int k = proc_listpids(PROC_ALL_PIDS, 0, processBuffer, bufferSize * sizeof(int));
 
     for (int i = 0; i < k; i++) {
         int pid = processBuffer[i];
@@ -106,17 +106,17 @@ std::map<pid_t,Process> get_processes() {
         char path[PROC_PIDPATHINFO_MAXSIZE];
         proc_pidpath(pid, path, sizeof(path));
 
-        result.emplace(pid, Process{.pid= bsdInfo.pbsd.pbi_pid,
-                                    .parent_pid = bsdInfo.pbsd.pbi_ppid,
-                                    .is_kernel_process = (pid==0),
-                                    .thread_count= (size_t)bsdInfo.ptinfo.pti_threadnum,
-                                    .name= bsdInfo.pbsd.pbi_name,
-                                    .cmdline = {path}});
-
+        result.emplace(pid,
+                       Process{.pid               = bsdInfo.pbsd.pbi_pid,
+                               .parent_pid        = bsdInfo.pbsd.pbi_ppid,
+                               .is_kernel_process = (pid == 0),
+                               .thread_count = static_cast<size_t>(bsdInfo.ptinfo.pti_threadnum),
+                               .name         = bsdInfo.pbsd.pbi_name,
+                               .cmdline      = {path}});
     }
 
     #else
-    throw std::runtime_error("Not implemented");
+    #error sg::process::get_processes() not implemented for this operating system
     #endif
 
     return result;
