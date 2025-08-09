@@ -32,11 +32,14 @@ std::map<pid_t,Process> get_processes() {
         if (!Process32First(hProcessSnap, &pe32))
             throw std::runtime_error("Failed getting first process");
         do {
-            Process process;
-            process.pid        = pe32.th32ProcessID;
-            process.parent_pid = pe32.th32ParentProcessID;
-            process.name       = pe32.szExeFile;
-            result.emplace(pe32.th32ProcessID, std::move(process));
+            result.emplace(pe32.th32ProcessID,
+                           Process {
+                               .pid        = pe32.th32ProcessID,
+                               .parent_pid = pe32.th32ParentProcessID,
+                               .is_kernel_process = (std::string(pe32.szExeFile) == "System" ||std::string(pe32.szExeFile) == "[System Process]" ),
+                               .name       = pe32.szExeFile,
+                               .cmdline = {pe32.szExeFile}
+                           });
         } while (Process32Next(hProcessSnap, &pe32));
 
         /* loop through all threads */
@@ -45,11 +48,10 @@ std::map<pid_t,Process> get_processes() {
 
         do {
             auto& process = result.at(te32.th32OwnerProcessID);
-
-            Thread thread;
-            thread.tid  = te32.th32ThreadID;
-            thread.name = process.name;
-            process.threads.emplace(te32.th32ThreadID, std::move(thread));
+            process.threads.emplace(te32.th32ThreadID,
+                                    Thread{.tid  = te32.th32ThreadID,
+                                           .is_kernel_thread = process.is_kernel_process,
+                                            .name = process.name});
         } while (Thread32Next(hProcessSnap, &te32));
 
         CloseHandle(hProcessSnap);

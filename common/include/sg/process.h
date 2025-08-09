@@ -27,7 +27,7 @@ struct Process {
     pid_t parent_pid;        // Parent process PID
     bool is_kernel_process; // Is a kernel thread
     std::string name;
-    std::vector<std::filesystem::path> cmdline;
+    std::vector<std::string> cmdline;
     std::map<tid_t,Thread> threads;
 };
 
