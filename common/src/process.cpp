@@ -2,11 +2,11 @@
 
 #include <filesystem>
 
-#ifdef _WIN32
+#if defined(_WIN32)
     #define WIN32_LEAN_AND_MEAN
     #include <Windows.h>
     #include <tlhelp32.h>
-#elifdef __linux
+#elif defined(__linux)
     #include <pfs/procfs.hpp>
 #endif
 
@@ -15,7 +15,7 @@ namespace sg::process {
 std::map<pid_t,Process> get_processes() {
     std::map<pid_t,Process> result;
 
-    #ifdef _WIN32
+    #if defined(_WIN32)
     HANDLE hProcessSnap;
     PROCESSENTRY32 pe32;
     THREADENTRY32 te32;
@@ -57,7 +57,7 @@ std::map<pid_t,Process> get_processes() {
         CloseHandle(hProcessSnap);
         throw;
     }
-    #elifdef __linux
+    #elif defined(__linux)
     for (const auto& p : pfs::procfs().get_processes()) {
         const auto processStatus = p.get_status();
         const auto processCmds   = p.get_cmdline();
