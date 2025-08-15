@@ -15,6 +15,17 @@ if (LINUX)
   )
 endif ()
 
+#CPMAddPackage(
+#  NAME vmaware
+#  URL https://github.com/kernelwernel/VMAware/archive/refs/tags/v2.4.1.zip
+#  DOWNLOAD_ONLY)
+
+FetchContent_Declare(
+  vmaware
+  URL https://github.com/kernelwernel/VMAware/archive/refs/tags/v2.4.1.zip)
+FetchContent_MakeAvailable(vmaware)
+set(vmaware_SOURCE_DIR ${CMAKE_BINARY_DIR}/_deps/vmaware-src/src)
+
 ##
 ## External files
 ##
@@ -40,6 +51,7 @@ setup_library(
   INCLUDE_PUBLIC
     ${DP_THREAD_POOL_DIR}/include
   INCLUDE_PRIVATE
+    ${vmaware_SOURCE_DIR}
   LINK_INTERFACE
   LINK_PUBLIC
     libuv::libuv
@@ -50,7 +62,6 @@ setup_library(
   LINK_PRIVATE
     Threads::Threads
     $<$<BOOL:${WIN32}>:Winmm>
-    $<$<BOOL:${WIN32}>:Advapi32> #For RegGetValueA function
     $<$<BOOL:${WIN32}>:Kernel32.lib> #For sg::process functions
     $<$<BOOL:${LIBSG_ZSTD}>:$<IF:$<BOOL:${USE_STATIC_LIBS}>,zstd::libzstd_static,zstd::libzstd_shared>>
   COMPILE_OPTIONS_INTERFACE
@@ -94,7 +105,7 @@ target_sources(sg_common
     src/tcp_client.cpp
     src/uuid.cpp
     src/file.cpp
-    src/hardware.cpp
+    src/environment.cpp
     src/process.cpp
 )
 
