@@ -15,16 +15,17 @@ if (LINUX)
   )
 endif ()
 
-#CPMAddPackage(
-#  NAME vmaware
-#  URL https://github.com/kernelwernel/VMAware/archive/refs/tags/v2.4.1.zip
-#  DOWNLOAD_ONLY)
+# VMAware header
+set(vmaware_VER v2.4.1)
+set(vmaware_SOURCE_DIR ${CMAKE_BINARY_DIR}/_deps/vmaware-${vmaware_VER}-src)
+set(vmaware_FILE ${vmaware_SOURCE_DIR}/vmaware.hpp)
 
-FetchContent_Declare(
-  vmaware
-  URL https://github.com/kernelwernel/VMAware/archive/refs/tags/v2.4.1.zip)
-FetchContent_MakeAvailable(vmaware)
-set(vmaware_SOURCE_DIR ${CMAKE_BINARY_DIR}/_deps/vmaware-src/src)
+if (NOT EXISTS ${vmaware_FILE})
+  file(MAKE_DIRECTORY ${vmaware_SOURCE_DIR})
+  file(DOWNLOAD https://github.com/kernelwernel/VMAware/releases/download/${vmaware_VER}/vmaware.hpp
+      # "https://github.com/kernelwernel/VMAware/releases/latest/download/vmaware.hpp"
+      ${vmaware_FILE})
+endif ()
 
 ##
 ## External files
