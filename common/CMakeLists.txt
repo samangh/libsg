@@ -15,18 +15,6 @@ if (LINUX)
   )
 endif ()
 
-# VMAware header
-set(vmaware_VER v2.4.1)
-set(vmaware_SOURCE_DIR ${CMAKE_BINARY_DIR}/_deps/vmaware-${vmaware_VER}-src)
-set(vmaware_FILE ${vmaware_SOURCE_DIR}/vmaware.hpp)
-
-if (NOT EXISTS ${vmaware_FILE})
-  file(MAKE_DIRECTORY ${vmaware_SOURCE_DIR})
-  file(DOWNLOAD https://github.com/kernelwernel/VMAware/releases/download/${vmaware_VER}/vmaware.hpp
-      # "https://github.com/kernelwernel/VMAware/releases/latest/download/vmaware.hpp"
-      ${vmaware_FILE})
-endif ()
-
 ##
 ## External files
 ##
@@ -36,7 +24,6 @@ set(DP_THREAD_POOL_DIR ${CMAKE_CURRENT_SOURCE_DIR}/../external/thread-pool)
 ##
 ## Source files
 ##
-
 
 setup_library(
   TARGET
@@ -52,7 +39,6 @@ setup_library(
   INCLUDE_PUBLIC
     ${DP_THREAD_POOL_DIR}/include
   INCLUDE_PRIVATE
-    ${vmaware_SOURCE_DIR}
   LINK_INTERFACE
   LINK_PUBLIC
     libuv::libuv
@@ -106,7 +92,6 @@ target_sources(sg_common
     src/tcp_client.cpp
     src/uuid.cpp
     src/file.cpp
-    src/environment.cpp
     src/process.cpp
 )
 

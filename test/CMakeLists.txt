@@ -57,7 +57,6 @@ target_sources(sg_test
     src/uuid.cpp
     src/gettimeofday.cpp
     src/cpu.cpp
-    src/environment.cpp
     src/process.cpp
 )
 
