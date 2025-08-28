@@ -3,7 +3,7 @@ set(TARGET "sg_${SG_TARGET_NANE}")
 
 CPMAddPackage(
   NAME imgui
-  URL https://github.com/ocornut/imgui/archive/refs/tags/v1.92.1-docking.zip
+  URL https://github.com/ocornut/imgui/archive/refs/tags/v1.92.2b-docking.zip
   # GITHUB_REPOSITORY ocornut/imgui
   # VERSION 1.91.9b-docking
   # GIT_SHALLOW
