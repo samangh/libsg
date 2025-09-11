@@ -1,10 +1,14 @@
 #include "sg/file.h"
 
+#include "sg/buffer.h"
+#include "sg/memory.h"
+
 #include <fstream>
+
 
 namespace sg::common::file {
 
-std::string get_contents(std::filesystem::path path) {
+sg::unique_c_buffer<std::byte> get_contents(std::filesystem::path path) {
     auto size = std::filesystem::file_size(path);
 
     std::ifstream stream;
@@ -15,12 +19,10 @@ std::string get_contents(std::filesystem::path path) {
     /* open */
     stream.open(path, std::ios::binary | std::ios::in);
 
-    /* get all data */
-    std::string contents(size, '\0');
-    stream.read(&contents[0], size);
+    auto data = sg::make_unique_c_buffer<std::byte>(size);
+    stream.read(reinterpret_cast<char*>(data.get()), size);
 
-    return contents;
-
+    return data;
 }
 
 } // namespace sg::common::file

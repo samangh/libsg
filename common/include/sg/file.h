@@ -1,5 +1,6 @@
 #pragma once
 
+#include "buffer.h"
 #include "sg/export/common.h"
 
 #include <filesystem>
@@ -7,6 +8,6 @@
 
 namespace sg::common::file {
 
-[[nodiscard]] SG_COMMON_EXPORT std::string get_contents(std::filesystem::path path);
+[[nodiscard]] SG_COMMON_EXPORT unique_c_buffer<std::byte> get_contents(std::filesystem::path path);
 
 }
