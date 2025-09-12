@@ -50,7 +50,7 @@ jobs:
         working-directory: ${{github.workspace}}/build
         env:
           CXXFLAGS: ${{matrix.config.CXXFLAGS}}
-        run: cmake --build .
+        run: MAKEFLAGS=-j$(nproc) cmake --build .
 
       - name: Install
         working-directory: ${{github.workspace}}/build
