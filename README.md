@@ -6,52 +6,22 @@
 
 ## How to use
 
-First, include [CPM](https://github.com/cpm-cmake) in your project if
-you haven't already. For example,
-
-``` cmake
-file(
-  DOWNLOAD
-  https://github.com/cpm-cmake/CPM.cmake/releases/latest/download/get_cpm.cmake
-  ${CMAKE_CURRENT_BINARY_DIR}/cmake/CPM.cmake)
-include(${CMAKE_CURRENT_BINARY_DIR}/cmake/CPM.cmake)
-```
-
-Then include using:
-
-``` cmake
-CPMAddPackage(
-  NAME libsg
-  GITHUB_REPOSITORY samangh/libsg
-  GIT_TAG master
-  GIT_SHALLOW
-  GIT_SUBMODULES_RECURSE ON
-  OPTIONS
-  "LIBSG_BUILD_TESTING OFF"
-  "LIBSG_IMGUI OFF"
-)
-```
-
-And add `SG::common` as a dependency to your target, for example:
-
-```cmake
-target_link_libraries(main PUBLIC SG::common)
-```
-
-So, combined together here is a minimal working example:
+You can include this project using
+[CPM](https://github.com/cpm-cmake). Here is a minimal working example:
 
 ```cmake
 cmake_minimum_required(VERSION 3.14 FATAL_ERROR)
 
-# create project
 project(MyProject)
 
+# Download and include CPM
 file(
   DOWNLOAD
   https://github.com/cpm-cmake/CPM.cmake/releases/latest/download/get_cpm.cmake
   ${CMAKE_CURRENT_BINARY_DIR}/cmake/CPM.cmake)
 include(${CMAKE_CURRENT_BINARY_DIR}/cmake/CPM.cmake)
 
+# Import libsg package
 CPMAddPackage(
   NAME libsg
   GITHUB_REPOSITORY samangh/libsg
@@ -60,14 +30,14 @@ CPMAddPackage(
   GIT_SUBMODULES_RECURSE ON
   OPTIONS
   "LIBSG_BUILD_TESTING OFF"
-  "LIBSG_IMGUI OFF"
-)
+  "LIBSG_IMGUI OFF")
 
+# Add as dependency
 add_executable(main main.cpp)
 target_link_libraries(main PUBLIC SG::common)
 ```
 
-## Examples
+## Code Examples
 ### TCP server
 
 Here is an echo server:
