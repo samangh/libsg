@@ -55,7 +55,7 @@ include(${CMAKE_CURRENT_BINARY_DIR}/cmake/CPM.cmake)
 CPMAddPackage(
   NAME libsg
   GITHUB_REPOSITORY samangh/libsg
-  GIT_TAG a6382883e4f37bd8a297a93677a130f6f362892c
+  GIT_TAG master
   GIT_SHALLOW
   GIT_SUBMODULES_RECURSE ON
   OPTIONS
@@ -96,7 +96,7 @@ int main(int, char**) {
 }
 ```
 
-You can also add callbacks for connection/disconnection events, for exammple:
+You can also add callbacks for connection/disconnection events, for example:
 
 ```cpp
 #include <iostream>
