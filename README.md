@@ -23,7 +23,7 @@ Then include using:
 CPMAddPackage(
   NAME libsg
   GITHUB_REPOSITORY samangh/libsg
-  GIT_TAG a6382883e4f37bd8a297a93677a130f6f362892c
+  GIT_TAG master
   GIT_SHALLOW
   GIT_SUBMODULES_RECURSE ON
   OPTIONS
