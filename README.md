@@ -82,9 +82,9 @@ int main(int, char**) {
     tcp_server server;
 
     tcp_server::session_data_available_cb_t onDataReceived =
-        [](tcp_server& l, tcp_server::session_id_t id, const std::byte* dat, size_t size) {
+        [](tcp_server& l, auto id, const auto* data, size_t size) {
             auto w = sg::make_shared_c_buffer<std::byte>(size);
-            std::memcpy(w.get(), dat, size);
+            std::memcpy(w.get(), data, size);
             l.write(id, w);
         };
 
@@ -107,28 +107,23 @@ using namespace sg::net;
 int main(int, char**) {
     tcp_server server;
 
-    tcp_server::session_created_cb_t onClientConnected = [&](tcp_server&,
-                                                             sg::net::tcp_server::session_id_t) {
+    tcp_server::session_created_cb_t onClientConnected = [&](tcp_server&, auto) {
         std::cout << "Client connected" << std::endl;
     };
 
-
     tcp_server::session_disconnected_cb_t onClientDisconnected =
-        [&](tcp_server&, tcp_server::session_id_t, std::optional<std::exception>) {
-            std::cout << "Client disconnected" << std::endl;
-        };
-    
+        [&](tcp_server&, auto, auto) { std::cout << "Client disconnected" << std::endl; };
+
     tcp_server::session_data_available_cb_t onDataReceived =
-        [](tcp_server& l, tcp_server::session_id_t id, const std::byte* dat, size_t size) {
+        [](tcp_server& l, auto id, const auto* data, size_t size) {
             auto w = sg::make_shared_c_buffer<std::byte>(size);
-            std::memcpy(w.get(), dat, size);
+            std::memcpy(w.get(), data, size);
             l.write(id, w);
         };
 
     sg::net::end_point ep("127.0.0.1", 55555);
 
-    server.start({ep}, nullptr, nullptr, onClientConnected, onDataReceived, onClientDisconnected);
-
+    server.start({ep}, nullptr, nullptr, nullptr, onDataReceived, nullptr);
     // Wait until server is stopped
     server.future_get_once();
 }
