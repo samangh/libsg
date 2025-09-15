@@ -7,5 +7,5 @@
 	url = https://github.com/DeveloperPaul123/thread-pool.git
 [submodule "external/libsg_cmake"]
 	path = external/libsg_cmake
-	url = git@github.com:samangh/libsg_cmake.git
+	url = https://github.com/samangh/libsg_cmake.git
 	branch = master
