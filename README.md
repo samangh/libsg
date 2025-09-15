@@ -35,7 +35,36 @@ CPMAddPackage(
 And add `SG::common` as a dependency to your target, for example:
 
 ```cmake
-target_link_libraries(main SG::common)
+target_link_libraries(main PUBLIC SG::common)
+```
+
+So, combined together here is a minimal working example:
+
+```cmake
+cmake_minimum_required(VERSION 3.14 FATAL_ERROR)
+
+# create project
+project(MyProject)
+
+file(
+  DOWNLOAD
+  https://github.com/cpm-cmake/CPM.cmake/releases/latest/download/get_cpm.cmake
+  ${CMAKE_CURRENT_BINARY_DIR}/cmake/CPM.cmake)
+include(${CMAKE_CURRENT_BINARY_DIR}/cmake/CPM.cmake)
+
+CPMAddPackage(
+  NAME libsg
+  GITHUB_REPOSITORY samangh/libsg
+  GIT_TAG a6382883e4f37bd8a297a93677a130f6f362892c
+  GIT_SHALLOW
+  GIT_SUBMODULES_RECURSE ON
+  OPTIONS
+  "LIBSG_BUILD_TESTING OFF"
+  "LIBSG_IMGUI OFF"
+)
+
+add_executable(main main.cpp)
+target_link_libraries(main PUBLIC SG::common)
 ```
 
 ## Examples
