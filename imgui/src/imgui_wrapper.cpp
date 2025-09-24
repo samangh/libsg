@@ -1,4 +1,4 @@
-#include "sg/imgui/imgui_wrapper.h"
+#include "sg/imgui/imgui_wrapper_interface.h"
 
 #include "sg/enumeration.h"
 

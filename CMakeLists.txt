@@ -24,6 +24,20 @@ option(LIBSG_BUILD_TESTING "Build test suite" ${BUILD_TESTING})
 option(LIBSG_IMGUI "Include IMGUI stuff" ON)
 option(LIBSG_ZSTD "Include zstd stuff" ON)
 
+if(LIBSG_IMGUI)
+  if(WIN32)
+    option(LIBSG_IMGUI_DIRECTX "Enable DirectX ImGUI backend" ON)
+    option(LIBSG_IMGUI_OPENGL "Enable OpenGL ImGUI backend" OFF)
+  else()
+    # No choice really, have to use OpenGL in other systems
+    option(LIBSG_IMGUI_OPENGL "Enable OpenGL ImGUI backend" ON)
+  endif()
+
+  if(NOT LIBSG_IMGUI_DIRECTX AND NOT LIBSG_IMGUI_OPENGL)
+    message(FATAL_ERROR "Need either OpenGL or DirectX for ImGUI")
+  endif()
+endif()
+
 ##
 ## Packages
 ##

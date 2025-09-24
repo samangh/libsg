@@ -30,14 +30,7 @@ add_subdirectory(${PORTABLE_FILE_DIALOGS_DIR} ../external/portable-file-dialogs 
 ##
 file(GLOB SRC_FILES
   ${imgui_SOURCE_DIR}/*.cpp
-  ${imgui_SOURCE_DIR}/backends/imgui_impl_opengl3.cpp
-  ${imgui_SOURCE_DIR}/backends/imgui_impl_sdl2.cpp
-
-  ${implot_SOURCE_DIR}/*.cpp
-
-  ${CMAKE_CURRENT_SOURCE_DIR}/src/*.c
-  ${CMAKE_CURRENT_SOURCE_DIR}/src/*.cc
-  ${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp)
+  ${implot_SOURCE_DIR}/*.cpp)
 
 #list(REMOVE_ITEM IMPLOT_SRC_FILES ${IMPLOT_DIR}/implot_demo.cpp)
 
@@ -73,11 +66,10 @@ setup_library(
   LINK_PUBLIC
     SG::common
     portable_file_dialogs
-
-    $<TARGET_NAME_IF_EXISTS:bar>
     SDL2::SDL2main
   LINK_PRIVATE
-    OpenGL::GL
+    $<$<BOOL:${LIBSG_IMGUI_DIRECTX}>:D3D12.lib DXGI.lib>
+    $<$<BOOL:${LIBSG_IMGUI_OPENGL}>:OpenGL::GL>
     "$<$<BOOL:${APPLE}>:-framework CoreFoundation>"
     $<$<AND:$<BOOL:${UNIX}>,$<NOT:$<BOOL:${APPLE}>>>:${CMAKE_DL_LIBS}>
 
@@ -94,6 +86,8 @@ setup_library(
   COMPILE_DEFINITIONS_PUBLIC
     IMGUI_DISABLE_INCLUDE_IMCONFIG_H
     IMGUI_USER_CONFIG="sg/imgui/config.h"
+    $<$<BOOL:${LIBSG_IMGUI_OPENGL}>:LIBSG_IMGUI_OPENGL>
+    $<$<BOOL:${LIBSG_IMGUI_DIRECTX}>:LIBSG_IMGUI_DIRECTX>
   COMPILE_DEFINITIONS_PRIVATE
 
   ## Options
@@ -119,3 +113,26 @@ else()
   target_include_directories(${TARGET} PUBLIC ${SDL2_INCLUDE_DIRS})
   target_link_libraries(${TARGET} PUBLIC ${SDL2_LIBRARIES})
 endif()
+
+##
+## Source Files
+##
+
+target_sources(${TARGET}
+  PRIVATE
+    src/dialog_box.cpp
+    src/imgui_wrapper.cpp
+
+    # OpenGL
+    $<$<BOOL:${LIBSG_IMGUI_OPENGL}>:
+      src/imgui_wrapper_sdl2_opengl3.cpp
+      ${imgui_SOURCE_DIR}/backends/imgui_impl_opengl3.cpp
+      ${imgui_SOURCE_DIR}/backends/imgui_impl_sdl2.cpp>
+
+    # DirectX
+    $<$<BOOL:${LIBSG_IMGUI_OPENGL}>:
+      src/imgui_wrapper_win32_directx12.cpp
+      ${imgui_SOURCE_DIR}/backends/imgui_impl_win32.cpp
+      ${imgui_SOURCE_DIR}/backends/imgui_impl_dx12.cpp>
+
+    src/utils.cpp)
