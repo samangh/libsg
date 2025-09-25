@@ -58,6 +58,7 @@ target_sources(sg_test
     src/gettimeofday.cpp
     src/cpu.cpp
     src/process.cpp
+    src/string.cpp
 )
 
 ##

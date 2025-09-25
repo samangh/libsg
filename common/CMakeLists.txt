@@ -93,6 +93,7 @@ target_sources(sg_common
     src/uuid.cpp
     src/file.cpp
     src/process.cpp
+    src/string.cpp
 )
 
 if(LIBSG_ZSTD)
