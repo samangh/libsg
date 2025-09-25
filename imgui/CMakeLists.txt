@@ -55,7 +55,6 @@ setup_library(
      ${CMAKE_CURRENT_SOURCE_DIR}
 
   SRC_FILES
-     ${SRC_FILES}
   INCLUDE_INTERFACE
   INCLUDE_PUBLIC
     $<BUILD_INTERFACE:${imgui_SOURCE_DIR}>
@@ -93,6 +92,7 @@ setup_library(
   ## Options
   GENERATE_EXPORT_HEADER
   STATIC
+  DONT_RECURSE_SRC_DIR
 )
 
 
@@ -120,6 +120,10 @@ endif()
 
 target_sources(${TARGET}
   PRIVATE
+    # ImGUi files
+    ${SRC_FILES}
+
+    src/utils.cpp
     src/dialog_box.cpp
     src/imgui_wrapper.cpp
 
@@ -130,9 +134,7 @@ target_sources(${TARGET}
       ${imgui_SOURCE_DIR}/backends/imgui_impl_sdl2.cpp>
 
     # DirectX
-    $<$<BOOL:${LIBSG_IMGUI_OPENGL}>:
+    $<$<BOOL:${LIBSG_IMGUI_DIRECTX}>:
       src/imgui_wrapper_win32_directx12.cpp
       ${imgui_SOURCE_DIR}/backends/imgui_impl_win32.cpp
-      ${imgui_SOURCE_DIR}/backends/imgui_impl_dx12.cpp>
-
-    src/utils.cpp)
+      ${imgui_SOURCE_DIR}/backends/imgui_impl_dx12.cpp>)

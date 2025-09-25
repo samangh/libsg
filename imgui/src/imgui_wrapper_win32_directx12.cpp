@@ -1,6 +1,8 @@
 /* To see what has been manually added for libsg, please see search for
  * "ADDED BY SAMAN" */
 
+#if defined(LIBSG_IMGUI_DIRECTX)
+
 #include "sg/imgui/imgui_wrapper_win32_directx12.h"
 
 #include <backends/imgui_impl_dx12.h>
@@ -574,3 +576,5 @@ void ImGuiWrapper_Win32_DirectX12::start(const std::string &title)
 }
 
 }
+
+#endif

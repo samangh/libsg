@@ -1,3 +1,5 @@
+#if defined(LIBSG_IMGUI_OPENGL)
+
 #include "sg/imgui/imgui_wrapper_sdl2_opengl3.h"
 
 #include <backends/imgui_impl_sdl2.h>
@@ -267,5 +269,6 @@ void ImGuiWrapper_Sdl2_OpenGl3::start(const std::string &title)
     SDL_Quit();
 }
 
-
 }
+
+#endif
