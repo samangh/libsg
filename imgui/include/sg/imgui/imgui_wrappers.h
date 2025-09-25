@@ -5,7 +5,7 @@
 
 namespace sg::imgui {
 
-#if defined(LIBSG_IMGUI_OPENGL) && defined(LIBSG_IMGUI_DIRECTX)
+#if defined(LIBSG_IMGUI_DIRECTX)
 typedef ImGuiWrapper_Win32_DirectX12 ImGuiWrapper;
 #elif defined(LIBSG_IMGUI_OPENGL)
 typedef ImGuiWrapper_Sdl2_OpenGl3 ImGuiWrapper;

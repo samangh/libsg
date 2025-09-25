@@ -65,7 +65,7 @@ setup_library(
   LINK_PUBLIC
     SG::common
     portable_file_dialogs
-    SDL2::SDL2main
+    $<$<BOOL:${LIBSG_IMGUI_OPENGL}>:SDL2::SDL2main>
   LINK_PRIVATE
     $<$<BOOL:${LIBSG_IMGUI_DIRECTX}>:D3D12.lib DXGI.lib>
     $<$<BOOL:${LIBSG_IMGUI_OPENGL}>:OpenGL::GL>
@@ -100,18 +100,20 @@ setup_library(
 ## SDL
 ##
 
-if(TARGET SDL2::SDL2main)
-  if(TARGET SDL2::SDL2-static)
-    if (NOT BUILD_SHARED_LIBS OR NOT TARGET SDL2::SDL2)
-      set(USE_STATIC_SDL ON)
+if(LIBSG_IMGUI_OPENGL)
+  if(TARGET SDL2::SDL2main)
+    if(TARGET SDL2::SDL2-static)
+      if (NOT BUILD_SHARED_LIBS OR NOT TARGET SDL2::SDL2)
+        set(USE_STATIC_SDL ON)
+      endif()
     endif()
+    target_link_libraries(${TARGET} PUBLIC
+      $<IF:$<BOOL:${USE_STATIC_SDL}>,SDL2::SDL2-static,SDL2::SDL2>
+      SDL2::SDL2main)
+  else()
+    target_include_directories(${TARGET} PUBLIC ${SDL2_INCLUDE_DIRS})
+    target_link_libraries(${TARGET} PUBLIC ${SDL2_LIBRARIES})
   endif()
-  target_link_libraries(${TARGET} PUBLIC
-    $<IF:$<BOOL:${USE_STATIC_SDL}>,SDL2::SDL2-static,SDL2::SDL2>
-    SDL2::SDL2main)
-else()
-  target_include_directories(${TARGET} PUBLIC ${SDL2_INCLUDE_DIRS})
-  target_link_libraries(${TARGET} PUBLIC ${SDL2_LIBRARIES})
 endif()
 
 ##
