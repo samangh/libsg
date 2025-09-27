@@ -33,20 +33,21 @@ std::wstring to_wstring(const char* input) {
 std::wstring to_wstring(const std::string& input) { return to_wstring(input.c_str()); }
 
 void set_global_utf8_codepage() {
-    // If default locale uses UTF8 codepage, then exit
-    if (const auto local = std::locale().name(); local[local.size() - 1] == '8')
+    // If default LC_CTYPE uses UTF8 codepage, then exit
+    if(std::string cType = std::setlocale(LC_CTYPE, NULL);  !cType.empty() && cType.back() == '8')
         return;
 
     // If the user-environment uses UTF8 codepage, use that
-    if (const auto local = std::locale("").name(); local[local.size() - 1] == '8') {
+    if (const auto local = std::locale("").name(); !local.empty() && local.back() == '8') {
         std::locale::global(std::locale("C.utf8"));
         return;
     }
 
+//FYI: macos uses utf8 encodig by deffault, no need to change that
 #if defined(_WIN32)
     // Use current locale, just change to UTF8 codepage
     std::locale::global(std::locale(".utf8"));
-#else
+#elif defined(__linux__)
     std::locale::global(std::locale("C.utf8"));
 #endif
 }
