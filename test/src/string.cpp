@@ -6,7 +6,6 @@
 
 TEST_CASE("sg::string: to_wstring()", "[sg::string]") {
     sg::locale::enable_utf8_encoding_globally();
-
     // Test values from:
     //   https://en.cppreference.com/w/c/string/multibyte/mbsrtowcs.html
     //   https://en.cppreference.com/w/cpp/string/basic_string/size.html
@@ -30,4 +29,19 @@ TEST_CASE("sg::string: to_wstring()", "[sg::string]") {
     // std::string
     REQUIRE(sg::string::to_wstring(input1).size() == input1_wlen);
     REQUIRE(sg::string::to_wstring(input2).size() == input2_wlen);
+}
+
+TEST_CASE("sg::string: to_string(wchar*)", "[sg::string]") {
+    sg::locale::enable_utf8_encoding_globally();
+
+    std::string narrowString1 = "zß水🍌";
+    std::string narrowString2 = "ハロー・ワールド";
+    std::wstring input1 = sg::string::to_wstring(narrowString1);
+    std::wstring input2 = sg::string::to_wstring(narrowString2);
+
+    // const wchar_t*
+    REQUIRE(sg::string::to_string(input1.c_str()) == narrowString1);
+    REQUIRE(sg::string::to_string(input2.c_str()) == narrowString2);
+
+    // std::string
 }

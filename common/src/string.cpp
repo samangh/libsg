@@ -30,6 +30,21 @@ std::wstring to_wstring(const char* input) {
     return result;
 }
 
+std::string to_string(const wchar_t* input) {
+    std::mbstate_t state{};
+
+    // number of chars needed (not including terminating null)
+    auto len = std::wcsrtombs(nullptr, &input, 0, &state);
+    THROW_ON_ERROR(len);
+
+    // Note, std::string::data() already contains a null at the end
+    auto result = std::string(len, '\0');
+    THROW_ON_ERROR(std::wcsrtombs(result.data(), &input, len, &state));
+
+    return result;
+}
+
 std::wstring to_wstring(const std::string& input) { return to_wstring(input.c_str()); }
+std::string to_string(const std::wstring& input) { return to_string(input.c_str());}
 
 } // namespace sg::common

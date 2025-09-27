@@ -20,5 +20,15 @@ namespace sg::string {
 /* Converts a string to a wide-string. Thread safe. */
 [[nodiscard]] SG_COMMON_EXPORT std::wstring to_wstring(const std::string& input);
 
+/** Converts a null-terminated wide-character sequence to it's narrow multibyte representation.
+ * Thread safe.
+ */
+[[nodiscard]] SG_COMMON_EXPORT std::string to_string(const wchar_t* input);
+
+/** Converts a null-terminated wide-character sequence to it's narrow multibyte representation.
+ * Thread safe.
+ */
+[[nodiscard]] SG_COMMON_EXPORT std::string to_string(const std::wstring& input);
+
 
 }
