@@ -94,6 +94,7 @@ target_sources(sg_common
     src/file.cpp
     src/process.cpp
     src/string.cpp
+    src/locale.cpp
 )
 
 if(LIBSG_ZSTD)

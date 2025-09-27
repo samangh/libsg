@@ -1,10 +1,11 @@
 #include <sg/string.h>
+#include <sg/locale.h>
 
 #include <catch2/catch_test_macros.hpp>
 #include <iostream>
 
 TEST_CASE("sg::string: to_wstring()", "[sg::string]") {
-    sg::common::set_global_utf8_codepage();
+    sg::locale::enable_utf8_encoding_globally();
 
     // Test values from:
     //   https://en.cppreference.com/w/c/string/multibyte/mbsrtowcs.html
@@ -23,10 +24,10 @@ TEST_CASE("sg::string: to_wstring()", "[sg::string]") {
     }
 
     // const char*
-    REQUIRE(sg::common::to_wstring(input1.c_str()).size() == input1_wlen);
-    REQUIRE(sg::common::to_wstring(input2.c_str()).size() == input2_wlen);
+    REQUIRE(sg::string::to_wstring(input1.c_str()).size() == input1_wlen);
+    REQUIRE(sg::string::to_wstring(input2.c_str()).size() == input2_wlen);
 
     // std::string
-    REQUIRE(sg::common::to_wstring(input1).size() == input1_wlen);
-    REQUIRE(sg::common::to_wstring(input2).size() == input2_wlen);
+    REQUIRE(sg::string::to_wstring(input1).size() == input1_wlen);
+    REQUIRE(sg::string::to_wstring(input2).size() == input2_wlen);
 }
