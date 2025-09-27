@@ -2,6 +2,7 @@
 
 #include <cstring>
 #include <cwchar>
+#include <locale>
 #include <stdexcept>
 #include <string>
 
@@ -16,7 +17,7 @@ namespace sg::common {
     } while (0)
 
 std::wstring to_wstring(const char* input) {
-    thread_local auto state = std::mbstate_t();
+    std::mbstate_t state{};
 
     // number of wchars needed (not including terminating null)
     auto len = std::mbsrtowcs(nullptr, &input, 0, &state);
@@ -28,8 +29,26 @@ std::wstring to_wstring(const char* input) {
 
     return result;
 }
-std::wstring to_wstring(const std::string& input) {
-    return to_wstring(input.c_str());
+
+std::wstring to_wstring(const std::string& input) { return to_wstring(input.c_str()); }
+
+void set_global_utf8_codepage() {
+    // If default locale uses UTF8 codepage, then exit
+    if (const auto local = std::locale().name(); local[local.size() - 1] == '8')
+        return;
+
+    // If the user-environment uses UTF8 codepage, use that
+    if (const auto local = std::locale("").name(); local[local.size() - 1] == '8') {
+        std::locale::global(std::locale("C.utf8"));
+        return;
+    }
+
+#if defined(_WIN32)
+    // Use current locale, just change to UTF8 codepage
+    std::locale::global(std::locale(".utf8"));
+#else
+    std::locale::global(std::locale("C.utf8"));
+#endif
 }
 
 } // namespace sg::common
