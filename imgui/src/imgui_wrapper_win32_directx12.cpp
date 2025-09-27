@@ -4,6 +4,7 @@
 #if defined(LIBSG_IMGUI_DIRECTX)
 
 #include "sg/imgui/imgui_wrapper_win32_directx12.h"
+#include "sg/string.h"
 
 #include <backends/imgui_impl_dx12.h>
 #include <backends/imgui_impl_win32.h>
@@ -357,13 +358,13 @@ void ImGuiWrapper_Win32_DirectX12::start(const std::string &title)
     float main_scale = ImGui_ImplWin32_GetDpiScaleForMonitor(::MonitorFromPoint(POINT{ 0, 0 }, MONITOR_DEFAULTTOPRIMARY));
 
     // Create application window
-    WNDCLASSEXW wc = { sizeof(wc), CS_CLASSDC, WndProc, 0L, 0L, GetModuleHandle(nullptr), nullptr, nullptr, nullptr, nullptr, L"ImGui Example", nullptr };
-    ::RegisterClassExW(&wc);
     /******************
      * ADDED BY SAMAN *
      ******************/
-    // modified to include title
-    HWND hwnd = ::CreateWindowW(wc.lpszClassName, L"Title", WS_OVERLAPPEDWINDOW, 100, 100, (int)(1280 * main_scale), (int)(800 * main_scale), nullptr, nullptr, wc.hInstance, nullptr);
+    // - modified to include title
+    WNDCLASSEXW wc = { sizeof(wc), CS_CLASSDC, WndProc, 0L, 0L, GetModuleHandle(nullptr), nullptr, nullptr, nullptr, nullptr, sg::common::to_wstring(title).c_str(), nullptr };
+    ::RegisterClassExW(&wc);
+    HWND hwnd = ::CreateWindowW(wc.lpszClassName, sg::common::to_wstring(title).c_str(), WS_OVERLAPPEDWINDOW, 100, 100, (int)(1280 * main_scale), (int)(800 * main_scale), nullptr, nullptr, wc.hInstance, nullptr);
     /******************/
 
     // Initialize Direct3D
