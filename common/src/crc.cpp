@@ -29,10 +29,10 @@ uint32_t crc32c(const void* data, std::size_t length, uint32_t remainder) {
     return crc32c_impl(remainder, static_cast<const char*>(data), length);
 #elif defined(HAVE_HARDWARE_CRC32C_32)
     return ~crc32c_hardware_32bit(data, length, ~remainder);
-#elif defined(HAVE_HARDWARE_CRC32C_ARMV7)
-    return ~crc32c_hardware_armv7(data, length, ~remainder);
 #elif defined(HAVE_HARDWARE_CRC32C_ARMV8)
     return ~crc32c_hardware_armv8(data, length, ~remainder);
+#elif defined(HAVE_HARDWARE_CRC32C_ARMV7)
+    return ~crc32c_hardware_armv7(data, length, ~remainder);
 #else
     static auto pTbl = compute_tabular_method_tables(0x82f63b78U);
     return ~crc32c_tabular(data, length, ~remainder, pTbl.get());
