@@ -1,6 +1,8 @@
 #pragma once
 
+#include "buffer.h"
 #include "sg/export/common.h"
+
 #include <string>
 
 namespace sg::string {
@@ -30,5 +32,5 @@ namespace sg::string {
  */
 [[nodiscard]] SG_COMMON_EXPORT std::string to_string(const std::wstring& input);
 
-
+[[nodiscard]] SG_COMMON_EXPORT std::string to_string(const sg::IBuffer<std::byte>& input);
 }

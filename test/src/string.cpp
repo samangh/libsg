@@ -45,3 +45,14 @@ TEST_CASE("sg::string: to_string(wchar*)", "[sg::string]") {
 
     // std::string
 }
+
+TEST_CASE("sg::string: to_string(const sg::IBuffer<std::byte>&)", "[sg::string]") {
+    auto buff = sg::make_shared_opaque_buffer<std::byte>(5);
+    buff[0]= static_cast<std::byte>('h');
+    buff[1]= static_cast<std::byte>('e');
+    buff[2]= static_cast<std::byte>('l');
+    buff[3]= static_cast<std::byte>('l');
+    buff[4]= static_cast<std::byte>('o');
+
+    REQUIRE(sg::string::to_string(buff) == "hello");
+}
