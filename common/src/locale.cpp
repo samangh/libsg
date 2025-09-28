@@ -59,7 +59,7 @@ void enable_utf8_encoding_globally() {
     // Try different possibilities one by one until one works
     #if defined(_WIN32)
     // Use current locale, just change to UTF8 codepage (Windows only)
-    TRY_EXIT_ON_SUCCESS(set_global_locale_ctype(".UTF-8"));
+    TRY_EXIT_ON_SUCCESS(set_ctype_globally(".UTF-8"));
     #endif
     TRY_EXIT_ON_SUCCESS(set_ctype_globally("C.UTF-8"));
     TRY_EXIT_ON_SUCCESS(set_ctype_globally("en_US.UTF-8"));
