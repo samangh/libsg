@@ -10,12 +10,12 @@ NamespaceIndentation: Inner
 #AlignConsecutiveDeclarations: true
 AlignConsecutiveAssignments: Consecutive
 
-# Have all arguments/parameters in one line, or one per line
-BinPackArguments: false
-BinPackParameters: false
+## Have all arguments/parameters in one line, or one per line
+#BinPackArguments: false
+BinPackParameters: BinPack
 
 ## Only valid in clang >19
-# BreakTemplateDeclarations: 'Yes'
+BreakTemplateDeclarations: 'Yes'
 
 IncludeBlocks: Regroup
 
