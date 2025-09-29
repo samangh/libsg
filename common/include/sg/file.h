@@ -16,7 +16,7 @@ SG_COMMON_EXPORT size_t read(const std::filesystem::path& path,
                                      std::byte* buffer,
                                      size_t count,
                                      std::ios_base::openmode mode = std::ios::binary |
-                                                                    std::ios::out);
+                                                                    std::ios::in);
 
 SG_COMMON_EXPORT void write(const std::filesystem::path& path,
                             const std::byte* buffer,
