@@ -1,4 +1,5 @@
 #include <catch2/catch_test_macros.hpp>
+#include <catch2/catch_template_test_macros.hpp>
 
 #include <sg/enumeration.h>
 
@@ -10,6 +11,12 @@ enum class test_enum :int{
 
 enum class test_enum2 :int{
     E1 =1 ,
+    E2 =2,
+    E4 =4
+};
+
+enum test_c_enum {
+    E1 =1,
     E2 =2,
     E4 =4
 };
@@ -34,12 +41,13 @@ TEST_CASE("sg::common::enumeration check operator&(...)", "[sg::common::enumerat
     REQUIRE(static_cast<int>(b & test_enum::E4)==0);
 }
 
-TEST_CASE("sg::common::enumeration check contains(...)", "[sg::common::enumeration]") {
+TEMPLATE_TEST_CASE("sg::common::enumeration check contains(...)", "[sg::common::enumeration]",
+                   test_enum, test_c_enum) {
     using namespace sg::enumeration;
-    test_enum a = test_enum::E1 | test_enum::E2;
-    REQUIRE(contains(a, test_enum::E1));
-    REQUIRE(contains(a, test_enum::E2));
-    REQUIRE(!contains(a, test_enum::E4));
+    TestType a = TestType::E1 | TestType::E2;
+    REQUIRE(contains(a, TestType::E1));
+    REQUIRE(contains(a, TestType::E2));
+    REQUIRE(!contains(a, TestType::E4));
 }
 
 TEST_CASE("sg::common::enumeration check underlying_value(...)", "[sg::common::enumeration]") {

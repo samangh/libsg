@@ -31,11 +31,8 @@ template <typename enumT>
 }
 
 template <typename enumT>
-    requires std::is_enum_v<enumT>
 [[nodiscard]] bool contains(enumT enumeration, enumT enum_to_check) {
-    using T = std::underlying_type_t<enumT>;
-    return (static_cast<T>(enumeration) & static_cast<T>(enum_to_check)) ==
-           static_cast<T>(enum_to_check);
+    return ((enumeration & enum_to_check) == enum_to_check);
 }
 
 template <typename enumT, typename T = std::underlying_type_t<enumT>>
