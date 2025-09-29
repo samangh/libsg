@@ -14,7 +14,7 @@ TEST_CASE("sg::file get_contents(const std::filesystem::path&)", "[sg::file]") {
     myfile << content;
     myfile.close();
 
-    auto readback = sg::common::file::get_contents(path);
+    auto readback = sg::common::file::read(path);
     std::string redbackStr((char*)(&*readback.begin()), (char*)(&*readback.end()));
     REQUIRE(redbackStr==content);
 }
@@ -29,7 +29,7 @@ TEST_CASE("sg::file get_contents(const std::filesystem::path&, std::byte*, size_
     myfile.close();
 
     auto buffer = sg::make_shared_c_buffer<std::byte>(content.size());
-    sg::common::file::get_contents(path, buffer.get(), buffer.size());
+    sg::common::file::read(path, buffer.get(), buffer.size());
     std::string redbackStr((char*)(&*buffer.begin()), (char*)(&*buffer.end()));
 
     REQUIRE(redbackStr==content);
@@ -41,7 +41,7 @@ TEST_CASE("sg::file void write(..., const std::byte*, ...)", "[sg::file]") {
 
     sg::common::file::write(path, (const std::byte*)content.data(), content.size());
 
-    auto readback = sg::common::file::get_contents(path);
+    auto readback = sg::common::file::read(path);
     std::string redbackStr((char*)(&*readback.begin()), (char*)(&*readback.end()));
 
     REQUIRE(redbackStr==content);
