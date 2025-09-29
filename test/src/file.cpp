@@ -34,3 +34,15 @@ TEST_CASE("sg::file get_contents(const std::filesystem::path&, std::byte*, size_
 
     REQUIRE(redbackStr==content);
 }
+
+TEST_CASE("sg::file void write(..., const std::byte*, ...)", "[sg::file]") {
+    std::filesystem::path path = "test.txt";
+    std::string content = "test string";
+
+    sg::common::file::write(path, (const std::byte*)content.data(), content.size());
+
+    auto readback = sg::common::file::get_contents(path);
+    std::string redbackStr((char*)(&*readback.begin()), (char*)(&*readback.end()));
+
+    REQUIRE(redbackStr==content);
+}
