@@ -64,6 +64,8 @@ void enable_utf8_encoding_globally() {
     TRY_EXIT_ON_SUCCESS(set_ctype_globally("C.UTF-8"));
     TRY_EXIT_ON_SUCCESS(set_ctype_globally("en_US.UTF-8"));
     TRY_EXIT_ON_SUCCESS(set_ctype_globally("en_GB.UTF-8"));
+
+    throw std::runtime_error("could not set a locale with UTF8 encoding");
 }
 
 }

@@ -60,6 +60,7 @@ target_sources(sg_test
     src/process.cpp
     src/string.cpp
     src/file.cpp
+    src/locale.cpp
 )
 
 ##
