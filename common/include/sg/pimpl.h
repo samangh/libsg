@@ -13,13 +13,14 @@ namespace sg {
  * @brief   Implements pimpl algorithm.
  *
  * Use like follows:
- *
+ *   \code{.cpp}
  *      class public_facing_class {
  *        struct impl;
  *        sg::pimpl<impl> pimpl;
  *
  *        ~public_facing_class();
  *      }
+ *   \endcode
  *
  * Note that the destructor must be in the implementation, as the
  * destructor needs to know the size of impl
@@ -28,7 +29,7 @@ namespace sg {
  */
 template <typename T> class pimpl {
     /**
-     * @brief The implementation pointer, wrapped in propogage_const.
+     * @brief The implementation pointer, wrapped in propagate_const.
      *
      * This is useful, otherwise the compiler will not catch changes
      * to member variables of #imp within const member functions.
