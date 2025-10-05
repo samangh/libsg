@@ -111,7 +111,6 @@ setup_library(
   ## Options
   GENERATE_EXPORT_HEADER
   STATIC
-  DONT_RECURSE_SRC_DIR
 )
 
 
