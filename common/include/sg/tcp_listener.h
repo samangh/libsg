@@ -1,7 +1,7 @@
 #pragma once
 
 #include "sg/buffer.h"
-#include "sg/export/common.h"
+#include <sg/export/common.h>
 #include "sg/pimpl.h"
 #include "sg/net.h"
 

@@ -1,7 +1,7 @@
 #pragma once
 
 #include "weak_function.h"
-#include "sg/export/common.h"
+#include <sg/export/common.h>
 
 #include <map>
 #include <memory>

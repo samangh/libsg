@@ -1,7 +1,7 @@
 #pragma once
 
 #include "pimpl.h"
-#include "sg/export/common.h"
+#include <sg/export/common.h>
 
 #include "accurate_sleeper.h"
 
