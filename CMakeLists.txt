@@ -8,19 +8,10 @@ project(libsg
 set(NAMESPACE SG)
 
 ##
-## CMake module paths
-##
-list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_LIST_DIR}/external/libsg_cmake/cmake")
-
-##
-## Pre-amble
-##
-include(DefaultPreamble)
-
-##
 ## Additional Options
 ##
 option(LIBSG_BUILD_TESTING "Build test suite" ${BUILD_TESTING})
+option(LIBSG_BUILD_DOCS "Generate documentation" OFF)
 option(LIBSG_IMGUI "Include IMGUI stuff" ON)
 option(LIBSG_ZSTD "Include zstd stuff" ON)
 
@@ -37,6 +28,19 @@ if(LIBSG_IMGUI)
     message(FATAL_ERROR "Need either OpenGL or DirectX for ImGUI")
   endif()
 endif()
+
+set(BUILD_DOCS ${LIBSG_BUILD_DOCS})
+
+##
+## CMake module paths
+##
+list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_LIST_DIR}/external/libsg_cmake/cmake")
+
+##
+## Pre-amble
+##
+include(DefaultPreamble)
+
 
 ##
 ## Packages
