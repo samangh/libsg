@@ -54,7 +54,26 @@ setup_library(
   DIRECTORY
      ${CMAKE_CURRENT_SOURCE_DIR}
 
-  SRC_FILES
+  SOURCES_PRIVATE
+    # ImGUi files
+    ${SRC_FILES}
+
+    src/utils.cpp
+    src/dialog_box.cpp
+    src/imgui_wrapper.cpp
+
+    # OpenGL
+    $<$<BOOL:${LIBSG_IMGUI_OPENGL}>:
+      src/imgui_wrapper_sdl2_opengl3.cpp
+      ${imgui_SOURCE_DIR}/backends/imgui_impl_opengl3.cpp
+      ${imgui_SOURCE_DIR}/backends/imgui_impl_sdl2.cpp>
+
+    # DirectX
+    $<$<BOOL:${LIBSG_IMGUI_DIRECTX}>:
+      src/imgui_wrapper_win32_directx12.cpp
+      ${imgui_SOURCE_DIR}/backends/imgui_impl_win32.cpp
+      ${imgui_SOURCE_DIR}/backends/imgui_impl_dx12.cpp>
+
   INCLUDE_INTERFACE
   INCLUDE_PUBLIC
     $<BUILD_INTERFACE:${imgui_SOURCE_DIR}>
@@ -115,28 +134,3 @@ if(LIBSG_IMGUI_OPENGL)
     target_link_libraries(${TARGET} PUBLIC ${SDL2_LIBRARIES})
   endif()
 endif()
-
-##
-## Source Files
-##
-
-target_sources(${TARGET}
-  PRIVATE
-    # ImGUi files
-    ${SRC_FILES}
-
-    src/utils.cpp
-    src/dialog_box.cpp
-    src/imgui_wrapper.cpp
-
-    # OpenGL
-    $<$<BOOL:${LIBSG_IMGUI_OPENGL}>:
-      src/imgui_wrapper_sdl2_opengl3.cpp
-      ${imgui_SOURCE_DIR}/backends/imgui_impl_opengl3.cpp
-      ${imgui_SOURCE_DIR}/backends/imgui_impl_sdl2.cpp>
-
-    # DirectX
-    $<$<BOOL:${LIBSG_IMGUI_DIRECTX}>:
-      src/imgui_wrapper_win32_directx12.cpp
-      ${imgui_SOURCE_DIR}/backends/imgui_impl_win32.cpp
-      ${imgui_SOURCE_DIR}/backends/imgui_impl_dx12.cpp>)

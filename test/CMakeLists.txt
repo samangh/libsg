@@ -28,6 +28,20 @@ setup_executable(
   DIRECTORY
      ${CMAKE_CURRENT_SOURCE_DIR}
 
+  SOURCES_PRIVATE
+    src/tcp_server.cpp
+    src/data/channel_vector.cpp
+    src/ranges.cpp
+    src/enumeration.cpp
+    src/tcp_client.cpp
+    src/uuid.cpp
+    src/gettimeofday.cpp
+    src/cpu.cpp
+    src/process.cpp
+    src/string.cpp
+    src/file.cpp
+    src/locale.cpp
+
   INCLUDE_PUBLIC
     ${DP_THREAD_POOL_DIR}/include
   INCLUDE_PRIVATE
@@ -45,22 +59,6 @@ setup_executable(
 
   COMPILE_DEFINITIONS_PRIVATE
     $<$<BOOL:${BENCHMARK}>:BENCHMARK>
-)
-
-target_sources(sg_test
-  PRIVATE
-    src/tcp_server.cpp
-    src/data/channel_vector.cpp
-    src/ranges.cpp
-    src/enumeration.cpp
-    src/tcp_client.cpp
-    src/uuid.cpp
-    src/gettimeofday.cpp
-    src/cpu.cpp
-    src/process.cpp
-    src/string.cpp
-    src/file.cpp
-    src/locale.cpp
 )
 
 ##

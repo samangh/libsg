@@ -33,7 +33,32 @@ setup_library(
   NAMESPACE_TARGET
      common
   DIRECTORY
-     ${CMAKE_CURRENT_SOURCE_DIR}
+    ${CMAKE_CURRENT_SOURCE_DIR}
+
+  SOURCES_PRIVATE
+    src/accurate_sleeper.cpp
+    src/background_timer.cpp
+    src/bytes.cpp
+    src/cpu.cpp
+    src/file_writer.cpp
+    src/gettimeofday.cpp
+    src/net.cpp
+    src/notifiable_background_worker.cpp
+    src/progress.cpp
+    src/version.cpp
+    src/tcp_listener.cpp
+    src/libuv_wrapper.cpp
+    src/crc.cpp
+    src/tcp_session.cpp
+    src/tcp_server.cpp
+    src/tcp_context.cpp
+    src/tcp_client.cpp
+    src/uuid.cpp
+    src/file.cpp
+    src/process.cpp
+    src/string.cpp
+    src/locale.cpp
+    $<$<BOOL:${LIBSG_ZSTD}>:src/compression_zstd.cpp>
 
   INCLUDE_INTERFACE
   INCLUDE_PUBLIC
@@ -69,35 +94,3 @@ setup_library(
   DONT_RECURSE_SRC_DIR
   # STATIC
 )
-
-target_sources(sg_common
-  PRIVATE
-    src/accurate_sleeper.cpp
-    src/background_timer.cpp
-    src/bytes.cpp
-    src/cpu.cpp
-    src/file_writer.cpp
-    src/gettimeofday.cpp
-    src/net.cpp
-    src/notifiable_background_worker.cpp
-    src/progress.cpp
-    src/version.cpp
-    src/tcp_listener.cpp
-    src/libuv_wrapper.cpp
-    src/crc.cpp
-    src/tcp_session.cpp
-    src/tcp_server.cpp
-    src/tcp_context.cpp
-    src/tcp_client.cpp
-    src/uuid.cpp
-    src/file.cpp
-    src/process.cpp
-    src/string.cpp
-    src/locale.cpp
-)
-
-if(LIBSG_ZSTD)
-  target_sources(sg_common
-    PRIVATE
-      src/compression_zstd.cpp)
-endif()
