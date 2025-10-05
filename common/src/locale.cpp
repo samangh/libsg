@@ -52,9 +52,14 @@ void enable_utf8_encoding_globally() {
     // copy the CTYPE part from the user-environment
     //
     // Ane empty locale "" represents the user-defined environment locale.On *nix, this is inherited
-    // from the LANG, LC_ALL or LC_CTYPE environment variable.
-    if (localname_has_utf8(std::locale("").name()))
-        TRY_EXIT_ON_SUCCESS(set_ctype_globally(""));
+    // from the LANG, LC_ALL environment variable.
+    //
+    // Not: can throw exception if LC_ALL/LANG is not defined.
+    try {
+        if (localname_has_utf8(std::locale("").name()))
+            set_ctype_globally("");
+    } catch (...) {};
+
 
     // Try different possibilities one by one until one works
     #if defined(_WIN32)
