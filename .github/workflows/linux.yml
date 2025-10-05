@@ -74,8 +74,8 @@ jobs:
         working-directory: ${{github.workspace}}/build/test/CMakeFiles/sg_test.dir
         if: matrix.compiler.cc == 'gcc'
         run: |
-          # Run code generation
-          lcov --directory . --capture --output-file coverage.info
+          # Run Code Generation
+          lcov --ignore-errors mismatch --directory . --capture --output-file coverage.info
           lcov --remove coverage.info '*/test/*' --output-file coverage.info #filter test files
           lcov --remove coverage.info '/usr/*' --output-file coverage.info #filter system-files
           lcov --remove coverage.info '*/_deps/*' --output-file coverage.info #filter CPM deps
