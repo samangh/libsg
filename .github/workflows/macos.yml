@@ -34,7 +34,7 @@ jobs:
 
       - name: Install Packages
         run: |
-             brew install zstd uv boost fmt sdl2
+             brew install zstd uv boost fmt sdl2 doxygen graphviz
 
       - name: Run CMake
         working-directory: ${{github.workspace}}
@@ -45,7 +45,7 @@ jobs:
         run: |
              mkdir build
              cd build
-             cmake .. -DBUILD_SHARED_LIBS=${{matrix.type.build_shared_libs}} -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTING=ON -DBENCHMARK=ON -DIPO=ON -DARCH_NATIVE=ON
+             cmake .. -DBUILD_SHARED_LIBS=${{matrix.type.build_shared_libs}} -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTING=ON -DLIBSG_BUILD_DOCS=ON -Dbenchmark=On -DIPO=ON -DARCH_NATIVE=ON
       - name: Build
         working-directory: ${{github.workspace}}/build
         run: MAKEFLAGS=-j$(sysctl -n hw.logicalcpu) cmake --build .

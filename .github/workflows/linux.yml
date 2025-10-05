@@ -36,7 +36,7 @@ jobs:
       - name: Install Packages
         run: |
              sudo apt update
-             sudo apt install coreutils libboost-dev libsdl2-dev libuv1-dev libfmt-dev libzstd-dev
+             sudo apt install coreutils libboost-dev libsdl2-dev libuv1-dev libfmt-dev libzstd-dev doxygen graphviz
              sudo apt install lcov gcovr
              # brew install zstd
 
@@ -51,7 +51,7 @@ jobs:
         run: |
              mkdir build
              cd build
-             cmake .. -DBUILD_SHARED_LIBS=${{matrix.type.build_shared_libs}} -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTING=ON -DBENCHMARK=ON -DIPO=ON -DARCH_NATIVE=ON
+             cmake .. -DBUILD_SHARED_LIBS=${{matrix.type.build_shared_libs}} -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTING=ON -DLIBSG_BUILD_DOCS=ON -DBENCHMARK=ON -DIPO=ON -DARCH_NATIVE=ON
 
       - name: Build
         working-directory: ${{github.workspace}}/build
