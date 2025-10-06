@@ -26,14 +26,15 @@ class SG_COMMON_EXPORT notifiable_background_worker {
     /**
      * @brief notifiable_background_worker
      *
-     *        Notes:
-     *         * all callbacks are done on the worker thread.
-     *         * stop callback WILL NOT be called even if is an error
-     *           in the start callback.
-     *         * if there is an exception in the start callback, the start()
-     *           functon will throw
-     *         * exceptions in the task or stopcallbacks are
-     *           stored in future.
+     * Notes:
+	 *
+     *   - all callbacks are done on the worker thread.
+     *   - stop callback WILL NOT be called even if is an error
+     *     in the start callback.
+     *   - if there is an exception in the start callback, the start()
+     *     functon will throw
+     *   - exceptions in the task or stopcallbacks are
+     *     stored in future.
      *
      * @param interval_ns
      * @param task is the callback/action that is done on every iteration.
