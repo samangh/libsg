@@ -42,7 +42,8 @@ std::map<pid_t,Process> get_processes() {
                                               std::string(pe32.szExeFile) == "[System Process]"),
                         .thread_count      = static_cast<size_t>(pe32.cntThreads),
                         .name              = pe32.szExeFile,
-                        .cmdline           = {pe32.szExeFile}});
+                        .cmdline           = {pe32.szExeFile},
+                        .threads           = {}});
         } while (Process32Next(hProcessSnap, &pe32));
 
         /* loop through all threads */
