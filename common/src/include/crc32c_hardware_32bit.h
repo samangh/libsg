@@ -28,8 +28,6 @@ inline uint32_t crc32c_hardware_32bit(const void * data, uint32_t no_of_bytes, u
 
     if (no_of_bytes==1) {
         R = _mm_crc32_u8(R, *M);
-        no_of_bytes -=1;
-        M +=1;
     };
 
     return R;
