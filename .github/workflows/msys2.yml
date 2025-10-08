@@ -44,7 +44,7 @@ jobs:
              cd build
              # The Releae setting is a workaround vcpkg and
              # multi-release targets
-             cmake .. -DBUILD_SHARED_LIBS=ON -DBUILD_TESTING=ON -DBENCHMARK=ON -DCMAKE_BUILD_TYPE=Release -DARCH_NATIVE=ON
+             cmake .. -DBUILD_SHARED_LIBS=ON -DBUILD_TESTING=ON -DBUILD_DOCS=ON -DBENCHMARK=ON -DCMAKE_BUILD_TYPE=Release -DARCH_NATIVE=ON
 
       - name: Build
         working-directory: ${{github.workspace}}/build

@@ -10,10 +10,16 @@ set(NAMESPACE SG)
 ##
 ## Additional Options
 ##
-option(LIBSG_BUILD_TESTING "Build test suite" ${BUILD_TESTING})
-option(LIBSG_BUILD_DOCS "Generate documentation" OFF)
 option(LIBSG_IMGUI "Include IMGUI stuff" ON)
 option(LIBSG_ZSTD "Include zstd stuff" ON)
+
+# If not top-level project, disable test and documentation by default
+if(NOT PROJECT_IS_TOP_LEVEL)
+  option(LIBSG_BUILD_TESTING "Build test suite" OFF)
+  option(LIBSG_BUILD_DOCS "Generate documentation" OFF)
+  set(BUILD_DOCS ${LIBSG_BUILD_DOCS})
+  set(BUILD_TESTING ${LIBSG_BUILD_TESTING})
+endif()
 
 if(LIBSG_IMGUI)
   if(WIN32)
@@ -28,8 +34,6 @@ if(LIBSG_IMGUI)
     message(FATAL_ERROR "Need either OpenGL or DirectX for ImGUI")
   endif()
 endif()
-
-set(BUILD_DOCS ${LIBSG_BUILD_DOCS})
 
 ##
 ## CMake module paths
@@ -69,7 +73,7 @@ if(LIBSG_IMGUI)
 endif()
 
 include(CTest)
-if(LIBSG_BUILD_TESTING)
+if(BUILD_TESTING)
   add_subdirectory(test)
 endif()
 
