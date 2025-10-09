@@ -29,18 +29,29 @@ setup_executable(
      ${CMAKE_CURRENT_SOURCE_DIR}
 
   SOURCES_PRIVATE
-    src/tcp_server.cpp
     src/data/channel_vector.cpp
-    src/ranges.cpp
-    src/enumeration.cpp
-    src/tcp_client.cpp
-    src/uuid.cpp
-    src/gettimeofday.cpp
-    src/cpu.cpp
-    src/process.cpp
-    src/string.cpp
-    src/file.cpp
+    src/tcp_server.cpp
+    src/state_machine.cpp
     src/locale.cpp
+    src/file.cpp
+    src/net.cpp
+    src/tcp_client.cpp
+    src/string.cpp
+    src/cpu.cpp
+    src/tcp_listener.cpp
+    src/rolling_contiguous_buffer.cpp
+    src/bytes.cpp
+    src/process.cpp
+    src/notifiable_background_worker.cpp
+    src/compression_zstd.cpp
+    src/ranges.cpp
+    src/gettimeofday.cpp
+    src/enumeration.cpp
+    src/format.cpp
+    src/crc.cpp
+    src/libuv_wrapper.cpp
+    src/file_writer.cpp
+    src/uuid.cpp
 
   INCLUDE_PUBLIC
     ${DP_THREAD_POOL_DIR}/include
