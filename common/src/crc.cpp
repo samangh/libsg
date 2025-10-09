@@ -2,9 +2,11 @@
 #include "include/crc32c_hardware_intel.h"
 #include "include/crc32c_hardware_armv7.h"
 #include "include/crc32c_hardware_armv8.h"
-#include "include/crc32c_tabular.h"
-
 #include "include/crc32_hardware_armv7.h"
+
+#if !defined(CPU_SUPPORTS_ARM_CRC)
+#include "include/crc32c_tabular.h"
+#endif
 
 #include <boost/crc.hpp>
 #include <sg/bytes.h>
