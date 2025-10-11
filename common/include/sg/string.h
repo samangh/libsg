@@ -7,6 +7,12 @@
 
 namespace sg::string {
 
+[[nodiscard]] SG_COMMON_EXPORT std::string to_string(const sg::IBuffer<std::byte>& input);
+
+/*******************************************************
+ * wide-character conversion functions
+ *******************************************************/
+
 /* Note, you MUST define a locale be converting to/from wide strings. This is so that the system
  * knows how represent the Unicode code points in raw bytes (i.e. the codepage)
  *
@@ -23,14 +29,18 @@ namespace sg::string {
 [[nodiscard]] SG_COMMON_EXPORT std::wstring to_wstring(const std::string& input);
 
 /** Converts a null-terminated wide-character sequence to it's narrow multibyte representation.
- * Thread safe.
- */
+ * Thread safe. */
 [[nodiscard]] SG_COMMON_EXPORT std::string to_string(const wchar_t* input);
 
 /** Converts a null-terminated wide-character sequence to it's narrow multibyte representation.
- * Thread safe.
- */
+ * Thread safe. */
 [[nodiscard]] SG_COMMON_EXPORT std::string to_string(const std::wstring& input);
 
-[[nodiscard]] SG_COMMON_EXPORT std::string to_string(const sg::IBuffer<std::byte>& input);
+/*******************************************************
+ * case-conversion (ASCII)
+ *******************************************************/
+
+[[nodiscard]] SG_COMMON_EXPORT std::string toupper(std::string s);
+[[nodiscard]] SG_COMMON_EXPORT std::string tolower(std::string s);
+
 }
