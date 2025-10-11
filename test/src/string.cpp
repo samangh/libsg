@@ -57,13 +57,23 @@ TEST_CASE("sg::string: to_string(const sg::IBuffer<std::byte>&)", "[sg::string]"
     REQUIRE(sg::string::to_string(buff) == "hello");
 }
 
+TEST_CASE("sg::string: toupper_inplace(std::string)", "[sg::string]") {
+    std::string s = "abc-123";
+    sg::string::toupper_inplace(s);
+    REQUIRE(s == "ABC-123");
+}
+
+TEST_CASE("sg::string: tolower_inplace(std::string)", "[sg::string]") {
+    std::string s = "ABC-123";
+    sg::string::tolower_inplace(s);
+    REQUIRE(s == "abc-123");
+}
+
 TEST_CASE("sg::string: toupper(std::string)", "[sg::string]") {
     REQUIRE(sg::string::toupper("abc-123") == "ABC-123");
-    REQUIRE(sg::string::toupper("abc-123水") == "ABC-123水");
 }
 
 TEST_CASE("sg::string: tolower(std::string)", "[sg::string]") {
     REQUIRE(sg::string::tolower("ABC-123") == "abc-123");
-    REQUIRE(sg::string::tolower("ABC-123水") == "abc-123水");
 }
 

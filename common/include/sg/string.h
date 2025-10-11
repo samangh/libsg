@@ -40,6 +40,8 @@ namespace sg::string {
  * case-conversion (ASCII)
  *******************************************************/
 
+SG_COMMON_EXPORT void toupper_inplace(std::string& refStr);
+SG_COMMON_EXPORT void tolower_inplace(std::string& refStr);
 [[nodiscard]] SG_COMMON_EXPORT std::string toupper(std::string s);
 [[nodiscard]] SG_COMMON_EXPORT std::string tolower(std::string s);
 

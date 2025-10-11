@@ -51,14 +51,24 @@ std::string to_string(const sg::IBuffer<std::byte>& input) {
     return {(const char*)(&*input.begin()), (const char*)(&*input.end())};
 }
 
+void toupper_inplace(std::string& refStr) {
+    std::ranges::transform(refStr, refStr.begin(),
+                           [](const unsigned char c) { return std::toupper(c); });
+}
+void tolower_inplace(std::string& refStr) {
+    std::ranges::transform(refStr, refStr.begin(),
+                       [](const unsigned char c) { return std::tolower(c); });
+}
+
 std::string toupper(std::string s) {
-    std::ranges::transform(s, s.begin(), [](const unsigned char c) { return std::toupper(c); });
+    toupper_inplace(s);
     return s;
 }
 
 std::string tolower(std::string s) {
-    std::ranges::transform(s, s.begin(), [](const unsigned char c) { return std::tolower(c); });
+    tolower_inplace(s);
     return s;
 }
+
 
 } // namespace sg::common
