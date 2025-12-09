@@ -1,6 +1,10 @@
 #pragma once
 
-#include  <chrono>
+#include <chrono>
+#include <version>
+#if __cpp_lib_chrono < 201907L
+    #include "internal/date/date.h"
+#endif
 
 namespace sg::time {
 
@@ -15,9 +19,13 @@ namespace sg::time {
 template <typename TTimePoint = std::chrono::sys_time<std::chrono::system_clock::duration>>
 [[nodiscard]] TTimePoint from_string(const std::string& input, const std::string& format) {
     TTimePoint t;
-
     std::istringstream is{input};
-    std::chrono::from_stream(is, format.c_str(), t);
+
+    #if (__cpp_lib_chrono >= 201907L)
+        std::chrono::from_stream(is, format.c_str(), t);
+    #else
+        date::from_stream(is, format.c_str(), t);
+    #endif
 
     if (is.fail())
         throw std::invalid_argument("could not parse string to a time_point");
