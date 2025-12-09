@@ -52,6 +52,7 @@ setup_executable(
     src/libuv_wrapper.cpp
     src/file_writer.cpp
     src/uuid.cpp
+    src/time.cpp
 
   INCLUDE_PUBLIC
     ${DP_THREAD_POOL_DIR}/include
