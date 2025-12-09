@@ -47,7 +47,7 @@ std::chrono::time_point<TClock> from_epoch(double epochSeconds) {
     /* cast to duration of the clock */
     auto durCast = std::chrono::duration_cast<typename TClock::duration>(sinceEpoch);
 
-    return std::chrono::sys_time(durCast);
+    return std::chrono::sys_time<typename TClock::duration>(durCast);
 }
 
 /** Converts time-pint to an epoch
