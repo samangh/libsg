@@ -1,7 +1,12 @@
 #pragma once
 
+#include "concepts.h"
+
 #include <chrono>
 #include <version>
+
+// Older compilers don't have the std::chrono::from_stream, so use an implementation
+// from https://github.com/HowardHinnant/date
 #if __cpp_lib_chrono < 201907L
     #include "internal/date/date.h"
 #endif
@@ -17,6 +22,7 @@ namespace sg::time {
  * @return
  */
 template <typename TTimePoint = std::chrono::sys_time<std::chrono::system_clock::duration>>
+requires(sg::concepts::is_time_point_v<TTimePoint>)
 [[nodiscard]] TTimePoint from_string(const std::string& input, const std::string& format) {
     TTimePoint t;
     std::istringstream is{input};
@@ -35,24 +41,24 @@ template <typename TTimePoint = std::chrono::sys_time<std::chrono::system_clock:
 
 /** Converts from epoch to a time point.
  *
- * @tparam TClock Clock to use, leave as default unless you want to use non-POSIX epoch.
- * @param epochSeconds Epoch is seconds
+ * @tparam TTimePoint Type of the time_point to create. Leave as default for a POSIX epoch.
+ * @param epochSeconds Epoch is in seconds
  * @return time-point in the desired clock
  */
-template <typename TClock = std::chrono::system_clock>
-std::chrono::time_point<TClock> from_epoch(double epochSeconds) {
+template <typename TTimePoint = std::chrono::time_point<std::chrono::system_clock>>
+TTimePoint from_epoch(double epochSeconds) {
     /* create a duration, assuming the epoch is in seconds */
     std::chrono::duration<double, std::ratio<1>> sinceEpoch(epochSeconds);
 
     /* cast to duration of the clock */
-    auto durCast = std::chrono::duration_cast<typename TClock::duration>(sinceEpoch);
+    auto durCast = std::chrono::duration_cast<typename TTimePoint::duration>(sinceEpoch);
 
-    return std::chrono::sys_time<typename TClock::duration>(durCast);
+    return TTimePoint(durCast);
 }
 
 /** Converts time-pint to an epoch
  *
- * @tparam TTimePoint Type of time-point, you usually don't have to specify this.
+ * @tparam TTimePoint Type of input time_point.
  * @param timeIn time-point (e.g. generated from std::chrono::system_clock::now())
  * @return Epoch in seconds.
  */
