@@ -135,12 +135,27 @@ template <static_string fmt, typename TDuration = Default>
         return fmt::format(fmt.str, std::chrono::round<TDuration>(time_point));
 }
 
-/* Converts a time_point to a ISO-8061 text representation, with second resolution and time-zone. */
+/** Formats a time_point to a string, not showing the timezone. Resolution to seconds.
+ *
+ * Example result: "2025-01-01 01:02:01"
+ */
 template <typename TTimePoint>
 [[nodiscard]] std::string to_string(const TTimePoint& time_point)
 {
-    return to_string<"{:%F %T%z}", std::chrono::seconds>(time_point);
+    return to_string<"{:%F %T}", std::chrono::seconds>(time_point);
 }
+
+/** Converts time_point to ISO 8061 format, with second precision
+ *
+ * Example result: "2025-01-01T01:02:01+0000"
+ */
+template <typename TTimePoint>
+[[nodiscard]] std::string to_string_iso(const TTimePoint& time_point)
+{
+    return to_string<"{:%FT%T%z}", std::chrono::seconds>(time_point);
+}
+
+
 /*************************************************************************************************/
 
 }  // namespace sg::format

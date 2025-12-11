@@ -64,9 +64,12 @@ TEST_CASE("sg::common sg::format: check to_hex(..)", "[sg::format]") {
 
 TEST_CASE("sg::common sg::format: check to_string(time_point)", "[sg::format]") {
     auto t = sg::time::from_string("2025-01-01 01:02:01.1", "%F %T");
-    REQUIRE(sg::format::to_string(t) == "2025-01-01 01:02:01+0000");
-    REQUIRE(sg::format::to_string<"{:%F %T%z}", std::chrono::seconds>(t)
-        == "2025-01-01 01:02:01+0000");
+    auto t_ms = sg::time::from_string("2025-01-01 01:02:01.111", "%F %H:%M:%6S");
+
+    REQUIRE(sg::format::to_string(t)     == "2025-01-01 01:02:01");
+    REQUIRE(sg::format::to_string_iso(t) == "2025-01-01T01:02:01+0000");
+    REQUIRE(sg::format::to_string<"{:%F %T}", std::chrono::milliseconds>(t_ms)
+        == "2025-01-01 01:02:01.111");
 
 }
 
