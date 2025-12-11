@@ -5,6 +5,7 @@
 [submodule "external/thread-pool"]
 	path = external/thread-pool
 	url = https://github.com/DeveloperPaul123/thread-pool.git
+	branch = main
 [submodule "external/libsg_cmake"]
 	path = external/libsg_cmake
 	url = https://github.com/samangh/libsg_cmake.git
