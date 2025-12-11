@@ -1,9 +1,14 @@
-#include <sg/format.h>
+#include "sg/time.h"
 
 #include <array>
 #include <catch2/catch_test_macros.hpp>
+#include <sg/format.h>
 #include <string>
 #include <vector>
+
+#include <fmt/core.h>
+#include <fmt/chrono.h>
+
 
 TEST_CASE("sg::common sg::format: check to_hex(..) with ranges", "[sg::format]") {
     const std::vector<std::byte> byte_vec{std::byte{0x01},
@@ -55,3 +60,13 @@ TEST_CASE("sg::common sg::format: check to_hex(..)", "[sg::format]") {
     /* check separator */
     REQUIRE("11 00 FF EE DD CC BB AA" == sg::format::to_hex(uint64_t(0xAABBCCDDEEFF0011), " "));
 }
+
+
+TEST_CASE("sg::common sg::format: check to_string(time_point)", "[sg::format]") {
+    auto t = sg::time::from_string("2025-01-01 01:02:01.1", "%F %T");
+    REQUIRE(sg::format::to_string(t) == "2025-01-01 01:02:01+0000");
+    REQUIRE(sg::format::to_string<"{:%F %T%z}", std::chrono::seconds>(t)
+        == "2025-01-01 01:02:01+0000");
+
+}
+

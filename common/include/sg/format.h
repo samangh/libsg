@@ -1,17 +1,53 @@
 #pragma once
 
 #include "bytes.h"
+#include "concepts.h"
 #include "ranges.h"
 
+#include <fmt/core.h>
 #include <fmt/compile.h>
 #include <fmt/format.h>
 #include <fmt/ranges.h>
-
+#include <fmt/chrono.h>
 #include <ranges>
 #include <string>
 #include <type_traits>
 
 namespace sg::format {
+
+class Default final {};
+
+/*************************************************************************************************
+ * compile-time format string forwarder
+ *************************************************************************************************/
+
+/* Allows for passing a string a template argument. Useful for passing fmt format-strings across
+ * functions.
+ *
+ * Note: if you want to generate a fmt format-string during runtime, use fmt::runtime(...).
+ *
+ * See https://stackoverflow.com/questions/68675303/how-to-create-a-function-that-forwards-its-arguments-to-fmtformat-keeping-the
+ */
+template <std::size_t N>
+struct static_string {
+    char str[N] {};
+    constexpr static_string(const char (&s)[N]) {
+        std::ranges::copy(s, str);
+    }
+};
+
+template <static_string fmt, typename... Args>
+auto format(Args&&... args) {
+    return std::format(fmt.str, std::forward<Args>(args)...);
+}
+
+template <static_string fmt, typename... Args>
+auto format_compiled(Args&&... args) {
+    return std::format(FMT_COMPILE(fmt.str), std::forward<Args>(args)...);
+}
+
+/*************************************************************************************************/
+
 
 /*!
  * \brief Convert container items to hex string.
@@ -74,8 +110,37 @@ template <typename T>
 
 /* Fast to string conversion */
 template <typename T>
+requires(!sg::concepts::is_time_point_v<T>)
 [[nodiscard]] inline std::string to_string(const T& val) {
     return (fmt::to_string(val));
 }
+
+/*************************************************************************************************
+ * time_point to string conversion
+ *************************************************************************************************/
+
+/** Converts a time_point to text, with a given format.
+ *
+ * @tparam fmt fmt-style format string (e.g. "{:%F %T%z}")
+ * @tparam TDuration resolution of time duration, leave as default to use same resolution as the time
+ * point. Alternative pass a duration (e.g. std::chrono::seconds)
+ * @param time_point time_point (e.g. std::chrono::system_clock::now())
+ * @return
+ */
+template <static_string fmt, typename TDuration = Default>
+[[nodiscard]] std::string to_string(const sg::concepts::is_time_point_v auto& time_point) {
+    if constexpr (std::is_same_v<TDuration, Default>) {
+        return fmt::format(fmt.str, time_point);
+    } else
+        return fmt::format(fmt.str, std::chrono::round<TDuration>(time_point));
+}
+
+/* Converts a time_point to a ISO-8061 text representation, with second resolution and time-zone. */
+template <typename TTimePoint>
+[[nodiscard]] std::string to_string(const TTimePoint& time_point)
+{
+    return to_string<"{:%F %T%z}", std::chrono::seconds>(time_point);
+}
+/*************************************************************************************************/
 
 }  // namespace sg::format

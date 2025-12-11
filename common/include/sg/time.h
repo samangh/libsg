@@ -3,6 +3,7 @@
 #include "concepts.h"
 
 #include <chrono>
+#include <fmt/format.h>
 #include <version>
 
 // Older compilers don't have the std::chrono::from_stream, so use an implementation
