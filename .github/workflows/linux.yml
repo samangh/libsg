@@ -16,7 +16,7 @@ jobs:
     strategy:
       fail-fast: true
       matrix:
-        os: [ubuntu-24.04]
+        os: [ubuntu-latest]
         type:
           - { build_shared_libs: ON, label: shared}
           - { build_shared_libs: OFF, label: static}
@@ -48,10 +48,13 @@ jobs:
           CXXFLAGS: "-fprofile-update=prefer-atomic"
           CFLAGS: "-fprofile-update=prefer-atomic"
           # CMAKE_PREFIX_PATH: /home/linuxbrew
+        # Download libfmt from source, as the packaged one is too old
         run: |
              mkdir build
              cd build
-             cmake .. -DBUILD_SHARED_LIBS=${{matrix.type.build_shared_libs}} -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTING=ON -DBUILD_DOCS=ON -DBENCHMARK=ON -DIPO=ON -DARCH_NATIVE=ON
+             cmake .. -DBUILD_SHARED_LIBS=${{matrix.type.build_shared_libs}} \
+                   -DCMAKE_BUILD_TYPE=Release -DIPO=ON -DARCH_NATIVE=ON \
+                   -DBUILD_TESTING=ON -DBUILD_DOCS=ON -DOWN_FMT=ON
 
       - name: Build
         working-directory: ${{github.workspace}}/build
