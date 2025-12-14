@@ -53,7 +53,7 @@ include(DefaultPreamble)
 # Boost is required
 find_package(Boost REQUIRED CONFIG)
 
-# Some platforms don't have a Findfmt file, so search if the user has used ONE_LIBFMT first
+# Some platforms don't have a Findfmt file, so search if the user has used OWN_FMT first
 if(NOT OWN_FMT)
   find_package(fmt REQUIRED)
 endif()
