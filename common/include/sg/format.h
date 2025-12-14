@@ -120,11 +120,11 @@ requires(!sg::concepts::is_time_point_v<T>)
  *************************************************************************************************/
 
 /** Converts a time_point to text, with a given format.
- *
- * @tparam fmt fmt-style format string (e.g. "{:%F %T%z}")
+ *c
+ * @tparam fmt fmt-style format string (e.g. <code>{:%F %T%z}</code>)
  * @tparam TDuration resolution of time duration, leave as default to use same resolution as the time
- * point. Alternative pass a duration (e.g. std::chrono::seconds)
- * @param time_point time_point (e.g. std::chrono::system_clock::now())
+ * point. Alternative pass a duration (e.g. {@ref std::chrono::seconds})
+ * @param time_point time_point (e.g. <code>std::chrono::system_clock::now()</code>)
  * @return
  */
 template <static_string fmt, typename TDuration = Default>
@@ -135,9 +135,10 @@ template <static_string fmt, typename TDuration = Default>
         return fmt::format(fmt.str, std::chrono::round<TDuration>(time_point));
 }
 
-/** Formats a time_point to a string, not showing the timezone. Resolution to seconds.
+/** Formats a time_point to a string, not showing the timezone. with no decimal places for the
+ * second.
  *
- * Example result: "2025-01-01 01:02:01"
+ * Example result: <tt>2025-01-01 01:02:01</tt>
  */
 template <typename TTimePoint>
 [[nodiscard]] std::string to_string(const TTimePoint& time_point)
@@ -145,16 +146,15 @@ template <typename TTimePoint>
     return to_string<"{:%F %T}", std::chrono::seconds>(time_point);
 }
 
-/** Converts time_point to ISO 8061 format, with second precision
+/** Converts time_point to ISO 8061 format with time-zone, with no decimal places for the second.
  *
- * Example result: "2025-01-01T01:02:01+0000"
+ * Example result: <tt>2025-01-01T01:02:01+0000</tt>
  */
 template <typename TTimePoint>
 [[nodiscard]] std::string to_string_iso(const TTimePoint& time_point)
 {
     return to_string<"{:%FT%T%z}", std::chrono::seconds>(time_point);
 }
-
 
 /*************************************************************************************************/
 
