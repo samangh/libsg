@@ -1,7 +1,22 @@
 #pragma once
+
+#include <fmt/format.h>
 #include <string_view>
 
 namespace sg {
+
+#if defined(_MSC_VER)
+    #define THROW_DEBUG_EXCEPTION(type, what)                                                      \
+        do {                                                                                       \
+            throw type(fmt::format("{} (in {}, {}:{})", what, __FUNCSIG__, __FILE__, __LINE__));   \
+        } while (0)
+#else
+    #define THROW_DEBUG_EXCEPTION(type, what)                                                      \
+        do {                                                                                       \
+            throw type(                                                                            \
+                fmt::format("{} (in {}, {}:{})", what, __PRETTY_FUNCTION__, __FILE__, __LINE__));  \
+        } while (0)
+#endif
 
 /// Returns the type of the passed object as a string.
 ///
