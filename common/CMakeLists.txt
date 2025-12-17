@@ -71,6 +71,11 @@ setup_library(
     Boost::boost
     $<$<OR:$<BOOL:${MSYS2}>,$<BOOL:${WIN32}>>:Mswsock> # Needed for some Boost ASIO functions, can move to LINK_PRIVATE when tcp_server implementation is moved outside headers
     $<$<BOOL:${LINUX}>:pfs>
+
+    #If backtrace is enabled: link appropropriately, see 'Configuration and Build' section of boost::stacktrace documentation
+    $<$<AND:$<BOOL:${LISBG_STACKTRACE}>,$<OR:$<CXX_COMPILER_ID:MSVC>,$<BOOL:${MINGW}>>>:ole32 dbgeng>
+    $<$<AND:$<BOOL:${LISBG_STACKTRACE}>,$<NOT:$<OR:$<CXX_COMPILER_ID:MSVC>,$<BOOL:${MINGW}>>>>:dl>
+
   LINK_PRIVATE
     Threads::Threads
     $<$<BOOL:${WIN32}>:Winmm>
@@ -87,6 +92,8 @@ setup_library(
   COMPILE_FEATURES_PRIVATE
 
   COMPILE_DEFINITIONS_PUBLIC
+    $<$<BOOL:${LISBG_STACKTRACE}>:LISBG_STACKTRACE>
+    $<$<AND:$<BOOL:${LISBG_STACKTRACE}>,$<BOOL:${APPLE}>>:BOOST_STACKTRACE_GNU_SOURCE_NOT_REQUIRED>
     # FMT_HEADER_ONLY
 
   ## Options

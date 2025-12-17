@@ -25,7 +25,7 @@ jobs:
 
       - name: Install dependencies
         run: |
-             vcpkg --triplet ${{ matrix.config.triplet }} install sdl2 fmt libuv zstd boost-crc boost-asio boost-uuid boost-bimap
+             vcpkg --triplet ${{ matrix.config.triplet }} install sdl2 fmt libuv zstd boost-crc boost-asio boost-uuid boost-bimap boost-stacktrace
              vcpkg integrate install
 
       - name: Run CMake
@@ -40,7 +40,7 @@ jobs:
                    -DCMAKE_TOOLCHAIN_FILE=C:/vcpkg/scripts/buildsystems/vcpkg.cmake `
                    -DVCPKG_TARGET_TRIPLET=${{ matrix.config.triplet }} `
                    -DBUILD_TESTING=ON -DBENCHMARK=ON `
-                   -DCMAKE_BUILD_TYPE=Release -DIPO=ON -DARCH_NATIVE=ON
+                   -DCMAKE_BUILD_TYPE=Release -DIPO=ON -DARCH_NATIVE=ON -DLISBG_STACKTRACE=ON
 
       - name: Build
         working-directory: ${{github.workspace}}/build

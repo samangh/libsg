@@ -12,6 +12,7 @@ set(NAMESPACE SG)
 ##
 option(LIBSG_IMGUI "Include IMGUI stuff" ON)
 option(LIBSG_ZSTD "Include zstd stuff" ON)
+option(LISBG_STACKTRACE "Include stacktrace when an excpetion is thrown using SG_THROW_EXCEPTION macro" OFF)
 
 # If not top-level project, disable test and documentation by default
 if(NOT PROJECT_IS_TOP_LEVEL)
@@ -33,6 +34,11 @@ if(LIBSG_IMGUI)
   if(NOT LIBSG_IMGUI_DIRECTX AND NOT LIBSG_IMGUI_OPENGL)
     message(FATAL_ERROR "Need either OpenGL or DirectX for ImGUI")
   endif()
+endif()
+
+if(LISBG_STACKTRACE)
+  # Needed to print traces properly when using boost::stacktrace
+  set(CMAKE_EXECUTABLE_ENABLE_EXPORTS ON)
 endif()
 
 ##

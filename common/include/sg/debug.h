@@ -2,20 +2,31 @@
 
 #include <fmt/format.h>
 #include <string_view>
+#include <source_location>
+
+#ifdef LISBG_STACKTRACE
+    #include <boost/stacktrace.hpp>
+#endif
 
 namespace sg {
 
-#if defined(_MSC_VER)
-    #define THROW_DEBUG_EXCEPTION(type, what)                                                      \
+/* LISBG_STACKTRACE is set by the LISBG_STACKTRACE Cmake project option */
+#ifdef LISBG_STACKTRACE
+    #define SG_THROW_EXCEPTION(type, what)                                                         \
         do {                                                                                       \
-            throw type(fmt::format("{} (in {}, {}:{})", what, __FUNCSIG__, __FILE__, __LINE__));   \
+            auto location = std::source_location::current();                                       \
+            throw type(fmt::format("{}\nat {} in {}({}:{}), with stacktrace:\n{}", what,           \
+                                   location.function_name(), location.file_name(),                 \
+                                   location.line(), location.column(),                             \
+                                   to_string(boost::stacktrace::stacktrace())));                   \
         } while (0)
 #else
-    #define THROW_DEBUG_EXCEPTION(type, what)                                                      \
-        do {                                                                                       \
-            throw type(                                                                            \
-                fmt::format("{} (in {}, {}:{})", what, __PRETTY_FUNCTION__, __FILE__, __LINE__));  \
-        } while (0)
+do {
+    auto location = std::source_location::current();
+    throw type(fmt::format("{}\nat {} in {}({}:{})", what,
+                           location.function_name(), location.file_name(), location.line(),
+                           location.column())));
+} while (0)
 #endif
 
 /// Returns the type of the passed object as a string.
