@@ -12,7 +12,8 @@ set(NAMESPACE SG)
 ##
 option(LIBSG_IMGUI "Include IMGUI stuff" ON)
 option(LIBSG_ZSTD "Include zstd stuff" ON)
-option(LISBG_STACKTRACE "Include stacktrace when an excpetion is thrown using SG_THROW_EXCEPTION macro" OFF)
+option(LISBG_STACKTRACE "Enable boost::stacktrace support" OFF)
+option(LISBG_EXCEPTION_DETAILS "Show function name, etc. when exception is thrown with SG_THROW" OFF)
 
 # If not top-level project, disable test and documentation by default
 if(NOT PROJECT_IS_TOP_LEVEL)
@@ -36,11 +37,6 @@ if(LIBSG_IMGUI)
   endif()
 endif()
 
-if(LISBG_STACKTRACE)
-  # Needed to print traces properly when using boost::stacktrace
-  set(CMAKE_EXECUTABLE_ENABLE_EXPORTS ON)
-endif()
-
 ##
 ## CMake module paths
 ##
@@ -51,13 +47,25 @@ list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_LIST_DIR}/external/libsg_cmake/cm
 ##
 include(DefaultPreamble)
 
-
 ##
 ## Packages
 ##
 
 # Boost is required
 find_package(Boost REQUIRED CONFIG)
+
+# Boost::stacktrace
+if(LISBG_STACKTRACE)
+  # Needed to print traces properly when using boost::stacktrace in non-MSVC systems
+  set(CMAKE_EXECUTABLE_ENABLE_EXPORTS ON)
+
+  if(MSVC OR MINGW)
+    set(SG_BOOST_STACKTRACE_COMP stacktrace_windbg)
+  else()
+    set(SG_BOOST_STACKTRACE_COMP stacktrace_basic)
+  endif()
+  find_package(Boost COMPONENTS ${SG_BOOST_STACKTRACE_COMP} REQUIRED CONFIG)
+endif()
 
 # Some platforms don't have a Findfmt file, so search if the user has used OWN_FMT first
 if(NOT OWN_FMT)

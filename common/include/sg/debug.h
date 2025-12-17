@@ -10,25 +10,51 @@
 
 namespace sg {
 
-/* LISBG_STACKTRACE is set by the LISBG_STACKTRACE Cmake project option */
-#ifdef LISBG_STACKTRACE
-    #define SG_THROW_EXCEPTION(type, what)                                                         \
+#if defined(LISBG_STACKTRACE)
+    /**
+     * Throws an exception, with a stacktrace.
+     */
+    #define SG_THROW_STACKTRACE(type, what)                                                        \
         do {                                                                                       \
             auto location = std::source_location::current();                                       \
-            throw type(fmt::format("{}\nat {} in {}({}:{}), with stacktrace:\n{}", what,           \
+            throw type(fmt::format("{}\nat `{}` in {}({}:{}), with stacktrace:\n{}", what,         \
                                    location.function_name(), location.file_name(),                 \
                                    location.line(), location.column(),                             \
                                    to_string(boost::stacktrace::stacktrace())));                   \
         } while (0)
-#else
-do {
-    auto location = std::source_location::current();
-    throw type(fmt::format("{}\nat {} in {}({}:{})", what,
-                           location.function_name(), location.file_name(), location.line(),
-                           location.column())));
-} while (0)
 #endif
 
+/**
+ * Throws an exception, including the function name, file path and line number/column in the
+ * message.
+ */
+#define SG_THROW_DETAILS(type, what)                                                               \
+    do {                                                                                           \
+        auto location = std::source_location::current();                                           \
+        throw type(fmt::format("{}, at `{}` in {}({}:{})", what, location.function_name(),         \
+                               location.file_name(), location.line(), location.column()));         \
+    } while (0)
+
+
+#if defined(LISBG_STACKTRACE)
+    #define SG_THROW(type, what) SG_THROW_STACKTRACE(type, what)
+#elif defined(LISBG_EXCEPTION_DETAILS)
+    #define SG_THROW(type, what) SG_THROW_DETAILS(type, what)
+#else
+    #define SG_THROW(type, what) throw type(what)
+#endif
+
+#if defined(LISBG_STACKTRACE) || defined(LISBG_EXCEPTION_DETAILS)
+    #define SG_CATCH_RETHROW(func)                                                                 \
+        do {                                                                                       \
+            try {                                                                                  \
+                (func);                                                                            \
+            } catch (const std::exception& ex) { SG_THROW(std::runtime_error, ex.what()); }        \
+        } while (0)
+#else
+    #define SG_CATCH_RETHROW(func)                                                                 \
+        do { (func); } while (0)
+#endif
 /// Returns the type of the passed object as a string.
 ///
 /// Use decltype() on the input variable. As an example,
@@ -57,5 +83,6 @@ template <typename T> constexpr auto type_name() noexcept {
     name.remove_suffix(suffix.size());
     return name;
 }
+
 
 } // namespace sg

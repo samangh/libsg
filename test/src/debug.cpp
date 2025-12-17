@@ -5,20 +5,41 @@
 #include "catch2/matchers/catch_matchers_contains.hpp"
 #include "catch2/matchers/catch_matchers_string.hpp"
 
-#include <boost/stacktrace.hpp>
 #include <iostream>
 
 void test_throw(int a) {
     std::ignore = a;
-    SG_THROW_EXCEPTION(std::runtime_error, "msg");
+    SG_THROW(std::runtime_error, "msg");
 }
 
-TEST_CASE("sg::common check THROW_DEBUG_EXCEPTION(..) macro") {
+void test_throw_details(int a) {
+    std::ignore = a;
+    SG_THROW_DETAILS(std::runtime_error, "msg");
+}
+
+void test_catch(int a) {
+    std::ignore = a;
+    SG_CATCH_RETHROW(throw std::invalid_argument("hello from saman"));
+}
+
+TEST_CASE("sg::common check SG_CATCH_RETHROW(..) macro") {
+    REQUIRE_THROWS_AS(test_catch(2), std::runtime_error);
+    REQUIRE_THROWS_WITH(test_catch(2), Catch::Matchers::ContainsSubstring("hello from saman"));
+}
+
+TEST_CASE("sg::common check SG_THROW_...(..) macro") {
+    /* SG THROW */
     REQUIRE_THROWS_AS(test_throw(2), std::runtime_error);
     REQUIRE_THROWS_WITH(test_throw(2), Catch::Matchers::ContainsSubstring("msg"));
 
-    /* this checks that the trace is included in the message */
+    /* includes function name, file path */
+    REQUIRE_THROWS_AS(test_throw_details(2), std::runtime_error);
+    REQUIRE_THROWS_WITH(test_throw_details(2), Catch::Matchers::ContainsSubstring("test_throw_details"));
+    REQUIRE_THROWS_WITH(test_throw_details(2), Catch::Matchers::ContainsSubstring("debug.cpp("));
+
 #ifdef LISBG_STACKTRACE
+    /* includes stacktrace */
     REQUIRE_THROWS_WITH(test_throw(2), Catch::Matchers::ContainsSubstring("test_throw"));
+    REQUIRE_THROWS_WITH(test_throw(2), Catch::Matchers::ContainsSubstring("debug.cp"));
 #endif
 }

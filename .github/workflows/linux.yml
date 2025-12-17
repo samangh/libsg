@@ -36,7 +36,7 @@ jobs:
       - name: Install Packages
         run: |
              sudo apt update
-             sudo apt install coreutils libboost-dev libsdl2-dev libuv1-dev libfmt-dev libzstd-dev doxygen graphviz
+             sudo apt install coreutils libboost-dev libboost-stacktrace-dev libsdl2-dev libuv1-dev libfmt-dev libzstd-dev doxygen graphviz
              sudo apt install lcov gcovr
              # brew install zstd
 
