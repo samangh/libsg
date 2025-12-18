@@ -23,7 +23,9 @@ void test_catch(int a) {
 }
 
 TEST_CASE("sg::common check SG_CATCH_RETHROW(..) macro") {
+#if defined(LISBG_STACKTRACE) || defined(LISBG_EXCEPTION_DETAILS)
     REQUIRE_THROWS_AS(test_catch(2), std::runtime_error);
+#endif
     REQUIRE_THROWS_WITH(test_catch(2), Catch::Matchers::ContainsSubstring("hello from saman"));
 }
 
