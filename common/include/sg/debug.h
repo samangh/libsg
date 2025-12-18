@@ -35,7 +35,6 @@ namespace sg {
                                location.file_name(), location.line(), location.column()));         \
     } while (0)
 
-
 #if defined(LISBG_STACKTRACE)
     #define SG_THROW(type, what) SG_THROW_STACKTRACE(type, what)
 #elif defined(LISBG_EXCEPTION_DETAILS)
@@ -55,6 +54,7 @@ namespace sg {
     #define SG_CATCH_RETHROW(func)                                                                 \
         do { (func); } while (0)
 #endif
+
 /// Returns the type of the passed object as a string.
 ///
 /// Use decltype() on the input variable. As an example,

@@ -1,4 +1,7 @@
 #include "sg/process.h"
+
+#include "pfs/parser_error.hpp"
+
 #include <stdexcept>
 
 #if defined(_WIN32)
@@ -63,31 +66,30 @@ std::map<pid_t,Process> get_processes() {
         throw;
     }
     #elif defined(__linux)
-    for (const auto& p : pfs::procfs().get_processes()) {
-        const auto processStatus = p.get_status();
-        const auto processCmds   = p.get_cmdline();
+    // Use try-catch, in case a process dies whilst we are going though the loop
+    for (const auto& p : pfs::procfs().get_processes()) try {
+            const auto processStatus = p.get_status();
+            const auto processCmds   = p.get_cmdline();
 
-        Process process{
-            .pid               = p.id(),
-            .parent_pid        = processStatus.ppid,
-            .is_kernel_process = pfs::task::is_kernel_thread(p.get_stat()),
-            .thread_count      = processStatus.threads,
-            .name              = processStatus.name,
-            .cmdline = std::vector<std::string>(processCmds.begin(), processCmds.end()),
-            .threads = {}
-        };
+            Process process{.pid               = p.id(),
+                            .parent_pid        = processStatus.ppid,
+                            .is_kernel_process = pfs::task::is_kernel_thread(p.get_stat()),
+                            .thread_count      = processStatus.threads,
+                            .name              = processStatus.name,
+                            .cmdline =
+                                std::vector<std::string>(processCmds.begin(), processCmds.end()),
+                            .threads = {}};
 
-        for (const auto& t : p.get_tasks()) {
-            const auto threadStatus = t.get_status();
-            process.threads.emplace(
-                t.id(),
-                Thread{.tid              = t.id(),
-                       .is_kernel_thread = pfs::task::is_kernel_thread(t.get_stat()),
-                       .name             = threadStatus.name});
-        }
+            for (const auto& t : p.get_tasks()) {
+                const auto threadStatus = t.get_status();
+                process.threads.emplace(
+                    t.id(), Thread{.tid              = t.id(),
+                                   .is_kernel_thread = pfs::task::is_kernel_thread(t.get_stat()),
+                                   .name             = threadStatus.name});
+            }
 
-        result.emplace(p.id(), std::move(process));
-    }
+            result.emplace(p.id(), std::move(process));
+        } catch (const pfs::parser_error&) {}
     #elif (defined(__APPLE__) && defined(__MACH__))
 
     // Get size of buffer
