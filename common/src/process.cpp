@@ -1,7 +1,5 @@
 #include "sg/process.h"
 
-#include "pfs/parser_error.hpp"
-
 #include <stdexcept>
 
 #if defined(_WIN32)
@@ -10,6 +8,7 @@
     #include <tlhelp32.h>
 #elif defined(__linux)
     #include <pfs/procfs.hpp>
+    #include <pfs/parser_error.hpp>
 #elif (defined(__APPLE__) && defined(__MACH__))
     #include <libproc.h>
 #endif
