@@ -80,3 +80,7 @@ setup_executable(
 
 include(${catch2_SOURCE_DIR}/extras/Catch.cmake)
 catch_discover_tests(sg_test)
+
+coverage_add_exe(sg_test
+    EXCLUDE ${CMAKE_CURRENT_SOURCE_DIR}/*
+    ARGUMENTS "--skip-benchmarks")

@@ -21,8 +21,8 @@ jobs:
           - { build_shared_libs: ON, label: shared}
           - { build_shared_libs: OFF, label: static}
         compiler:
-          - {cc: gcc, cxx: g++}
-          - {cc: clang, cxx: clang++}
+          - {cc: gcc, cxx: g++, cmake_args: ""}
+          - {cc: clang, cxx: clang++, cmake_args: "-DCOVERAGE=ON"}
 
     steps:
       - name: Checkout repository
@@ -36,8 +36,7 @@ jobs:
       - name: Install Packages
         run: |
              sudo apt update
-             sudo apt install coreutils libboost-dev libboost-stacktrace-dev libsdl2-dev libuv1-dev libfmt-dev libzstd-dev doxygen graphviz
-             sudo apt install lcov gcovr
+             sudo apt install llvm coreutils libboost-dev libboost-stacktrace-dev libsdl2-dev libuv1-dev libfmt-dev libzstd-dev doxygen graphviz
              # brew install zstd
 
       - name: Run CMake
@@ -54,7 +53,7 @@ jobs:
              cd build
              cmake .. -DBUILD_SHARED_LIBS=${{matrix.type.build_shared_libs}} \
                    -DCMAKE_BUILD_TYPE=Release -DIPO=ON -DARCH_NATIVE=ON \
-                   -DBUILD_TESTING=ON -DBUILD_DOCS=ON -DOWN_FMT=ON -DLISBG_STACKTRACE=ON
+                   -DBUILD_TESTING=ON -DBUILD_DOCS=ON -DOWN_FMT=ON -DLISBG_STACKTRACE=ON ${{matrix.compiler.cmake_args}}
 
       - name: Build
         working-directory: ${{github.workspace}}/build
@@ -74,18 +73,16 @@ jobs:
         run: ldd test/sg_test
 
       - name: Generate coverage report
-        working-directory: ${{github.workspace}}/build/test/CMakeFiles/sg_test.dir
-        if: matrix.compiler.cc == 'gcc'
+        working-directory: ${{github.workspace}}/build
+        if: ${{ (matrix.compiler.cc == 'clang') && (matrix.type.label == 'shared')  }}
         run: |
           # Run Code Generation
-          lcov --ignore-errors mismatch --directory . --capture --output-file coverage.info
-          lcov --remove coverage.info '*/test/*' --output-file coverage.info #filter test files
-          lcov --remove coverage.info '/usr/*' --output-file coverage.info #filter system-files
-          lcov --remove coverage.info '*/_deps/*' --output-file coverage.info #filter CPM deps
+          cmake --build . --target coverage
+          llvm-cov show ./test/sg_test -instr-profile=coverage/sg_test.profraw > coverage/coverage_sg_test.txt
 
       - name: Upload coverage reports to Codecov
         uses: codecov/codecov-action@v5
-        if: matrix.compiler.cc == 'gcc'
+        if: ${{ (matrix.compiler.cc == 'clang') && (matrix.type.label == 'shared')  }}
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
-          files: ${{github.workspace}}/build/test/CMakeFiles/sg_test.dir/coverage.info
+          files: ${{github.workspace}}/build/coverage/coverage_sg_test.txt
