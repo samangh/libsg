@@ -18,11 +18,6 @@ class SG_COMMON_EXPORT uuid {
     explicit uuid(std::array<uint8_t, 16> bytes);;
 
     bool operator==(uuid const& rhs) const noexcept = default;
-    bool operator!=(uuid const& rhs) const noexcept = default;
-    bool operator<(uuid const& rhs) const noexcept = default;
-    bool operator>(uuid const& rhs) const noexcept = default;
-    bool operator<=(uuid const& rhs) const noexcept = default;
-    bool operator>=(uuid const& rhs) const noexcept = default;
     std::strong_ordering operator<=>(uuid const& rhs) const noexcept = default;
 
     void swap(uuid& rhs ) noexcept;
