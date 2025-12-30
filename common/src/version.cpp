@@ -4,6 +4,7 @@
 namespace sg {
 
 version::version() = default;
+version::version(std::initializer_list<unsigned int> input) : versions(input) {}
 version::operator std::string() const { return fmt::format("{}", fmt::join(versions, ".")); }
 
 version::version(std::string input) {
@@ -21,13 +22,6 @@ version::version(std::string input) {
     if (!input.empty())
         versions.push_back(std::stoul(input));
 }
-
-bool version::operator<(const version& rhs) const { return versions < rhs.versions; }
-bool version::operator<=(const version& rhs) const { return versions <= rhs.versions; }
-bool version::operator>(const version& rhs) const { return versions > rhs.versions; }
-bool version::operator>=(const version& rhs) const { return versions >= rhs.versions; }
-bool version::operator==(const version& rhs) const { return versions == rhs.versions; }
-bool version::operator!=(const version& rhs) const { return versions != rhs.versions; }
 
 std::ostream& operator<<(std::ostream& os, const version& t) {
     os << static_cast<std::string>(t);
