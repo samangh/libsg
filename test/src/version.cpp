@@ -28,3 +28,10 @@ TEST_CASE("sg::version check operator<=>()", "[sg::version]") {
 TEST_CASE("sg::version check operator std::string() ", "[sg::version]") {
     REQUIRE(static_cast<std::string>(sg::version({1, 2, 3})) == "1.2.3");
 }
+
+TEST_CASE("sg::version check operator<<(...) ", "[sg::version]") {
+    std::stringstream ss;
+    ss << sg::version({1, 2, 3});
+
+    REQUIRE(ss.str() == "1.2.3");
+}
