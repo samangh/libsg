@@ -1,6 +1,19 @@
 #include "sg/version.h"
 #include "fmt/ranges.h"
 
+namespace {
+unsigned int convert_or_throw(const std::string& input) {
+    size_t charactersConverted;
+    const auto result = std::stoul(input, &charactersConverted);
+
+    if (charactersConverted!=input.length())
+        throw std::runtime_error("could not convert input string to a version");
+
+    return result;
+}
+
+}
+
 namespace sg {
 
 version::version() = default;
@@ -10,17 +23,16 @@ version::operator std::string() const { return fmt::format("{}", fmt::join(versi
 version::version(std::string input) {
     const std::string delimiter = ".";
 
-    while (input.find(delimiter) != std::string::npos) {
-        auto pos = input.find(delimiter);
+    for (auto pos = input.find(delimiter); pos != std::string::npos; pos = input.find(delimiter)) {
         auto extract = input.substr(0, pos);
         input.erase(0, pos + delimiter.length());
 
-        versions.push_back(std::stoul(extract));
+        versions.push_back(convert_or_throw(extract));
     }
 
     // Stuff after last .
     if (!input.empty())
-        versions.push_back(std::stoul(input));
+        versions.push_back(convert_or_throw(input));
 }
 
 std::ostream& operator<<(std::ostream& os, const version& t) {

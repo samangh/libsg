@@ -54,6 +54,7 @@ setup_executable(
     src/uuid.cpp
     src/time.cpp
     src/debug.cpp
+    src/version.cpp
 
   INCLUDE_PUBLIC
     ${DP_THREAD_POOL_DIR}/include
