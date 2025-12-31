@@ -20,14 +20,19 @@ uuid::uuid() : m_uuid(random_uuid()) {}
 uuid::uuid(const uuid& UUID) : m_uuid(UUID.m_uuid) {}
 uuid::uuid(std::array<uint8_t, 16> bytes) { std::memcpy(m_uuid.data, bytes.data(), 16); }
 
-void uuid::swap(uuid& rhs) noexcept { m_uuid.swap(rhs.m_uuid); }
-
-std::string uuid::to_sting() const { return boost::uuids::to_string(m_uuid); }
+std::string uuid::to_string() const { return boost::uuids::to_string(m_uuid); }
 
 std::array<uint8_t, 16> uuid::data() const {
     std::array<uint8_t, 16> arr;
     std::memcpy(arr.data(), m_uuid.data, 16);
     return arr;
+}
+void swap(uuid& rhs, uuid& lhs) noexcept {
+    rhs.m_uuid.swap(lhs.m_uuid);
+}
+std::ostream& operator<<(std::ostream& os, const uuid& t) {
+    os << t.to_string();
+    return os;
 }
 
 } // namespace sg::uuids

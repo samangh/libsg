@@ -20,12 +20,13 @@ class SG_COMMON_EXPORT uuid {
     bool operator==(uuid const& rhs) const noexcept = default;
     std::strong_ordering operator<=>(uuid const& rhs) const noexcept = default;
 
-    void swap(uuid& rhs ) noexcept;
+    friend SG_COMMON_EXPORT void swap(uuid& rhs, uuid& lhs) noexcept;
 
-    [[nodiscard]] std::string to_sting() const;
+    [[nodiscard]] std::string to_string() const;
     [[nodiscard]] std::array<uint8_t, 16> data() const;
 };
 
+SG_COMMON_EXPORT void swap(uuid& rhs, uuid& lhs) noexcept;
+SG_COMMON_EXPORT std::ostream &operator<<(std::ostream &os, const uuid &t);
 
-
-}
+} // namespace sg::uuids
