@@ -24,7 +24,6 @@ template <typename T> class vector_channel : public IContigiousChannel<T> {
     }
 
     void reserve(size_t size) { m_data.reserve(size); }
-    virtual ~vector_channel() = default;
 
   public:
     [[nodiscard]] std::string name() const noexcept override { return m_name; }

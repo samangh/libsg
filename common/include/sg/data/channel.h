@@ -61,7 +61,6 @@ template <typename T> class IContigiousChannel : public virtual IContigiousChann
     typedef const T&                         const_reference;
 
     IContigiousChannel() =default;
-    virtual ~IContigiousChannel() = default;
 
     /* Return the stored pointer.*/
     [[nodiscard]] const void* get() const noexcept override {return data();}

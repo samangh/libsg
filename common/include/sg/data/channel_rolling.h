@@ -24,7 +24,6 @@ template <typename T> class channel_rolling : public IContigiousChannel<T> {
     }
 
     void reserve(size_t size, double reserverFactor = 1.0) { m_data.reserve(size, reserverFactor); }
-    virtual ~channel_rolling() = default;
 
   public:
     [[nodiscard]] std::string name() const noexcept override { return m_name; }
