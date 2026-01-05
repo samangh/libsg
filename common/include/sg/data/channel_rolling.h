@@ -12,9 +12,9 @@ template <typename T> class channel_rolling : public IContigiousChannel<T> {
     std::vector<std::string> m_hierarchy;
   public:
     channel_rolling() = default;
-    channel_rolling(std::string name, size_t size, size_t reservereSize)
-        : m_data(size, reservereSize),
-          m_name(name) {}
+    channel_rolling(std::string name, size_t size, size_t reserverSize)
+        : m_data(size, reserverSize),
+          m_name(std::move(name)) {}
     channel_rolling(std::string name, size_t size) : channel_rolling(name, size, size) {}
 
     void from_bytes(const void* data, size_t byteCount) override {
@@ -29,8 +29,12 @@ template <typename T> class channel_rolling : public IContigiousChannel<T> {
     [[nodiscard]] std::string name() const noexcept override { return m_name; }
     void name(std::string name) noexcept override { m_name = name; }
 
-    [[nodiscard]] std::vector<std::string> hierarchy() const noexcept override { return m_hierarchy; }
-    void hierarchy(std::vector<std::string> hierarchy) noexcept override { m_hierarchy = hierarchy; }
+    [[nodiscard]] std::vector<std::string> hierarchy() const noexcept override {
+        return m_hierarchy;
+    }
+    void hierarchy(std::vector<std::string> hierarchy) noexcept override {
+        m_hierarchy = std::move(hierarchy);
+    }
 
     [[nodiscard]] size_t count() const noexcept override { return m_data.size(); };
 

@@ -13,7 +13,7 @@ template <typename T> class vector_channel : public IContigiousChannel<T> {
   public:
     vector_channel() =default;
     vector_channel(std::initializer_list<T> init):m_data(init){};
-    vector_channel(std::string name) :m_name(name) {}
+    vector_channel(std::string name) :m_name(std::move(name)) {}
 
     void from_bytes(const void* data, size_t byteCount) override {
         if (byteCount % sizeof(T) != 0)
@@ -29,8 +29,12 @@ template <typename T> class vector_channel : public IContigiousChannel<T> {
     [[nodiscard]] std::string name() const noexcept override { return m_name; }
     void name(std::string name) noexcept override { m_name = name; }
 
-    [[nodiscard]] std::vector<std::string> hierarchy() const noexcept override { return m_hierarchy; }
-    void hierarchy(std::vector<std::string> hierarchy) noexcept override { m_hierarchy = hierarchy; }
+    [[nodiscard]] std::vector<std::string> hierarchy() const noexcept override {
+        return m_hierarchy;
+    }
+    void hierarchy(std::vector<std::string> hierarchy) noexcept override {
+        m_hierarchy = std::move(hierarchy);
+    }
 
     [[nodiscard]] size_t count() const noexcept override { return m_data.size(); };
 
