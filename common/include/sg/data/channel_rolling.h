@@ -17,6 +17,12 @@ template <typename T> class channel_rolling : public IContigiousChannel<T> {
           m_name(name) {}
     channel_rolling(std::string name, size_t size) : channel_rolling(name, size, size) {}
 
+    void from_bytes(const void* data, size_t byteCount) override {
+        if (byteCount % sizeof(T) != 0)
+            throw std::runtime_error("given set of bytes does not match the size of  teh channel type");
+        append(static_cast<const T*>(data), static_cast<const T*>(data) + (byteCount / sizeof(T)));
+    }
+
     void reserve(size_t size, double reserverFactor = 1.0) { m_data.reserve(size, reserverFactor); }
     virtual ~channel_rolling() = default;
 
@@ -51,7 +57,6 @@ template <typename T> class channel_rolling : public IContigiousChannel<T> {
     template <typename InputIt> void append(InputIt&& start, InputIt&& end) {
         m_data.append(std::forward<InputIt>(start), std::forward<InputIt>(end));
     }
-
 };
 
 } // namespace sg::data

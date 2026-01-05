@@ -44,6 +44,8 @@ class IChannelBase {
 
 class IContigiousChannelBase: public IChannelBase {
   public:
+    virtual void from_bytes(const void*, size_t byteCount)=0;
+
     /* Return the stored pointer.*/
     [[nodiscard]] virtual const void *get() const noexcept = 0;
     [[nodiscard]] virtual void *get() noexcept = 0;

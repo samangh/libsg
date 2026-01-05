@@ -30,6 +30,7 @@ setup_executable(
 
   SOURCES_PRIVATE
     src/data/channel_vector.cpp
+    src/data/channel_rolling.cpp
     src/tcp_server.cpp
     src/state_machine.cpp
     src/locale.cpp

@@ -15,6 +15,14 @@ template <typename T> class vector_channel : public IContigiousChannel<T> {
     vector_channel(std::initializer_list<T> init):m_data(init){};
     vector_channel(std::string name) :m_name(name) {}
 
+    void from_bytes(const void* data, size_t byteCount) override {
+        if (byteCount % sizeof(T) != 0)
+            throw std::runtime_error("given set of bytes does not match the size of  teh channel type");
+
+        m_data = std::vector<T>(static_cast<const T*>(data),
+                                static_cast<const T*>(data) + (byteCount / sizeof(T)));
+    }
+
     void reserve(size_t size) { m_data.reserve(size); }
     virtual ~vector_channel() = default;
 
@@ -32,14 +40,20 @@ template <typename T> class vector_channel : public IContigiousChannel<T> {
 
     void clear() { m_data.clear(); };
     void push_back(const T& item) { m_data.push_back(item); };
-    template <typename... Args> void emplace_back(Args&&... args) {
+
+    template <typename... Args>
+    void emplace_back(Args&&... args) {
         m_data.emplace_back(std::forward<Args>(args)...);
     }
 
-    template <typename InT>
-    requires(std::is_constructible_v<T,InT>)
-    void append(const IContigiousChannel<InT>& input) {
-        sg::ranges::append(m_data, input);
+    template <typename TInput>
+    void append(TInput&& input) {
+        sg::ranges::append(m_data, std::forward<TInput>(input));
+    }
+
+    template <typename InputIt>
+    void append(InputIt&& start, InputIt&& end) {
+        m_data.insert(m_data.end(), std::forward<InputIt>(start), std::forward<InputIt>(end));
     }
 };
 
