@@ -20,6 +20,7 @@ template <typename T> class channel_rolling : public IContigiousChannel<T> {
     void from_bytes(const void* data, size_t byteCount) override {
         if (byteCount % sizeof(T) != 0)
             throw std::runtime_error("given set of bytes does not match the size of  teh channel type");
+        m_data.clear();
         append(static_cast<const T*>(data), static_cast<const T*>(data) + (byteCount / sizeof(T)));
     }
 

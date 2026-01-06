@@ -1,7 +1,24 @@
-// #pragma once
+#pragma once
 
-// #include "channel.h"
-// #include "sg/compression_zstd.h"
+#include "channel.h"
+#include "sg/compression_zstd.h"
+
+#include <concepts>
+
+namespace sg::data {
+
+template <typename TChannel, typename T = TChannel::value_type>
+requires (std::derived_from<TChannel, IContigiousChannel<T>>)
+class compressed_channel {
+    struct deleter_free {
+        constexpr void operator()(TChannel* p) const noexcept { free(p); }
+    };public:
+private:
+    std::shared_ptr<TChannel> m_ch;
+};
+
+}
+
 // #include "view.h"
 
 // #include <thread>
