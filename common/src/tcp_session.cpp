@@ -4,6 +4,11 @@
 #include <boost/asio/write.hpp>
 #include <boost/asio/detached.hpp>
 
+#if defined(_WIN32)
+#include <Winsock2.h>
+#include <Mswsock.h>
+#endif
+
 namespace sg::net {
 
 tcp_session::tcp_session(boost::asio::ip::tcp::socket socket,
@@ -15,8 +20,6 @@ tcp_session::tcp_session(boost::asio::ip::tcp::socket socket,
       m_on_disconnected_cb(std::move(onErrorCb)) {
     m_timer.expires_at(std::chrono::steady_clock::time_point::max());
 
-    boost::asio::socket_base::keep_alive option(true);
-    m_socket.set_option(option);
 }
 
 tcp_session::~tcp_session() {
@@ -26,6 +29,7 @@ tcp_session::~tcp_session() {
 }
 
 void tcp_session::start() {
+
     co_spawn(
         m_socket.get_executor(),
         [self = shared_from_this()] { return self->reader(); },
@@ -50,6 +54,47 @@ void tcp_session::write(std::string_view msg) {
     auto buff = sg::make_shared_c_buffer<std::byte>(msg.size());
     std::memcpy(buff.get(), msg.data(), msg.size());
     write(buff);
+}
+
+void tcp_session::set_keepalive(bool enableKeepAlive, uint32_t idleSec, uint32_t intervalSec,
+                                uint32_t count) {
+    const boost::asio::socket_base::keep_alive option(enableKeepAlive);
+    m_socket.set_option(option);
+
+    if (enableKeepAlive) {
+        auto nativeHndl = m_socket.native_handle();
+
+        // mNote: macOS has a separate option, but for Windows/Linux the only difference is the data
+        // type for the times
+
+#if defined(__APPLE__)
+        setsockopt(nativeHndl, IPPROTO_TCP, TCP_KEEPALIVE, &idleSec, sizeof(idleSec));
+#elif defined(_WIN32)
+        setsockopt(nativeHndl, IPPROTO_TCP, TCP_KEEPIDLE, (const char*)&idleSec, sizeof(idleSec));
+        setsockopt(nativeHndl, IPPROTO_TCP, TCP_KEEPINTVL, (const char*)&intervalSec, sizeof(intervalSec));
+        setsockopt(nativeHndl, IPPROTO_TCP, TCP_KEEPCNT, (const char*)&count, sizeof(count));
+#else
+        setsockopt(nativeHndl, IPPROTO_TCP, TCP_KEEPIDLE, &idleSec, sizeof(idleSec));
+        setsockopt(nativeHndl, IPPROTO_TCP, TCP_KEEPINTVL, &intervalSec, sizeof(intervalSec));
+        setsockopt(nativeHndl, IPPROTO_TCP, TCP_KEEPCNT, &count, sizeof(count));
+#endif
+    }
+}
+
+void tcp_session::set_timeout(uint32_t timeoutMSec) {
+    auto nativeHndl = m_socket.native_handle();
+
+#if defined(_WIN32)
+    setsockopt(nativeHndl, SOL_SOCKET, SO_RCVTIMEO, (const char*)&timeoutMSec, sizeof(timeoutMSec));
+    setsockopt(nativeHndl, SOL_SOCKET, SO_SNDTIMEO, (const char*)&timeoutMSec, sizeof(timeoutMSec));
+#else
+    // assume everything else is posix
+    struct timeval tv;
+    tv.tv_sec  = timeoutMSec / 1000;
+    tv.tv_usec = (timeoutMSec % 1000) * 1000;
+    setsockopt(nativeHndl, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv));
+    setsockopt(nativeHndl, SOL_SOCKET, SO_SNDTIMEO, &tv, sizeof(tv));
+#endif
 }
 
 void tcp_session::stop_async() {

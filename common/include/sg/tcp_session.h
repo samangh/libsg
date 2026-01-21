@@ -30,7 +30,12 @@ class SG_COMMON_EXPORT tcp_session :  public std::enable_shared_from_this<tcp_se
 
     void write(sg::shared_c_buffer<std::byte> msg);
     void write(std::string_view msg);
-  private:    
+
+    void set_keepalive(bool enableKeepAlive, uint32_t idleSec = 60, uint32_t intervalSec = 5,
+                       uint32_t count = 5);
+    void set_timeout(uint32_t timeoutMSec = 5000);
+
+  private:
     boost::asio::ip::tcp::socket m_socket;
     boost::asio::steady_timer m_timer;
 
