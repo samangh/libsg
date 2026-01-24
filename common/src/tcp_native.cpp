@@ -65,7 +65,10 @@ void set_timeout(socket_t nativeHandle, unsigned timeoutMSec) {
     setsockopt(nativeHandle, SOL_SOCKET, SO_SNDTIMEO, (const char*)&timeoutMSec,
                sizeof(timeoutMSec));
 #else
-    const timeval tv{.tv_sec = timeoutMSec / 1000, .tv_usec = (timeoutMSec % 1000) * 1000};
+    timeval tv;
+    tv.tv_sec  = timeoutMSec / 1000;
+    tv.tv_usec = (timeoutMSec % 1000) * 1000;
+
     setsockopt(nativeHandle, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv));
     setsockopt(nativeHandle, SOL_SOCKET, SO_SNDTIMEO, &tv, sizeof(tv));
 #endif
