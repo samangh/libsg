@@ -59,6 +59,7 @@ setup_library(
     src/process.cpp
     src/string.cpp
     src/locale.cpp
+    src/error.cpp
     $<$<BOOL:${LIBSG_ZSTD}>:src/compression_zstd.cpp>
 
   INCLUDE_INTERFACE

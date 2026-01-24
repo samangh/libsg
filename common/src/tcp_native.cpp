@@ -1,11 +1,12 @@
 #include "sg/tcp_native.h"
+#include "sg/error.h"
 
 #include <limits>
 #include <stdexcept>
-
 #if defined(_WIN32)
-    #include <Mswsock.h>
+    // careful, order of these headers can matter
     #include <Winsock2.h>
+    #include <Mswsock.h>
     #include <Ws2tcpip.h>
 #else
     #include <netinet/in.h>
@@ -39,8 +40,8 @@ void set_keepalive(socket_t nativeHandle, bool enableKeepAlive, unsigned idleSec
         throw std::invalid_argument("keepalive parameters are out of range");
 
     int keepAliveInt = enableKeepAlive;
-    setsockopt(nativeHandle, SOL_SOCKET, SO_KEEPALIVE, (const char*)&keepAliveInt,
-               sizeof(keepAliveInt));
+    THROW_ON_ERRORNO_SOCKET(setsockopt(nativeHandle, SOL_SOCKET, SO_KEEPALIVE, (const char*)&keepAliveInt,
+               sizeof(keepAliveInt)));
 
     if (enableKeepAlive) {
 #if defined(__APPLE__)
@@ -48,29 +49,28 @@ void set_keepalive(socket_t nativeHandle, bool enableKeepAlive, unsigned idleSec
         // unused variables
         (void)intervalSec;
         (void)count;
-        setsockopt(nativeHandle, IPPROTO_TCP, TCP_KEEPALIVE, &idleSec, sizeof(idleSec));
+        THROW_ON_ERRORNO_SOCKET(setsockopt(nativeHandle, IPPROTO_TCP, TCP_KEEPALIVE, &idleSec, sizeof(idleSec)));
 #else
-        setsockopt(nativeHandle, IPPROTO_TCP, TCP_KEEPIDLE, (const char*)&idleSec, sizeof(idleSec));
-        setsockopt(nativeHandle, IPPROTO_TCP, TCP_KEEPINTVL, (const char*)&intervalSec,
-                   sizeof(intervalSec));
-        setsockopt(nativeHandle, IPPROTO_TCP, TCP_KEEPCNT, (const char*)&count, sizeof(count));
+        THROW_ON_ERRORNO_SOCKET(setsockopt(nativeHandle, IPPROTO_TCP, TCP_KEEPIDLE, (const char*)&idleSec, sizeof(idleSec)));
+        THROW_ON_ERRORNO_SOCKET(setsockopt(nativeHandle, IPPROTO_TCP, TCP_KEEPINTVL, (const char*)&intervalSec, sizeof(intervalSec)));
+        THROW_ON_ERRORNO_SOCKET(setsockopt(nativeHandle, IPPROTO_TCP, TCP_KEEPCNT, (const char*)&count, sizeof(count)));
 #endif
     }
 }
 
 void set_timeout(socket_t nativeHandle, unsigned timeoutMSec) {
 #if defined(_WIN32)
-    setsockopt(nativeHandle, SOL_SOCKET, SO_RCVTIMEO, (const char*)&timeoutMSec,
-               sizeof(timeoutMSec));
-    setsockopt(nativeHandle, SOL_SOCKET, SO_SNDTIMEO, (const char*)&timeoutMSec,
-               sizeof(timeoutMSec));
+    THROW_ON_ERRORNO_SOCKET(setsockopt(nativeHandle, SOL_SOCKET, SO_RCVTIMEO, (const char*)&timeoutMSec,
+               sizeof(timeoutMSec)));
+    THROW_ON_ERRORNO_SOCKET(setsockopt(nativeHandle, SOL_SOCKET, SO_SNDTIMEO, (const char*)&timeoutMSec,
+               sizeof(timeoutMSec)));
 #else
     timeval tv;
     tv.tv_sec  = timeoutMSec / 1000;
     tv.tv_usec = (timeoutMSec % 1000) * 1000;
 
-    setsockopt(nativeHandle, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv));
-    setsockopt(nativeHandle, SOL_SOCKET, SO_SNDTIMEO, &tv, sizeof(tv));
+    THROW_ON_ERRORNO_SOCKET(setsockopt(nativeHandle, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv)));
+    THROW_ON_ERRORNO_SOCKET(setsockopt(nativeHandle, SOL_SOCKET, SO_SNDTIMEO, &tv, sizeof(tv)));
 #endif
 }
 } // namespace sg::net::native
