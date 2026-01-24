@@ -1,8 +1,9 @@
 #include "sg/tcp_server.h"
+#include "sg/tcp_native.h"
 
-#include <boost/asio/redirect_error.hpp>
 #include <boost/asio/co_spawn.hpp>
 #include <boost/asio/detached.hpp>
+#include <boost/asio/redirect_error.hpp>
 
 namespace sg::net {
 
@@ -48,6 +49,7 @@ void tcp_server::start(std::vector<end_point> endpoints,
 
     m_endpoints = endpoints;
     m_last_id = 0;
+    m_acceptors.clear();
 
     m_promise_started_listening = std::promise<void>();
 
@@ -102,8 +104,20 @@ tcp_server::ptr tcp_server::session(session_id_t id) {
     std::shared_lock lock(m_mutex);
     return m_sessions.at(id);
 }
+void tcp_server::set_keepalive(bool enableKeepAlive, uint32_t idleSec, uint32_t intervalSec,
+                               uint32_t count) {
+    for (auto a: m_acceptors) {
+        sg::net::native::set_keepalive(a->native_handle(), enableKeepAlive, idleSec, intervalSec, count);
+    }
 
-boost::asio::awaitable<void> tcp_server::listener(boost::asio::ip::tcp::acceptor acceptor) {
+}
+void tcp_server::set_timeout(uint32_t timeoutMSec) {
+    for (auto a: m_acceptors)
+        sg::net::native::set_timeout(a->native_handle(), timeoutMSec);
+}
+
+boost::asio::awaitable<void>
+tcp_server::listener(std::shared_ptr<boost::asio::ip::tcp::acceptor> acceptor) {
     while (true) {
         auto id = m_last_id++;
 
@@ -115,7 +129,7 @@ boost::asio::awaitable<void> tcp_server::listener(boost::asio::ip::tcp::acceptor
         };
 
         auto sess = std::make_shared<tcp_session>(
-            co_await acceptor.async_accept(boost::asio::use_awaitable),
+            co_await acceptor.get()->async_accept(boost::asio::use_awaitable),
             onData,
             onSessionDisconnected);
 
@@ -133,11 +147,11 @@ boost::asio::awaitable<void> tcp_server::listener(boost::asio::ip::tcp::acceptor
 
 void tcp_server::on_worker_start(notifiable_background_worker*) {
     for (auto e : m_endpoints) {
-        boost::asio::ip::tcp::endpoint ep(boost::asio::ip::make_address(e.ip),
-                                          static_cast<boost::asio::ip::port_type>(e.port));
-        boost::asio::co_spawn(m_io_context_ptr,
-                              listener(boost::asio::ip::tcp::acceptor(m_io_context_ptr, ep)),
-                              boost::asio::detached);
+        boost::asio::ip::tcp::endpoint ep(boost::asio::ip::make_address(e.ip), e.port);
+
+        auto a = std::make_shared<boost::asio::ip::tcp::acceptor>(m_io_context_ptr, ep);
+        boost::asio::co_spawn(m_io_context_ptr, listener(a), boost::asio::detached);
+        m_acceptors.push_back(a);
     }
 
     if (m_on_started_listening_cb)

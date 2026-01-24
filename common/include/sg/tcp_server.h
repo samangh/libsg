@@ -51,6 +51,9 @@ class SG_COMMON_EXPORT tcp_server {
     void disconnect_all();
 
     ptr session(session_id_t id);
+    void set_keepalive(bool enableKeepAlive, uint32_t idleSec = 60, uint32_t intervalSec = 5,
+                       uint32_t count = 5);
+    void set_timeout(uint32_t timeoutMSec = 5000);
 
   private:
     std::unique_ptr<notifiable_background_worker> m_worker;
@@ -63,6 +66,9 @@ class SG_COMMON_EXPORT tcp_server {
     std::promise<void> m_promise_started_listening;
     boost::asio::io_context m_io_context_ptr;
 
+    //m_acceptors are copied for set_keepalive/set_timeout user
+    std::vector<std::shared_ptr<boost::asio::ip::tcp::acceptor>> m_acceptors;
+
     session_created_cb_t m_new_session_cb;
     session_data_available_cb_t m_on_data_read_user_cb;
     session_disconnected_cb_t m_on_disconnect_user_cb;
@@ -72,7 +78,7 @@ class SG_COMMON_EXPORT tcp_server {
     std::atomic<bool> m_stop_in_operation;
     std::jthread m_stopping_thread;
 
-    boost::asio::awaitable<void> listener(boost::asio::ip::tcp::acceptor acceptor);
+    boost::asio::awaitable<void> listener(std::shared_ptr<boost::asio::ip::tcp::acceptor> acceptor);
 
     void on_worker_start(notifiable_background_worker*);
     void on_worker_stop(notifiable_background_worker*);

@@ -498,3 +498,15 @@ TEST_CASE("sg::net::tcp_server: check destructor works if start(...) not started
         tcp_server l;
     }
 }
+
+TEST_CASE("sg::net::tcp_server: check set_keepalive(...) and set_timeout(...) can be called",
+          "[sg::net::tcp_server]") {
+    using namespace sg::net;
+    sg::net::end_point ep("0.0.0.0", PORT);
+
+    tcp_server server;
+    server.start({ep}, nullptr, nullptr, nullptr, nullptr, nullptr);
+
+    server.set_keepalive(true);
+    server.set_timeout(100);
+}
