@@ -5,20 +5,30 @@
 #include <string>
 #include <cstdint>
 
+#if defined(_WIN32)
+    /* I could move this into the implementation file, and wrap GetLastError/WSAGetLastError() in
+     * there, but there is no point. An application making use of these macros will have almost
+     * certainly already included Windows.h */
+
+    #pragma push_macro("WIN32_LEAN_AND_MEAN")
+    #define WIN32_LEAN_AND_MEAN
+    #include <Windows.h>  //for GetLastError() / DWORD
+    #include <Winsock2.h> //for WSAGetLastError()
+    #pragma pop_macro("WIN32_LEAN_AND_MEAN")
+#endif
+
 /* get error message from errno */
 #if defined(_WIN32)
     #define THROW_ON_ERRORNO(fn)                                                                   \
         do {                                                                                       \
             if ((fn) == 0) /* On Windows, most function return 0 on error */                       \
-                throw std::runtime_error(                                                          \
-                    sg::error::get_windows_error_message(sg::error::get_windows_last_error()));    \
+                throw std::runtime_error(sg::error::windows_error_message(GetLastError()));    \
         } while (0)
 
     #define THROW_ON_ERRORNO_SOCKET(fn)                                                            \
         do {                                                                                       \
             if ((fn) == SOCKET_ERROR)                                                              \
-                throw std::runtime_error(sg::error::get_windows_error_message(                     \
-                    sg::error::get_windows_last_socket_error()));                                  \
+                throw std::runtime_error(sg::error::windows_error_message(WSAGetLastError())); \
         } while (0)
 #else
     #include <cerrno>
@@ -35,20 +45,7 @@
 namespace sg::error {
 
 #if defined(_WIN32)
-typedef uint32_t native_error_t;
-std::string SG_COMMON_EXPORT get_windows_error_message(native_error_t errorID);
-
-/** Returns the last Windows error via <tt>GetLastError()</tt>.
- *
- * This is a separate function so that the Windows headers are not included when you include this
- * header. **/
-native_error_t SG_COMMON_EXPORT get_windows_last_error();
-
-/** Returns the last Windows socket error via <tt>WSAGetLastError()</tt>.
- *
- * This is a separate function so that the Windows headers are not included when you include this
- * header. **/
-native_error_t SG_COMMON_EXPORT get_windows_last_socket_error();
+std::string SG_COMMON_EXPORT windows_error_message(DWORD errorID);
 #endif
 
 } // namespace sg::windows
