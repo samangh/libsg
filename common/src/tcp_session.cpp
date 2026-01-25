@@ -52,13 +52,13 @@ void tcp_session::write(std::string_view msg) {
     write(buff);
 }
 
-void tcp_session::set_keepalive(bool enableKeepAlive, uint32_t idleSec, uint32_t intervalSec,
-                                uint32_t count) {
+void tcp_session::set_keepalive(bool enableKeepAlive, unsigned idleSec, unsigned intervalSec,
+                                unsigned count) {
     sg::net::native::set_keepalive(m_socket.native_handle(), enableKeepAlive, idleSec, intervalSec,
                                    count);
 }
 
-void tcp_session::set_timeout(uint32_t timeoutMSec) {
+void tcp_session::set_timeout(unsigned timeoutMSec) {
     sg::net::native::set_timeout(m_socket.native_handle(), timeoutMSec);
 }
 
