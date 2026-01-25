@@ -499,8 +499,8 @@ TEST_CASE("sg::net::tcp_server: check destructor works if start(...) not started
     }
 }
 
-TEST_CASE("sg::net::tcp_server: check set_keepalive(...) and set_timeout(...) can be called",
-          "[sg::net::tcp_server]") {
+
+TEST_CASE("sg::net::tcp_server: set_keepalive(...)", "[sg::net::tcp_server]") {
     using namespace sg::net;
     sg::net::end_point ep("0.0.0.0", PORT);
 
@@ -508,5 +508,20 @@ TEST_CASE("sg::net::tcp_server: check set_keepalive(...) and set_timeout(...) ca
     server.start({ep}, nullptr, nullptr, nullptr, nullptr, nullptr);
 
     server.set_keepalive(true);
-    server.set_timeout(100);
+
+    unsigned outsideRange = (unsigned)std::numeric_limits<int>::max() + 1;
+    // Check range errors
+    REQUIRE_THROWS(server.set_keepalive(true, outsideRange));
+    REQUIRE_THROWS(server.set_keepalive(true,1, outsideRange));
+    REQUIRE_THROWS(server.set_keepalive(true,1, 1, outsideRange));
+}
+
+TEST_CASE("sg::net::tcp_server: set_timeout(...)", "[sg::net::tcp_server]") {
+    using namespace sg::net;
+    sg::net::end_point ep("0.0.0.0", PORT);
+
+    tcp_server server;
+    server.start({ep}, nullptr, nullptr, nullptr, nullptr, nullptr);
+
+    server.set_timeout(true);
 }

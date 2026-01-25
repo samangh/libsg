@@ -35,17 +35,29 @@ TEST_CASE("sg::net::tcp_client: check connect", "[sg::net::tcp_client]") {
         REQUIRE(result == msg);
 }
 
-TEST_CASE("sg::net::tcp_client: check set_keepalive(...) and set_timeout(...) can be called",
-          "[sg::net::tcp_client]") {
+TEST_CASE("sg::net::tcp_client: set_keepalive(...)", "[sg::net::tcp_client]") {
     using namespace sg::net;
-
-    tcp_server server;
-    server.start({ep}, nullptr, nullptr, nullptr, nullptr, nullptr);
 
     auto context = tcp_context::create();
     auto client = tcp_client(context);
-    client.connect(ep, nullptr, nullptr);
+    client.connect(end_point("8.8.8.8", 53), nullptr, nullptr);
+
+    unsigned outsideRange = (unsigned)std::numeric_limits<int>::max() + 1;
 
     client.session().set_keepalive(true);
+
+    // Check range errors
+    REQUIRE_THROWS(client.session().set_keepalive(true, outsideRange));
+    REQUIRE_THROWS(client.session().set_keepalive(true,1, outsideRange));
+    REQUIRE_THROWS(client.session().set_keepalive(true,1, 1, outsideRange));
+}
+
+TEST_CASE("sg::net::tcp_client: set_timeout(...)", "[sg::net::tcp_client]") {
+    using namespace sg::net;
+
+    auto context = tcp_context::create();
+    auto client = tcp_client(context);
+    client.connect(end_point("8.8.8.8", 53), nullptr, nullptr);
+
     client.session().set_timeout(100);
 }
