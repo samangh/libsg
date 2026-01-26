@@ -7,9 +7,11 @@
 #include <boost/asio/co_spawn.hpp>
 #include <boost/asio/io_context.hpp>
 #include <boost/asio/ip/tcp.hpp>
-#include <optional>
-#include <semaphore>
 #include <thread_pool/thread_safe_queue.h>
+
+#include <optional>
+#include <future>
+#include <condition_variable>
 
 namespace sg::net {
 
@@ -24,6 +26,7 @@ class SG_COMMON_EXPORT tcp_session :  public std::enable_shared_from_this<tcp_se
     void start();
     void stop_async();
     void wait_until_stopped() const;
+    bool is_connected() const;
 
     sg::net::end_point local_endpoint();
     sg::net::end_point remote_endpoint();
@@ -42,13 +45,11 @@ class SG_COMMON_EXPORT tcp_session :  public std::enable_shared_from_this<tcp_se
     on_data_available_cb_t m_on_data_cb;
     on_disconnected_cb_t  m_on_disconnected_cb;
 
-    mutable std::binary_semaphore m_stopped {0};
-
-    std::mutex m_mutex;
     dp::thread_safe_queue<sg::shared_c_buffer<std::byte>> m_write_msgs;
 
     std::atomic<bool> m_disconnected_cb_called {false};
     std::atomic<bool> m_stop_requested{false};
+    std::atomic<bool> m_stopped {true};
 
     void close(std::optional<std::exception> ex);
 

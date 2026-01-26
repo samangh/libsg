@@ -5,34 +5,56 @@
 #include <sg/tcp_client.h>
 #include <sg/tcp_server.h>
 
+using namespace sg::net;
+
 // port 55555 can't be used on macOS!
-static sg::net::end_point ep("127.0.0.1", 4444);
+static end_point ep("127.0.0.1", 4444);
 
 TEST_CASE("sg::net::tcp_client: check connect", "[sg::net::tcp_client]") {
+    std::string msg = "hello";
+    std::string expectedEcho = "hellohello";
+    std::string result;
+    std::binary_semaphore can_stop{0};
+
+    /* tcp_server: echo back the message twice */
+    tcp_server::session_data_available_cb_t on_data =
+        [](tcp_server& srv, tcp_server::session_id_t sess, const std::byte* dat, size_t size) {
+            auto echo = std::string((char*)dat, size) + std::string((char*)dat, size);
+            srv.write(sess, echo.c_str(), echo.size());
+        };
+
+    sg::net::tcp_server server;
+    server.start({ep}, nullptr, nullptr, nullptr, on_data, nullptr);
+
+    /* client: collect echo response */
+    tcp_session::on_data_available_cb_t onClientdata = [&](const std::byte* dat, size_t size) {
+        result = std::string((char*)dat, size);
+        can_stop.release();
+    };
+
+    auto context = tcp_context::create();
+    auto client  = tcp_client(context);
+    client.connect(ep, onClientdata, nullptr);
+    client.session().write(msg);
+
+    // wait until we have readback
+    can_stop.acquire();
+
+    client.session().stop_async();
+    client.session().wait_until_stopped();
+
+    REQUIRE(result == expectedEcho);
+}
+
+
+TEST_CASE("sg::net::tcp_client: check that you can't connect twice", "[sg::net::tcp_client]") {
     using namespace sg::net;
 
-        std::string msg = "hello";
-        std::string result;
-        std::binary_semaphore can_stop{0};
+    auto context = tcp_context::create();
+    auto client = tcp_client(context);
+    client.connect(end_point("8.8.8.8", 53), nullptr, nullptr);
+    REQUIRE_THROWS(client.connect(end_point("8.8.8.8", 53), nullptr, nullptr));
 
-        tcp_server::session_data_available_cb_t on_data =
-            [&](tcp_server&, tcp_server::session_id_t, const std::byte* dat, size_t size) {
-                result = std::string((char*)dat, size);
-                can_stop.release();
-            };
-
-        auto context = sg::net::tcp_context::create();
-
-        sg::net::tcp_server server;
-        server.start({ep}, nullptr, nullptr, nullptr, on_data, nullptr);
-
-        auto client = sg::net::tcp_client(context);
-        client.connect(ep, nullptr, nullptr);
-        client.session().write(msg);
-
-        can_stop.acquire();
-
-        REQUIRE(result == msg);
 }
 
 TEST_CASE("sg::net::tcp_client: set_keepalive(...)", "[sg::net::tcp_client]") {
@@ -60,4 +82,11 @@ TEST_CASE("sg::net::tcp_client: set_timeout(...)", "[sg::net::tcp_client]") {
     client.connect(end_point("8.8.8.8", 53), nullptr, nullptr);
 
     client.session().set_timeout(100);
+}
+
+TEST_CASE("sg::net::tcp_client: check destruction of unused client", "[sg::net::tcp_client]") {
+    using namespace sg::net;
+
+    auto context = tcp_context::create();
+    auto client = tcp_client(context);
 }

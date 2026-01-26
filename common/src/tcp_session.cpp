@@ -19,28 +19,27 @@ tcp_session::tcp_session(boost::asio::ip::tcp::socket socket,
 }
 
 tcp_session::~tcp_session() {
-    if (!m_disconnected_cb_called.exchange(true) && m_on_disconnected_cb)
-        m_on_disconnected_cb({});
-    m_stopped.release();
+    // this causes teh right call-backs to be called, if they haven't already
+    close({});
 }
 
 void tcp_session::start() {
-
     co_spawn(
         m_socket.get_executor(),
         [self = shared_from_this()] { return self->reader(); },
         boost::asio::detached);
-
     co_spawn(
         m_socket.get_executor(),
         [self = shared_from_this()] { return self->writer(); },
         boost::asio::detached);
+
+    m_stopped.store(false);
 }
 
 void tcp_session::write(sg::shared_c_buffer<std::byte> msg) {
     if (m_stop_requested.load(std::memory_order::acquire))
         throw std::runtime_error(
-            "attemp to write to tcp_session after a disconnection was requested");
+            "attempt to write to tcp_session after a disconnection was requested");
 
     m_write_msgs.push_back(std::move(msg));
     m_timer.cancel_one();
@@ -63,12 +62,21 @@ void tcp_session::set_timeout(unsigned timeoutMSec) {
 }
 
 void tcp_session::stop_async() {
+    // No action if we have already stopped
+    if (m_stopped.load(std::memory_order::acquire))
+        return;
+
     m_stop_requested.store(true, std::memory_order::release);
     m_timer.cancel_one();
 }
 
 void tcp_session::wait_until_stopped() const {
-    m_stopped.acquire();
+    // block until m_stopped is true
+    m_stopped.wait(false, std::memory_order::acquire);
+}
+
+bool tcp_session::is_connected() const {
+    return !m_stopped.load(std::memory_order::acquire);
 }
 
 end_point tcp_session::local_endpoint() {
@@ -89,11 +97,13 @@ void tcp_session::close(std::optional<std::exception> ex) {
         m_on_disconnected_cb(ex);
 
     try {
-        m_socket.close();
+        if (m_socket.is_open())
+            m_socket.close();
     } catch (...) {}
     m_timer.cancel();
 
-    m_stopped.release();
+    m_stopped.store(true, std::memory_order::release);
+    m_stopped.notify_all(); // needed for atomic wait()
 }
 
 boost::asio::awaitable<void> tcp_session::reader() {
