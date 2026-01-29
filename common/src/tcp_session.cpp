@@ -20,7 +20,8 @@ tcp_session::tcp_session(boost::asio::ip::tcp::socket socket,
 
 tcp_session::~tcp_session() {
     // this causes teh right call-backs to be called, if they haven't already
-    close({});
+    stop_async();
+    wait_until_stopped();
 }
 
 void tcp_session::start() {
