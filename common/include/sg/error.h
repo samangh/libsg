@@ -1,5 +1,6 @@
 #pragma once
 #include <sg/export/common.h>
+#include <sg/debug.h>
 
 #include <stdexcept>
 #include <string>
@@ -22,13 +23,13 @@
     #define THROW_ON_ERRORNO(fn)                                                                   \
         do {                                                                                       \
             if ((fn) == 0) /* On Windows, most function return 0 on error */                       \
-                throw std::runtime_error(sg::error::windows_error_message(GetLastError()));    \
+                SG_THROW(std::runtime_error, sg::error::windows_error_message(GetLastError()));    \
         } while (0)
 
     #define THROW_ON_ERRORNO_SOCKET(fn)                                                            \
         do {                                                                                       \
             if ((fn) == SOCKET_ERROR)                                                              \
-                throw std::runtime_error(sg::error::windows_error_message(WSAGetLastError())); \
+                SG_THROW(std::runtime_error, sg::error::windows_error_message(WSAGetLastError())); \
         } while (0)
 #else
     #include <cerrno>
@@ -37,7 +38,7 @@
     #define THROW_ON_ERRORNO(fn)                                                                   \
         do {                                                                                       \
             if ((fn) != 0)                                                                         \
-                throw std::runtime_error(strerror(errno));                                         \
+                SG_THROW(std::runtime_error, strerror(errno));                                     \
         } while (0)
    #define THROW_ON_ERRORNO_SOCKET(fn) THROW_ON_ERRORNO(fn)
 #endif
