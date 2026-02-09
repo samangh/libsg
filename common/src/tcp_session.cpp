@@ -25,6 +25,11 @@ tcp_session::~tcp_session() {
 }
 
 void tcp_session::start() {
+    {
+        std::lock_guard lock(m_exception_mutex);
+        m_exception_msg = "";
+    }
+
     co_spawn(
         m_socket.get_executor(),
         [self = shared_from_this()] { return self->reader(); },
@@ -90,9 +95,16 @@ end_point tcp_session::remote_endpoint() {
     return sg::net::end_point(asioEp.address().to_string(), asioEp.port());
 }
 
-void tcp_session::close(std::optional<std::exception> ex) {
+void tcp_session::close() {
     if (m_disconnected_cb_called.exchange(true))
         return;
+
+    std::optional<std::exception> ex{};
+    {
+        std::lock_guard lock(m_exception_mutex);
+        if (!m_exception_msg.empty())
+            ex = std::runtime_error(m_exception_msg);
+    }
 
     if (m_on_disconnected_cb)
         m_on_disconnected_cb(ex);
@@ -122,10 +134,13 @@ boost::asio::awaitable<void> tcp_session::reader() {
         }
     } catch (const std::exception& ex) {
         /* if clean closing, do not throw error */
-        if (m_stop_requested.load(std::memory_order::acquire))
-            close({});
-        else
-            close(ex);
+        if (!m_stop_requested.load(std::memory_order::acquire))
+        {
+            std::lock_guard lock(m_exception_mutex);
+            m_exception_msg = ex.what();
+        }
+
+        close();
     }
 
     co_return;
@@ -155,7 +170,13 @@ boost::asio::awaitable<void> tcp_session::writer() {
                                                   boost::asio::use_awaitable);
             }
         }
-    } catch (const std::exception& ex) { close(ex); }
+    } catch (const std::exception& ex) {
+        {
+            std::lock_guard lock(m_exception_mutex);
+            m_exception_msg = ex.what();
+        }
+        close();
+    }
     co_return;
 }
 }

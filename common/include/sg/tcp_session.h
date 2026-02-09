@@ -51,7 +51,10 @@ class SG_COMMON_EXPORT tcp_session :  public std::enable_shared_from_this<tcp_se
     std::atomic<bool> m_stop_requested{false};
     std::atomic<bool> m_stopped {true};
 
-    void close(std::optional<std::exception> ex);
+    std::mutex m_exception_mutex;
+    std::string m_exception_msg;
+
+    void close();
 
     boost::asio::awaitable<void> reader();
     boost::asio::awaitable<void> writer();
