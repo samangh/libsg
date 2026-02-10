@@ -21,7 +21,7 @@ namespace sg::net {
 class SG_COMMON_EXPORT tcp_server {
   public:
     typedef size_t session_id_t;
-    typedef std::shared_ptr<tcp_session> ptr;
+    typedef std::unique_ptr<tcp_session> ptr;
 
     typedef std::function<void(tcp_server&)> started_listening_cb_t;
     typedef std::function<void(tcp_server&)> stopped_listening_cb_t;
@@ -50,7 +50,7 @@ class SG_COMMON_EXPORT tcp_server {
     void disconnect(session_id_t id);
     void disconnect_all();
 
-    ptr session(session_id_t id);
+    tcp_session* session(session_id_t id);
     void set_keepalive(bool enableKeepAlive, unsigned idleSec = 60, unsigned intervalSec = 5,
                        unsigned count = 5);
     void set_timeout(unsigned timeoutMSec = 5000);

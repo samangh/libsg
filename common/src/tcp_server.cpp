@@ -97,12 +97,12 @@ void tcp_server::disconnect(session_id_t id) {
 
 void tcp_server::disconnect_all() {
     std::shared_lock lock(m_mutex);
-    for (auto [_, sess] : m_sessions) sess->stop_async();
+    for (auto& [_, sess] : m_sessions) sess->stop_async();
 }
 
-tcp_server::ptr tcp_server::session(session_id_t id) {
+tcp_session* tcp_server::session(session_id_t id) {
     std::shared_lock lock(m_mutex);
-    return m_sessions.at(id);
+    return m_sessions.at(id).get();
 }
 void tcp_server::set_keepalive(bool enableKeepAlive, unsigned idleSec, unsigned intervalSec,
                                unsigned count) {
@@ -128,20 +128,20 @@ tcp_server::listener(std::shared_ptr<boost::asio::ip::tcp::acceptor> acceptor) {
             inform_user_of_data(id, data, size);
         };
 
-        auto sess = std::make_shared<tcp_session>(
+        auto sess = std::make_unique<tcp_session>(
             co_await acceptor.get()->async_accept(boost::asio::use_awaitable),
             onData,
             onSessionDisconnected);
 
         {
             std::unique_lock lock(m_mutex);
-            m_sessions.emplace(id, sess);
+            m_sessions.emplace(id, std::move(sess));
         }
 
         if (m_new_session_cb)
             m_new_session_cb(*this, id);
 
-        sess->start();
+        session(id)->start();
     }
 }
 
