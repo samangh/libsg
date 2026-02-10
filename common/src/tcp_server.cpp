@@ -149,6 +149,18 @@ void tcp_server::on_worker_start(notifiable_background_worker*) {
     for (auto e : m_endpoints) {
         boost::asio::ip::tcp::endpoint ep(boost::asio::ip::make_address(e.ip), e.port);
 
+        /** The boost acceptor(conext, endpoint) function is equivalent to:
+         *
+         * @code
+         * basic_socket_acceptor<Protocol> acceptor(my_context);
+         * acceptor.open(endpoint.protocol());
+         * if (reuse_addr)
+         *   acceptor.set_option(socket_base::reuse_address(true));
+         * acceptor.bind(endpoint);
+         * acceptor.listen();
+         * @endcode
+         *
+         * So may be we should do above directly (in case we want to add our own options). */
         auto a = std::make_shared<boost::asio::ip::tcp::acceptor>(m_io_context_ptr, ep);
         boost::asio::co_spawn(m_io_context_ptr, listener(a), boost::asio::detached);
         m_acceptors.push_back(a);
