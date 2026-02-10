@@ -15,7 +15,7 @@
 
 namespace sg::net {
 
-class SG_COMMON_EXPORT tcp_session :  public std::enable_shared_from_this<tcp_session>{
+class SG_COMMON_EXPORT tcp_session {
   public:
     typedef std::function<void(const std::byte*, size_t)> on_data_available_cb_t;
     typedef std::function<void(std::optional<std::exception>)> on_disconnected_cb_t;
@@ -45,11 +45,14 @@ class SG_COMMON_EXPORT tcp_session :  public std::enable_shared_from_this<tcp_se
     on_data_available_cb_t m_on_data_cb;
     on_disconnected_cb_t  m_on_disconnected_cb;
 
-    dp::thread_safe_queue<sg::shared_c_buffer<std::byte>> m_write_msgs;
+    dp::thread_safe_queue<sg::shared_c_buffer<std::byte>> m_write_msgs{};
 
     std::atomic<bool> m_disconnected_cb_called {false};
     std::atomic<bool> m_stop_requested{false};
     std::atomic<bool> m_stopped {true};
+
+    std::atomic<bool> m_reader_running;
+    std::atomic<bool> m_writer_running;
 
     std::mutex m_exception_mutex;
     std::string m_exception_msg;

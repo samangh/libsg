@@ -81,7 +81,7 @@ TEST_CASE("sg::net::tcp_server: check start/stop callback as class member", "[sg
 }
 
 
-TEST_CASE("sg::net::tcp_server: check read/write with many simultanious clients", "[sg::net::tcp_server]") {
+TEST_CASE("sg::net::tcp_server: check read/write with many simultaneous clients", "[sg::net::tcp_server]") {
     using namespace sg::net;
 
     int count =100;

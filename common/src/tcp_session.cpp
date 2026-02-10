@@ -30,13 +30,16 @@ void tcp_session::start() {
         m_exception_msg = "";
     }
 
+    m_reader_running.store(true);
+    m_writer_running.store(true);
+
     co_spawn(
         m_socket.get_executor(),
-        [self = shared_from_this()] { return self->reader(); },
+        [self = this] { return self->reader(); },
         boost::asio::detached);
     co_spawn(
         m_socket.get_executor(),
-        [self = shared_from_this()] { return self->writer(); },
+        [self = this] { return self->writer(); },
         boost::asio::detached);
 
     m_stopped.store(false);
@@ -96,6 +99,21 @@ end_point tcp_session::remote_endpoint() {
 }
 
 void tcp_session::close() {
+    /*  close socket gracefully */
+    try {
+        if (m_socket.is_open()) {
+            m_socket.shutdown(m_socket.shutdown_both);
+            m_socket.close();
+        }
+    } catch (...) {}
+
+    /* un-lock the writer thread, in case it's sleeping */
+    m_timer.cancel();
+
+    /* don't go past unless both reader and writer have stopped */
+    if (m_reader_running || m_writer_running)
+        return;
+
     if (m_disconnected_cb_called.exchange(true))
         return;
 
@@ -105,12 +123,6 @@ void tcp_session::close() {
         if (!m_exception_msg.empty())
             ex = std::runtime_error(m_exception_msg);
     }
-
-    try {
-        if (m_socket.is_open())
-            m_socket.close();
-    } catch (...) {}
-    m_timer.cancel();
 
     m_stopped.store(true, std::memory_order::release);
     m_stopped.notify_all(); // needed for atomic wait()
@@ -139,9 +151,10 @@ boost::asio::awaitable<void> tcp_session::reader() {
             std::lock_guard lock(m_exception_mutex);
             m_exception_msg = ex.what();
         }
-
-        close();
     }
+
+    m_reader_running.store(false);
+    close();
 
     co_return;
 }
@@ -149,15 +162,9 @@ boost::asio::awaitable<void> tcp_session::reader() {
 boost::asio::awaitable<void> tcp_session::writer() {
     try {
         while (m_socket.is_open()) {
-            /* if shutdown is requested, then wait until all message is written
-             *
-             * Once the shutdown request is sent, the reader() will throw an error which will cause
-             * stop(ex) to be called.
-             */
-            if (m_stop_requested.load(std::memory_order::acquire) && m_write_msgs.empty()) {
-                m_socket.shutdown(m_socket.shutdown_both);
-                co_return;
-            }
+            /* if shutdown is requested, wait until all message is written */
+            if (m_stop_requested.load(std::memory_order::acquire) && m_write_msgs.empty())
+                break;
 
             if (m_write_msgs.empty()) {
                 boost::system::error_code ec;
@@ -175,8 +182,11 @@ boost::asio::awaitable<void> tcp_session::writer() {
             std::lock_guard lock(m_exception_mutex);
             m_exception_msg = ex.what();
         }
-        close();
     }
+
+    m_writer_running.store(false);
+    close();
+
     co_return;
 }
 }
