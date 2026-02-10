@@ -1,5 +1,6 @@
 #include "sg/tcp_session.h"
 #include "sg/tcp_native.h"
+#include "sg/debug.h"
 
 #include <boost/asio/detached.hpp>
 #include <boost/asio/redirect_error.hpp>
@@ -15,7 +16,6 @@ tcp_session::tcp_session(boost::asio::ip::tcp::socket socket,
       m_on_data_cb(std::move(onReadCb)),
       m_on_disconnected_cb(std::move(onErrorCb)) {
     m_timer.expires_at(std::chrono::steady_clock::time_point::max());
-
 }
 
 tcp_session::~tcp_session() {
@@ -44,8 +44,8 @@ void tcp_session::start() {
 
 void tcp_session::write(sg::shared_c_buffer<std::byte> msg) {
     if (m_stop_requested.load(std::memory_order::acquire))
-        throw std::runtime_error(
-            "attempt to write to tcp_session after a disconnection was requested");
+        SG_THROW(std::runtime_error,
+                 "attempt to write to tcp_session after a disconnection was requested");
 
     m_write_msgs.push_back(std::move(msg));
     m_timer.cancel_one();
