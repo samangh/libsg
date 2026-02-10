@@ -11,12 +11,7 @@ tcp_client::tcp_client() : m_context(tcp_context::create()) {}
 
 tcp_client::tcp_client(std::shared_ptr<tcp_context> context) : m_context(context) {}
 
-tcp_client::~tcp_client() {
-    if (m_session) {
-        m_session->stop_async();
-        m_session->wait_until_stopped();
-    }
-}
+tcp_client::~tcp_client() = default;
 
 void tcp_client::connect(const end_point& endpoint,
                          tcp_session::on_data_available_cb_t onReadCb,
@@ -30,7 +25,7 @@ void tcp_client::connect(const end_point& endpoint,
     auto endpoints = resolver.resolve(endpoint.ip, std::to_string(endpoint.port));
     boost::asio::connect(socket, endpoints);
 
-    m_session = std::make_shared<tcp_session>(std::move(socket), onReadCb, omDisconnect);
+    m_session = std::make_unique<tcp_session>(std::move(socket), onReadCb, omDisconnect);
     m_session->start();
     m_context->run();
 }

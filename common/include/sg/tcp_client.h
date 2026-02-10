@@ -22,7 +22,7 @@ class SG_COMMON_EXPORT tcp_client {
   private:
     // define m_session after m_context, so that m_session is destructed first
     std::shared_ptr<tcp_context> m_context;
-    std::shared_ptr<tcp_session> m_session;
+    std::unique_ptr<tcp_session> m_session;
 };
 
 }
