@@ -99,12 +99,15 @@ end_point tcp_session::remote_endpoint() {
 }
 
 void tcp_session::close() {
-    /*  close socket gracefully */
+    /* graceful disconnection  */
     try {
-        if (m_socket.is_open()) {
+        if (m_socket.is_open())
             m_socket.shutdown(m_socket.shutdown_both);
-            m_socket.close();
-        }
+    } catch(...) {}
+
+    /*  you still need to close the socket, even if the connection is down */
+    try {
+        m_socket.close();
     } catch (...) {}
 
     /* un-lock the writer thread, in case it's sleeping */
