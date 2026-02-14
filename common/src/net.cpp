@@ -1,6 +1,7 @@
 #include <sg/net.h>
 #include <sg/libuv_wrapper.h>
 
+#include <boost/asio.hpp>
 #include <vector>
 
 namespace sg::net {
@@ -49,5 +50,23 @@ std::vector<sg::net::interface_details> interfaces()
     }
 
 }
+std::vector<std::string> resolve(const std::string& hostname) {
+    std::vector<std::string> ips;
+    boost::asio::io_context io_contex;
+    boost::asio::ip::tcp::resolver resolver(io_contex.get_executor());
 
+    try {
+        for (const auto& result : resolver.resolve(hostname, "http"))
+            ips.push_back(result.endpoint().address().to_string());
+
+        return ips;
+    } catch (const boost::system::system_error & e) {
+        if (e.code() == boost::asio::error::host_not_found)
+            throw exceptions::net(exceptions::net::codes::host_not_found, e.code().message());
+        if (e.code() == boost::asio::error::network_unreachable)
+            throw exceptions::net(exceptions::net::codes::network_unreachable, e.code().message());
+        throw exceptions::net(exceptions::net::codes::other, e.code().message());
+    }
 }
+
+} // namespace sg::net

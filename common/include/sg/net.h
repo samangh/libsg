@@ -2,6 +2,8 @@
 
 #include <sg/export/common.h>
 
+#include "exceptions.h"
+
 #include <array>
 #include <cstdint>
 #include <string>
@@ -27,10 +29,19 @@ struct end_point{
     std::string ip;
     port_t port;
 };
+
 /**
  * @brief returns vector of all system interfaces
  * @return vector of all system interfaces
  */
 SG_COMMON_EXPORT std::vector<sg::net::interface_details> interfaces();
+
+/**
+ *
+ * @throws sg::exceptions::net on networking errors, other exceptions on non-networking erros
+ * @param hostname
+ * @return
+ */
+SG_COMMON_EXPORT std::vector<std::string> resolve(const std::string& hostname);
 
 }  // namespace sg::net
