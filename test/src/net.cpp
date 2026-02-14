@@ -22,14 +22,12 @@ TEST_CASE("sg::net check resolve()", "[sg::net]") {
              sg::net::resolve("localhost").front() == "::1"));
 
     // check error handling
-    REQUIRE_THROWS_AS(sg::net::resolve("localhozxcst"), sg::exceptions::net);
+    REQUIRE_THROWS_AS(sg::net::resolve("localhozxcst"),
+                      sg::exceptions::exception<sg::exceptions::errors::net>);
 
     // Check exact error code
-    sg::exceptions::errors_net err = sg::exceptions::errors_net::other;
     try {
         sg::net::resolve("localhozxcst");
-    } catch(const sg::exceptions::net& e) {
-        err= e.code;
+    } catch(const sg::exceptions::net<sg::exceptions::errors::net::host_not_found> & e) {
     }
-    REQUIRE(err == sg::exceptions::net::codes::host_not_found);
 }

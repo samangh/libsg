@@ -61,11 +61,12 @@ std::vector<std::string> resolve(const std::string& hostname) {
 
         return ips;
     } catch (const boost::system::system_error & e) {
-        if (e.code() == boost::asio::error::host_not_found)
-            throw exceptions::net(exceptions::net::codes::host_not_found, e.code().message());
+        if (e.code() == boost::asio::error::host_not_found ||
+            e.code() == boost::asio::error::host_not_found_try_again)
+            throw exceptions::net<exceptions::errors::net::host_not_found>(e.code().message());
         if (e.code() == boost::asio::error::network_unreachable)
-            throw exceptions::net(exceptions::net::codes::network_unreachable, e.code().message());
-        throw exceptions::net(exceptions::net::codes::other, e.code().message());
+            throw exceptions::net<exceptions::errors::net::network_unreachable>(e.code().message());
+        throw exceptions::net<exceptions::errors::net::other>(e.code().message());
     }
 }
 
