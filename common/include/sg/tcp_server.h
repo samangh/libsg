@@ -70,6 +70,8 @@ class SG_COMMON_EXPORT tcp_server {
 
     //m_acceptors are copied for set_keepalive/set_timeout user
     std::vector<std::shared_ptr<boost::asio::ip::tcp::acceptor>> m_acceptors;
+    std::atomic<size_t> m_acceptors_running_count{0};
+    std::atomic<bool> m_acceptors_stopped{false};
 
     session_created_cb_t m_new_session_cb;
     session_data_available_cb_t m_on_data_read_user_cb;

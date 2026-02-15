@@ -4,6 +4,7 @@
 #include <boost/asio/co_spawn.hpp>
 #include <boost/asio/detached.hpp>
 #include <boost/asio/redirect_error.hpp>
+#include <atomic>
 
 namespace sg::net {
 
@@ -28,6 +29,8 @@ void tcp_server::stop_async() {
             } catch (...) {}
         }
 
+        /* wait until all acceptors have disconnected */
+        m_acceptors_stopped.wait(false, std::memory_order::acquire);
         disconnect_all();
 
         /* wait until all clients disconnected and all callbacks called, etc */
@@ -126,37 +129,49 @@ void tcp_server::set_timeout(unsigned timeoutMSec) {
 
 boost::asio::awaitable<void>
 tcp_server::listener(std::shared_ptr<boost::asio::ip::tcp::acceptor> acceptor) {
-    while (!m_stop_in_operation.load(std::memory_order::acquire)) {
-        auto id = m_last_id++;
+    ++m_acceptors_running_count;
+    m_acceptors_stopped.store(false, std::memory_order::release);
 
-        auto onSessionDisconnected = [this, id](std::optional<std::exception> ex) {
-            on_session_stopped(id, ex);
-        };
-        auto onData = [this, id](const std::byte* data, size_t size) {
-            inform_user_of_data(id, data, size);
-        };
+    try {
+        while (!m_stop_in_operation.load(std::memory_order::acquire)) {
+            auto id = m_last_id++;
 
-        auto sess = std::make_unique<tcp_session>(
-            co_await acceptor.get()->async_accept(boost::asio::use_awaitable),
-            onData,
-            onSessionDisconnected);
+            auto onSessionDisconnected = [this, id](std::optional<std::exception> ex) {
+                on_session_stopped(id, ex);
+            };
+            auto onData = [this, id](const std::byte* data, size_t size) {
+                inform_user_of_data(id, data, size);
+            };
 
-        //TODO: what happens if async_accept above or any of the callbacks throw an error?
+            auto sess = std::make_unique<tcp_session>(
+                co_await acceptor.get()->async_accept(boost::asio::use_awaitable),
+                onData,
+                onSessionDisconnected);
 
-        /* check that the m_async did not return because stop_async was called */
-        if (!m_stop_in_operation.load(std::memory_order::acquire)) {
-            {
-                std::unique_lock lock(m_mutex);
-                m_sessions.emplace(id, std::move(sess));
+            /* check that the m_async did not return because stop_async was called */
+            if (!m_stop_in_operation.load(std::memory_order::acquire)) {
+                {
+                    std::unique_lock lock(m_mutex);
+                    m_sessions.emplace(id, std::move(sess));
+                }
+
+                if (m_new_session_cb)
+                    m_new_session_cb(*this, id);
+
+                session(id)->start();
             }
-
-            if (m_new_session_cb)
-                m_new_session_cb(*this, id);
-
-            session(id)->start();
         }
+    } catch (const boost::system::system_error& err) {
+        //TODO: how to handle exceptions?
+
+        // this is the error that you get when the socket is closed
+        // err.code() == boost::asio::error::operation_aborted)
+    } catch (...) {}
+
+    if (--m_acceptors_running_count==0) {
+        m_acceptors_stopped.store(true);
+        m_acceptors_stopped.notify_all();
     }
-    co_return;
 }
 
 void tcp_server::on_worker_start(notifiable_background_worker*) {
