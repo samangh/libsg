@@ -21,16 +21,13 @@ void tcp_server::stop_async() {
     if (m_stop_in_operation.exchange(true))
         return;
 
-    m_stopping_thread = std::jthread([this]() {
-        disconnect_all();
+    for (auto& acceptor : m_acceptors) {
+        try {
+            acceptor->close();
+        } catch (...) {}
+    }
 
-        /* wait untill all clients disconnected and all callbacks called, etc */
-        while (clients_count() != 0) std::this_thread::sleep_for(std::chrono::milliseconds(10));
-
-        if (!m_io_context_ptr.stopped())
-            m_io_context_ptr.stop();
-        m_worker->wait_for_stop();
-    });
+    disconnect_all();
 }
 
 void tcp_server::start(std::vector<end_point> endpoints,
@@ -120,7 +117,7 @@ void tcp_server::set_timeout(unsigned timeoutMSec) {
 
 boost::asio::awaitable<void>
 tcp_server::listener(std::shared_ptr<boost::asio::ip::tcp::acceptor> acceptor) {
-    while (true) {
+    while (!m_stop_in_operation.load(std::memory_order::acquire)) {
         auto id = m_last_id++;
 
         auto onSessionDisconnected = [this, id](std::optional<std::exception> ex) {
@@ -135,16 +132,22 @@ tcp_server::listener(std::shared_ptr<boost::asio::ip::tcp::acceptor> acceptor) {
             onData,
             onSessionDisconnected);
 
-        {
-            std::unique_lock lock(m_mutex);
-            m_sessions.emplace(id, std::move(sess));
+        //TODO: what happens if async_accept above or any of the callbacks throw an error?
+
+        /* check that the m_async did not return because stop_async was called */
+        if (!m_stop_in_operation.load(std::memory_order::acquire)) {
+            {
+                std::unique_lock lock(m_mutex);
+                m_sessions.emplace(id, std::move(sess));
+            }
+
+            if (m_new_session_cb)
+                m_new_session_cb(*this, id);
+
+            session(id)->start();
         }
-
-        if (m_new_session_cb)
-            m_new_session_cb(*this, id);
-
-        session(id)->start();
     }
+    co_return;
 }
 
 void tcp_server::on_worker_start(notifiable_background_worker*) {

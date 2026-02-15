@@ -408,44 +408,46 @@ TEST_CASE("sg::net::tcp_server: check reaction to client immediate disconnection
 }
 
 TEST_CASE("sg::net::tcp_server: check dropping tcp_server drops allconnections", "[sg::net::tcp_server]") {
-    using namespace sg::net;
+    for (int i=0; i < 100; i++) {
+        using namespace sg::net;
 
-    std::binary_semaphore sem{0};
-    std::atomic_int stop_count{0};
+        std::binary_semaphore sem{0};
+        std::atomic_int stop_count{0};
 
-    tcp_server::session_created_cb_t onConn = [&](tcp_server&, tcp_server::session_id_t) { sem.release(); };
-    tcp_server::stopped_listening_cb_t onStop = [&](tcp_server&) { stop_count++; };
+        tcp_server::session_created_cb_t onConn = [&](tcp_server&, tcp_server::session_id_t) { sem.release(); };
+        tcp_server::stopped_listening_cb_t onStop = [&](tcp_server&) { stop_count++; };
 
-    sg::net::end_point ep("0.0.0.0", PORT);
-    std::jthread th;
+        sg::net::end_point ep("0.0.0.0", PORT);
+        std::jthread th;
 
-    {
-        tcp_server l;
-        l.start({ep}, nullptr, onStop, onConn, nullptr, nullptr);
+        {
+            tcp_server l;
+            l.start({ep}, nullptr, onStop, onConn, nullptr, nullptr);
 
-        th = std::jthread([]() {
-            using boost::asio::ip::tcp;
+            th = std::jthread([]() {
+                using boost::asio::ip::tcp;
 
-            boost::asio::io_context io_context;
+                boost::asio::io_context io_context;
 
-            tcp::resolver resolver(io_context);
-            tcp::resolver::results_type endpoints =
-                resolver.resolve("127.0.0.1", std::to_string(PORT));
+                tcp::resolver resolver(io_context);
+                tcp::resolver::results_type endpoints =
+                    resolver.resolve("127.0.0.1", std::to_string(PORT));
 
-            tcp::socket socket(io_context);
-            boost::asio::connect(socket, endpoints);
+                tcp::socket socket(io_context);
+                boost::asio::connect(socket, endpoints);
 
-            if (!socket.is_open())
-                return;
-        });
+                if (!socket.is_open())
+                    return;
+            });
 
-        /* at least echo once */
-        sem.acquire();
+            /* at least echo once */
+            sem.acquire();
+        }
+
+        // Check client disconnected
+        REQUIRE_NOTHROW(th.join());
+        REQUIRE(stop_count ==1);
     }
-
-    // Check client disconnected
-    REQUIRE_NOTHROW(th.join());
-    REQUIRE(stop_count ==1);
 }
 
 TEST_CASE("sg::net::tcp_server: check stop_async() drops all connections", "[sg::net::tcp_server]") {
@@ -517,11 +519,13 @@ TEST_CASE("sg::net::tcp_server: set_keepalive(...)", "[sg::net::tcp_server]") {
 }
 
 TEST_CASE("sg::net::tcp_server: set_timeout(...)", "[sg::net::tcp_server]") {
-    using namespace sg::net;
-    sg::net::end_point ep("0.0.0.0", PORT);
+    for (int i =0; i<100; i++) {
+        using namespace sg::net;
+        sg::net::end_point ep("0.0.0.0", PORT);
 
-    tcp_server server;
-    server.start({ep}, nullptr, nullptr, nullptr, nullptr, nullptr);
+        tcp_server server;
+        server.start({ep}, nullptr, nullptr, nullptr, nullptr, nullptr);
 
-    server.set_timeout(true);
+        server.set_timeout(true);
+    }
 }
