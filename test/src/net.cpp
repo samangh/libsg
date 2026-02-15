@@ -1,9 +1,7 @@
-#include <boost/system/errc.hpp>
-#include <boost/asio.hpp>
-#include <boost/system/system_error.hpp>
 #include <catch2/catch_test_macros.hpp>
-#include <ranges>
 #include <sg/net.h>
+
+#include <ranges>
 
 TEST_CASE("sg::net check interfaces() returns a loopback address", "[sg::net]") {
     auto loopback =
@@ -28,6 +26,5 @@ TEST_CASE("sg::net check resolve()", "[sg::net]") {
     // Check exact error code
     try {
         sg::net::resolve("localhozxcst");
-    } catch(const sg::exceptions::net<sg::exceptions::errors::net::host_not_found> & e) {
-    }
+    } catch (const sg::exceptions::net<sg::exceptions::errors::net::host_not_found>&) {}
 }
