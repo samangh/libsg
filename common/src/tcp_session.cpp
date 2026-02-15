@@ -127,11 +127,11 @@ void tcp_session::close() {
             ex = std::runtime_error(m_exception_msg);
     }
 
-    m_stopped.store(true, std::memory_order::release);
-    m_stopped.notify_all(); // needed for atomic wait()
-
     if (m_on_disconnected_cb)
         m_on_disconnected_cb(ex);
+
+    m_stopped.store(true, std::memory_order::release);
+    m_stopped.notify_all(); // needed for atomic wait()
 }
 
 boost::asio::awaitable<void> tcp_session::reader() {
