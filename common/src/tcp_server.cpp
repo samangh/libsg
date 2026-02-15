@@ -21,13 +21,22 @@ void tcp_server::stop_async() {
     if (m_stop_in_operation.exchange(true))
         return;
 
-    for (auto& acceptor : m_acceptors) {
-        try {
-            acceptor->close();
-        } catch (...) {}
-    }
+    m_stopping_thread = std::jthread([this]() {
+        for (auto& acceptor : m_acceptors) {
+            try {
+                acceptor->close();
+            } catch (...) {}
+        }
 
-    disconnect_all();
+        disconnect_all();
+
+        /* wait until all clients disconnected and all callbacks called, etc */
+        while (clients_count() != 0) std::this_thread::sleep_for(std::chrono::milliseconds(10));
+
+        if (!m_io_context_ptr.stopped())
+            m_io_context_ptr.stop();
+        m_worker->wait_for_stop();
+    });
 }
 
 void tcp_server::start(std::vector<end_point> endpoints,

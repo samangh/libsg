@@ -78,6 +78,7 @@ class SG_COMMON_EXPORT tcp_server {
     stopped_listening_cb_t m_on_stopped_listening_cb;
 
     std::atomic<bool> m_stop_in_operation;
+    std::jthread m_stopping_thread;
 
     dp::thread_pool<> m_pool{1};
 
