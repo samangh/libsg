@@ -12,6 +12,8 @@ tcp_server::~tcp_server() noexcept(false) {
         stop_async();
         m_worker->future_get_once();
     }
+
+    m_pool.wait_for_tasks();
 }
 
 void tcp_server::stop_async() {
@@ -186,10 +188,19 @@ void tcp_server::inform_user_of_data(session_id_t id, const std::byte* data, siz
 }
 
 void tcp_server::on_session_stopped(session_id_t id, std::optional<std::exception> ex) {
-    if (m_on_disconnect_user_cb)
-        m_on_disconnect_user_cb(*this, id, ex);
+    /* This needs to be on a separate thread-loop, to get out of the following deadlock:
+     *
+     *   1) client disconnects so the function gets called (via the on_disconnection callback)
+     *   2) this function removes the session, which calls the destructor of the session
+     *   3) the destructor waits for the session to end, but that can't happen because the
+     *      on_disconnection callback is running
+     */
+    m_pool.enqueue_detach([this, id, ex]() {
+        if (m_on_disconnect_user_cb)
+            m_on_disconnect_user_cb(*this, id, ex);
 
-    std::unique_lock lock(m_mutex);
-    m_sessions.erase(id);
+        std::unique_lock lock(m_mutex);
+        m_sessions.erase(id);
+    });
 }
 }

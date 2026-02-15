@@ -8,6 +8,8 @@
 #include "jthread.h"
 #include "tcp_session.h"
 
+#include <thread_pool/thread_pool.h>
+
 #include <boost/asio/awaitable.hpp>
 #include <boost/asio/io_context.hpp>
 #include <boost/asio/ip/tcp.hpp>
@@ -77,6 +79,8 @@ class SG_COMMON_EXPORT tcp_server {
 
     std::atomic<bool> m_stop_in_operation;
     std::jthread m_stopping_thread;
+
+    dp::thread_pool<dp::details::default_function_type, std::jthread> m_pool;
 
     boost::asio::awaitable<void> listener(std::shared_ptr<boost::asio::ip::tcp::acceptor> acceptor);
 
