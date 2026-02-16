@@ -44,7 +44,7 @@ setup_executable(
     src/bytes.cpp
     src/process.cpp
     src/notifiable_background_worker.cpp
-    src/compression_zstd.cpp
+    $<$<BOOL:${LIBSG_ZSTD}>:src/compression_zstd.cpp>
     src/ranges.cpp
     src/gettimeofday.cpp
     src/enumeration.cpp
