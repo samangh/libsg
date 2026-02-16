@@ -1,5 +1,6 @@
-#include <sg/net.h>
-#include <sg/libuv_wrapper.h>
+#include "sg/net.h"
+#include "sg/libuv_wrapper.h"
+#include "sg/tcp_context.h"
 
 #include <boost/asio.hpp>
 #include <vector>
@@ -52,8 +53,14 @@ std::vector<sg::net::interface_details> interfaces()
 }
 std::vector<std::string> resolve(const std::string& hostname) {
     std::vector<std::string> ips;
-    boost::asio::io_context io_contex;
-    boost::asio::ip::tcp::resolver resolver(io_contex.get_executor());
+    auto context = tcp_context::create();
+
+    /* prevent context from immediately exiting */
+    boost::asio::executor_work_guard<boost::asio::io_context::executor_type> guard =
+        boost::asio::make_work_guard(context->context());
+    context->run();
+
+    boost::asio::ip::tcp::resolver resolver(context->context());
 
     try {
         for (const auto& result : resolver.resolve(hostname, "http"))
