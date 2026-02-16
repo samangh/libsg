@@ -235,7 +235,7 @@ TEST_CASE("sg::net::tcp_server: check what happens if client disconnects", "[sg:
     REQUIRE(has_exception);
 }
 
-TEST_CASE("sg::net::tcp_server: check what happens if there is an exception in started_listening_cb_t cb", "[sg::net::tcp_server]") {
+TEST_CASE("sg::net::tcp_server started_listening_cb_t exception handling", "[sg::net::tcp_server]") {
     using namespace sg::net;
 
     tcp_server::started_listening_cb_t onListening =
@@ -249,7 +249,7 @@ TEST_CASE("sg::net::tcp_server: check what happens if there is an exception in s
     REQUIRE_THROWS(l.start({ep}, onListening, nullptr, nullptr, nullptr, nullptr));
 }
 
-TEST_CASE("sg::net::tcp_server: check what happens if there is an exception in stopped_listening_cb_t cb", "[sg::net::tcp_server]") {
+TEST_CASE("sg::net::tcp_server stopped_listening_cb_t cb exception handling", "[sg::net::tcp_server]") {
     using namespace sg::net;
 
     tcp_server::stopped_listening_cb_t onStop =
