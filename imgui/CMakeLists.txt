@@ -10,7 +10,7 @@ CPMAddPackage(
 )
 CPMAddPackage(
   NAME implot
-  URL https://github.com/epezent/implot/archive/81b8b1951392767cf458508385fa025fd087a252.zip
+  URL https://github.com/epezent/implot/archive/refs/tags/v0.17.zip
   # GITHUB_REPOSITORY epezent/implot
   # GIT_TAG 3da8bd34299965d3b0ab124df743fe3e076fa222
   # GIT_SHALLOW
