@@ -16,8 +16,9 @@ TEST_CASE("sg::net check interfaces() returns a loopback address", "[sg::net]") 
 
 TEST_CASE("sg::net check resolve()", "[sg::net]") {
     // check loopback
-    REQUIRE((sg::net::resolve("localhost").front() == "127.0.0.1" ||
-             sg::net::resolve("localhost").front() == "::1"));
+    auto loopback = sg::net::resolve("localhost");
+    REQUIRE((!loopback.empty() && (sg::net::resolve("localhost").front() == "127.0.0.1" ||
+                                   sg::net::resolve("localhost").front() == "::1")));
 
     // check error handling
     REQUIRE_THROWS_AS(sg::net::resolve("localhozxcst"),

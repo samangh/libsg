@@ -53,14 +53,8 @@ std::vector<sg::net::interface_details> interfaces()
 }
 std::vector<std::string> resolve(const std::string& hostname) {
     std::vector<std::string> ips;
-    auto context = tcp_context::create();
-
-    /* prevent context from immediately exiting */
-    boost::asio::executor_work_guard<boost::asio::io_context::executor_type> guard =
-        boost::asio::make_work_guard(context->context());
-    context->run();
-
-    boost::asio::ip::tcp::resolver resolver(context->context());
+    auto context = boost::asio::io_context();
+    boost::asio::ip::tcp::resolver resolver(context);
 
     try {
         for (const auto& result : resolver.resolve(hostname, "http"))
