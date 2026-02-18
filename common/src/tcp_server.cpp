@@ -49,7 +49,7 @@ void tcp_server::start(std::vector<end_point> endpoints, started_listening_cb_t 
         throw std::runtime_error("tcp_server is already running");
 
     auto stoppedTask = std::bind(&tcp_server::on_worker_stop, this, std::placeholders::_1);
-    m_context = tcp_context::create(noThreads, stoppedTask);
+    m_context = asio_io_pool::create(noThreads, stoppedTask);
 
     m_on_started_listening_cb = onStartListening;
     m_on_stopped_listening_cb = onStopListeniing;
@@ -194,7 +194,7 @@ void tcp_server::on_worker_start() {
         m_on_started_listening_cb(*this);
 }
 
-void tcp_server::on_worker_stop(tcp_context&) {
+void tcp_server::on_worker_stop(asio_io_pool&) {
     if (m_on_stopped_listening_cb)
         m_on_stopped_listening_cb(*this);
 }

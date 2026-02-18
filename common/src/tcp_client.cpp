@@ -7,9 +7,9 @@
 
 namespace sg::net {
 
-tcp_client::tcp_client() : m_context(tcp_context::create()) {}
+tcp_client::tcp_client() : m_context(asio_io_pool::create()) {}
 
-tcp_client::tcp_client(std::shared_ptr<tcp_context> context) : m_context(context) {}
+tcp_client::tcp_client(std::shared_ptr<asio_io_pool> context) : m_context(context) {}
 
 tcp_client::~tcp_client() = default;
 

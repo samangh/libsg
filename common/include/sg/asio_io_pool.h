@@ -4,19 +4,18 @@
 
 #include "notifiable_background_worker.h"
 
-#include <boost/asio/awaitable.hpp>
 #include <boost/asio/io_context.hpp>
 
 namespace sg::net {
 
-class SG_COMMON_EXPORT tcp_context {
+class SG_COMMON_EXPORT asio_io_pool {
     struct Private{ explicit Private() = default; };
 
   public:
-    typedef std::function<void(tcp_context&)> stopped_cb_t;
+    typedef std::function<void(asio_io_pool&)> stopped_cb_t;
 
-    tcp_context(Private, size_t noWorkers, stopped_cb_t onStoppedCallBack);
-    virtual ~tcp_context();
+    asio_io_pool(Private, size_t noWorkers, stopped_cb_t onStoppedCallBack);
+    virtual ~asio_io_pool();
 
     void run(bool enableGuard = false);
     void stop_async();
@@ -30,7 +29,8 @@ class SG_COMMON_EXPORT tcp_context {
     [[nodiscard]] boost::asio::io_context& context();
     [[nodiscard]] const boost::asio::io_context& context() const;
 
-    [[nodiscard]] static std::shared_ptr<tcp_context> create(size_t noWorkers=1, stopped_cb_t onStoppedCallBack=nullptr);
+    [[nodiscard]] static std::shared_ptr<asio_io_pool>
+    create(size_t noWorkers = 1, stopped_cb_t onStoppedCallBack = nullptr);
   private:
     std::atomic<size_t> m_running_worker_threads_count;
 
@@ -40,7 +40,7 @@ class SG_COMMON_EXPORT tcp_context {
     stopped_cb_t m_on_stopped_call_back;
 
     std::unique_ptr<boost::asio::executor_work_guard<boost::asio::io_context::executor_type>> m_guard;
-    void on_worker_tick(notifiable_background_worker* worker);
+    void on_worker_tick(notifiable_background_worker*);
     void on_worker_stop(notifiable_background_worker*);
 };
 

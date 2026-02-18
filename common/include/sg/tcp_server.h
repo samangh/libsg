@@ -1,10 +1,10 @@
 #pragma once
 
+#include "asio_io_pool.h"
 #include "buffer.h"
 #include "jthread.h"
 #include "net.h"
 #include "notifiable_background_worker.h"
-#include "tcp_context.h"
 #include "tcp_session.h"
 
 #include <boost/asio/awaitable.hpp>
@@ -63,7 +63,7 @@ class SG_COMMON_EXPORT tcp_server {
 
     std::vector<end_point> m_endpoints;
     std::promise<void> m_promise_started_listening;
-    std::shared_ptr<sg::net::tcp_context> m_context;
+    std::shared_ptr<sg::net::asio_io_pool> m_context;
 
     //m_acceptors are copied for set_keepalive/set_timeout user
     std::vector<std::shared_ptr<boost::asio::ip::tcp::acceptor>> m_acceptors;
@@ -84,7 +84,7 @@ class SG_COMMON_EXPORT tcp_server {
     boost::asio::awaitable<void> listener(std::shared_ptr<boost::asio::ip::tcp::acceptor> acceptor);
 
     void on_worker_start();
-    void on_worker_stop(tcp_context&);
+    void on_worker_stop(asio_io_pool&);
 
     void inform_user_of_data(session_id_t id, const std::byte* data, size_t size);
     void on_session_stopped(session_id_t id, std::optional<std::exception> ex);

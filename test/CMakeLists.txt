@@ -32,7 +32,7 @@ setup_executable(
     src/data/channel_vector.cpp
     src/data/channel_rolling.cpp
     src/tcp_server.cpp
-    src/tcp_context.cpp
+    src/asio_io_pool.cpp
     src/state_machine.cpp
     src/locale.cpp
     src/file.cpp
