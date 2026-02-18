@@ -9,9 +9,9 @@
 namespace sg::net {
 
 tcp_server::~tcp_server() noexcept(false) {
-    if (m_worker && m_worker->is_running()) {
+    if (m_context && m_context->is_running()) {
         stop_async();
-        m_worker->future_get_once();
+        m_context->wait_for_stop();
     }
 
     m_pool.wait_for_tasks();
@@ -36,20 +36,20 @@ void tcp_server::stop_async() {
         /* wait until all clients disconnected and all callbacks called, etc */
         while (clients_count() != 0) std::this_thread::sleep_for(std::chrono::milliseconds(10));
 
-        if (!m_io_context_ptr.stopped())
-            m_io_context_ptr.stop();
-        m_worker->wait_for_stop();
+        if (m_context->is_running())
+            m_context->stop_async();
     });
 }
 
-void tcp_server::start(std::vector<end_point> endpoints,
-                       started_listening_cb_t onStartListening,
-                       stopped_listening_cb_t onStopListeniing,
-                       session_created_cb_t onNewSession,
+void tcp_server::start(std::vector<end_point> endpoints, started_listening_cb_t onStartListening,
+                       stopped_listening_cb_t onStopListeniing, session_created_cb_t onNewSession,
                        session_data_available_cb_t onDataAvailCb,
-                       session_disconnected_cb_t onDisconnCb) noexcept(false) {
-    if (m_worker && m_worker->is_running())
+                       session_disconnected_cb_t onDisconnCb, size_t noThreads) noexcept(false) {
+    if (m_context && m_context->is_running())
         throw std::runtime_error("tcp_server is already running");
+
+    auto stoppedTask = std::bind(&tcp_server::on_worker_stop, this, std::placeholders::_1);
+    m_context = tcp_context::create(noThreads, stoppedTask);
 
     m_on_started_listening_cb = onStartListening;
     m_on_stopped_listening_cb = onStopListeniing;
@@ -64,20 +64,15 @@ void tcp_server::start(std::vector<end_point> endpoints,
 
     m_promise_started_listening = std::promise<void>();
 
-    auto serverThreadTask = std::bind(&tcp_server::on_worker_tick, this, std::placeholders::_1);
-    auto serverSetupTask = std::bind(&tcp_server::on_worker_start, this, std::placeholders::_1);
-    auto serverStopTask = std::bind(&tcp_server::on_worker_stop, this, std::placeholders::_1);
-
-    m_worker = std::make_unique<notifiable_background_worker>(
-        std::chrono::seconds(1), serverThreadTask, serverSetupTask, serverStopTask);
-    m_worker->start();
+    on_worker_start();
+    m_context->run();
 }
 
-void tcp_server::future_get_once() noexcept(false) { m_worker->future_get_once(); }
+void tcp_server::future_get_once() noexcept(false) { m_context->future_get_once(); }
 
 bool tcp_server::is_stopped() const {
-    if (m_worker)
-        return !(m_worker->is_running());
+    if (m_context)
+        return !(m_context->is_running());
 
     return true;
 }
@@ -174,7 +169,7 @@ tcp_server::listener(std::shared_ptr<boost::asio::ip::tcp::acceptor> acceptor) {
     }
 }
 
-void tcp_server::on_worker_start(notifiable_background_worker*) {
+void tcp_server::on_worker_start() {
     for (auto e : m_endpoints) {
         boost::asio::ip::tcp::endpoint ep(boost::asio::ip::make_address(e.ip), e.port);
 
@@ -190,8 +185,8 @@ void tcp_server::on_worker_start(notifiable_background_worker*) {
          * @endcode
          *
          * So may be we should do above directly (in case we want to add our own options). */
-        auto a = std::make_shared<boost::asio::ip::tcp::acceptor>(m_io_context_ptr, ep);
-        boost::asio::co_spawn(m_io_context_ptr, listener(a), boost::asio::detached);
+        auto a = std::make_shared<boost::asio::ip::tcp::acceptor>(m_context->context(), ep);
+        boost::asio::co_spawn(m_context->context(), listener(a), boost::asio::detached);
         m_acceptors.push_back(a);
     }
 
@@ -199,15 +194,11 @@ void tcp_server::on_worker_start(notifiable_background_worker*) {
         m_on_started_listening_cb(*this);
 }
 
-void tcp_server::on_worker_stop(notifiable_background_worker*) {
+void tcp_server::on_worker_stop(tcp_context&) {
     if (m_on_stopped_listening_cb)
         m_on_stopped_listening_cb(*this);
 }
 
-void tcp_server::on_worker_tick(notifiable_background_worker* worker) {
-    m_io_context_ptr.run();
-    worker->request_stop();
-}
 
 void tcp_server::inform_user_of_data(session_id_t id, const std::byte* data, size_t size) {
     if (m_on_data_read_user_cb)

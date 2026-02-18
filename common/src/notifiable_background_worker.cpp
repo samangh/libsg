@@ -70,7 +70,8 @@ void notifiable_background_worker::request_stop_after_iterations(size_t iteratio
 void notifiable_background_worker::wait_for_stop() {
     if (m_thread.get_id() != std::this_thread::get_id()) {
         /* called from different thread */
-        if (m_thread.joinable()) m_thread.join();
+        if (m_thread.joinable())
+            m_thread.join();
     } else {
         throw std::logic_error(
             "can't wait for notifiable_background_timer to stop from within itself");

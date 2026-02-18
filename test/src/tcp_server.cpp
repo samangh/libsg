@@ -407,7 +407,7 @@ TEST_CASE("sg::net::tcp_server: check reaction to client immediate disconnection
     REQUIRE(boolDis==true);
 }
 
-TEST_CASE("sg::net::tcp_server: check dropping tcp_server drops allconnections", "[sg::net::tcp_server]") {
+TEST_CASE("sg::net::tcp_server: check dropping tcp_server drops all connections", "[sg::net::tcp_server]") {
     for (int i=0; i < 100; i++) {
         using namespace sg::net;
 

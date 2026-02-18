@@ -1,21 +1,19 @@
 #pragma once
 
-#include <sg/export/common.h>
-
-#include "net.h"
 #include "buffer.h"
-#include "notifiable_background_worker.h"
 #include "jthread.h"
+#include "net.h"
+#include "notifiable_background_worker.h"
+#include "tcp_context.h"
 #include "tcp_session.h"
-
-#include <thread_pool/thread_pool.h>
 
 #include <boost/asio/awaitable.hpp>
 #include <boost/asio/io_context.hpp>
 #include <boost/asio/ip/tcp.hpp>
-
 #include <map>
 #include <optional>
+#include <sg/export/common.h>
+#include <thread_pool/thread_pool.h>
 
 namespace sg::net {
 
@@ -38,7 +36,8 @@ class SG_COMMON_EXPORT tcp_server {
                stopped_listening_cb_t onStopListeniing,
                session_created_cb_t onNewSession,
                session_data_available_cb_t onDataAvailCb,
-               session_disconnected_cb_t onDisconnCb) noexcept(false);
+               session_disconnected_cb_t onDisconnCb,
+               size_t noThreads=1) noexcept(false);
 
     void stop_async();
     void future_get_once() noexcept(false);
@@ -58,15 +57,13 @@ class SG_COMMON_EXPORT tcp_server {
     void set_timeout(unsigned timeoutMSec = 5000);
 
   private:
-    std::unique_ptr<notifiable_background_worker> m_worker;
-
     mutable std::shared_mutex m_mutex;
     std::map<session_id_t, ptr> m_sessions;
     std::atomic<size_t> m_last_id;
 
     std::vector<end_point> m_endpoints;
     std::promise<void> m_promise_started_listening;
-    boost::asio::io_context m_io_context_ptr;
+    std::shared_ptr<sg::net::tcp_context> m_context;
 
     //m_acceptors are copied for set_keepalive/set_timeout user
     std::vector<std::shared_ptr<boost::asio::ip::tcp::acceptor>> m_acceptors;
@@ -86,9 +83,8 @@ class SG_COMMON_EXPORT tcp_server {
 
     boost::asio::awaitable<void> listener(std::shared_ptr<boost::asio::ip::tcp::acceptor> acceptor);
 
-    void on_worker_start(notifiable_background_worker*);
-    void on_worker_stop(notifiable_background_worker*);
-    void on_worker_tick(notifiable_background_worker*);
+    void on_worker_start();
+    void on_worker_stop(tcp_context&);
 
     void inform_user_of_data(session_id_t id, const std::byte* data, size_t size);
     void on_session_stopped(session_id_t id, std::optional<std::exception> ex);
