@@ -37,7 +37,7 @@ class SG_COMMON_EXPORT tcp_server {
                session_created_cb_t onNewSession,
                session_data_available_cb_t onDataAvailCb,
                session_disconnected_cb_t onDisconnCb,
-               size_t noThreads=1) noexcept(false);
+               size_t noThreads = 1) noexcept(false);
 
     void stop_async();
     void future_get_once() noexcept(false);
@@ -83,8 +83,8 @@ class SG_COMMON_EXPORT tcp_server {
 
     boost::asio::awaitable<void> listener(std::shared_ptr<boost::asio::ip::tcp::acceptor> acceptor);
 
-    void on_worker_start();
-    void on_worker_stop(asio_io_pool&);
+    void start_listening();
+    void on_io_pool_stopped(asio_io_pool&);
 
     void inform_user_of_data(session_id_t id, const std::byte* data, size_t size);
     void on_session_stopped(session_id_t id, std::optional<std::exception> ex);

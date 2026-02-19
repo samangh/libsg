@@ -48,7 +48,7 @@ void tcp_server::start(std::vector<end_point> endpoints, started_listening_cb_t 
     if (m_context && m_context->is_running())
         throw std::runtime_error("tcp_server is already running");
 
-    auto stoppedTask = std::bind(&tcp_server::on_worker_stop, this, std::placeholders::_1);
+    auto stoppedTask = std::bind(&tcp_server::on_io_pool_stopped, this, std::placeholders::_1);
     m_context = asio_io_pool::create(noThreads, stoppedTask);
 
     m_on_started_listening_cb = onStartListening;
@@ -64,7 +64,7 @@ void tcp_server::start(std::vector<end_point> endpoints, started_listening_cb_t 
 
     m_promise_started_listening = std::promise<void>();
 
-    on_worker_start();
+    start_listening();
     m_context->run();
 }
 
@@ -169,7 +169,7 @@ tcp_server::listener(std::shared_ptr<boost::asio::ip::tcp::acceptor> acceptor) {
     }
 }
 
-void tcp_server::on_worker_start() {
+void tcp_server::start_listening() {
     for (auto e : m_endpoints) {
         boost::asio::ip::tcp::endpoint ep(boost::asio::ip::make_address(e.ip), e.port);
 
@@ -194,7 +194,7 @@ void tcp_server::on_worker_start() {
         m_on_started_listening_cb(*this);
 }
 
-void tcp_server::on_worker_stop(asio_io_pool&) {
+void tcp_server::on_io_pool_stopped(asio_io_pool&) {
     if (m_on_stopped_listening_cb)
         m_on_stopped_listening_cb(*this);
 }

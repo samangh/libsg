@@ -1,6 +1,9 @@
 #include "sg/asio_io_pool.h"
 #include "sg/debug.h"
 
+#include <fmt/format.h>
+#include <fmt/ranges.h>
+
 namespace sg::net {
 
 asio_io_pool::asio_io_pool(Private, size_t noWorkers, stopped_cb_t onStoppedCallBack) {

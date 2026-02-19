@@ -1,6 +1,6 @@
 #include "sg/asio_io_pool.h"
 
-#include <boost/asio/post.hpp>
+#include <boost/asio.hpp>
 #include <catch2/catch_test_macros.hpp>
 
 using namespace sg::net;
@@ -84,7 +84,7 @@ TEST_CASE("sg::net::asio_context_pool check stop_async() can be called from a co
     called.wait(false);
 }
 
-TEST_CASE("sg::net::asio_context_pool check asio_io_pool() will stop when guard is finished", "[sg::net::asio_io_pool]") {
+TEST_CASE("sg::net::asio_context_pool check pool is stopped after guard reset", "[sg::net::asio_io_pool]") {
     std::atomic<bool> called{false};
 
     asio_io_pool::stopped_cb_t onStop = [&called](asio_io_pool&) {
@@ -120,7 +120,7 @@ TEST_CASE("sg::net::asio_context_pool running() a running context throws error",
 TEST_CASE("sg::net::asio_context_pool check resetting a non-guarded context throws error", "[sg::net::asio_io_pool]") {
     auto context = asio_io_pool::create(2, nullptr);
 
-    /* make sure the context is runnng */
+    /* make sure the context is running */
     std::binary_semaphore stop{false};
     context->context().post([&stop]() {
         stop.acquire();
