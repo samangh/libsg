@@ -1,7 +1,8 @@
+#include <catch2/catch_test_macros.hpp>
+
 #include "sg/asio_io_pool.h"
 
-#include <boost/asio.hpp>
-#include <catch2/catch_test_macros.hpp>
+#include <boost/asio/post.hpp>
 
 using namespace sg::net;
 
@@ -122,9 +123,7 @@ TEST_CASE("sg::net::asio_context_pool check resetting a non-guarded context thro
 
     /* make sure the context is running */
     std::binary_semaphore stop{false};
-    context->context().post([&stop]() {
-        stop.acquire();
-    });
+    boost::asio::post(context->context(), [&stop]() { stop.acquire(); });
 
     context->run();
     REQUIRE_THROWS(context->reset_guard());
@@ -167,9 +166,7 @@ TEST_CASE("sg::net::asio_context_pool check guard_reset()", "[sg::net::asio_io_p
 TEST_CASE("sg::net::asio_context_pool exception on get_future_once()", "[sg::net::asio_io_pool]") {
     auto context = asio_io_pool::create(3, nullptr);
 
-    context->context().post([]() {
-        throw std::invalid_argument("tes");
-    });
+    boost::asio::post(context->context(), []() { throw std::invalid_argument("tes"); });
 
     context->run();
     context->wait_for_stop();
