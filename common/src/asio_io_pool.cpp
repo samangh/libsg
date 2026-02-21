@@ -116,6 +116,6 @@ void asio_io_pool::on_worker_tick(notifiable_background_worker* worker) {
 void asio_io_pool::on_worker_stop(notifiable_background_worker*) {
     if (--m_running_worker_threads_count == 0)
         if (m_on_stopped_call_back)
-            m_on_stopped_call_back(*this);
+            m_on_stopped_call_back.invoke(*this);
 }
 } // namespace sg::net

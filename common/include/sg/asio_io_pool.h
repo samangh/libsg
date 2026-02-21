@@ -3,6 +3,7 @@
 #include <sg/export/common.h>
 
 #include "notifiable_background_worker.h"
+#include "callback.h"
 
 #include <boost/asio/io_context.hpp>
 
@@ -12,7 +13,7 @@ class SG_COMMON_EXPORT asio_io_pool {
     struct Private{ explicit Private() = default; };
 
   public:
-    typedef std::function<void(asio_io_pool&)> stopped_cb_t;
+    CREATE_CALLBACK(stopped_cb_t, void, asio_io_pool&)
 
     asio_io_pool(Private, size_t noWorkers, stopped_cb_t onStoppedCallBack);
     virtual ~asio_io_pool();
