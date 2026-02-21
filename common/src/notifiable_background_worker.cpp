@@ -5,9 +5,9 @@
 namespace sg {
 
 notifiable_background_worker::notifiable_background_worker(std::chrono::nanoseconds interval_ns,
-                                                           callback_t task,
-                                                           callback_t start_cb,
-                                                           callback_t stopped_cb)
+                                                           on_tick_callback_t task,
+                                                           on_start_callback_t start_cb,
+                                                           on_stop_callback_t stopped_cb)
     : m_interval(interval_ns),
       m_task(std::move(task)),
       m_started_cb(std::move(start_cb)),
@@ -103,7 +103,7 @@ void notifiable_background_worker::action() {
 
     try {
         if (m_started_cb)
-            m_started_cb(this);
+            m_started_cb.invoke(this);
         m_start_promise.set_value();
     } catch(...) {
         m_start_promise.set_exception(std::current_exception());
@@ -132,13 +132,13 @@ void notifiable_background_worker::action() {
 
             if (m_correct_for_task_delay) {
                 auto t = std::chrono::high_resolution_clock::now();
-                m_task(this);
+                m_task.invoke(this);
                 auto time_taken = std::chrono::high_resolution_clock::now() - t;
                 if (stop_after_iteration)
                     break;
                 std::ignore = m_semaphore_notifier.try_acquire_for(m_interval.load(std::memory_order_acquire) - time_taken);
             } else {
-                m_task(this);
+                m_task.invoke(this);
                 if (stop_after_iteration)
                     break;
                 std::ignore = m_semaphore_notifier.try_acquire_for(m_interval.load(std::memory_order_acquire));
@@ -152,7 +152,7 @@ void notifiable_background_worker::action() {
     /* run m_stopped_cb even if there was a previous exception */
     try {
         if (m_stopped_cb)
-            m_stopped_cb(this);
+            m_stopped_cb.invoke(this);
     } catch (...) {
         ex = std::current_exception();
     }

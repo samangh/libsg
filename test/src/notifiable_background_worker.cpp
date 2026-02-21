@@ -12,7 +12,7 @@ TEST_CASE("SG::notifiable_background_worker: check start/stop callbacks get call
     std::atomic<bool> start_called = false;
     std::atomic<bool> start_called_value_during_stop = false;
 
-    sg::notifiable_background_worker::callback_t task = [&](sg::notifiable_background_worker* w) {
+    sg::notifiable_background_worker::on_tick_callback_t task = [&](sg::notifiable_background_worker* w) {
         if (!start_called)
             w->request_stop();
 
@@ -20,12 +20,12 @@ TEST_CASE("SG::notifiable_background_worker: check start/stop callbacks get call
         w->request_stop();
     };
 
-    sg::notifiable_background_worker::callback_t start_cb =
+    sg::notifiable_background_worker::on_start_callback_t start_cb =
         [&start_called](sg::notifiable_background_worker*) {
             start_called =true;
         };
 
-    sg::notifiable_background_worker::callback_t stopped_cb =
+    sg::notifiable_background_worker::on_stop_callback_t stopped_cb =
         [&start_called, &start_called_value_during_stop](sg::notifiable_background_worker*) {
             start_called_value_during_stop.store(start_called);
         };
@@ -44,7 +44,7 @@ TEST_CASE("SG::notifiable_background_worker: check worker can stop itself",
           "[SG::notifiable_background_worker]") {
     std::atomic<int> counter{0};
 
-    sg::notifiable_background_worker::callback_t task = [&](sg::notifiable_background_worker* w) {
+    sg::notifiable_background_worker::on_tick_callback_t task = [&](sg::notifiable_background_worker* w) {
         counter++;
         w->request_stop();
     };
@@ -63,7 +63,7 @@ TEST_CASE("SG::notifiable_background_worker: check notifier works",
     std::binary_semaphore loop_2nd_run{0};
     std::atomic<int> counter{0};
 
-    sg::notifiable_background_worker::callback_t task = [&](sg::notifiable_background_worker*) {
+    sg::notifiable_background_worker::on_tick_callback_t task = [&](sg::notifiable_background_worker*) {
         counter++;
         loop_1st_run.release();
         if (counter == 2) {
@@ -88,14 +88,11 @@ TEST_CASE("SG::notifiable_background_worker: check future() can throw errors",
           "[SG::notifiable_background_worker]") {
 
 
-    sg::notifiable_background_worker::callback_t emptyTask = [&](sg::notifiable_background_worker*) {
-    };
-    sg::notifiable_background_worker::callback_t taskWithExc = [&](sg::notifiable_background_worker*) {
-        throw std::runtime_error("hello!");
-    };
-
     // Exception in main action
     {
+        sg::notifiable_background_worker::on_tick_callback_t taskWithExc =
+            [&](sg::notifiable_background_worker*) { throw std::runtime_error("hello!"); };
+
         sg::notifiable_background_worker worker = sg::notifiable_background_worker(
             std::chrono::milliseconds(100), taskWithExc, nullptr, nullptr);
         worker.start();
@@ -106,8 +103,14 @@ TEST_CASE("SG::notifiable_background_worker: check future() can throw errors",
 
     // Exception in stop cb
     {
+        sg::notifiable_background_worker::on_tick_callback_t emptyTask =
+            [&](sg::notifiable_background_worker*) {};
+
+        sg::notifiable_background_worker::on_stop_callback_t stopWithEx =
+            [&](sg::notifiable_background_worker*) { throw std::runtime_error("hello!"); };
+
         sg::notifiable_background_worker worker = sg::notifiable_background_worker(
-            std::chrono::milliseconds(100), emptyTask, nullptr, taskWithExc);
+            std::chrono::milliseconds(100), emptyTask, nullptr, stopWithEx);
         worker.start();
         worker.request_stop_after_iterations(1);
         worker.wait_for_stop();
@@ -122,7 +125,7 @@ TEST_CASE("SG::notifiable_background_worker: check future_get_once() throws erro
     std::binary_semaphore loop_run{0};
     std::atomic<int> counter{0};
 
-    sg::notifiable_background_worker::callback_t task = [&](sg::notifiable_background_worker*) {
+    sg::notifiable_background_worker::on_tick_callback_t task = [&](sg::notifiable_background_worker*) {
         counter++;
         loop_run.release();
         throw std::runtime_error("err");
@@ -146,7 +149,7 @@ TEST_CASE("SG::notifiable_background_worker: check destructor can throw an error
           "[SG::notifiable_background_worker]") {
     std::binary_semaphore loop_run{0};
 
-    sg::notifiable_background_worker::callback_t task = [&](sg::notifiable_background_worker*) {
+    sg::notifiable_background_worker::on_tick_callback_t task = [&](sg::notifiable_background_worker*) {
         loop_run.release();
         throw std::runtime_error("err");
     };
@@ -179,7 +182,7 @@ TEST_CASE("SG::notifiable_background_worker: check destructor can throw an error
 TEST_CASE("SG::notifiable_background_worker: check you can't start multiple times",
           "[SG::notifiable_background_worker]") {
 
-    sg::notifiable_background_worker::callback_t task = [&](sg::notifiable_background_worker*) {
+    sg::notifiable_background_worker::on_tick_callback_t task = [&](sg::notifiable_background_worker*) {
 
     };
 
@@ -194,7 +197,7 @@ TEST_CASE("SG::notifiable_background_worker: check is_stop_requested() whilst th
           "[SG::notifiable_background_worker]") {
     std::binary_semaphore sem{0}, sem_running{0};
 
-    sg::notifiable_background_worker::callback_t task = [&](sg::notifiable_background_worker*) {
+    sg::notifiable_background_worker::on_tick_callback_t task = [&](sg::notifiable_background_worker*) {
         sem_running.release();
         sem.acquire();
     };
@@ -218,7 +221,7 @@ TEST_CASE("SG::notifiable_background_worker: check you can start/stop multiple t
           "[SG::notifiable_background_worker]") {
     std::atomic<int> counter{0};
 
-    sg::notifiable_background_worker::callback_t task = [&](sg::notifiable_background_worker* w) {
+    sg::notifiable_background_worker::on_tick_callback_t task = [&](sg::notifiable_background_worker* w) {
         counter++;
         w->request_stop();
     };
@@ -239,7 +242,7 @@ TEST_CASE("SG::notifiable_background_worker: check request_stop_after_iterartion
     std::atomic<int> counter{0};
     std::atomic<bool> requested{false};
 
-    sg::notifiable_background_worker::callback_t task = [&](sg::notifiable_background_worker* w) {
+    sg::notifiable_background_worker::on_tick_callback_t task = [&](sg::notifiable_background_worker* w) {
         counter++;
         if(!requested.exchange(true))
             w->request_stop_after_iterations(2);
@@ -258,7 +261,7 @@ TEST_CASE("SG::notifiable_background_worker: check request_stop_after_iterartion
     std::atomic<int> counter{0};
     std::atomic<bool> requested{false};
 
-    sg::notifiable_background_worker::callback_t task = [&](sg::notifiable_background_worker* w) {
+    sg::notifiable_background_worker::on_tick_callback_t task = [&](sg::notifiable_background_worker* w) {
         counter++;
         if(!requested.exchange(true))
             w->request_stop_after_iterations(0);
@@ -276,15 +279,18 @@ TEST_CASE("SG::notifiable_background_worker: check start(...) will throw if the 
           "[SG::notifiable_background_worker]") {
     std::atomic<int> counter{0};
 
-    sg::notifiable_background_worker::callback_t startCb = [&](sg::notifiable_background_worker*) {
+    sg::notifiable_background_worker::on_start_callback_t startCb = [&](sg::notifiable_background_worker*) {
         throw std::runtime_error("catch!");
     };
-    sg::notifiable_background_worker::callback_t task = [&](sg::notifiable_background_worker*) {
+    sg::notifiable_background_worker::on_tick_callback_t task = [&](sg::notifiable_background_worker*) {
+        counter++;
+    };
+    sg::notifiable_background_worker::on_stop_callback_t onStop = [&](sg::notifiable_background_worker*) {
         counter++;
     };
 
     sg::notifiable_background_worker worker =
-        sg::notifiable_background_worker(std::chrono::nanoseconds(100), task, startCb, task);
+        sg::notifiable_background_worker(std::chrono::nanoseconds(100), task, startCb, onStop);
 
     REQUIRE_THROWS(worker.start());
     REQUIRE(counter == 00);
@@ -300,13 +306,13 @@ TEST_CASE("SG::notifiable_background_worker: check call callbacks are done in th
     auto this_thread_id = hasher(std::this_thread::get_id());
     std::atomic<size_t> startId, taskId, stopId;
 
-    sg::notifiable_background_worker::callback_t startCb = [&](sg::notifiable_background_worker*) {
+    sg::notifiable_background_worker::on_start_callback_t startCb = [&](sg::notifiable_background_worker*) {
         startId = hasher(std::this_thread::get_id());
     };
-    sg::notifiable_background_worker::callback_t task = [&](sg::notifiable_background_worker*) {
+    sg::notifiable_background_worker::on_tick_callback_t task = [&](sg::notifiable_background_worker*) {
         taskId = hasher(std::this_thread::get_id());
     };
-    sg::notifiable_background_worker::callback_t stopCb = [&](sg::notifiable_background_worker*) {
+    sg::notifiable_background_worker::on_stop_callback_t stopCb = [&](sg::notifiable_background_worker*) {
         stopId = hasher(std::this_thread::get_id());
     };
 

@@ -1,6 +1,7 @@
 #pragma once
 
 #include <sg/export/common.h>
+#include "callback.h"
 
 #include <atomic>
 #include <chrono>
@@ -9,7 +10,6 @@
 #include <shared_mutex>
 #include <semaphore>
 #include <thread>
-
 #include <future>
 
 namespace sg {
@@ -21,8 +21,9 @@ namespace sg {
  */
 class SG_COMMON_EXPORT notifiable_background_worker {
   public:
-    typedef std::function<void(notifiable_background_worker *)> callback_t;
-
+    CREATE_CALLBACK(on_start_callback_t, void, notifiable_background_worker *)
+    CREATE_CALLBACK(on_stop_callback_t, void, notifiable_background_worker *)
+    CREATE_CALLBACK(on_tick_callback_t, void, notifiable_background_worker *)
     /**
      * @brief notifiable_background_worker
      *
@@ -42,9 +43,9 @@ class SG_COMMON_EXPORT notifiable_background_worker {
      * @param stopped_cb s the callback/action that is called AFTER the worker starts
      */
     notifiable_background_worker(std::chrono::nanoseconds interval_ns,
-                                 callback_t task,
-                                 callback_t start_cb,
-                                 callback_t stopped_cb);
+                                 on_tick_callback_t task,
+                                 on_start_callback_t start_cb,
+                                 on_stop_callback_t stopped_cb);
     virtual ~notifiable_background_worker() noexcept(false);
 
 
@@ -154,9 +155,9 @@ class SG_COMMON_EXPORT notifiable_background_worker {
     std::binary_semaphore m_semaphore_notifier {0};
     std::binary_semaphore m_semaphore_thread_started {0};
 
-    callback_t m_task;
-    callback_t m_started_cb;
-    callback_t m_stopped_cb;
+    on_tick_callback_t m_task;
+    on_start_callback_t m_started_cb;
+    on_stop_callback_t m_stopped_cb;
 
     std::promise<void> m_start_promise;
 
