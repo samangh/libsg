@@ -1,6 +1,7 @@
 #pragma once
 
 #include "sg/notifiable_background_worker.h"
+#include "callback.h"
 
 #include <functional>
 #include <map>
@@ -24,9 +25,9 @@ class state_machine {
         TState current_state;
     };
 
-    typedef std::function<void(state_machine&, current_state_details details)> state_tick_callback_t;
-    typedef std::function<void(state_machine&, state_change_details details)> state_change_callback_t;
-    typedef std::function<void(state_machine&)> started_stopped_callback_t;
+    CREATE_CALLBACK(state_tick_callback_t, void, state_machine&, current_state_details details)
+    CREATE_CALLBACK(state_change_callback_t, void, state_machine&, state_change_details details)
+    CREATE_CALLBACK(started_stopped_callback_t, void, state_machine&)
 
     TState state() const { return m_current_state; }
 
@@ -141,7 +142,7 @@ class state_machine {
             state_change_details det{
                                      .new_state = m_current_state, .old_state = m_current_state};
             for (state_change_callback_t& entry_cbs : m_states.at(m_current_state).m_entry_cb)
-                entry_cbs(*this, det);
+                entry_cbs.invoke(*this, det);
         }
 
         /* if there is a state change */
@@ -151,25 +152,25 @@ class state_machine {
 
             /* exit callbacks for old state */
             for (state_change_callback_t& exit_cbs: m_states.at(m_current_state).m_exit_cb)
-                exit_cbs(*this, det);
+                exit_cbs.invoke(*this, det);
 
             /* implement state change */
             m_current_state.store(m_requested_state);
 
             /* call entry cbs of new state */
             for (state_change_callback_t& entry_cbs: m_states.at(m_requested_state).m_entry_cb)
-                entry_cbs(*this, det);
+                entry_cbs.invoke(*this, det);
         }
 
         current_state_details det {.current_state = m_current_state};
         for (state_tick_callback_t& cbs: m_states.at(m_current_state).m_cbs_ticks)
-            cbs(*this, det);
+            cbs.invoke(*this, det);
     }
 
     void worker_on_start (notifiable_background_worker*) {
         /* do overal on_start callback first, then the state's entry callbacks */
         if (m_on_start_cb)
-            m_on_start_cb(*this);
+            m_on_start_cb.invoke(*this);
 
         /* cause the worker to run the entry actions for the initial state */
         just_started=true;
@@ -179,10 +180,10 @@ class state_machine {
         state_change_details det{
             .new_state = m_current_state, .old_state = m_current_state};
         for (state_change_callback_t& cbs: m_states.at(m_current_state).m_exit_cb)
-            cbs(*this, det);
+            cbs.invoke(*this, det);
 
         if (m_on_stop_cb)
-            m_on_stop_cb(*this);
+            m_on_stop_cb.invoke(*this);
 
     }
 
