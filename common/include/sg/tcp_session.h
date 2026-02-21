@@ -2,6 +2,7 @@
 
 #include "buffer.h"
 #include "net.h"
+#include "callback.h"
 
 #include <boost/asio/awaitable.hpp>
 #include <boost/asio/co_spawn.hpp>
@@ -17,8 +18,8 @@ namespace sg::net {
 
 class SG_COMMON_EXPORT tcp_session {
   public:
-    typedef std::function<void(const std::byte*, size_t)> on_data_available_cb_t;
-    typedef std::function<void(std::optional<std::exception>)> on_disconnected_cb_t;
+    CREATE_CALLBACK(on_data_available_cb_t, void, const std::byte*, size_t)
+    CREATE_CALLBACK(on_disconnected_cb_t, void, std::optional<std::exception>)
 
     tcp_session(boost::asio::ip::tcp::socket socket, on_data_available_cb_t onReadCb, on_disconnected_cb_t onErrorCb);
     virtual ~tcp_session();

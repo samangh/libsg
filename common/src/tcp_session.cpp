@@ -128,7 +128,7 @@ void tcp_session::close() {
     }
 
     if (m_on_disconnected_cb)
-        m_on_disconnected_cb(ex);
+        m_on_disconnected_cb.invoke(ex);
 
     m_stopped.store(true, std::memory_order::release);
     m_stopped.notify_all(); // needed for atomic wait()
@@ -145,7 +145,7 @@ boost::asio::awaitable<void> tcp_session::reader() {
             std::size_t n = co_await m_socket.async_read_some(boost::asio::buffer(data.get(), size),
                                                               boost::asio::use_awaitable);
             if (m_on_data_cb)
-                m_on_data_cb(data.get(), n);
+                m_on_data_cb.invoke(data.get(), n);
         }
     } catch (const std::exception& ex) {
         /* if clean closing, do not throw error */
