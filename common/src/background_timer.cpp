@@ -117,17 +117,17 @@ void background_timer::impl::wait_for_stop() {
 
 void background_timer::impl::action() {
     if (m_started_cb)
-        m_started_cb(m_timer_ref);
+        m_started_cb.invoke(m_timer_ref);
 
     while (!is_stop_requested()) {
         std::shared_lock lock(m_sleeper_mutex);
         try {
             if (m_correct_for_task_delay) {
                 auto t = std::chrono::high_resolution_clock::now();
-                m_task(m_timer_ref);
+                m_task.invoke(m_timer_ref);
                 m_sleeper.sleep(std::chrono::high_resolution_clock::now() - t);
             } else {
-                m_task(m_timer_ref);
+                m_task.invoke(m_timer_ref);
                 m_sleeper.sleep();
             }
         } catch (...) {
@@ -138,7 +138,7 @@ void background_timer::impl::action() {
 
     set_is_running(false);
     if (m_stopped_cb)
-        m_stopped_cb(m_timer_ref, get_exception());
+        m_stopped_cb.invoke(m_timer_ref, get_exception());
 }
 
 void background_timer::impl::request_stop() {

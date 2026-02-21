@@ -1,9 +1,9 @@
 #pragma once
 
-#include "pimpl.h"
 #include <sg/export/common.h>
-
+#include "pimpl.h"
 #include "accurate_sleeper.h"
+#include "callback.h"
 
 #include <atomic>
 #include <exception>
@@ -17,11 +17,11 @@ class SG_COMMON_EXPORT background_timer {
     sg::pimpl<impl> pimpl;
 
   public:
-    typedef std::function<void(background_timer *)> started_cb_t;
-    typedef std::function<void(background_timer *, std::exception_ptr error)> stopped_cb_t;
-    typedef std::function<void(background_timer *)> task_t;
+    CREATE_CALLBACK(started_cb_t, void, background_timer *)
+    CREATE_CALLBACK(stopped_cb_t, void, background_timer *, std::exception_ptr)
+    CREATE_CALLBACK(task_t, void, background_timer *)
 
-    /* encapsulates a thread that runs a provided task regualrly on a timer */
+    /* encapsulates a thread that runs a provided task regularly on a timer */
     background_timer(const task_t &task,
                      const started_cb_t &start_cb,
                      const stopped_cb_t &stopped_cb);
