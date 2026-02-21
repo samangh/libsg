@@ -57,6 +57,7 @@ setup_executable(
     src/time.cpp
     src/debug.cpp
     src/version.cpp
+    src/callback.cpp
 
   INCLUDE_PUBLIC
     ${DP_THREAD_POOL_DIR}/include
