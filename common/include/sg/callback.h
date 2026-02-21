@@ -27,17 +27,18 @@
         NAME() = default;                                                                          \
         NAME(std::nullptr_t) {};                                                                   \
                                                                                                    \
-        /* Because of this, we can't define an operator() function. If we did, all callback types  \
-         * would satisfy the std::invocable concept and this whole class would become useless!  */ \
+        /* Because of this, we can't define an operator() overload. If we did, all callback types  \
+         * would satisfy the std::convertible_to concept and this whole class would become         \
+         * useless! */                                                                             \
         template <typename InvokableT>                                                             \
-            requires std::invocable<InvokableT, __VA_ARGS__>                                       \
+            requires std::convertible_to<InvokableT, func_t>                                       \
         NAME(InvokableT func) : m_func(func) {}                                                    \
                                                                                                    \
         operator bool() const noexcept { return m_func != nullptr; }                               \
                                                                                                    \
         template <typename... ArgsT>                                                               \
         RESULT_TYPE invoke(ArgsT&&... args) {                                                      \
-                return std::invoke(m_func, std::forward<ArgsT>(args)...);                          \
+            return std::invoke(m_func, std::forward<ArgsT>(args)...);                              \
         }                                                                                          \
                                                                                                    \
       private:                                                                                     \
