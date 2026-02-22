@@ -32,7 +32,7 @@
          * useless! */                                                                             \
         template <typename InvokableT>                                                             \
             requires std::convertible_to<InvokableT, func_t>                                       \
-        NAME(InvokableT func) : m_func(func) {}                                                    \
+        NAME(InvokableT func) : m_func(std::move(func)) {}                                         \
                                                                                                    \
         operator bool() const noexcept { return m_func != nullptr; }                               \
                                                                                                    \
