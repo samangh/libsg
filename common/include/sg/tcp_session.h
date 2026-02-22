@@ -5,7 +5,6 @@
 #include "callback.h"
 
 #include <boost/asio/awaitable.hpp>
-#include <boost/asio/co_spawn.hpp>
 #include <boost/asio/io_context.hpp>
 #include <boost/asio/ip/tcp.hpp>
 #include <thread_pool/thread_safe_queue.h>
@@ -29,8 +28,8 @@ class SG_COMMON_EXPORT tcp_session {
     void wait_until_stopped() const;
     bool is_connected() const;
 
-    sg::net::end_point local_endpoint();
-    sg::net::end_point remote_endpoint();
+    end_point local_endpoint();
+    end_point remote_endpoint();
 
     void write(sg::shared_c_buffer<std::byte> msg);
     void write(std::string_view msg);

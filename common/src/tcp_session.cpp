@@ -5,6 +5,7 @@
 #include <boost/asio/detached.hpp>
 #include <boost/asio/redirect_error.hpp>
 #include <boost/asio/write.hpp>
+#include <boost/asio/co_spawn.hpp>
 
 namespace sg::net {
 
