@@ -14,13 +14,14 @@ namespace sg {
     /**
      * Throws an exception, with a stacktrace.
      */
-    #define SG_THROW_STACKTRACE(type, what)                                                        \
+    #define SG_THROW_STACKTRACE(type, what, ...)                                                   \
         do {                                                                                       \
             auto location = std::source_location::current();                                       \
             throw type(fmt::format("{}\nat `{}` in {}({}:{}), with stacktrace:\n{}", what,         \
                                    location.function_name(), location.file_name(),                 \
                                    location.line(), location.column(),                             \
-                                   to_string(boost::stacktrace::stacktrace())));                   \
+                                   to_string(boost::stacktrace::stacktrace()))                     \
+                                   __VA_OPT__(,) __VA_ARGS__);                                     \
         } while (0)
 #endif
 
@@ -28,19 +29,20 @@ namespace sg {
  * Throws an exception, including the function name, file path and line number/column in the
  * message.
  */
-#define SG_THROW_DETAILS(type, what)                                                               \
+#define SG_THROW_DETAILS(type, what, ...)                                                          \
     do {                                                                                           \
         auto location = std::source_location::current();                                           \
         throw type(fmt::format("{}, at `{}` in {}({}:{})", what, location.function_name(),         \
-                               location.file_name(), location.line(), location.column()));         \
+                               location.file_name(), location.line(), location.column())           \
+                                __VA_OPT__(,) __VA_ARGS__);                                        \
     } while (0)
 
 #if defined(LISBG_STACKTRACE)
-    #define SG_THROW(type, what) SG_THROW_STACKTRACE(type, what)
+    #define SG_THROW(type, what, ...) SG_THROW_STACKTRACE(type, what __VA_OPT__(,) __VA_ARGS__)
 #elif defined(LISBG_EXCEPTION_DETAILS)
-    #define SG_THROW(type, what) SG_THROW_DETAILS(type, what)
+    #define SG_THROW(type, what, ...) SG_THROW_DETAILS(type, what __VA_OPT__(,) __VA_ARGS__)
 #else
-    #define SG_THROW(type, what) throw type(what)
+    #define SG_THROW(type, what, ...) throw type(what __VA_OPT__(,) __VA_ARGS__)
 #endif
 
 #if defined(LISBG_STACKTRACE) || defined(LISBG_EXCEPTION_DETAILS)
