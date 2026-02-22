@@ -151,7 +151,7 @@ tcp_server::listener(std::shared_ptr<boost::asio::ip::tcp::acceptor> acceptor) {
                 }
 
                 if (m_new_session_cb)
-                    m_new_session_cb(*this, id);
+                    m_new_session_cb.invoke(*this, id);
 
                 session(id)->start();
             }
@@ -191,18 +191,18 @@ void tcp_server::start_listening() {
     }
 
     if (m_on_started_listening_cb)
-        m_on_started_listening_cb(*this);
+        m_on_started_listening_cb.invoke(*this);
 }
 
 void tcp_server::on_io_pool_stopped(asio_io_pool&) {
     if (m_on_stopped_listening_cb)
-        m_on_stopped_listening_cb(*this);
+        m_on_stopped_listening_cb.invoke(*this);
 }
 
 
 void tcp_server::inform_user_of_data(session_id_t id, const std::byte* data, size_t size) {
     if (m_on_data_read_user_cb)
-        m_on_data_read_user_cb(*this, id, data, size);
+        m_on_data_read_user_cb.invoke(*this, id, data, size);
 }
 
 void tcp_server::on_session_stopped(session_id_t id, std::optional<std::exception> ex) {
@@ -215,7 +215,7 @@ void tcp_server::on_session_stopped(session_id_t id, std::optional<std::exceptio
      */
     m_pool.enqueue_detach([this, id, ex]() {
         if (m_on_disconnect_user_cb)
-            m_on_disconnect_user_cb(*this, id, ex);
+            m_on_disconnect_user_cb.invoke(*this, id, ex);
 
         std::unique_lock lock(m_mutex);
         m_sessions.erase(id);

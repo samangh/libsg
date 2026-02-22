@@ -6,6 +6,7 @@
 #include "net.h"
 #include "notifiable_background_worker.h"
 #include "tcp_session.h"
+#include "callback.h"
 
 #include <boost/asio/awaitable.hpp>
 #include <boost/asio/io_context.hpp>
@@ -23,11 +24,11 @@ class SG_COMMON_EXPORT tcp_server {
     typedef size_t session_id_t;
     typedef std::unique_ptr<tcp_session> ptr;
 
-    typedef std::function<void(tcp_server&)> started_listening_cb_t;
-    typedef std::function<void(tcp_server&)> stopped_listening_cb_t;
-    typedef std::function<void(tcp_server&, session_id_t)> session_created_cb_t;
-    typedef std::function<void(tcp_server&, session_id_t, const std::byte*, size_t)> session_data_available_cb_t;
-    typedef std::function<void(tcp_server&, session_id_t, std::optional<std::exception>)> session_disconnected_cb_t;
+    CREATE_CALLBACK(started_listening_cb_t, void, tcp_server&)
+    CREATE_CALLBACK(stopped_listening_cb_t, void, tcp_server&)
+    CREATE_CALLBACK(session_created_cb_t, void, tcp_server&, session_id_t)
+    CREATE_CALLBACK(session_data_available_cb_t, void, tcp_server&, session_id_t, const std::byte*, size_t)
+    CREATE_CALLBACK(session_disconnected_cb_t, void, tcp_server&, session_id_t, std::optional<std::exception>)
 
     ~tcp_server() noexcept(false);
 
