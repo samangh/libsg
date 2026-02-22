@@ -40,7 +40,6 @@ setup_executable(
     src/tcp_client.cpp
     src/string.cpp
     src/cpu.cpp
-    src/tcp_listener.cpp
     src/rolling_contiguous_buffer.cpp
     src/bytes.cpp
     src/process.cpp

@@ -46,7 +46,6 @@ setup_library(
     src/notifiable_background_worker.cpp
     src/progress.cpp
     src/version.cpp
-    src/tcp_listener.cpp
     src/libuv_wrapper.cpp
     src/crc.cpp
     src/tcp_session.cpp
