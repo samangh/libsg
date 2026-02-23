@@ -43,26 +43,24 @@ target_link_libraries(main PUBLIC SG::common)
 Here is an echo server:
 
 ```cpp
-#include <iostream>
 #include <sg/tcp_server.h>
 
 using namespace sg::net;
 
 int main(int, char**) {
-    tcp_server server;
-
+    // callback for when data is available from client
     tcp_server::session_data_available_cb_t onDataReceived =
-        [](tcp_server& l, auto id, const auto* data, size_t size) {
-            auto w = sg::make_shared_c_buffer<std::byte>(size);
-            std::memcpy(w.get(), data, size);
-            l.write(id, w);
-        };
+        [](tcp_server& l, auto id, const auto* data, size_t size) { l.write(id, data, size); };
 
-    sg::net::end_point ep("127.0.0.1", 55555);
+    end_point ep("127.0.0.1", 55555);
 
+    tcp_server server;
     server.start({ep}, nullptr, nullptr, nullptr, onDataReceived, nullptr);
+
     // Wait until server is stopped
     server.future_get_once();
+
+    return 0;
 }
 ```
 
@@ -75,26 +73,28 @@ You can also add callbacks for connection/disconnection events, for example:
 using namespace sg::net;
 
 int main(int, char**) {
-    tcp_server server;
-
+    // callback for when a client connects
     tcp_server::session_created_cb_t onClientConnected = [&](tcp_server&, auto) {
         std::cout << "Client connected" << std::endl;
     };
 
+    // callback for when a client disconnects
     tcp_server::session_disconnected_cb_t onClientDisconnected =
         [&](tcp_server&, auto, auto) { std::cout << "Client disconnected" << std::endl; };
 
+    // callback for when data is available from client
     tcp_server::session_data_available_cb_t onDataReceived =
-        [](tcp_server& l, auto id, const auto* data, size_t size) {
-            auto w = sg::make_shared_c_buffer<std::byte>(size);
-            std::memcpy(w.get(), data, size);
-            l.write(id, w);
-        };
+        [](tcp_server& l, auto id, const auto* data, size_t size) { l.write(id, data, size); };
 
-    sg::net::end_point ep("127.0.0.1", 55555);
+    end_point ep("127.0.0.1", 55555);
 
-    server.start({ep}, nullptr, nullptr, nullptr, onDataReceived, nullptr);
+    tcp_server server;
+    server.start({ep}, nullptr, nullptr, onClientConnected, onDataReceived, onClientDisconnected);
+
     // Wait until server is stopped
     server.future_get_once();
+
+    return 0;
+}
 }
 ```
