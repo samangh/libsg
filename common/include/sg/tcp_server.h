@@ -22,9 +22,17 @@ namespace sg::net {
 
 
 class SG_COMMON_EXPORT tcp_server {
+    /* notes:
+     *
+     *   - we store sessions as shared_ptr, so that when they user acquires them through the
+     *     `sessions()` or `session(..)` function, they can be sure about the lifetime of the object
+     *     (i.e. the return session will exists and not get destructed whilst they have the
+     *     shared_ptr)
+     */
+
   public:
     typedef size_t session_id_t;
-    typedef std::unique_ptr<tcp_session> ptr;
+    typedef std::shared_ptr<tcp_session> ptr;
 
     CREATE_CALLBACK(started_listening_cb_t, void, tcp_server&)
     CREATE_CALLBACK(stopped_listening_cb_t, void, tcp_server&)
@@ -47,6 +55,8 @@ class SG_COMMON_EXPORT tcp_server {
     bool is_stopped() const;
 
     size_t clients_count() const;
+    ptr session(session_id_t id);
+    std::map<session_id_t, ptr> sessions() const;
 
     void write(session_id_t id, const void* data, size_t size);
     void write(session_id_t id, sg::shared_c_buffer<std::byte> buffer);
@@ -54,7 +64,6 @@ class SG_COMMON_EXPORT tcp_server {
     void disconnect(session_id_t id);
     void disconnect_all();
 
-    tcp_session* session(session_id_t id);
     void set_keepalive(bool enableKeepAlive, unsigned idleSec = 60, unsigned intervalSec = 5,
                        unsigned count = 5);
     void set_timeout(unsigned timeoutMSec = 5000);

@@ -81,6 +81,10 @@ size_t tcp_server::clients_count() const {
     std::shared_lock lock(m_mutex);
     return m_sessions.size();
 }
+std::map<tcp_server::session_id_t, tcp_server::ptr> tcp_server::sessions() const {
+    std::shared_lock lock(m_mutex);
+    return  m_sessions;
+}
 
 void tcp_server::write(session_id_t id, const void* data, size_t size) {
     if (m_stop_in_operation.load(std::memory_order::acquire))
@@ -106,9 +110,9 @@ void tcp_server::disconnect_all() {
     for (auto& [_, sess] : m_sessions) sess->stop_async();
 }
 
-tcp_session* tcp_server::session(session_id_t id) {
+tcp_server::ptr tcp_server::session(session_id_t id) {
     std::shared_lock lock(m_mutex);
-    return m_sessions.at(id).get();
+    return m_sessions.at(id);
 }
 void tcp_server::set_keepalive(bool enableKeepAlive, unsigned idleSec, unsigned intervalSec,
                                unsigned count) {
@@ -138,7 +142,7 @@ tcp_server::listener(std::shared_ptr<boost::asio::ip::tcp::acceptor> acceptor) {
                 inform_user_of_data(id, data, size);
             };
 
-            auto sess = std::make_unique<tcp_session>(
+            auto sess = std::make_shared<tcp_session>(
                 co_await acceptor.get()->async_accept(boost::asio::use_awaitable),
                 onData,
                 onSessionDisconnected);
@@ -147,13 +151,13 @@ tcp_server::listener(std::shared_ptr<boost::asio::ip::tcp::acceptor> acceptor) {
             if (!m_stop_in_operation.load(std::memory_order::acquire)) {
                 {
                     std::unique_lock lock(m_mutex);
-                    m_sessions.emplace(id, std::move(sess));
+                    m_sessions.emplace(id, sess);
                 }
 
                 if (m_new_session_cb)
                     m_new_session_cb.invoke(*this, id);
 
-                session(id)->start();
+                sess->start();
             }
         }
     } catch (const boost::system::system_error& err) {
