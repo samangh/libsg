@@ -1,7 +1,8 @@
 #pragma once
 
-#include "sg/notifiable_background_worker.h"
+#include "notifiable_background_worker.h"
 #include "callback.h"
+#include "debug.h"
 
 #include <functional>
 #include <map>
@@ -35,7 +36,12 @@ class state_machine {
     virtual ~state_machine() noexcept(false) = default;
 
     void add_state(TState state) {
-        if (is_running()) throw std::runtime_error("can't add/remove states whilst running");
+        if (is_running())
+            SG_THROW(std::runtime_error, "can't add/remove states whilst running");
+
+        if (m_states.contains(state))
+            SG_THROW(std::runtime_error, "this state is already added to the state machine");
+
         m_states[state] = state_config();
     }
 

@@ -397,3 +397,13 @@ TEST_CASE("sg::state_machine: check notify", "[sg::state_machine]") {
     REQUIRE_NOTHROW(sm.future().get());
     REQUIRE_NOTHROW(sm.future_get_once());
 }
+
+TEST_CASE("sg::state_machine: check same state can't be added twice", "[sg::state_machine]") {
+    enum class state {
+        add_to_counter1,
+    };
+
+    auto sm = sg::state_machine<state>();
+    sm.add_state(state::add_to_counter1);
+    REQUIRE_THROWS(sm.add_state(state::add_to_counter1));
+}
