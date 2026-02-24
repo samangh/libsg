@@ -86,7 +86,7 @@ setup_library(
     portable_file_dialogs
     $<$<BOOL:${LIBSG_IMGUI_OPENGL}>:SDL2::SDL2main>
   LINK_PRIVATE
-    $<$<BOOL:${LIBSG_IMGUI_DIRECTX}>:D3D12.lib DXGI.lib>
+    $<$<BOOL:${LIBSG_IMGUI_DIRECTX}>:D3D12.lib DXGI.lib Dwmapi.lib d3dcompiler.lib>
     $<$<BOOL:${LIBSG_IMGUI_OPENGL}>:OpenGL::GL>
     "$<$<BOOL:${APPLE}>:-framework CoreFoundation>"
     $<$<AND:$<BOOL:${UNIX}>,$<NOT:$<BOOL:${APPLE}>>>:${CMAKE_DL_LIBS}>
