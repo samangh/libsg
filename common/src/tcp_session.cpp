@@ -60,6 +60,11 @@ void tcp_session::write(std::string_view msg) {
     std::memcpy(buff.get(), msg.data(), msg.size());
     write(buff);
 }
+void tcp_session::write(const void* data, size_t size) {
+    auto ptr = sg::make_shared_c_buffer<std::byte>(size);
+    std::memcpy(ptr.get(), data, size);
+    write(ptr);
+}
 
 void tcp_session::set_keepalive(bool enableKeepAlive, unsigned idleSec, unsigned intervalSec,
                                 unsigned count) {

@@ -33,6 +33,7 @@ class SG_COMMON_EXPORT tcp_session {
 
     void write(sg::shared_c_buffer<std::byte> msg);
     void write(std::string_view msg);
+    void write(const void* data, size_t size);
 
     void set_keepalive(bool enableKeepAlive, unsigned idleSec = 60, unsigned intervalSec = 5,
                        unsigned count = 5);
