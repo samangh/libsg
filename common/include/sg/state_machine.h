@@ -30,7 +30,7 @@ class state_machine {
     CREATE_CALLBACK(state_change_callback_t, void, state_machine&, state_change_details details)
     CREATE_CALLBACK(started_stopped_callback_t, void, state_machine&)
 
-    TState state() const { return m_current_state; }
+    [[nodiscard]] TState state() const { return m_current_state; }
 
     state_machine() =default;
     virtual ~state_machine() noexcept(false) = default;
@@ -46,7 +46,8 @@ class state_machine {
     }
 
     void remove_state(TState state) {
-        if (is_running()) throw std::runtime_error("can't add/remove states whilst running");
+        if (is_running())
+            SG_THROW(std::runtime_error, "can't add/remove states whilst running");
         m_states.erase(state);
     }
 
@@ -63,18 +64,20 @@ class state_machine {
     }
 
     void set_machine_started_cb(started_stopped_callback_t on_started) {
-        if (is_running()) throw std::runtime_error("this state_machine is already running");
+        if (is_running())
+            SG_THROW(std::runtime_error, "this state_machine is already running");
         m_on_start_cb = on_started;
     }
 
     void set_machine_stopped_cb(started_stopped_callback_t on_stopped) {
-        if (is_running()) throw std::runtime_error("this state_machine is already running");
+        if (is_running())
+            SG_THROW(std::runtime_error, "this state_machine is already running");
         m_on_stop_cb = on_stopped;
     }
 
     void start(TState initial_state, std::chrono::nanoseconds interval) {
         if (is_running())
-            throw std::runtime_error("this state_machine is already running");
+           SG_THROW(std::runtime_error, "this state_machine is already running");
 
         m_current_state = initial_state;
         m_requested_state = initial_state;        
@@ -88,20 +91,20 @@ class state_machine {
     }
 
     void request_stop() { m_worker->request_stop(); }
-    void wait_for_stop() { m_worker->wait_for_stop(); }
+    void wait_for_stop() const { m_worker->wait_for_stop(); }
 
     void stop() {
         request_stop();
         wait_for_stop();
     }
 
-    bool is_running() const {
+    [[nodiscard]] bool is_running() const {
         return m_worker && m_worker->is_running();
     }
 
     void future_get_once() { m_worker->future_get_once(); }
 
-    std::shared_future<void> future() const {
+    [[nodiscard]] std::shared_future<void> future() const {
         return m_worker->future();
     }
 
@@ -110,7 +113,7 @@ class state_machine {
         m_worker->notify();
     }
 
-    void notify() {
+    void notify() const {
         m_worker->notify();
     }
 
@@ -118,7 +121,7 @@ class state_machine {
         m_worker->set_interval(interval);
     }
 
-    std::chrono::nanoseconds interval() const {
+    [[nodiscard]] std::chrono::nanoseconds interval() const {
         return m_worker->interval();
     }
 
@@ -174,7 +177,7 @@ class state_machine {
     }
 
     void worker_on_start (notifiable_background_worker*) {
-        /* do overal on_start callback first, then the state's entry callbacks */
+        /* do overall on_start callback first, then the state's entry callbacks */
         if (m_on_start_cb)
             m_on_start_cb.invoke(*this);
 
