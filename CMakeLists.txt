@@ -12,8 +12,8 @@ set(NAMESPACE SG)
 ##
 option(LIBSG_IMGUI "Include IMGUI stuff" ON)
 option(LIBSG_ZSTD "Include zstd stuff" ON)
-option(LISBG_STACKTRACE "Enable boost::stacktrace support" OFF)
-option(LISBG_EXCEPTION_DETAILS "Show function name, etc. when exception is thrown with SG_THROW" OFF)
+option(LIBSG_STACKTRACE "Enable boost::stacktrace support" OFF)
+option(LIBSG_EXCEPTION_DETAILS "Show function name, etc. when exception is thrown with SG_THROW" OFF)
 
 # If not top-level project, disable test and documentation by default
 if(NOT PROJECT_IS_TOP_LEVEL)
@@ -55,7 +55,7 @@ include(DefaultPreamble)
 find_package(Boost REQUIRED CONFIG)
 
 # Boost::stacktrace
-if(LISBG_STACKTRACE)
+if(LIBSG_STACKTRACE)
   # Needed to print traces properly when using boost::stacktrace in non-MSVC systems
   set(CMAKE_EXECUTABLE_ENABLE_EXPORTS ON)
 

@@ -4,13 +4,13 @@
 #include <string_view>
 #include <source_location>
 
-#ifdef LISBG_STACKTRACE
+#ifdef LIBSG_STACKTRACE
     #include <boost/stacktrace.hpp>
 #endif
 
 namespace sg {
 
-#if defined(LISBG_STACKTRACE)
+#if defined(LIBSG_STACKTRACE)
     /**
      * Throws an exception, with a stacktrace.
      */
@@ -37,15 +37,15 @@ namespace sg {
                                 __VA_OPT__(,) __VA_ARGS__);                                        \
     } while (0)
 
-#if defined(LISBG_STACKTRACE)
+#if defined(LIBSG_STACKTRACE)
     #define SG_THROW(type, what, ...) SG_THROW_STACKTRACE(type, what __VA_OPT__(,) __VA_ARGS__)
-#elif defined(LISBG_EXCEPTION_DETAILS)
+#elif defined(LIBSG_EXCEPTION_DETAILS)
     #define SG_THROW(type, what, ...) SG_THROW_DETAILS(type, what __VA_OPT__(,) __VA_ARGS__)
 #else
     #define SG_THROW(type, what, ...) throw type(what __VA_OPT__(,) __VA_ARGS__)
 #endif
 
-#if defined(LISBG_STACKTRACE) || defined(LISBG_EXCEPTION_DETAILS)
+#if defined(LIBSG_STACKTRACE) || defined(LIBSG_EXCEPTION_DETAILS)
     #define SG_CATCH_RETHROW(func)                                                                 \
         do {                                                                                       \
             try {                                                                                  \

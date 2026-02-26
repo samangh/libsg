@@ -53,7 +53,7 @@ jobs:
              cd build
              cmake .. -DBUILD_SHARED_LIBS=${{matrix.type.build_shared_libs}} \
                    -DCMAKE_BUILD_TYPE=Release -DIPO=ON -DARCH_NATIVE=ON \
-                   -DBUILD_TESTING=ON -DBUILD_DOCS=ON -DOWN_FMT=ON -DLISBG_STACKTRACE=ON ${{matrix.compiler.cmake_args}}
+                   -DBUILD_TESTING=ON -DBUILD_DOCS=ON -DOWN_FMT=ON -DLIBSG_STACKTRACE=ON ${{matrix.compiler.cmake_args}}
 
       - name: Build
         working-directory: ${{github.workspace}}/build
