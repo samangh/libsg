@@ -85,6 +85,9 @@ std::map<tcp_server::session_id_t, tcp_server::ptr> tcp_server::sessions() const
     std::shared_lock lock(m_mutex);
     return  m_sessions;
 }
+void tcp_server::write(session_id_t id, std::string_view data) {
+    m_sessions.at(id)->write(data);
+}
 
 void tcp_server::write(session_id_t id, const void* data, size_t size) {
     if (m_stop_in_operation.load(std::memory_order::acquire))

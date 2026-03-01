@@ -58,6 +58,7 @@ class SG_COMMON_EXPORT tcp_server {
     ptr session(session_id_t id);
     std::map<session_id_t, ptr> sessions() const;
 
+    void write(session_id_t id, std::string_view data);
     void write(session_id_t id, const void* data, size_t size);
     void write(session_id_t id, sg::shared_c_buffer<std::byte> buffer);
 
