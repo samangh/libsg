@@ -52,6 +52,7 @@ setup_library(
     src/tcp_server.cpp
     src/asio_io_pool.cpp
     src/tcp_client.cpp
+    src/tcp_client_sync.cpp
     src/tcp_native.cpp
     src/uuid.cpp
     src/file.cpp
