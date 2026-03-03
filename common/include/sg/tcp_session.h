@@ -18,11 +18,22 @@ namespace sg::net {
 
 class SG_COMMON_EXPORT tcp_session {
   public:
+    struct options_t {
+        options_t() {};
+
+        /* if set to true, the `on_data_available_cb_t` will be called when there is data available,
+         * but the data won't have been read from the socket. You'll have to manually read it from
+         * teh native handle.
+         *
+         * This is useful if you want to pass the native handle to another library for reading,etc.*/
+        bool dont_read {false};
+    };
+
     CREATE_CALLBACK(on_data_available_cb_t, void, tcp_session&, const std::byte*, size_t)
     CREATE_CALLBACK(on_disconnected_cb_t, void, tcp_session&, std::optional<std::exception>)
 
     tcp_session(boost::asio::ip::tcp::socket socket, on_data_available_cb_t onReadCb,
-                on_disconnected_cb_t onErrorCb, bool dontRead = false);
+                on_disconnected_cb_t onErrorCb, options_t options=options_t());
     virtual ~tcp_session();
 
     void start();
@@ -58,7 +69,7 @@ class SG_COMMON_EXPORT tcp_session {
 
     std::atomic<bool> m_reader_running;
     std::atomic<bool> m_writer_running;
-    const bool m_dont_read;
+    options_t m_options;
 
     std::mutex m_exception_mutex;
     std::string m_exception_msg;

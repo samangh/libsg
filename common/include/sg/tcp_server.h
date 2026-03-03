@@ -34,6 +34,12 @@ class SG_COMMON_EXPORT tcp_server {
     typedef size_t session_id_t;
     typedef std::shared_ptr<tcp_session> ptr;
 
+    struct options_t {
+        options_t() {};
+        tcp_session::options_t session_options{};
+        size_t no_threads {1};
+    };
+
     CREATE_CALLBACK(started_listening_cb_t, void, tcp_server&)
     CREATE_CALLBACK(stopped_listening_cb_t, void, tcp_server&)
     CREATE_CALLBACK(session_created_cb_t, void, tcp_server&, session_id_t)
@@ -48,7 +54,7 @@ class SG_COMMON_EXPORT tcp_server {
                session_created_cb_t onNewSession,
                session_data_available_cb_t onDataAvailCb,
                session_disconnected_cb_t onDisconnCb,
-               size_t noThreads = 1) noexcept(false);
+               options_t options = options_t()) noexcept(false);
 
     void stop_async();
     void future_get_once() noexcept(false);
@@ -93,6 +99,7 @@ class SG_COMMON_EXPORT tcp_server {
     std::jthread m_stopping_thread;
 
     dp::thread_pool<> m_pool{1};
+    options_t m_options;
 
     boost::asio::awaitable<void> listener(std::shared_ptr<boost::asio::ip::tcp::acceptor> acceptor);
 

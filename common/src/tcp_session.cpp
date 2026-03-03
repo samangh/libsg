@@ -10,12 +10,12 @@
 namespace sg::net {
 
 tcp_session::tcp_session(boost::asio::ip::tcp::socket socket, on_data_available_cb_t onReadCb,
-                         on_disconnected_cb_t onErrorCb, bool dontRead)
+                         on_disconnected_cb_t onErrorCb, options_t options)
     : m_socket(std::move(socket)),
       m_timer(m_socket.get_executor()),
       m_on_data_cb(std::move(onReadCb)),
       m_on_disconnected_cb(std::move(onErrorCb)),
-      m_dont_read(dontRead) {
+      m_options(options) {
     m_timer.expires_at(std::chrono::steady_clock::time_point::max());
 }
 
@@ -149,7 +149,7 @@ boost::asio::awaitable<void> tcp_session::reader() {
 
         auto data = std::make_unique<std::byte[]>(size);
         while (m_socket.is_open()) {
-            if (m_dont_read) {
+            if (m_options.dont_read) {
                 co_await m_socket.async_wait(boost::asio::ip::tcp::socket::wait_read, boost::asio::use_awaitable);
                 if (m_on_data_cb)
                     m_on_data_cb.invoke(*this, nullptr, 0);

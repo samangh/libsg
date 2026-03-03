@@ -44,12 +44,14 @@ void tcp_server::stop_async() {
 void tcp_server::start(std::vector<end_point> endpoints, started_listening_cb_t onStartListening,
                        stopped_listening_cb_t onStopListeniing, session_created_cb_t onNewSession,
                        session_data_available_cb_t onDataAvailCb,
-                       session_disconnected_cb_t onDisconnCb, size_t noThreads) noexcept(false) {
+                       session_disconnected_cb_t onDisconnCb, options_t options) noexcept(false) {
     if (m_context && m_context->is_running())
         throw std::runtime_error("tcp_server is already running");
 
+    m_options = options;
+
     auto stoppedTask = std::bind(&tcp_server::on_io_pool_stopped, this, std::placeholders::_1);
-    m_context = asio_io_pool::create(noThreads, stoppedTask);
+    m_context = asio_io_pool::create(options.no_threads, stoppedTask);
 
     m_on_started_listening_cb = onStartListening;
     m_on_stopped_listening_cb = onStopListeniing;
@@ -148,7 +150,8 @@ tcp_server::listener(std::shared_ptr<boost::asio::ip::tcp::acceptor> acceptor) {
             auto sess = std::make_shared<tcp_session>(
                 co_await acceptor.get()->async_accept(boost::asio::use_awaitable),
                 onData,
-                onSessionDisconnected);
+                onSessionDisconnected,
+                m_options.session_options);
 
             /* check that the m_async did not return because stop_async was called */
             if (!m_stop_in_operation.load(std::memory_order::acquire)) {
