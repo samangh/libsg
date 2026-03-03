@@ -1,7 +1,7 @@
 #pragma once
 
-#include <sg/export/common.h>
 #include "ranges.h"
+#include "debug.h"
 
 #include <algorithm>
 #include <array>
@@ -78,30 +78,51 @@ template <typename RangeT>
     return result;
 }
 
-/****************************** to_integral ******************************/
+/****************************** to_numeric / to_object ******************************/
 
-template <std::integral T>
-[[nodiscard]] T to_integral(const std::byte* buff, std::endian src_endian = std::endian::native) {
+template <typename T>
+    requires(std::is_trivially_copyable_v<T> && !std::is_pointer_v<T> && !std::ranges::range<T>)
+[[nodiscard]] T to_object(std::byte* buff) {
     T val;
     memcpy(&val, buff, sizeof(T));
-
-    if (std::endian::native != src_endian)
-        return sg::bytes::byteswap(val);
     return val;
 }
 
+template <typename T>
+    requires(std::is_integral_v<T> || std::is_floating_point_v<T>)
+[[nodiscard]] T to_numeric(const std::byte* buff, std::endian src_endian = std::endian::native) {
+    if constexpr (std::is_integral_v<T>) {
+        T val;
+        memcpy(&val, buff, sizeof(T));
+
+        if (std::endian::native != src_endian)
+            return sg::bytes::byteswap(val);
+        return val;
+    } else if constexpr (std::is_floating_point_v<T>) {
+        T val;
+
+        if (std::endian::native == src_endian)
+            memcpy(&val, buff, sizeof(T));
+        else
+        {
+            auto ptr = (std::byte*)&val;
+            const auto size = sizeof(T);
+            for(size_t i=0; i < size; ++i)
+                ptr[i]=buff[size-i-1];
+        }
+        return val;
+    } else
+        SG_THROW(std::invalid_argument, "can't convert to numeric");
+}
+
+
 template <std::integral T, typename It>
     requires(std::contiguous_iterator<It> && std::is_same_v<std::iter_value_t<It>, std::byte>)
-[[nodiscard]] T to_integral(const It it, const It end, std::endian src_endian = std::endian::native) {
-    if (it+ sizeof(T) > end)
-        throw std::runtime_error("not enough bytes to convert the required item");
+[[nodiscard]] T to_numeric(const It it, const It end, std::endian src_endian = std::endian::native) {
+    if (it + sizeof(T) > end)
+        SG_THROW(std::runtime_error, "not enough bytes to convert the required item");
 
-    T val;
-    memcpy(&val, &*it, sizeof(T));
-
-    if (std::endian::native != src_endian)
-        return sg::bytes::byteswap(val);
-    return val;
+    return  to_numeric<T>(&*it,src_endian);
 }
 
 /****************************** to_integral_and_advance_iterator ******************************/
@@ -110,43 +131,26 @@ template <typename T>
     requires(std::is_trivially_copyable_v<T> &&
              !std::is_pointer_v<T> && !std::ranges::range<T>)
 [[nodiscard]] T to_object_and_advance_ptr(std::byte** buff) {
-    T val;
-    memcpy(&val, *buff, sizeof(T));
-
+    T val =to_object<T>(*buff);
     *buff = *buff + sizeof(T);
     return val;
 }
 
 
 template <std::integral T>
-[[nodiscard]] T to_integral_and_advance_ptr(std::byte** buff, std::endian src_endian = std::endian::native) {
-    T val;
-    memcpy(&val, *buff, sizeof(T));
-
-    if (std::endian::native != src_endian)
-        return sg::bytes::byteswap(val);
+[[nodiscard]] T to_numeric_and_advance_ptr(std::byte** buff, std::endian src_endian = std::endian::native) {
+    T val = to_numeric<T>( *buff, src_endian);
     *buff = *buff + sizeof(T);
     return val;
 }
 
 template <std::integral T, typename It>
     requires(std::contiguous_iterator<It> && std::is_same_v<std::iter_value_t<It>, std::byte>)
-[[nodiscard]] T to_integral_and_advance_iterator(It& it, const It end, std::endian src_endian = std::endian::native) {
-    if (it+ sizeof(T) > end)
-        throw std::runtime_error("not enough bytes to convert the required item");
-
-    T val;
-    memcpy(&val, &*it, sizeof(T));
-
-    if (std::endian::native != src_endian)
-        return sg::bytes::byteswap(val);
-
+[[nodiscard]] T to_numeric_and_advance_iterator(It& it, const It end, std::endian src_endian = std::endian::native) {
+    T val = to_numeric<T>(it, end, src_endian);
     it+=sizeof(T);
-
     return val;
 }
 
-[[nodiscard]] SG_COMMON_EXPORT double to_double(const std::byte* buff,
-                                                std::endian src_endian = std::endian::native);
 
 } // namespace sg::bytes

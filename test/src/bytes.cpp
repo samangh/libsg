@@ -46,42 +46,39 @@ TEST_CASE("SG::common sg::bytes: check to_bytes(...) and to_integral(...)") {
 
     /* check to_integral */
     REQUIRE(uint8_t(0xAA) ==
-            sg::bytes::to_integral<uint8_t>(uint8_test.data(), std::endian::little));
-    REQUIRE(uint8_t(0xAA) == sg::bytes::to_integral<uint8_t>(uint8_test.data(), std::endian::big));
+            sg::bytes::to_numeric<uint8_t>(uint8_test.data(), std::endian::little));
+    REQUIRE(uint8_t(0xAA) == sg::bytes::to_numeric<uint8_t>(uint8_test.data(), std::endian::big));
     REQUIRE(uint16_t(0xAABB) ==
-            sg::bytes::to_integral<uint16_t>(uint16_test.data(), std::endian::little));
+            sg::bytes::to_numeric<uint16_t>(uint16_test.data(), std::endian::little));
     REQUIRE(uint16_t(0xBBAA) ==
-            sg::bytes::to_integral<uint16_t>(uint16_test.data(), std::endian::big));
+            sg::bytes::to_numeric<uint16_t>(uint16_test.data(), std::endian::big));
     REQUIRE(uint32_t(0xAABBCCDD) ==
-            sg::bytes::to_integral<uint32_t>(uint32_test.data(), std::endian::little));
+            sg::bytes::to_numeric<uint32_t>(uint32_test.data(), std::endian::little));
     REQUIRE(uint32_t(0xDDCCBBAA) ==
-            sg::bytes::to_integral<uint32_t>(uint32_test.data(), std::endian::big));
+            sg::bytes::to_numeric<uint32_t>(uint32_test.data(), std::endian::big));
     REQUIRE(uint64_t(0xAABBCCDDEEFF0011) ==
-            sg::bytes::to_integral<uint64_t>(uint64_test.data(), std::endian::little));
+            sg::bytes::to_numeric<uint64_t>(uint64_test.data(), std::endian::little));
     REQUIRE(uint64_t(0x1100FFEEDDCCBBAA) ==
-            sg::bytes::to_integral<uint64_t>(uint64_test.data(), std::endian::big));
+            sg::bytes::to_numeric<uint64_t>(uint64_test.data(), std::endian::big));
 }
 
-TEST_CASE("SG::common sg::bytes: check to_double(...) and from_bytes(double)") {
-    REQUIRE(std::array<std::byte, 8>{std::byte{0x1B},
-                                     std::byte{0xDE},
-                                     std::byte{0x83},
-                                     std::byte{0x42},
-                                     std::byte{0xCA},
-                                     std::byte{0xC0},
-                                     std::byte{0xF3},
-                                     std::byte{0x3F}} ==
-            sg::bytes::to_bytes((double)1.23456789, std::endian::little));
+TEST_CASE("SG::common sg::bytes: check to_bytes/to_numeric(...) with floats", "[sg::bytes]") {
+    // 1.23456789
+    auto doubleBytesLE =
+        std::array{std::byte{0x1B}, std::byte{0xDE}, std::byte{0x83}, std::byte{0x42},
+                   std::byte{0xCA}, std::byte{0xC0}, std::byte{0xF3}, std::byte{0x3F}};
 
-    REQUIRE(std::array<std::byte, 8>{std::byte{0x3F},
-                                     std::byte{0xF3},
-                                     std::byte{0xC0},
-                                     std::byte{0xCA},
-                                     std::byte{0x42},
-                                     std::byte{0x83},
-                                     std::byte{0xDE},
-                                     std::byte{0x1B}} ==
-            sg::bytes::to_bytes((double)1.23456789, std::endian::big));
+    auto doubleBytesBE =
+        std::array{std::byte{0x3F}, std::byte{0xF3}, std::byte{0xC0}, std::byte{0xCA},
+                   std::byte{0x42}, std::byte{0x83}, std::byte{0xDE}, std::byte{0x1B}};
+
+    REQUIRE(doubleBytesLE == sg::bytes::to_bytes((double)1.23456789, std::endian::little));
+    REQUIRE(doubleBytesBE == sg::bytes::to_bytes((double)1.23456789, std::endian::big));
+
+    REQUIRE(sg::bytes::to_numeric<double>(doubleBytesLE.data(), std::endian::little) ==
+            (double)1.23456789);
+    REQUIRE(sg::bytes::to_numeric<double>(doubleBytesBE.data(), std::endian::big) ==
+            (double)1.23456789);
 }
 
 TEST_CASE("sg::bytes: check to_integral_and_advance_...(...) family", "[sg::bytes]") {
@@ -93,19 +90,19 @@ TEST_CASE("sg::bytes: check to_integral_and_advance_...(...) family", "[sg::byte
     // iterator access
     {
         auto it = buf.begin();
-        auto result1 = sg::bytes::to_integral_and_advance_iterator<uint64_t>(it, buf.end());
-        auto result2 = sg::bytes::to_integral_and_advance_iterator<uint64_t>(it, buf.end());
+        auto result1 = sg::bytes::to_numeric_and_advance_iterator<uint64_t>(it, buf.end());
+        auto result2 = sg::bytes::to_numeric_and_advance_iterator<uint64_t>(it, buf.end());
 
         REQUIRE(result1 == 1);
         REQUIRE(result2 == 2);
-        REQUIRE_THROWS(sg::bytes::to_integral_and_advance_iterator<uint64_t>(it, buf.end()));
+        REQUIRE_THROWS(sg::bytes::to_numeric_and_advance_iterator<uint64_t>(it, buf.end()));
     }
 
     // pointer access
     {
         auto ptr = buf.get();
-        auto result1 = sg::bytes::to_integral_and_advance_ptr<uint64_t>(&ptr);
-        auto result2 = sg::bytes::to_integral_and_advance_ptr<uint64_t>(&ptr);
+        auto result1 = sg::bytes::to_numeric_and_advance_ptr<uint64_t>(&ptr);
+        auto result2 = sg::bytes::to_numeric_and_advance_ptr<uint64_t>(&ptr);
 
         REQUIRE(result1 == 1);
         REQUIRE(result2 == 2);
