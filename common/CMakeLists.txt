@@ -38,7 +38,6 @@ setup_library(
   SOURCES_PRIVATE
     src/accurate_sleeper.cpp
     src/background_timer.cpp
-    src/bytes.cpp
     src/cpu.cpp
     src/file_writer.cpp
     src/gettimeofday.cpp
