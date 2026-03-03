@@ -75,6 +75,7 @@ void tcp_session::set_keepalive(bool enableKeepAlive, unsigned idleSec, unsigned
 void tcp_session::set_timeout(unsigned timeoutMSec) {
     sg::net::native::set_timeout(m_socket.native_handle(), timeoutMSec);
 }
+native::socket_t tcp_session::native_handle() { return m_socket.native_handle(); }
 
 void tcp_session::stop_async() {
     // No action if we have already stopped

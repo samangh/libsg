@@ -1,8 +1,9 @@
 #pragma once
 
 #include "buffer.h"
-#include "net.h"
 #include "callback.h"
+#include "net.h"
+#include "tcp_native.h"
 
 #include <boost/asio/awaitable.hpp>
 #include <boost/asio/io_context.hpp>
@@ -38,6 +39,8 @@ class SG_COMMON_EXPORT tcp_session {
     void set_keepalive(bool enableKeepAlive, unsigned idleSec = 60, unsigned intervalSec = 5,
                        unsigned count = 5);
     void set_timeout(unsigned timeoutMSec = 5000);
+
+    native::socket_t native_handle();
 
   private:
     boost::asio::ip::tcp::socket m_socket;
