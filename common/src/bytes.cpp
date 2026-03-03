@@ -18,15 +18,3 @@ double sg::bytes::to_double(const std::byte *buff, std::endian src_endian) {
     }
     return val;
 }
-
-std::array<std::byte, sizeof(double)> sg::bytes::to_bytes(double input,
-                                                          std::endian endian) {
-    auto bytes =
-        std::bit_cast<std::array<std::byte, sizeof(double)>>(input);
-
-    /* If system and the desired endian is different, then swap endianness */
-    if (std::endian::native != endian)
-        std::ranges::reverse(bytes);
-
-    return bytes;
-}

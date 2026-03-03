@@ -41,6 +41,23 @@ template <typename T>
     return std::bit_cast<std::array<std::byte, sizeof(T)>>(input);
 }
 
+/* Converts an integer object to bytes, modified to match a target endianness */
+template <typename T>
+    requires(std::is_integral_v<T> || std::is_floating_point_v<T>)
+[[nodiscard]] std::array<std::byte, sizeof(T)> to_bytes(T input, std::endian dstEndian) {
+    /* byteswap is more efficient, so where possible we do byteswap first following by bitcast */
+    if constexpr (std::is_integral_v<T>) {
+        if (dstEndian != std::endian::native)
+            input = byteswap(input);
+        return to_bytes(input);
+    } else if constexpr (std::is_floating_point_v<T>) {
+        auto bytes = std::bit_cast<std::array<std::byte, sizeof(T)>>(input);
+        if (std::endian::native != dstEndian)
+            std::ranges::reverse(bytes);
+        return bytes;
+    }
+}
+
  /**
  * @brief returns byte representation of a contiguous range of objects
  *
@@ -59,15 +76,6 @@ template <typename RangeT>
         range, [&result](const auto& item) { sg::ranges::append(result, to_bytes(item)); });
 
     return result;
-}
-
-/* Converts an integer objectg to bytes, modified to match a target endianess*/
-template <std::integral T>
-[[nodiscard]] std::vector<std::byte> to_bytes(T input, std::endian dest_endian) {
-    if (dest_endian != std::endian::native)
-      input = byteswap(input);
-
-    return to_bytes(input);
 }
 
 /****************************** to_integral ******************************/
@@ -140,8 +148,5 @@ template <std::integral T, typename It>
 
 [[nodiscard]] SG_COMMON_EXPORT double to_double(const std::byte* buff,
                                                 std::endian src_endian = std::endian::native);
-
-[[nodiscard]] SG_COMMON_EXPORT std::array<std::byte, sizeof(double)> to_bytes(
-    double input, std::endian endian = std::endian::native);
 
 } // namespace sg::bytes
