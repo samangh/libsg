@@ -138,10 +138,10 @@ tcp_server::listener(std::shared_ptr<boost::asio::ip::tcp::acceptor> acceptor) {
         while (!m_stop_in_operation.load(std::memory_order::acquire)) {
             auto id = m_last_id++;
 
-            auto onSessionDisconnected = [this, id](std::optional<std::exception> ex) {
+            auto onSessionDisconnected = [this, id](tcp_session&, std::optional<std::exception> ex) {
                 on_session_stopped(id, ex);
             };
-            auto onData = [this, id](const std::byte* data, size_t size) {
+            auto onData = [this, id](tcp_session&, const std::byte* data, size_t size) {
                 inform_user_of_data(id, data, size);
             };
 

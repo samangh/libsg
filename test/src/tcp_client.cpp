@@ -27,7 +27,7 @@ TEST_CASE("sg::net::tcp_client: check connect", "[sg::net::tcp_client]") {
     server.start({ep}, nullptr, nullptr, nullptr, on_data, nullptr);
 
     /* client: collect echo response */
-    tcp_session::on_data_available_cb_t onClientdata = [&](const std::byte* dat, size_t size) {
+    tcp_session::on_data_available_cb_t onClientdata = [&](tcp_session&, const std::byte* dat, size_t size) {
         result = std::string((char*)dat, size);
         can_stop.release();
     };

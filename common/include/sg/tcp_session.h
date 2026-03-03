@@ -18,8 +18,8 @@ namespace sg::net {
 
 class SG_COMMON_EXPORT tcp_session {
   public:
-    CREATE_CALLBACK(on_data_available_cb_t, void, const std::byte*, size_t)
-    CREATE_CALLBACK(on_disconnected_cb_t, void, std::optional<std::exception>)
+    CREATE_CALLBACK(on_data_available_cb_t, void, tcp_session&, const std::byte*, size_t)
+    CREATE_CALLBACK(on_disconnected_cb_t, void, tcp_session&, std::optional<std::exception>)
 
     tcp_session(boost::asio::ip::tcp::socket socket, on_data_available_cb_t onReadCb, on_disconnected_cb_t onErrorCb);
     virtual ~tcp_session();
