@@ -148,7 +148,7 @@ boost::asio::awaitable<void> tcp_session::reader() {
         int size = option.value();
 
         auto data = std::make_unique<std::byte[]>(size);
-        while (true) {
+        while (m_socket.is_open()) {
             std::size_t n = co_await m_socket.async_read_some(boost::asio::buffer(data.get(), size),
                                                               boost::asio::use_awaitable);
             if (m_on_data_cb)
