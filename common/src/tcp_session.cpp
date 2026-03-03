@@ -16,7 +16,7 @@ tcp_session::tcp_session(boost::asio::ip::tcp::socket socket, on_data_available_
       m_on_data_cb(std::move(onReadCb)),
       m_on_disconnected_cb(std::move(onErrorCb)),
       m_options(options) {
-    m_timer.expires_at(std::chrono::steady_clock::time_point::max());
+    m_timer.expires_at((std::chrono::steady_clock::time_point::max)());
 }
 
 tcp_session::~tcp_session() {

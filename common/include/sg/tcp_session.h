@@ -19,6 +19,7 @@ namespace sg::net {
 class SG_COMMON_EXPORT tcp_session {
   public:
     struct options_t {
+        // needed to get around clang bug https://github.com/llvm/llvm-project/issues/36032
         options_t() {};
 
         /* if set to true, the `on_data_available_cb_t` will be called when there is data available,
