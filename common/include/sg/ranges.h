@@ -5,6 +5,7 @@
 #include <algorithm>
 
 namespace sg::internal {
+
 /****************** copy to iterator ******************/
 
 template <std::input_iterator It, typename RangeT>
@@ -26,6 +27,19 @@ It flatten_copy_to_iterator(It& it, RangeRangeT&& buffers) {
 } // namespace sg::internal
 
 namespace sg::ranges {
+
+/** convert a range to std::array<...> **/
+template <std::size_t N, typename RangeT>
+[[nodiscard]] auto to_array(RangeT&& in) {
+    using ValT = std::remove_cvref_t<RangeT>::value_type;
+    std::array<ValT, N> val;
+
+    if constexpr (std::is_lvalue_reference_v<RangeT>)
+        std::copy_n(std::begin(in), N, std::begin(val));
+    else
+        std::copy_n(std::move_iterator(std::begin(in)), N, std::begin(val));
+    return val;
+}
 
 /**************************** append ****************************/
 template <typename BaseRangeT, typename RangeT>

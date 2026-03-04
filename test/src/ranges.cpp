@@ -2,6 +2,14 @@
 
 #include <sg/ranges.h>
 
+
+TEST_CASE("sg::common::ranges to_array(...)", "[sg::common::ranges]") {
+    std::vector<int> vec{0,1,3,4,5};
+    REQUIRE(sg::ranges::to_array<5>(vec) == std::array{0,1,3,4,5});
+    REQUIRE(sg::ranges::to_array<5>(std::move(vec)) == std::array{0,1,3,4,5});
+
+}
+
 TEST_CASE("sg::common::ranges erase_value(...)", "[sg::common::ranges]") {
     std::vector<int> vec{0,1,2,2,3,3,3};
 
