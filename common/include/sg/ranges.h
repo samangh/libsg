@@ -30,6 +30,7 @@ namespace sg::ranges {
 
 /** convert a range to std::array<...> **/
 template <std::size_t N, typename RangeT>
+    requires(std::ranges::range<RangeT>)
 [[nodiscard]] auto to_array(RangeT&& in) {
     using ValT = std::remove_cvref_t<RangeT>::value_type;
     std::array<ValT, N> val;
@@ -41,27 +42,20 @@ template <std::size_t N, typename RangeT>
     return val;
 }
 
-/**************************** append ****************************/
-template <typename BaseRangeT, typename RangeT>
-    requires(std::ranges::range<RangeT> && std::ranges::range<BaseRangeT> &&
-        std::is_same_v<std::ranges::range_value_t<RangeT>,
-                       std::ranges::range_value_t<BaseRangeT>>)
-void append(BaseRangeT& baseRange, const RangeT& to_add) {
-    baseRange.insert(std::end(baseRange), std::begin(to_add), std::end(to_add));
-}
+/**************************** copy / append ****************************/
 
 template <typename BaseRangeT, typename RangeT>
     requires(std::ranges::range<RangeT> && std::ranges::range<BaseRangeT> &&
              std::is_same_v<std::ranges::range_value_t<RangeT>,
-                            std::ranges::range_value_t<BaseRangeT>> &&
-             !std::is_lvalue_reference_v<RangeT>)
+                            std::ranges::range_value_t<BaseRangeT>>)
 void append(BaseRangeT& baseRange, RangeT&& to_add) {
-    baseRange.insert(std::end(baseRange),
-                     make_move_iterator(std::begin(to_add)),
-                     make_move_iterator(std::end(to_add)));
+    if constexpr (std::is_lvalue_reference_v<RangeT>)
+        baseRange.insert(std::end(baseRange), std::begin(to_add), std::end(to_add));
+    else
+        baseRange.insert(std::end(baseRange), make_move_iterator(std::begin(to_add)),
+                         make_move_iterator(std::end(to_add)));
 }
 
-/**************************** copy ****************************/
 template <typename InputRangeT, typename OutputIter>
 OutputIter copy(InputRangeT to_add, OutputIter to_copy) {
     return std::copy(std::begin(to_add),
