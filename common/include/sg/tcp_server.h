@@ -26,7 +26,7 @@ class SG_COMMON_EXPORT tcp_server {
      *
      *   - we store sessions as shared_ptr, so that when they user acquires them through the
      *     `sessions()` or `session(..)` function, they can be sure about the lifetime of the object
-     *     (i.e. the return session will exists and not get destructed whilst they have the
+     *     (i.e. the returned session will exist and not get destructed whilst they have the
      *     shared_ptr)
      */
 
@@ -35,7 +35,7 @@ class SG_COMMON_EXPORT tcp_server {
     typedef std::shared_ptr<tcp_session> ptr;
 
     struct options_t {
-        options_t() {};
+        options_t() {}; // work around bug https://github.com/llvm/llvm-project/issues/36032
         tcp_session::options_t session_options{};
         size_t no_threads {1};
     };
@@ -84,7 +84,7 @@ class SG_COMMON_EXPORT tcp_server {
     std::promise<void> m_promise_started_listening;
     std::shared_ptr<sg::net::asio_io_pool> m_context;
 
-    //m_acceptors are copied for set_keepalive/set_timeout user
+    //m_acceptors are kept for use by set_keepalive/set_timeout
     std::vector<std::shared_ptr<boost::asio::ip::tcp::acceptor>> m_acceptors;
     std::atomic<size_t> m_acceptors_running_count{0};
     std::atomic<bool> m_acceptors_stopped{false};
