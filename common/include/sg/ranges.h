@@ -3,6 +3,7 @@
 #include <vector>
 #include <ranges>
 #include <algorithm>
+#include <array>
 
 namespace sg::internal {
 
