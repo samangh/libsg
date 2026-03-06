@@ -41,22 +41,15 @@ void tcp_server::stop_async() {
     });
 }
 
-void tcp_server::start(std::vector<end_point> endpoints, started_listening_cb_t onStartListening,
-                       stopped_listening_cb_t onStopListeniing, session_created_cb_t onNewSession,
-                       session_data_available_cb_t onDataAvailCb,
-                       session_disconnected_cb_t onDisconnCb, options_t options) noexcept(false) {
+void tcp_server::start(std::vector<end_point> endpoints, CallBacks callbacks, options_t options) noexcept(false) {
     if (m_context && m_context->is_running())
         throw std::runtime_error("tcp_server is already running");
 
     m_options = options;
+    m_callbacks = std::move(callbacks);
 
     auto stoppedTask = std::bind(&tcp_server::on_io_pool_stopped, this, std::placeholders::_1);
     m_context = asio_io_pool::create(options.no_threads, stoppedTask);
-
-    m_on_started_listening_cb = onStartListening;
-    m_on_stopped_listening_cb = onStopListeniing;
-    m_new_session_cb = std::move(onNewSession), m_on_data_read_user_cb = std::move(onDataAvailCb);
-    m_on_disconnect_user_cb = std::move(onDisconnCb);
 
     m_stop_in_operation.store(false);
 
@@ -160,8 +153,8 @@ tcp_server::listener(std::shared_ptr<boost::asio::ip::tcp::acceptor> acceptor) {
                     m_sessions.emplace(id, sess);
                 }
 
-                if (m_new_session_cb)
-                    m_new_session_cb.invoke(*this, id);
+                if (m_callbacks.OnSessionCreated)
+                    m_callbacks.OnSessionCreated.invoke(*this, id);
 
                 sess->start();
             }
@@ -200,19 +193,19 @@ void tcp_server::start_listening() {
         m_acceptors.push_back(a);
     }
 
-    if (m_on_started_listening_cb)
-        m_on_started_listening_cb.invoke(*this);
+    if (m_callbacks.OnStartedListening)
+        m_callbacks.OnStartedListening.invoke(*this);
 }
 
 void tcp_server::on_io_pool_stopped(asio_io_pool&) {
-    if (m_on_stopped_listening_cb)
-        m_on_stopped_listening_cb.invoke(*this);
+    if (m_callbacks.OnStoppedListening)
+        m_callbacks.OnStoppedListening.invoke(*this);
 }
 
 
 void tcp_server::inform_user_of_data(session_id_t id, const std::byte* data, size_t size) {
-    if (m_on_data_read_user_cb)
-        m_on_data_read_user_cb.invoke(*this, id, data, size);
+    if (m_callbacks.OnSessionDataAvailable)
+        m_callbacks.OnSessionDataAvailable.invoke(*this, id, data, size);
 }
 
 void tcp_server::on_session_stopped(session_id_t id, std::optional<std::exception> ex) {
@@ -224,8 +217,8 @@ void tcp_server::on_session_stopped(session_id_t id, std::optional<std::exceptio
      *      on_disconnection callback is running
      */
     m_pool.enqueue_detach([this, id, ex]() {
-        if (m_on_disconnect_user_cb)
-            m_on_disconnect_user_cb.invoke(*this, id, ex);
+        if (m_callbacks.OnDisconnected)
+            m_callbacks.OnDisconnected.invoke(*this, id, ex);
 
         std::unique_lock lock(m_mutex);
         m_sessions.erase(id);

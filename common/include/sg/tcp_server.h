@@ -34,26 +34,29 @@ class SG_COMMON_EXPORT tcp_server {
     typedef size_t session_id_t;
     typedef std::shared_ptr<tcp_session> ptr;
 
-    struct options_t {
-        options_t() {}; // work around bug https://github.com/llvm/llvm-project/issues/36032
-        tcp_session::options_t session_options{};
-        size_t no_threads {1};
-    };
-
     CREATE_CALLBACK(started_listening_cb_t, void, tcp_server&)
     CREATE_CALLBACK(stopped_listening_cb_t, void, tcp_server&)
     CREATE_CALLBACK(session_created_cb_t, void, tcp_server&, session_id_t)
     CREATE_CALLBACK(session_data_available_cb_t, void, tcp_server&, session_id_t, const std::byte*, size_t)
     CREATE_CALLBACK(session_disconnected_cb_t, void, tcp_server&, session_id_t, std::optional<std::exception>)
 
+    struct CallBacks {
+        started_listening_cb_t OnStartedListening;
+        stopped_listening_cb_t OnStoppedListening;
+        session_created_cb_t OnSessionCreated;
+        session_data_available_cb_t OnSessionDataAvailable;
+        session_disconnected_cb_t OnDisconnected;
+    };
+
+    struct options_t {
+        options_t() {}; // work around bug https://github.com/llvm/llvm-project/issues/36032
+        tcp_session::options_t session_options{};
+        size_t no_threads{1};
+    };
+
     ~tcp_server() noexcept(false);
 
-    void start(std::vector<end_point> endpoints,
-               started_listening_cb_t onStartListening,
-               stopped_listening_cb_t onStopListeniing,
-               session_created_cb_t onNewSession,
-               session_data_available_cb_t onDataAvailCb,
-               session_disconnected_cb_t onDisconnCb,
+    void start(std::vector<end_point> endpoints, CallBacks callbacks,
                options_t options = options_t()) noexcept(false);
 
     void stop_async();
@@ -89,11 +92,7 @@ class SG_COMMON_EXPORT tcp_server {
     std::atomic<size_t> m_acceptors_running_count{0};
     std::atomic<bool> m_acceptors_stopped{false};
 
-    session_created_cb_t m_new_session_cb;
-    session_data_available_cb_t m_on_data_read_user_cb;
-    session_disconnected_cb_t m_on_disconnect_user_cb;
-    started_listening_cb_t m_on_started_listening_cb;
-    stopped_listening_cb_t m_on_stopped_listening_cb;
+    CallBacks m_callbacks;
 
     std::atomic<bool> m_stop_in_operation;
     std::jthread m_stopping_thread;

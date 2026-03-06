@@ -10,6 +10,7 @@
 #include <semaphore>
 #include <string>
 
+using namespace sg::net;
 static sg::net::port_t PORT = 4444; // 55555 can't be used on macOS!
 
 TEST_CASE("sg::net::tcp_server: check bad endpoint throws exception during start()", "[sg::net::tcp_server]") {
@@ -18,7 +19,7 @@ TEST_CASE("sg::net::tcp_server: check bad endpoint throws exception during start
     ep.ip = "8.8.8.8";
 
     sg::net::tcp_server l;
-    REQUIRE_THROWS(l.start({ep}, nullptr, nullptr,nullptr, nullptr, nullptr));
+    REQUIRE_THROWS(l.start({ep}, decltype(l)::CallBacks()));
 }
 
 TEST_CASE("sg::net::tcp_server: check start/stop callback", "[sg::net::tcp_server]") {
@@ -35,8 +36,13 @@ TEST_CASE("sg::net::tcp_server: check start/stop callback", "[sg::net::tcp_serve
 
     sg::net::end_point ep("127.0.0.1", PORT);
 
+
+    tcp_server::CallBacks cb;
+    cb.OnStartedListening = onStart;
+    cb.OnStoppedListening = onStop;
+
     tcp_server l;
-    l.start({ep}, onStart, onStop, nullptr, nullptr,nullptr);
+    l.start({ep}, cb);
 
     start_sem.acquire();
     REQUIRE(stop_count == 0);
@@ -55,7 +61,11 @@ struct tcp_server_test0 {
         sg::net::end_point ep("127.0.0.1", PORT);
         auto onstart = std::bind(&tcp_server_test0::on_start, this, std::placeholders::_1);
         auto onstop = std::bind(&tcp_server_test0::on_stop, this, std::placeholders::_1);
-        l.start({ep}, onstart, onstop, nullptr, nullptr,nullptr);
+
+        sg::net::tcp_server::CallBacks cb;
+        cb.OnStartedListening = onstart;
+        cb.OnStoppedListening = onstop;
+        l.start({ep}, cb);
 
     }
     void on_start(sg::net::tcp_server&) {
@@ -108,8 +118,13 @@ TEST_CASE("sg::net::tcp_server: check read/write with many simultaneous clients"
 
     sg::net::end_point ep("0.0.0.0", PORT);
 
+    tcp_server::CallBacks cb;
+    cb.OnSessionCreated=onNew;
+    cb.OnSessionDataAvailable=on_data;
+    cb.OnDisconnected = onClose;
+
     tcp_server l;
-    l.start({ep}, nullptr, nullptr, onNew, on_data, onClose);
+    l.start({ep}, cb);
 
     auto func = []() {
         using boost::asio::ip::tcp;
@@ -164,8 +179,12 @@ TEST_CASE("sg::net::tcp_server: check can disconnect client", "[sg::net::tcp_ser
 
     sg::net::end_point ep("0.0.0.0", PORT);
 
+    tcp_server::CallBacks cb;
+    cb.OnSessionDataAvailable=on_data;
+    cb.OnDisconnected = on_disconn;
+
     tcp_server l;
-    l.start({ep}, nullptr, nullptr, nullptr, on_data, on_disconn);
+    l.start({ep}, cb);
 
     std::jthread th = std::jthread([]() {
         using boost::asio::ip::tcp;
@@ -210,8 +229,11 @@ TEST_CASE("sg::net::tcp_server: check what happens if client disconnects", "[sg:
 
     sg::net::end_point ep("0.0.0.0", PORT);
 
+    tcp_server::CallBacks cb;
+    cb.OnDisconnected = on_disconn;
+
     tcp_server l;
-    l.start({ep}, nullptr, nullptr, nullptr, nullptr, on_disconn);
+    l.start({ep}, cb);
 
     std::jthread th = std::jthread([]() {
         using boost::asio::ip::tcp;
@@ -246,7 +268,10 @@ TEST_CASE("sg::net::tcp_server started_listening_cb_t exception handling", "[sg:
     sg::net::end_point ep("0.0.0.0", PORT);
     tcp_server l;
 
-    REQUIRE_THROWS(l.start({ep}, onListening, nullptr, nullptr, nullptr, nullptr));
+    tcp_server::CallBacks cb;
+    cb.OnStartedListening=onListening;
+
+    REQUIRE_THROWS(l.start({ep}, cb));
 }
 
 TEST_CASE("sg::net::tcp_server stopped_listening_cb_t cb exception handling", "[sg::net::tcp_server]") {
@@ -257,9 +282,13 @@ TEST_CASE("sg::net::tcp_server stopped_listening_cb_t cb exception handling", "[
             throw std::runtime_error("bad error!");
         };
 
+    tcp_server::CallBacks cb;
+    cb.OnStoppedListening=onStop;
+
+
     sg::net::end_point ep("0.0.0.0", PORT);
     auto l = tcp_server();
-    l.start({ep}, nullptr, onStop, nullptr, nullptr, nullptr);
+    l.start({ep}, cb);
     l.stop_async();
     REQUIRE_THROWS(l.future_get_once());
 }
@@ -280,9 +309,12 @@ TEST_CASE("sg::net::tcp_server: check session(...)", "[sg::net::tcp_server]") {
     };
 
     sg::net::end_point ep("0.0.0.0", PORT);
+    tcp_server::CallBacks cb;
+    cb.OnSessionDataAvailable=on_data;
+    cb.OnDisconnected = on_disconn;
 
     tcp_server l;
-    l.start({ep}, nullptr, nullptr, nullptr, on_data, on_disconn);
+    l.start({ep}, cb);
 
     std::jthread th = std::jthread([]() {
         using boost::asio::ip::tcp;
@@ -335,9 +367,12 @@ TEST_CASE("sg::net::tcp_server: check local/remote_endpoint(...)", "[sg::net::tc
     };
 
     sg::net::end_point ep("0.0.0.0", PORT);
+    tcp_server::CallBacks cb;
+    cb.OnSessionDataAvailable=on_data;
+    cb.OnDisconnected = on_disconn;
 
     tcp_server l;
-    l.start({ep}, nullptr, nullptr, nullptr, on_data, on_disconn);
+    l.start({ep}, cb);
 
     std::jthread th = std::jthread([]() {
         using boost::asio::ip::tcp;
@@ -383,10 +418,14 @@ TEST_CASE("sg::net::tcp_server: check reaction to client immediate disconnection
         l.stop_async();
     };
 
+    tcp_server::CallBacks cb;
+    cb.OnSessionCreated=on_conn;
+    cb.OnDisconnected = on_disconn;
+
     sg::net::end_point ep("0.0.0.0", PORT);
 
     tcp_server l;
-    l.start({ep}, nullptr, nullptr, on_conn, nullptr, on_disconn);
+    l.start({ep}, cb);
 
     std::jthread th = std::jthread([]() {
         using boost::asio::ip::tcp;
@@ -421,8 +460,12 @@ TEST_CASE("sg::net::tcp_server: check dropping tcp_server drops all connections"
         std::jthread th;
 
         {
+            tcp_server::CallBacks cb;
+            cb.OnStoppedListening = onStop;
+            cb.OnSessionCreated = onConn;
+
             tcp_server l;
-            l.start({ep}, nullptr, onStop, onConn, nullptr, nullptr);
+            l.start({ep}, cb);
 
             th = std::jthread([]() {
                 using boost::asio::ip::tcp;
@@ -464,8 +507,12 @@ TEST_CASE("sg::net::tcp_server: check stop_async() drops all connections", "[sg:
     sg::net::end_point ep("0.0.0.0", PORT);
     std::jthread th;
 
+    tcp_server::CallBacks cb;
+    cb.OnStoppedListening = onStop;
+    cb.OnSessionCreated = onConn;
+
     tcp_server l;
-    l.start({ep}, nullptr, onStop, onConn, nullptr, nullptr);
+    l.start({ep}, cb);
 
     th = std::jthread([]() {
         using boost::asio::ip::tcp;
@@ -507,7 +554,7 @@ TEST_CASE("sg::net::tcp_server: set_keepalive(...)", "[sg::net::tcp_server]") {
     sg::net::end_point ep("0.0.0.0", PORT);
 
     tcp_server server;
-    server.start({ep}, nullptr, nullptr, nullptr, nullptr, nullptr);
+    server.start({ep}, tcp_server::CallBacks());
 
     server.set_keepalive(true);
 
@@ -524,7 +571,7 @@ TEST_CASE("sg::net::tcp_server: set_timeout(...)", "[sg::net::tcp_server]") {
         sg::net::end_point ep("0.0.0.0", PORT);
 
         tcp_server server;
-        server.start({ep}, nullptr, nullptr, nullptr, nullptr, nullptr);
+        server.start({ep}, tcp_server::CallBacks());
 
         server.set_timeout(true);
     }

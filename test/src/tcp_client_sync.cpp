@@ -16,7 +16,7 @@ TEST_CASE("tcp_client_sync: check destructor works after disconnect", "[sg::net:
     tcp_client_sync client;
     {
         tcp_server server;
-        server.start({ep}, nullptr, nullptr, nullptr, nullptr, nullptr);
+        server.start({ep}, tcp_server::CallBacks());
         client.connect(ep);
     }
 }
@@ -34,7 +34,10 @@ TEST_CASE("tcp_client_sync: check connect/disconn", "[sg::net::tcp_client_sync]"
         disconn.release();
     };
 
-    server.start({ep}, nullptr, nullptr, onConn, nullptr, Disconn);
+    tcp_server::CallBacks cb;
+    cb.OnSessionCreated = onConn;
+    cb.OnDisconnected=Disconn;
+    server.start({ep}, cb);
 
     tcp_client_sync client;
 
@@ -56,7 +59,9 @@ TEST_CASE("tcp_client_sync: check disconnection on destructor", "[sg::net::tcp_c
         disconn.release();
     };
 
-    server.start({ep}, nullptr, nullptr, nullptr, nullptr, Disconn);
+    tcp_server::CallBacks cb;
+    cb.OnDisconnected = Disconn;
+    server.start({ep}, cb);
 
     {
         tcp_client_sync client;
@@ -71,7 +76,10 @@ TEST_CASE("tcp_client_sync: check read_until()", "[sg::net::tcp_client_sync]") {
     tcp_server::session_created_cb_t onConn= [&](tcp_server&, tcp_server::session_id_t id) {
         server.write(id, "\nHELLO1\nHELLO2\nHELLO3\n");
     };
-    server.start({ep}, nullptr, nullptr, onConn, nullptr, nullptr);
+
+    tcp_server::CallBacks cb;
+    cb.OnSessionCreated = onConn;
+    server.start({ep}, cb);
 
     tcp_client_sync client;
     client.connect(ep);
@@ -88,7 +96,10 @@ TEST_CASE("tcp_client_sync: check read_some()", "[sg::net::tcp_client_sync]") {
     tcp_server::session_created_cb_t onConn= [&](tcp_server&, tcp_server::session_id_t id) {
         server.write(id, "\n1234567890");
     };
-    server.start({ep}, nullptr, nullptr, onConn, nullptr, nullptr);
+
+    tcp_server::CallBacks cb;
+    cb.OnSessionCreated = onConn;
+    server.start({ep}, cb);
 
     tcp_client_sync client;
     client.connect(ep);
@@ -107,7 +118,10 @@ TEST_CASE("tcp_client_sync: check write()", "[sg::net::tcp_client_sync]") {
                                                          const std::byte* data, size_t size) {
         server.write(id, data, size);
     };
-    server.start({ep}, nullptr, nullptr, nullptr, onData, nullptr);
+
+    tcp_server::CallBacks cb;
+    cb.OnSessionDataAvailable = onData;
+    server.start({ep}, cb);
 
     tcp_client_sync client;
     client.connect(ep);
