@@ -17,7 +17,7 @@ class SG_COMMON_EXPORT tcp_client {
     void connect(const end_point& endpoint,
                  tcp_session::on_data_available_cb_t onReadCb,
                  tcp_session::on_disconnected_cb_t omDisconnect);
-
+    [[nodiscard]] bool is_connected() const;
     tcp_session& session();
   private:
     // define m_session after m_context, so that m_session is destructed first

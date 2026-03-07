@@ -1,6 +1,6 @@
 #include "sg/tcp_client.h"
+#include "sg/debug.h"
 
-#include <boost/asio/awaitable.hpp>
 #include <boost/asio/connect.hpp>
 #include <boost/asio/io_context.hpp>
 #include <boost/asio/ip/tcp.hpp>
@@ -29,6 +29,16 @@ void tcp_client::connect(const end_point& endpoint,
     m_session->start(nullptr);
     m_context->run();
 }
+bool tcp_client::is_connected() const {
+    if (m_session)
+        return m_session->is_connected();
+    return false;
+}
 
-tcp_session& tcp_client::session() { return *m_session.get(); }
+tcp_session& tcp_client::session() {
+    if (!m_session)
+        SG_THROW(std::logic_error, "tcp_session not started");
+
+    return *m_session.get();
+}
 }
