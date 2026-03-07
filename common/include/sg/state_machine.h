@@ -15,7 +15,7 @@ namespace sg {
 template <typename TState>
 class state_machine {
    public:
-
+    typedef TState state_t;
     struct state_change_details {
         TState new_state;
         TState old_state;
