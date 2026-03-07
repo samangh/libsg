@@ -1,13 +1,12 @@
-#include <catch2/catch_test_macros.hpp>
-
-#include <sg/tcp_server.h>
-#include <sg/jthread.h>
-#include <sg/random.h>
-
-#include <boost/asio.hpp>
+#include "sg/tcp_client.h"
 
 #include <atomic>
+#include <boost/asio.hpp>
+#include <catch2/catch_test_macros.hpp>
 #include <semaphore>
+#include <sg/jthread.h>
+#include <sg/random.h>
+#include <sg/tcp_server.h>
 #include <string>
 
 using namespace sg::net;
@@ -566,5 +565,24 @@ TEST_CASE("tcp_server: set_timeout(...)", "[tcp_server]") {
         server.start({ep}, tcp_server::CallBacks());
 
         server.set_timeout(true);
+    }
+}
+
+TEST_CASE("tcp_server: allow for disconnection in OnSessionCreated() callbacks", "[tcp_server]") {
+    using namespace sg::net;
+
+    end_point ep("127.0.0.1", PORT);
+
+    tcp_server::CallBacks cb;
+    cb.OnSessionCreated = [&](tcp_server& l, tcp_server::session_id_t id) { l.disconnect(id); };
+
+    tcp_server l;
+    l.start({ep}, cb);
+
+    for (auto i = 0; i< 10; ++i)
+    {
+        tcp_client client;
+        client.connect(ep, nullptr, nullptr);
+        client.session().wait_until_stopped();
     }
 }

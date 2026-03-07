@@ -25,7 +25,7 @@ tcp_session::~tcp_session() {
     wait_until_stopped();
 }
 
-void tcp_session::start() {
+void tcp_session::start(on_connected_cb_t onConn) {
     {
         std::lock_guard lock(m_exception_mutex);
         m_exception_msg = "";
@@ -33,6 +33,10 @@ void tcp_session::start() {
 
     m_reader_running.store(true);
     m_writer_running.store(true);
+    m_stopped.store(false);
+
+    if (onConn)
+        onConn.invoke(*this);
 
     co_spawn(
         m_socket.get_executor(),
@@ -43,7 +47,7 @@ void tcp_session::start() {
         [self = this] { return self->writer(); },
         boost::asio::detached);
 
-    m_stopped.store(false);
+
 }
 
 void tcp_session::write(sg::shared_c_buffer<std::byte> msg) {

@@ -140,8 +140,14 @@ tcp_server::listener(std::shared_ptr<boost::asio::ip::tcp::acceptor> acceptor) {
             auto onSessionDisconnected = [this, id](tcp_session&, std::optional<std::exception> ex) {
                 on_session_stopped(id, ex);
             };
+
             auto onData = [this, id](tcp_session&, const std::byte* data, size_t size) {
                 inform_user_of_data(id, data, size);
+            };
+
+            tcp_session::on_connected_cb_t onConn = [this, id](tcp_session&) {
+                if (m_callbacks.OnSessionCreated)
+                    m_callbacks.OnSessionCreated.invoke(*this, id);
             };
 
             auto sess = std::make_shared<tcp_session>(
@@ -157,10 +163,7 @@ tcp_server::listener(std::shared_ptr<boost::asio::ip::tcp::acceptor> acceptor) {
                     m_sessions.emplace(id, sess);
                 }
 
-                if (m_callbacks.OnSessionCreated)
-                    m_callbacks.OnSessionCreated.invoke(*this, id);
-
-                sess->start();
+                sess->start(onConn);
             }
         }
     } catch (const boost::system::system_error& err) {

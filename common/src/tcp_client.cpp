@@ -26,7 +26,7 @@ void tcp_client::connect(const end_point& endpoint,
     boost::asio::connect(socket, endpoints);
 
     m_session = std::make_unique<tcp_session>(std::move(socket), onReadCb, omDisconnect);
-    m_session->start();
+    m_session->start(nullptr);
     m_context->run();
 }
 

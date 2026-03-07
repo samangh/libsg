@@ -31,13 +31,14 @@ class SG_COMMON_EXPORT tcp_session {
     };
 
     CREATE_CALLBACK(on_data_available_cb_t, void, tcp_session&, const std::byte*, size_t)
+    CREATE_CALLBACK(on_connected_cb_t, void, tcp_session&)
     CREATE_CALLBACK(on_disconnected_cb_t, void, tcp_session&, std::optional<std::exception>)
 
     tcp_session(boost::asio::ip::tcp::socket socket, on_data_available_cb_t onReadCb,
                 on_disconnected_cb_t onErrorCb, options_t options=options_t());
     virtual ~tcp_session();
 
-    void start();
+    void start(on_connected_cb_t);
     void stop_async();
     void wait_until_stopped() const;
     bool is_connected() const;
