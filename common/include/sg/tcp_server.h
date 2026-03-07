@@ -57,10 +57,10 @@ class SG_COMMON_EXPORT tcp_server {
     ~tcp_server() noexcept(false);
 
     void start(std::vector<end_point> endpoints, CallBacks callbacks,
-               options_t options = options_t()) noexcept(false);
+               options_t options = options_t());
 
     void stop_async();
-    void future_get_once() noexcept(false);
+    void future_get_once();
     bool is_stopped() const;
 
     size_t clients_count() const;
