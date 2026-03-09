@@ -30,7 +30,7 @@ class state_machine {
     CREATE_CALLBACK(state_change_callback_t, void, state_machine&, state_change_details details)
     CREATE_CALLBACK(started_stopped_callback_t, void, state_machine&)
 
-    [[nodiscard]] TState state() const { return m_current_state; }
+    [[nodiscard]] TState state() const { return m_current_state.load(std::memory_order::acquire); }
 
     state_machine() =default;
     virtual ~state_machine() noexcept(false) = default;
