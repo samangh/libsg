@@ -42,34 +42,38 @@ void tcp_server::stop_async() {
 }
 
 void tcp_server::start(std::vector<end_point> endpoints, CallBacks callbacks, options_t options) noexcept(false) {
-    if (m_context && m_context->is_running())
+    if (m_running.exchange(true))
         throw std::runtime_error("tcp_server is already running");
+    m_running.notify_all();
 
-    m_options = options;
-    m_callbacks = std::move(callbacks);
+    try {
+        m_options = options;
+        m_callbacks = std::move(callbacks);
 
-    auto stoppedTask = std::bind(&tcp_server::on_io_pool_stopped, this, std::placeholders::_1);
-    m_context = asio_io_pool::create(options.no_threads, stoppedTask);
+        auto stoppedTask = std::bind(&tcp_server::on_io_pool_stopped, this, std::placeholders::_1);
+        m_context = asio_io_pool::create(options.no_threads, stoppedTask);
 
-    m_stop_in_operation.store(false);
+        m_stop_in_operation.store(false);
 
-    m_endpoints = endpoints;
-    m_last_id = 0;
-    m_acceptors.clear();
+        m_endpoints = endpoints;
+        m_last_id = 0;
+        m_acceptors.clear();
 
-    m_promise_started_listening = std::promise<void>();
+        m_promise_started_listening = std::promise<void>();
 
-    start_listening();
-    m_context->run();
+        start_listening();
+        m_context->run();
+    } catch (...) {
+        m_running.store(false);
+        m_running.notify_all();
+        throw;
+    }
 }
 
 void tcp_server::future_get_once() noexcept(false) { m_context->future_get_once(); }
 
 bool tcp_server::is_stopped() const {
-    if (m_context)
-        return !(m_context->is_running());
-
-    return true;
+    return !m_running.load(std::memory_order::acquire);
 }
 
 size_t tcp_server::clients_count() const {
@@ -200,6 +204,8 @@ void tcp_server::start_listening() {
 void tcp_server::on_io_pool_stopped(asio_io_pool&) {
     if (m_callbacks.OnStoppedListening)
         m_callbacks.OnStoppedListening.invoke(*this);
+    m_running.store(false);
+    m_running.notify_all();
 }
 
 

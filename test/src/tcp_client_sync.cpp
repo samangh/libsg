@@ -67,6 +67,7 @@ TEST_CASE("tcp_client_sync: check disconnection on destructor", "[sg::net::tcp_c
         tcp_client_sync client;
         client.connect(ep);
     }
+    disconn.acquire();
 }
 
 TEST_CASE("tcp_client_sync: check read_until()", "[sg::net::tcp_client_sync]") {

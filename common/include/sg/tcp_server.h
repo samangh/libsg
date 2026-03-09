@@ -79,6 +79,8 @@ class SG_COMMON_EXPORT tcp_server {
     void set_timeout(unsigned timeoutMSec = 5000);
 
   private:
+    std::atomic<bool> m_running {false};
+
     mutable std::shared_mutex m_mutex;
     std::map<session_id_t, ptr> m_sessions;
     std::atomic<size_t> m_last_id;
