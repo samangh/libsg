@@ -38,6 +38,12 @@ bool tcp_client::is_connected() const {
         return m_session->is_connected();
     return false;
 }
+void tcp_client::disconnect() {
+    if (is_connected()) {
+        m_session->stop_async();
+        m_session->wait_until_stopped();
+    }
+}
 
 tcp_session& tcp_client::session() {
     if (!m_session)

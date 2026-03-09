@@ -19,6 +19,7 @@ class SG_COMMON_EXPORT tcp_client {
                  tcp_session::on_disconnected_cb_t omDisconnect,
                  tcp_session::options_t options={});
     [[nodiscard]] bool is_connected() const;
+    void disconnect();
     tcp_session& session();
   private:
     // define m_session after m_context, so that m_session is destructed first

@@ -48,6 +48,24 @@ TEST_CASE("sg::net::tcp_client: check connect", "[sg::net::tcp_client]") {
     REQUIRE(result == expectedEcho);
 }
 
+TEST_CASE("sg::net::tcp_client: check disconnect()", "[sg::net::tcp_client]") {
+    std::binary_semaphore can_stop{0};
+
+    tcp_server server;
+    tcp_server::CallBacks callbacks;
+    callbacks.OnDisconnected = [&](tcp_server&, tcp_server::session_id_t,
+                                   std::optional<std::exception>) { can_stop.release(); };
+
+    server.start({ep}, callbacks);
+
+    auto client  = tcp_client();
+    client.connect(ep, nullptr, nullptr);
+    client.session().write("hello");
+    client.disconnect();
+
+    // wait until we have readback
+    can_stop.acquire();
+}
 
 TEST_CASE("sg::net::tcp_client: check that you can't connect twice", "[sg::net::tcp_client]") {
     using namespace sg::net;
@@ -56,8 +74,27 @@ TEST_CASE("sg::net::tcp_client: check that you can't connect twice", "[sg::net::
     auto client = tcp_client(context);
     client.connect(end_point("8.8.8.8", 53), nullptr, nullptr);
     REQUIRE_THROWS(client.connect(end_point("8.8.8.8", 53), nullptr, nullptr));
-
 }
+
+TEST_CASE("sg::net::tcp_client: check multiple disconnects are OK", "[sg::net::tcp_client]") {
+    using namespace sg::net;
+
+    auto context = asio_io_pool::create();
+    auto client = tcp_client(context);
+    client.connect(end_point("8.8.8.8", 53), nullptr, nullptr);
+
+    client.disconnect();
+    client.disconnect();
+}
+
+TEST_CASE("sg::net::tcp_client: check disconnect() without connect() is OK", "[sg::net::tcp_client]") {
+    using namespace sg::net;
+
+    auto client = tcp_client();
+    client.disconnect();
+    client.disconnect();
+}
+
 
 TEST_CASE("sg::net::tcp_client: set_keepalive(...)", "[sg::net::tcp_client]") {
     using namespace sg::net;
