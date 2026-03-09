@@ -547,13 +547,17 @@ TEST_CASE("tcp_server: set_keepalive(...)", "[tcp_server]") {
     tcp_server server;
     server.start({ep}, tcp_server::CallBacks());
 
-    server.set_keepalive(true);
+    server.set_keepalive(keepalive_t{});
 
     unsigned outsideRange = (unsigned)std::numeric_limits<int>::max() + 1;
+
     // Check range errors
-    REQUIRE_THROWS(server.set_keepalive(true, outsideRange));
-    REQUIRE_THROWS(server.set_keepalive(true, 1, outsideRange));
-    REQUIRE_THROWS(server.set_keepalive(true, 1, 1, outsideRange));
+    REQUIRE_THROWS(server.set_keepalive(keepalive_t{
+    .enable = true, .idle_seconds = outsideRange, .interval_seconds = 1, .count = 5}));
+    REQUIRE_THROWS(server.set_keepalive(keepalive_t{
+        .enable = true, .idle_seconds = 1, .interval_seconds = outsideRange, .count = 5}));
+    REQUIRE_THROWS(server.set_keepalive(keepalive_t{
+        .enable = true, .idle_seconds = 1, .interval_seconds = 1, .count = outsideRange}));
 }
 
 TEST_CASE("tcp_server: set_timeout(...)", "[tcp_server]") {

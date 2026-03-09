@@ -1,6 +1,7 @@
 #include "sg/tcp_client_sync.h"
 
 #include "sg/string.h"
+#include "sg/tcp_native.h"
 
 #include <boost/asio.hpp>
 
@@ -58,13 +59,16 @@ std::string tcp_client_sync::read_some(size_t size) {
     return toReturn;
 }
 
-void tcp_client_sync::connect(const end_point& endpoint) {
+void tcp_client_sync::connect(const end_point& endpoint, tcp_session::options_t options) {
     if (is_connected())
         SG_THROW(std::runtime_error, "client already connected");
 
     boost::asio::ip::tcp::resolver resolver(m_context->context());
     auto endpoints = resolver.resolve(endpoint.ip, std::to_string(endpoint.port));
     boost::asio::connect(m_socket, endpoints);
+
+    set_keepalive(options.keepalive);
+    set_timeout(options.timeout_msec);
 }
 void tcp_client_sync::disconnect() {
     if (m_socket.is_open()) {
@@ -85,6 +89,12 @@ void tcp_client_sync::write(const std::byte* data, size_t length) {
 }
 void tcp_client_sync::write(std::string_view data) {
     write(reinterpret_cast<const std::byte*>(data.data()), data.length());
+}
+void tcp_client_sync::set_keepalive(keepalive_t keepAlivePa) {
+    sg::net::native::set_keepalive(m_socket.native_handle(), keepAlivePa);
+}
+void tcp_client_sync::set_timeout(unsigned timeoutMSec) {
+    sg::net::native::set_timeout(m_socket.native_handle(), timeoutMSec);
 }
 void tcp_client_sync::write(const shared_c_buffer<std::byte>& msg) { write(msg.get(), msg.size()); }
 

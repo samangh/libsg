@@ -116,12 +116,9 @@ tcp_server::ptr tcp_server::session(session_id_t id) {
     std::shared_lock lock(m_mutex);
     return m_sessions.at(id);
 }
-void tcp_server::set_keepalive(bool enableKeepAlive, unsigned idleSec, unsigned intervalSec,
-                               unsigned count) {
-    for (auto a: m_acceptors) {
-        sg::net::native::set_keepalive(a->native_handle(), enableKeepAlive, idleSec, intervalSec, count);
-    }
-
+void tcp_server::set_keepalive(keepalive_t keeepAliveParameters) {
+    for (auto a: m_acceptors)
+        sg::net::native::set_keepalive(a->native_handle(), keeepAliveParameters);
 }
 void tcp_server::set_timeout(unsigned timeoutMSec) {
     for (auto a: m_acceptors)
@@ -197,8 +194,13 @@ void tcp_server::start_listening() {
          * So may be we should do above directly (in case we want to add our own options). */
         auto a = std::make_shared<boost::asio::ip::tcp::acceptor>(m_context->context(), ep);
         boost::asio::co_spawn(m_context->context(), listener(a), boost::asio::detached);
+
+
         m_acceptors.push_back(a);
     }
+
+    set_keepalive(m_options.session_options.keepalive);
+    set_timeout(m_options.session_options.timeout_msec);
 
     if (m_callbacks.OnStartedListening)
         m_callbacks.OnStartedListening.invoke(*this);

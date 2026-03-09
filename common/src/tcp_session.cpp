@@ -70,10 +70,8 @@ void tcp_session::write(const void* data, size_t size) {
     write(ptr);
 }
 
-void tcp_session::set_keepalive(bool enableKeepAlive, unsigned idleSec, unsigned intervalSec,
-                                unsigned count) {
-    sg::net::native::set_keepalive(m_socket.native_handle(), enableKeepAlive, idleSec, intervalSec,
-                                   count);
+void tcp_session::set_keepalive(keepalive_t keeepAliveParameters) {
+        sg::net::native::set_keepalive(m_socket.native_handle(), keeepAliveParameters);
 }
 
 void tcp_session::set_timeout(unsigned timeoutMSec) {

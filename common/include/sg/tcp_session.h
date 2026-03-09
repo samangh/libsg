@@ -28,6 +28,9 @@ class SG_COMMON_EXPORT tcp_session {
          *
          * This is useful if you want to pass the native handle to another library for reading,etc.*/
         bool dont_read {false};
+
+        keepalive_t keepalive{};
+        unsigned timeout_msec{5000};
     };
 
     CREATE_CALLBACK(on_data_available_cb_t, void, tcp_session&, const std::byte*, size_t)
@@ -50,8 +53,7 @@ class SG_COMMON_EXPORT tcp_session {
     void write(std::string_view msg);
     void write(const void* data, size_t size);
 
-    void set_keepalive(bool enableKeepAlive, unsigned idleSec = 60, unsigned intervalSec = 5,
-                       unsigned count = 5);
+    void set_keepalive(keepalive_t);
     void set_timeout(unsigned timeoutMSec = 5000);
 
     native::socket_t native_handle();

@@ -24,10 +24,17 @@ struct interface_details {
 
 struct end_point{
     end_point() = default;
-    end_point(std::string ip,  port_t port): ip(ip), port(port) {}
+    end_point(std::string ip,  port_t port): ip(std::move(ip)), port(port) {}
 
     std::string ip;
     port_t port;
+};
+
+struct keepalive_t {
+    bool enable{true};            // Set true to enable keepalive, false to disable
+    unsigned idle_seconds{60};    // seconds of no-activity before a keepalive packet is sent
+    unsigned interval_seconds{5}; // Interval between each keep alive packet
+    unsigned count{5};            // # of packets to send before terminating the connection
 };
 
 /**

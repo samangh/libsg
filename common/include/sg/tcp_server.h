@@ -74,8 +74,7 @@ class SG_COMMON_EXPORT tcp_server {
     void disconnect(session_id_t id);
     void disconnect_all();
 
-    void set_keepalive(bool enableKeepAlive, unsigned idleSec = 60, unsigned intervalSec = 5,
-                       unsigned count = 5);
+    void set_keepalive(keepalive_t);
     void set_timeout(unsigned timeoutMSec = 5000);
 
   private:

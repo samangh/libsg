@@ -4,6 +4,7 @@
 #include "buffer.h"
 #include "debug.h"
 #include "net.h"
+#include "tcp_session.h"
 
 #include <boost/asio/ip/tcp.hpp>
 #include <sg/export/common.h>
@@ -16,7 +17,7 @@ class SG_COMMON_EXPORT tcp_client_sync {
     explicit tcp_client_sync(std::shared_ptr<asio_io_pool> context);
     virtual ~tcp_client_sync();
 
-    void connect(const end_point& endpoint);
+    void connect(const end_point& endpoint, tcp_session::options_t options = {});
     void disconnect();
 
     [[nodiscard]] bool is_connected() const;
@@ -28,6 +29,8 @@ class SG_COMMON_EXPORT tcp_client_sync {
     void write(const shared_c_buffer<std::byte>& msg);
     void write(std::string_view data);
 
+    void set_keepalive(keepalive_t);
+    void set_timeout(unsigned timeoutMSec = 5000);
   private:
     std::shared_ptr<asio_io_pool> m_context;
     boost::asio::ip::tcp::socket m_socket;

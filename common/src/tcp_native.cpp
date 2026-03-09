@@ -1,5 +1,7 @@
 #include "sg/tcp_native.h"
+
 #include "sg/error.h"
+#include "sg/net.h"
 
 #include <limits>
 #include <stdexcept>
@@ -17,8 +19,11 @@
 
 namespace sg::net::native {
 
-void set_keepalive(socket_t nativeHandle, bool enableKeepAlive, unsigned idleSec,
-                   unsigned intervalSec, unsigned count) {
+void set_keepalive(socket_t nativeHandle, keepalive_t keepAlive) {
+    auto enableKeepAlive = keepAlive.enable;
+    auto idleSec = keepAlive.idle_seconds;
+    auto intervalSec = keepAlive.interval_seconds;
+    auto count = keepAlive.count;
 
     /* note:
      *  - in boost could have used teh set_option(..) to enable keep-alive, but that does not

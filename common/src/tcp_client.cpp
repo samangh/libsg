@@ -13,9 +13,9 @@ tcp_client::tcp_client(std::shared_ptr<asio_io_pool> context) : m_context(contex
 
 tcp_client::~tcp_client() = default;
 
-void tcp_client::connect(const end_point& endpoint,
-                         tcp_session::on_data_available_cb_t onReadCb,
-                         tcp_session::on_disconnected_cb_t omDisconnect) {
+void tcp_client::connect(const end_point& endpoint, tcp_session::on_data_available_cb_t onReadCb,
+                         tcp_session::on_disconnected_cb_t omDisconnect,
+                         tcp_session::options_t options) {
     if (m_session && m_session->is_connected())
         throw std::runtime_error("the client is already connected");
 
@@ -23,7 +23,11 @@ void tcp_client::connect(const end_point& endpoint,
 
     boost::asio::ip::tcp::resolver resolver(m_context->context());
     auto endpoints = resolver.resolve(endpoint.ip, std::to_string(endpoint.port));
+
     boost::asio::connect(socket, endpoints);
+
+    net::native::set_keepalive(socket.native_handle(), options.keepalive);
+    net::native::set_timeout(socket.native_handle(), options.timeout_msec);
 
     m_session = std::make_unique<tcp_session>(std::move(socket), onReadCb, omDisconnect);
     m_session->start(nullptr);

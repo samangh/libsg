@@ -68,12 +68,14 @@ TEST_CASE("sg::net::tcp_client: set_keepalive(...)", "[sg::net::tcp_client]") {
 
     unsigned outsideRange = (unsigned)std::numeric_limits<int>::max() + 1;
 
-    client.session().set_keepalive(true);
-
     // Check range errors
-    REQUIRE_THROWS(client.session().set_keepalive(true, outsideRange));
-    REQUIRE_THROWS(client.session().set_keepalive(true,1, outsideRange));
-    REQUIRE_THROWS(client.session().set_keepalive(true,1, 1, outsideRange));
+
+    REQUIRE_THROWS(client.session().set_keepalive(keepalive_t{
+        .enable = true, .idle_seconds = outsideRange, .interval_seconds = 1, .count = 5}));
+    REQUIRE_THROWS(client.session().set_keepalive(keepalive_t{
+        .enable = true, .idle_seconds = 1, .interval_seconds = outsideRange, .count = 5}));
+    REQUIRE_THROWS(client.session().set_keepalive(keepalive_t{
+        .enable = true, .idle_seconds = 1, .interval_seconds = 1, .count = outsideRange}));
 }
 
 TEST_CASE("sg::net::tcp_client: set_timeout(...)", "[sg::net::tcp_client]") {
