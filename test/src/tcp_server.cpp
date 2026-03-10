@@ -1,4 +1,5 @@
 #include "sg/tcp_client.h"
+#include "sg/tcp_client_sync.h"
 
 #include <atomic>
 #include <boost/asio.hpp>
@@ -589,4 +590,87 @@ TEST_CASE("tcp_server: allow for disconnection in OnSessionCreated() callbacks",
         client.connect(ep, nullptr, nullptr);
         client.session().wait_until_stopped();
     }
+}
+
+TEST_CASE("tcp_server: multiple connections", "[tcp_server]") {
+    using namespace sg::net;
+
+    end_point ep("127.0.0.1", PORT);
+
+    tcp_server::CallBacks cb;
+    cb.OnSessionDataAvailable =
+        [](tcp_server& l, tcp_server::session_id_t, const std::byte* data, size_t length) {
+            for (auto& [_, sess] : l.sessions())
+                sess->write(data, length);
+    };
+
+    tcp_server l;
+    l.start({ep}, cb);
+
+    for (auto i = 0; i< 150; ++i)
+    {
+        tcp_client_sync client;
+        client.connect(ep);
+        client.write("Dasdas");
+    }
+}
+
+TEST_CASE("tcp_server: proxy simulation", "[tcp_server]") {
+    using namespace sg::net;
+
+    end_point main_ep("127.0.0.1", PORT);
+    end_point proxy_ep("127.0.0.1", PORT+1);
+
+    tcp_server server_top;
+    tcp_server proxy_server;
+    tcp_client client_intermediate;
+
+    {
+        tcp_server::CallBacks cb;
+        cb.OnSessionDataAvailable =
+            [](tcp_server& l, tcp_server::session_id_t id, const std::byte* data, size_t length) {
+                l.session(id)->write(data, length);
+        };
+        server_top.start({main_ep}, cb);
+    }
+
+    {
+        tcp_session::on_data_available_cb_t onDataAvailable =
+            [&](tcp_session&, const std::byte* data, size_t length) {
+                for (auto [_, sess] : proxy_server.sessions())
+                    sess->write(data, length);
+            };
+        client_intermediate.connect(main_ep, onDataAvailable, nullptr);
+    }
+
+    /* proxy server:
+     *  - if you get message from clients, forward to intermediate client
+     */
+    {
+        tcp_server::CallBacks cb;
+        cb.OnSessionDataAvailable =
+            [&](tcp_server&, tcp_server::session_id_t, const std::byte* data, size_t length) {
+                client_intermediate.session().write(data, length);
+        };
+        proxy_server.start({proxy_ep}, cb);
+    }
+
+
+    for (auto i = 0; i< 500; ++i)
+    {
+        tcp_client_sync client;
+        tcp_client_sync client2;
+        client.connect(proxy_ep);
+        client2.connect(proxy_ep);
+
+        client.write("Dasdas\n");
+        std::ignore = client.read_until("\n");
+        std::ignore = client2.read_until("\n");
+
+        client2.write("Dasdas\n");
+        std::ignore = client.read_until("\n");
+        std::ignore = client2.read_until("\n");
+    }
+
+    int a =2;
 }
