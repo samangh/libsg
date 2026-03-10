@@ -14,7 +14,6 @@ namespace sg::net {
 class SG_COMMON_EXPORT tcp_client_sync {
   public:
     tcp_client_sync();
-    explicit tcp_client_sync(std::shared_ptr<asio_io_pool> context);
     virtual ~tcp_client_sync();
 
     void connect(const end_point& endpoint, tcp_session::options_t options = {});
@@ -32,11 +31,16 @@ class SG_COMMON_EXPORT tcp_client_sync {
     void set_keepalive(keepalive_t);
     void set_timeout(unsigned timeoutMSec = 5000);
   private:
-    std::shared_ptr<asio_io_pool> m_context;
+
+    boost::asio::io_context m_context;
     boost::asio::ip::tcp::socket m_socket;
+
+    tcp_session::options_t m_options{};
 
     /* needed because the asio::read_until can read past the delimiter! */
     std::string m_read_leftover{};
+
+    void run(std::chrono::steady_clock::duration timeout);
 };
 
 }

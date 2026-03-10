@@ -85,7 +85,7 @@ void tcp_session::stop_async() {
         return;
 
     m_stop_requested.store(true, std::memory_order::release);
-    m_timer.cancel_one();
+    m_timer.cancel();
 }
 
 void tcp_session::wait_until_stopped() const {

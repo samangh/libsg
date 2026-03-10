@@ -20,7 +20,7 @@ namespace sg::exceptions {
 
 /* define "subsystem" specific errors */
 namespace errors {
-    enum class net { network_unreachable, host_not_found, other };
+    enum class net { time_out, network_unreachable, host_not_found, other };
 }
 
 /** base exception common to all libsg exceptions */

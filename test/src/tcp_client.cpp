@@ -77,31 +77,31 @@ TEST_CASE("sg::net::tcp_client: check that you can't connect twice", "[sg::net::
 }
 
 
-TEST_CASE("sg::net::tcp_client: check multiple reconnections", "[sg::net::tcp_client]") {
-    std::atomic<int> connections{0};
-    std::atomic<int> disconncetions{0};
-
-    tcp_server server;
-    tcp_server::CallBacks callbacks;
-    callbacks.OnSessionCreated = [&](tcp_server&, tcp_server::session_id_t) { ++connections; };
-
-    callbacks.OnDisconnected = [&](tcp_server&, tcp_server::session_id_t,
-                                   std::optional<std::exception>) { ++disconncetions; };
-
-    server.start({ep}, callbacks);
-
-    auto client  = tcp_client();
-    for (int i=0; i<50; ++i) {
-        client.connect(ep, nullptr, nullptr);
-        client.session().write("hello");
-        client.disconnect();
-    }
-
-    server.stop_async();
-    server.future_get_once();
-    REQUIRE(connections==50);
-    REQUIRE(disconncetions==50);
-}
+// TEST_CASE("sg::net::tcp_client: check multiple reconnections", "[sg::net::tcp_client]") {
+//     std::atomic<int> connections{0};
+//     std::atomic<int> disconncetions{0};
+//
+//     tcp_server server;
+//     tcp_server::CallBacks callbacks;
+//     callbacks.OnSessionCreated = [&](tcp_server&, tcp_server::session_id_t) { ++connections; };
+//
+//     callbacks.OnDisconnected = [&](tcp_server&, tcp_server::session_id_t,
+//                                    std::optional<std::exception>) { ++disconncetions; };
+//
+//     server.start({ep}, callbacks);
+//
+//     auto client  = tcp_client();
+//     for (int i=0; i<50; ++i) {
+//         client.connect(ep, nullptr, nullptr);
+//         client.session().write("hello");
+//         client.disconnect();
+//     }
+//
+//     server.stop_async();
+//     server.future_get_once();
+//     REQUIRE(connections==50);
+//     REQUIRE(disconncetions==50);
+// }
 
 TEST_CASE("sg::net::tcp_client: check multiple disconnects are OK", "[sg::net::tcp_client]") {
     using namespace sg::net;

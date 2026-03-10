@@ -136,3 +136,15 @@ TEST_CASE("tcp_client_sync: check reading when disconnected throws an error", "[
     REQUIRE_THROWS(client.read_some(10));
     REQUIRE_THROWS(client.write("ss"));
 }
+
+TEST_CASE("tcp_client_sync: check timeout()", "[sg::net::tcp_client_sync]") {
+    std::binary_semaphore dataReceived{0};
+
+    tcp_server server;
+    server.start({ep}, {});
+
+    tcp_client_sync client;
+    client.connect(ep);
+    client.set_timeout(100);
+    REQUIRE_THROWS_AS(client.read_until("\n"), sg::exceptions::net<sg::exceptions::errors::net::time_out>);
+}
