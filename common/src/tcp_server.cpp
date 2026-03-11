@@ -36,8 +36,13 @@ void tcp_server::stop_async() {
         /* wait until all clients disconnected and all callbacks called, etc */
         while (clients_count() != 0) std::this_thread::sleep_for(std::chrono::milliseconds(10));
 
-        if (m_context->is_running())
+        if (m_context->is_running()) {
             m_context->stop_async();
+            m_context->wait_for_stop();
+        }
+
+        m_running.store(false);
+        m_running.notify_all();
     });
 }
 
@@ -70,7 +75,10 @@ void tcp_server::start(std::vector<end_point> endpoints, CallBacks callbacks, op
     }
 }
 
-void tcp_server::future_get_once() noexcept(false) { m_context->future_get_once(); }
+void tcp_server::future_get_once() noexcept(false) {
+    m_context->future_get_once();
+    m_running.wait(true);
+}
 
 bool tcp_server::is_stopped() const {
     return !m_running.load(std::memory_order::acquire);
@@ -209,8 +217,6 @@ void tcp_server::start_listening() {
 void tcp_server::on_io_pool_stopped(asio_io_pool&) {
     if (m_callbacks.OnStoppedListening)
         m_callbacks.OnStoppedListening.invoke(*this);
-    m_running.store(false);
-    m_running.notify_all();
 }
 
 
