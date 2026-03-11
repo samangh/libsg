@@ -19,8 +19,9 @@ void tcp_client::connect(const end_point& endpoint, tcp_session::on_data_availab
     if (m_session && m_session->is_connected())
         throw std::runtime_error("the client is already connected");
 
-    boost::asio::ip::tcp::socket socket(m_context->context());
+    m_context = asio_io_pool::create();
 
+    boost::asio::ip::tcp::socket socket(m_context->context());
     boost::asio::ip::tcp::resolver resolver(m_context->context());
     auto endpoints = resolver.resolve(endpoint.ip, std::to_string(endpoint.port));
 
@@ -32,14 +33,9 @@ void tcp_client::connect(const end_point& endpoint, tcp_session::on_data_availab
     m_session = std::make_unique<tcp_session>(std::move(socket), onReadCb, omDisconnect);
     m_session->start(nullptr);
 
-    /* wait until the context is running before returning! */
-    std::binary_semaphore contextRunning{0};
-    boost::asio::post(m_context->context(), [&contextRunning](){contextRunning.release();});
-
     m_context->run();
-
-    contextRunning.acquire();
 }
+
 bool tcp_client::is_connected() const {
     if (m_session)
         return m_session->is_connected();

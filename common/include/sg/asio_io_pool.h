@@ -22,6 +22,7 @@ class SG_COMMON_EXPORT asio_io_pool {
     void stop_async();
     void wait_for_stop();
 
+    void restart();
     void reset_guard();
 
     [[nodiscard]] bool is_running() const;

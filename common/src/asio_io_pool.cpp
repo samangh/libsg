@@ -3,6 +3,7 @@
 
 #include <fmt/format.h>
 #include <fmt/ranges.h>
+#include <boost/asio.hpp>
 
 namespace sg::net {
 
@@ -43,6 +44,10 @@ void asio_io_pool::run(bool enableGuard) {
     // handlers may get called before we have started all of tem.
     m_running_worker_threads_count.store(m_workers.size());
 
+    /* wait until the context is running before returning! */
+    std::binary_semaphore contextRunning{0};
+    boost::asio::post(m_io_context_ptr, [&contextRunning](){contextRunning.release();});
+
     for (auto& worker : m_workers)
         try {
             if (!worker->is_running())
@@ -51,6 +56,8 @@ void asio_io_pool::run(bool enableGuard) {
             --m_running_worker_threads_count;
             throw;
         }
+
+    contextRunning.acquire();
 }
 
 boost::asio::io_context& asio_io_pool::context() { return m_io_context_ptr; }
@@ -82,6 +89,9 @@ void asio_io_pool::stop_async() {
 void asio_io_pool::wait_for_stop() {
     for (const auto& worker: m_workers)
         worker->wait_for_stop();
+}
+void asio_io_pool::restart() {
+    m_io_context_ptr.restart();
 }
 void asio_io_pool::reset_guard() {
     if (!is_running())
