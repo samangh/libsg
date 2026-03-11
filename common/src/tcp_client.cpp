@@ -26,12 +26,19 @@ void tcp_client::connect(const end_point& endpoint, tcp_session::on_data_availab
 
     boost::asio::connect(socket, endpoints);
 
-    net::native::set_keepalive(socket.native_handle(), options.keepalive);
-    net::native::set_timeout(socket.native_handle(), options.timeout_msec);
+    native::set_keepalive(socket.native_handle(), options.keepalive);
+    native::set_timeout(socket.native_handle(), options.timeout_msec);
 
     m_session = std::make_unique<tcp_session>(std::move(socket), onReadCb, omDisconnect);
     m_session->start(nullptr);
+
+    /* wait until the context is running before returning! */
+    std::binary_semaphore contextRunning{0};
+    boost::asio::post(m_context->context(), [&contextRunning](){contextRunning.release();});
+
     m_context->run();
+
+    contextRunning.acquire();
 }
 bool tcp_client::is_connected() const {
     if (m_session)
