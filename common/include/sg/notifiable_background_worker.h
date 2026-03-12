@@ -148,6 +148,7 @@ class SG_COMMON_EXPORT notifiable_background_worker {
     //  * in some implementations the stop_token uses relaxed memory ordering,
     //    which is not thead safe
 
+    mutable std::mutex m_join_mutex;
     std::thread m_thread;
     std::atomic<bool> m_is_running;
     std::atomic<bool> m_stop_requested;
