@@ -671,6 +671,4 @@ TEST_CASE("tcp_server: proxy simulation", "[tcp_server]") {
         std::ignore = client.read_until("\n");
         std::ignore = client2.read_until("\n");
     }
-
-    int a =2;
 }
