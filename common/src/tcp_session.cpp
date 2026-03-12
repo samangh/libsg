@@ -6,6 +6,7 @@
 #include <boost/asio/redirect_error.hpp>
 #include <boost/asio/write.hpp>
 #include <boost/asio/co_spawn.hpp>
+#include <boost/asio/experimental/awaitable_operators.hpp>
 
 namespace sg::net {
 
@@ -190,10 +191,15 @@ boost::asio::awaitable<void> tcp_session::writer() {
                 co_await m_timer.async_wait(
                     boost::asio::redirect_error(boost::asio::use_awaitable, ec));
             } else {
-                auto front = m_write_msgs.pop_front();
-                co_await boost::asio::async_write(m_socket,
-                                                  boost::asio::buffer(front->get(), front->size()),
-                                                  boost::asio::use_awaitable);
+                using namespace boost::asio::experimental::awaitable_operators;
+
+                auto deadline = std::chrono::steady_clock::now() +
+                                std::chrono::milliseconds(m_options.timeout_msec);
+
+                auto front = m_write_msgs.pop_front().value();
+                co_await (boost::asio::async_write(m_socket,
+                                                  boost::asio::buffer(front.get(), front.size()),
+                                                  boost::asio::use_awaitable) || async_timeout(deadline));
             }
         }
     } catch (const std::exception& ex) {
@@ -208,4 +214,15 @@ boost::asio::awaitable<void> tcp_session::writer() {
 
     co_return;
 }
+boost::asio::awaitable<void>
+tcp_session::async_timeout(std::chrono::steady_clock::time_point& deadline) {
+    boost::asio::steady_timer timer(m_socket.get_executor());
+    auto now = std::chrono::steady_clock::now();
+    while (deadline > now) {
+        timer.expires_at(deadline);
+        co_await timer.async_wait(boost::asio::use_awaitable);
+        now = std::chrono::steady_clock::now();
+    }
+    throw boost::system::system_error(std::make_error_code(std::errc::timed_out));
 }
+} // namespace sg::net

@@ -82,6 +82,8 @@ class SG_COMMON_EXPORT tcp_session {
 
     boost::asio::awaitable<void> reader();
     boost::asio::awaitable<void> writer();
+
+    boost::asio::awaitable<void> async_timeout(std::chrono::steady_clock::time_point& deadline);
 };
 
 }
