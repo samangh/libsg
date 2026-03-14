@@ -14,6 +14,28 @@
 
 namespace sg::time {
 
+/** Converts time_point from one clock to another (e.g. steady_clock::time_point to
+ * system_clock::time_point)
+ *
+ * @tparam TTimePointDest type of destination time-point
+ * @tparam TTimePointIn type of source time-point
+ * @param in source timepoint
+ * @return
+ */
+template <typename TTimePointDest, typename TTimePointIn>
+    requires(sg::concepts::is_time_point_v<TTimePointDest> &&
+             sg::concepts::is_time_point_v<TTimePointIn>)
+TTimePointDest convert_clock_timepoint(TTimePointIn in) {
+    // Inspire by
+    // https://stackoverflow.com/questions/18361638/converting-steady-clocktime-point-to-time-t
+    using namespace std::chrono;
+
+    static auto destNow = TTimePointDest::clock::now();
+    static auto srcNow  = TTimePointIn::clock::now();
+
+    return destNow + duration_cast<typename TTimePointDest::duration>(in - srcNow);
+}
+
 /** Converts a date-time string, in a given format, to a time-point.
  *
  * @tparam TTimePoint Time point time. Leave as default, unless you know the implications.
