@@ -35,11 +35,9 @@ void disable_item(bool visible, std::function<void()> func) {
     if (visible)
         func();
     else {
-        ImGui::PushItemFlag(ImGuiItemFlags_Disabled, true);
-        ImGui::PushStyleVar(ImGuiStyleVar_Alpha, ImGui::GetStyle().Alpha * 0.5f);
+        ImGui::BeginDisabled();
         func();
-        ImGui::PopItemFlag();
-        ImGui::PopStyleVar();
+        ImGui::EndDisabled();
     };
 }
 
