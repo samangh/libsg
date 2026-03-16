@@ -1,19 +1,21 @@
+#include <catch2/catch_test_macros.hpp>
+
 #include "sg/tcp_client.h"
 #include "sg/tcp_client_sync.h"
+#include "sg/jthread.h"
+#include "sg/random.h"
+#include "sg/tcp_server.h"
+
+#include <boost/asio.hpp>
 
 #include <atomic>
-#include <boost/asio.hpp>
-#include <catch2/catch_test_macros.hpp>
 #include <semaphore>
-#include <sg/jthread.h>
-#include <sg/random.h>
-#include <sg/tcp_server.h>
 #include <string>
 
 using namespace sg::net;
 static port_t PORT = 4444; // 55555 can't be used on macOS!
 
-TEST_CASE("tcp_server: check bad endpoint throws exception during start()", "[tcp_server]") {
+TEST_CASE("tcp_server: check bad endpoint throws exception during start()", "[sg::net::tcp_server]") {
     end_point ep;
     ep.ip = PORT;
     ep.ip = "8.8.8.8";
@@ -22,7 +24,7 @@ TEST_CASE("tcp_server: check bad endpoint throws exception during start()", "[tc
     REQUIRE_THROWS(l.start({ep}, decltype(l)::CallBacks()));
 }
 
-TEST_CASE("tcp_server: check start/stop callback", "[tcp_server]") {
+TEST_CASE("tcp_server: check start/stop callback", "[sg::net::tcp_server]") {
     std::atomic_int stop_count{0};
     std::binary_semaphore start_sem{0};
 
@@ -73,7 +75,7 @@ struct tcp_server_test0 {
     }
 };
 
-TEST_CASE("tcp_server: check start/stop callback as class member", "[tcp_server]") {
+TEST_CASE("tcp_server: check start/stop callback as class member", "[sg::net::tcp_server]") {
     tcp_server_test0 t;
     t.start();
     t.start_sem.acquire();
@@ -84,7 +86,7 @@ TEST_CASE("tcp_server: check start/stop callback as class member", "[tcp_server]
     REQUIRE(t.stop_count == 1);
 }
 
-TEST_CASE("tcp_server: check read/write with many simultaneous clients", "[tcp_server]") {
+TEST_CASE("tcp_server: check read/write with many simultaneous clients", "[sg::net::tcp_server]") {
     using namespace sg::net;
 
     int count = 100;
@@ -159,7 +161,7 @@ TEST_CASE("tcp_server: check read/write with many simultaneous clients", "[tcp_s
     REQUIRE(counterClosed.load() == count);
 }
 
-TEST_CASE("tcp_server: check can disconnect client", "[tcp_server]") {
+TEST_CASE("tcp_server: check can disconnect client", "[sg::net::tcp_server]") {
     using namespace sg::net;
 
     tcp_server::session_data_available_cb_t on_data = [](tcp_server& l, tcp_server::session_id_t id,
@@ -209,7 +211,7 @@ TEST_CASE("tcp_server: check can disconnect client", "[tcp_server]") {
     REQUIRE_NOTHROW(th.join());
 }
 
-TEST_CASE("tcp_server: check what happens if client disconnects", "[tcp_server]") {
+TEST_CASE("tcp_server: check what happens if client disconnects", "[sg::net::tcp_server]") {
     using namespace sg::net;
 
     std::atomic_bool has_exception{false};
@@ -251,7 +253,7 @@ TEST_CASE("tcp_server: check what happens if client disconnects", "[tcp_server]"
     REQUIRE(has_exception);
 }
 
-TEST_CASE("tcp_server started_listening_cb_t exception handling", "[tcp_server]") {
+TEST_CASE("tcp_server started_listening_cb_t exception handling", "[sg::net::tcp_server]") {
     using namespace sg::net;
 
     tcp_server::started_listening_cb_t onListening = [](tcp_server&) {
@@ -267,7 +269,7 @@ TEST_CASE("tcp_server started_listening_cb_t exception handling", "[tcp_server]"
     REQUIRE_THROWS(l.start({ep}, cb));
 }
 
-TEST_CASE("tcp_server stopped_listening_cb_t cb exception handling", "[tcp_server]") {
+TEST_CASE("tcp_server stopped_listening_cb_t cb exception handling", "[sg::net::tcp_server]") {
     using namespace sg::net;
 
     tcp_server::stopped_listening_cb_t onStop = [](tcp_server&) {
@@ -284,7 +286,7 @@ TEST_CASE("tcp_server stopped_listening_cb_t cb exception handling", "[tcp_serve
     REQUIRE_THROWS(l.future_get_once());
 }
 
-TEST_CASE("tcp_server: check session(...)", "[tcp_server]") {
+TEST_CASE("tcp_server: check session(...)", "[sg::net::tcp_server]") {
     using namespace sg::net;
 
     tcp_server::session_data_available_cb_t on_data = [](tcp_server& l, tcp_server::session_id_t id,
@@ -337,7 +339,7 @@ TEST_CASE("tcp_server: check session(...)", "[tcp_server]") {
     l.future_get_once();
 }
 
-TEST_CASE("tcp_server: check local/remote_endpoint(...)", "[tcp_server]") {
+TEST_CASE("tcp_server: check local/remote_endpoint(...)", "[sg::net::tcp_server]") {
     using namespace sg::net;
 
     tcp_server::session_data_available_cb_t on_data = [](tcp_server& l, tcp_server::session_id_t id,
@@ -396,7 +398,7 @@ TEST_CASE("tcp_server: check local/remote_endpoint(...)", "[tcp_server]") {
     l.future_get_once();
 }
 
-TEST_CASE("tcp_server: check reaction to client immediate disconnection", "[tcp_server]") {
+TEST_CASE("tcp_server: check reaction to client immediate disconnection", "[sg::net::tcp_server]") {
     using namespace sg::net;
 
     std::atomic_bool boolCon{false};
@@ -439,7 +441,7 @@ TEST_CASE("tcp_server: check reaction to client immediate disconnection", "[tcp_
     REQUIRE(boolDis == true);
 }
 
-TEST_CASE("tcp_server: check dropping tcp_server drops all connections", "[tcp_server]") {
+TEST_CASE("tcp_server: check dropping tcp_server drops all connections", "[sg::net::tcp_server]") {
     for (int i = 0; i < 100; i++) {
         using namespace sg::net;
 
@@ -488,7 +490,7 @@ TEST_CASE("tcp_server: check dropping tcp_server drops all connections", "[tcp_s
     }
 }
 
-TEST_CASE("tcp_server: check stop_async() drops all connections", "[tcp_server]") {
+TEST_CASE("tcp_server: check stop_async() drops all connections", "[sg::net::tcp_server]") {
     using namespace sg::net;
 
     std::binary_semaphore sem{0};
@@ -535,13 +537,13 @@ TEST_CASE("tcp_server: check stop_async() drops all connections", "[tcp_server]"
     REQUIRE(stop_count == 1);
 }
 
-TEST_CASE("tcp_server: check destructor works if start(...) not started", "[tcp_server]") {
+TEST_CASE("tcp_server: check destructor works if start(...) not started", "[sg::net::tcp_server]") {
     using namespace sg::net;
 
     { tcp_server l; }
 }
 
-TEST_CASE("tcp_server: set_keepalive(...)", "[tcp_server]") {
+TEST_CASE("tcp_server: set_keepalive(...)", "[sg::net::tcp_server]") {
     using namespace sg::net;
     end_point ep("0.0.0.0", PORT);
 
@@ -561,7 +563,7 @@ TEST_CASE("tcp_server: set_keepalive(...)", "[tcp_server]") {
         .enable = true, .idle_seconds = 1, .interval_seconds = 1, .count = outsideRange}));
 }
 
-TEST_CASE("tcp_server: set_timeout(...)", "[tcp_server]") {
+TEST_CASE("tcp_server: set_timeout(...)", "[sg::net::tcp_server]") {
     for (int i = 0; i < 100; i++) {
         using namespace sg::net;
         end_point ep("0.0.0.0", PORT);
@@ -573,7 +575,7 @@ TEST_CASE("tcp_server: set_timeout(...)", "[tcp_server]") {
     }
 }
 
-TEST_CASE("tcp_server: allow for disconnection in OnSessionCreated() callbacks", "[tcp_server]") {
+TEST_CASE("tcp_server: allow for disconnection in OnSessionCreated() callbacks", "[sg::net::tcp_server]") {
     using namespace sg::net;
 
     end_point ep("127.0.0.1", PORT);
@@ -592,7 +594,7 @@ TEST_CASE("tcp_server: allow for disconnection in OnSessionCreated() callbacks",
     }
 }
 
-TEST_CASE("tcp_server: multiple connections", "[tcp_server]") {
+TEST_CASE("tcp_server: multiple connections", "[sg::net::tcp_server]") {
     using namespace sg::net;
 
     end_point ep("127.0.0.1", PORT);
@@ -615,7 +617,7 @@ TEST_CASE("tcp_server: multiple connections", "[tcp_server]") {
     }
 }
 
-TEST_CASE("tcp_server: proxy simulation", "[tcp_server]") {
+TEST_CASE("tcp_server: proxy simulation", "[sg::net::tcp_server]") {
     using namespace sg::net;
 
     end_point main_ep("127.0.0.1", PORT);
