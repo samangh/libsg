@@ -77,34 +77,34 @@ TEST_CASE("sg::net::tcp_client: check that you can't connect twice", "[sg::net::
 }
 
 TEST_CASE("sg::net::tcp_client: check multiple reconnections", "[sg::net::tcp_client]") {
-    for (auto k = 0; k < 100; k++) {
-        std::atomic<int> connections{0};
-        std::atomic<int> disconnections{0};
+    const int noClients              = 50;
+    const int noConnectiosnPerClient = 1000;
 
-        tcp_server server;
-        tcp_server::CallBacks callbacks;
-        callbacks.OnSessionCreated = [&](tcp_server& l, tcp_server::session_id_t id) {
-            ++connections;
-            l.session(id)->stop_async();
-        };
+    std::atomic<int> connections{0};
+    std::atomic<int> disconnections{0};
 
-        callbacks.OnDisconnected = [&](tcp_server&, tcp_server::session_id_t,
-                                       std::optional<std::exception>) { ++disconnections; };
+    tcp_server::CallBacks callbacks;
+    callbacks.OnSessionCreated = [&](tcp_server& l, tcp_server::session_id_t id) { ++connections; };
 
-        server.start({ep}, callbacks);
+    callbacks.OnDisconnected = [&](tcp_server&, tcp_server::session_id_t,
+                                   std::optional<std::exception>) { ++disconnections; };
 
+    tcp_server server;
+    server.start({ep}, callbacks);
+
+    for (auto k = 0; k < noClients; k++) {
         auto client = tcp_client();
-        for (int i = 0; i < 50; ++i) {
+        for (int i = 0; i < noConnectiosnPerClient; ++i) {
             client.connect(ep, nullptr, nullptr);
-            client.session().wait_until_stopped();
+            client.disconnect();
         }
+     }
 
-        server.stop_async();
-        server.future_get_once();
+    server.stop_async();
+    server.future_get_once();
 
-        REQUIRE(connections == 50);
-        REQUIRE(disconnections == 50);
-    }
+    REQUIRE(connections == noClients * noConnectiosnPerClient);
+    REQUIRE(disconnections == noClients * noConnectiosnPerClient);
 }
 
 TEST_CASE("sg::net::tcp_client: check multiple disconnects are OK", "[sg::net::tcp_client]") {
