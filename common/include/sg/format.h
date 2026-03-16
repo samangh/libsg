@@ -38,12 +38,12 @@ struct static_string {
 
 template <static_string fmt, typename... Args>
 auto format(Args&&... args) {
-    return std::format(fmt.str, std::forward<Args>(args)...);
+    return fmt::format(fmt.str, std::forward<Args>(args)...);
 }
 
 template <static_string fmt, typename... Args>
 auto format_compiled(Args&&... args) {
-    return std::format(FMT_COMPILE(fmt.str), std::forward<Args>(args)...);
+    return fmt::format(FMT_COMPILE(fmt.str), std::forward<Args>(args)...);
 }
 
 /*************************************************************************************************/
