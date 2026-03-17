@@ -59,8 +59,8 @@ void centre_next_control_hor(const ImVec2 &vec, const int no_of_items) {
 }
 
 void centre_next_window(ImGuiCond cond) {
-    auto pos = ImVec2(ImGui::GetIO().DisplaySize.x * 0.5f, ImGui::GetIO().DisplaySize.y * 0.5f);
-    ImGui::SetNextWindowPos(pos, cond, ImVec2(0.5f, 0.5f));
+    ImVec2 center = ImGui::GetMainViewport()->GetCenter();
+    ImGui::SetNextWindowPos(center, cond, ImVec2(0.5f, 0.5f));
 }
 
 ImVec2 dimensions_of_button(const char *msg) {
