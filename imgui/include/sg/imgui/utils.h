@@ -30,12 +30,23 @@ void set_karla_font();
  */
 void centre_next_control_hor(const ImVec2 &vec, const int no_of_items = 1);
 
-/* Centre the next window (over the whoel screen)*/
+/* Centre the next window (over the whole screen) */
 void centre_next_window(ImGuiCond cond = ImGuiCond_Appearing);
 
-/* Centre the new window both orizontally and vertically */
+/* Centre the new window over the current window */
 void centre_next_window_wrt_current_window(ImGuiCond cond = ImGuiCond_Appearing);
 
+/** Maximises the next window
+ *
+ * You probably want to also pass the following flags to the window:
+ *
+ * @code ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoTitleBar |
+ *       ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoResize
+ * @endcode
+ *
+ * @param useWorkArea if true, do not maximise over toolbar or menubar
+ */
+void maximise_next_window(bool useWorkArea);
 
 /* Calcultes the size of a button with the given text */
 ImVec2 dimensions_of_button(const char *msg);
