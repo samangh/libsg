@@ -62,6 +62,12 @@ void centre_next_window(ImGuiCond cond) {
     ImVec2 center = ImGui::GetMainViewport()->GetCenter();
     ImGui::SetNextWindowPos(center, cond, ImVec2(0.5f, 0.5f));
 }
+void centre_next_window_wrt_current_window(ImGuiCond cond) {
+    auto currSize=ImGui::GetCurrentWindow()->Size;
+    auto pos =ImGui::GetCurrentWindow()->Pos;
+    auto centre = ImVec2(pos.x + currSize.x* 0.5f, pos.y+currSize.y * 0.5f);
+    ImGui::SetNextWindowPos(centre, cond, ImVec2(0.5f, 0.5f));
+}
 
 ImVec2 dimensions_of_button(const char *msg) {
     // See: https://github.com/ocornut/imgui/issues/3714#issuecomment-759319268
