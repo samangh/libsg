@@ -10,8 +10,9 @@ void show_button(dialog_box_result& resultStore, dialog_box_result resultIfClick
         ImGui::CloseCurrentPopup();
     }
 }
+
 dialog_box_result dialog_box(const char* imgui_id, const std::string& message,
-                             const dialog_box_buttons buttons, const int flags) {
+                             dialog_box_buttons buttons, int flags) {
     dialog_box_result result = dialog_box_result::NoResult;
 
     if (ImGui::BeginPopupModal(imgui_id, NULL, flags)) {
@@ -64,6 +65,8 @@ dialog_box_result dialog_box(const char* imgui_id, const std::string& message,
             break;
         }
 
+        if (result!=dialog_box_result::NoResult)
+            ImGui::CloseCurrentPopup();
         ImGui::EndPopup();
     }
 

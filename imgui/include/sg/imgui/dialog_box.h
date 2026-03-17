@@ -16,10 +16,13 @@ void show_button(dialog_box_result& resultStore, dialog_box_result resultIfClick
 
 /** Create a popup dialog
  *
- *  Note that you must have set the popup to open first by calling
- *  `ImGui::OpenPopup(imgui_id)` first
+ * Note that you must have set the popup to open first by calling
+ * `ImGui::OpenPopup(imgui_id)` first
  *
- *  The popup title will be determined by the `imgui_id`.
+ * This function be must called in the same stack level as the  ImGui::OpenPopup(..), as it uses
+ * the stack id.
+ *
+ * The popup title will be determined by the `imgui_id`.
  *
  * @param imgui_id
  * @param message   Message to show to the user
@@ -28,10 +31,9 @@ void show_button(dialog_box_result& resultStore, dialog_box_result resultIfClick
  * @return result of the dialog. This will be `DialogResult::NoResult` if the user has not pressed a
  * button.
  */
-[[nodiscard]] dialog_box_result dialog_box(const char *imgui_id,
-                        const std::string &message,
-                             const dialog_box_buttons buttons = dialog_box_buttons::Ok,
-                        const int flags = ImGuiWindowFlags_AlwaysAutoResize |
-                                          ImGuiWindowFlags_NoSavedSettings);
+[[nodiscard]] dialog_box_result dialog_box(const char* imgui_id, const std::string& message,
+                                           dialog_box_buttons buttons = dialog_box_buttons::Ok,
+                                           int flags = ImGuiWindowFlags_AlwaysAutoResize |
+                                                       ImGuiWindowFlags_NoSavedSettings);
 
 } // namespace sg::imgui
