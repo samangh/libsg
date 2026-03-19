@@ -5,7 +5,7 @@ endif()
 if (LINUX)
   CPMAddPackage(
       NAME pfs
-      URL https://github.com/dtrugman/pfs/archive/refs/tags/v0.12.0.zip
+      URL https://github.com/dtrugman/pfs/archive/refs/tags/v0.13.1.zip
       # GITHUB_REPOSITORY ocornut/imgui
       # VERSION 1.91.9b-docking
       # GIT_SHALLOW
