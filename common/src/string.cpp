@@ -46,6 +46,12 @@ std::string to_string(const wchar_t* input) {
 
 std::wstring to_wstring(const std::string& input) { return to_wstring(input.c_str()); }
 std::string to_string(const std::wstring& input) { return to_string(input.c_str()); }
+std::string to_string(const std::filesystem::path& input) {
+    if constexpr (std::is_same_v<std::filesystem::path::value_type, wchar_t>)
+        return to_string(input.c_str());
+    else
+        return input.c_str();
+}
 
 std::string to_string(const sg::IBuffer<std::byte>& input) {
     return {(const char*)(&*input.begin()), (const char*)(&*input.end())};

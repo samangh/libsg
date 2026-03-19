@@ -77,3 +77,7 @@ TEST_CASE("sg::string: tolower(std::string)", "[sg::string]") {
     REQUIRE(sg::string::tolower("ABC-123") == "abc-123");
 }
 
+TEST_CASE("sg::string: to_string(std::filesystem::path)", "[sg::string]") {
+    std::filesystem::path p("mnt");
+    REQUIRE(sg::string::to_string(p) == "mnt");
+}

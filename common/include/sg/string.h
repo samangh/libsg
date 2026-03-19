@@ -1,8 +1,9 @@
 #pragma once
-
-#include "buffer.h"
 #include <sg/export/common.h>
 
+#include "buffer.h"
+
+#include <filesystem>
 #include <string>
 
 namespace sg::string {
@@ -35,6 +36,9 @@ namespace sg::string {
 /** Converts a null-terminated wide-character sequence to it's narrow multibyte representation.
  * Thread safe. */
 [[nodiscard]] SG_COMMON_EXPORT std::string to_string(const std::wstring& input);
+
+/** converts a file-system path to a std::string, works on both Windows and Linux */
+[[nodiscard]] std::string SG_COMMON_EXPORT to_string(const std::filesystem::path& input);
 
 /*******************************************************
  * case-conversion (ASCII)
