@@ -133,6 +133,11 @@ void tcp_server::set_timeout(unsigned timeoutMSec) {
         sg::net::native::set_timeout(a->native_handle(), timeoutMSec);
 }
 
+void tcp_server::set_reuse_address(bool enabled) {
+    for (auto a: m_acceptors)
+        sg::net::native::set_reuse_address(a->native_handle(), enabled);
+}
+
 boost::asio::awaitable<void>
 tcp_server::listener(std::shared_ptr<boost::asio::ip::tcp::acceptor> acceptor) {
     ++m_acceptors_running_count;
@@ -209,6 +214,7 @@ void tcp_server::start_listening() {
 
     set_keepalive(m_options.session_options.keepalive);
     set_timeout(m_options.session_options.timeout_msec);
+    set_reuse_address(m_options.reuse_address);
 
     if (m_callbacks.OnStartedListening)
         m_callbacks.OnStartedListening.invoke(*this);

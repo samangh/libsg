@@ -28,7 +28,7 @@ class SG_COMMON_EXPORT tcp_session {
          *
          * This is useful if you want to pass the native handle to another library for reading,etc.*/
         bool dont_read {false};
-
+        bool reuse_address {false};
         keepalive_t keepalive{};
         unsigned timeout_msec{5000};
     };
@@ -55,7 +55,7 @@ class SG_COMMON_EXPORT tcp_session {
 
     void set_keepalive(keepalive_t);
     void set_timeout(unsigned timeoutMSec = 5000);
-
+    void set_reuse_address(bool enabled);
     native::socket_t native_handle();
 
   private:

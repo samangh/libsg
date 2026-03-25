@@ -575,6 +575,39 @@ TEST_CASE("tcp_server: set_timeout(...)", "[sg::net::tcp_server]") {
     }
 }
 
+TEST_CASE("tcp_server: set_reuse_address(...)", "[sg::net::tcp_server]") {
+    using namespace sg::net;
+    end_point ep("0.0.0.0", PORT);
+
+    {
+        tcp_server server;
+        server.start({ep}, {});
+
+        server.set_reuse_address(true);
+        server.set_reuse_address(false);
+        server.set_reuse_address(true);
+        server.set_reuse_address(false);
+    }
+
+    // Set options.reuse_address to true
+    {
+        tcp_server::options_t options;
+        options.reuse_address = true;
+
+        tcp_server server;
+        server.start({ep}, {}, options);
+    }
+
+    // Set options.reuse_address to false
+    {
+        tcp_server::options_t options;
+        options.reuse_address = true;
+
+        tcp_server server;
+        server.start({ep}, {}, options);
+    }
+}
+
 TEST_CASE("tcp_server: allow for disconnection in OnSessionCreated() callbacks", "[sg::net::tcp_server]") {
     using namespace sg::net;
 

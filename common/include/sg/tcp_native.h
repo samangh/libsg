@@ -19,4 +19,6 @@ typedef int socket_t;
 void SG_COMMON_EXPORT set_keepalive(socket_t nativeHandle, keepalive_t keepAlive);
 
 void SG_COMMON_EXPORT set_timeout(socket_t nativeHandle, unsigned timeoutMSec);
+
+void SG_COMMON_EXPORT set_reuse_address(socket_t nativeHandle, bool enbaled);
 }

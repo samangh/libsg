@@ -78,4 +78,9 @@ void set_timeout(socket_t nativeHandle, unsigned timeoutMSec) {
     THROW_ON_ERRORNO_SOCKET(setsockopt(nativeHandle, SOL_SOCKET, SO_SNDTIMEO, &tv, sizeof(tv)));
 #endif
 }
+void set_reuse_address(socket_t nativeHandle, bool enbaled) {
+    int enableInt = enbaled;
+    THROW_ON_ERRORNO_SOCKET(setsockopt(nativeHandle, SOL_SOCKET, SO_REUSEADDR,
+                                       (const char*)&enableInt, sizeof(enableInt)));
+}
 } // namespace sg::net::native

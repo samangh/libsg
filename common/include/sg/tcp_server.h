@@ -51,6 +51,7 @@ class SG_COMMON_EXPORT tcp_server {
     struct options_t {
         options_t() {}; // work around bug https://github.com/llvm/llvm-project/issues/36032
         tcp_session::options_t session_options{};
+        bool reuse_address {true};
         size_t no_threads{1};
     };
 
@@ -76,6 +77,7 @@ class SG_COMMON_EXPORT tcp_server {
 
     void set_keepalive(keepalive_t);
     void set_timeout(unsigned timeoutMSec = 5000);
+    void set_reuse_address(bool enabled);
 
   private:
     std::atomic<bool> m_running {false};
