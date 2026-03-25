@@ -48,7 +48,7 @@ void tcp_client::connect(const end_point& endpoint, tcp_session::on_data_availab
 
     m_context->restart();
 
-    m_session = std::make_unique<tcp_session>(std::move(socket), onReadCb, omDisconnect);
+    m_session = std::make_unique<tcp_session>(std::move(socket), onReadCb, omDisconnect, options);
     m_session->start(nullptr);
 
     m_context->run();

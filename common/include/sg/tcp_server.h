@@ -49,7 +49,9 @@ class SG_COMMON_EXPORT tcp_server {
     };
 
     struct options_t {
-        options_t() {}; // work around bug https://github.com/llvm/llvm-project/issues/36032
+        options_t() {
+            session_options.reuse_address =reuse_address;
+        }; // work around bug https://github.com/llvm/llvm-project/issues/36032
         tcp_session::options_t session_options{};
         bool reuse_address {true};
         size_t no_threads{1};
