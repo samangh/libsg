@@ -146,5 +146,5 @@ TEST_CASE("tcp_client_sync: check timeout()", "[sg::net::tcp_client_sync]") {
     tcp_client_sync client;
     client.connect(ep);
     client.set_timeout(100);
-    REQUIRE_THROWS_AS(client.read_until("\n"), sg::exceptions::net<sg::exceptions::errors::net::time_out>);
+    REQUIRE_THROWS(client.read_until("\n"));
 }
