@@ -84,7 +84,7 @@ TEST_CASE("sg::net::tcp_client: check multiple reconnections", "[sg::net::tcp_cl
     std::atomic<int> disconnections{0};
 
     tcp_server::CallBacks callbacks;
-    callbacks.OnSessionCreated = [&](tcp_server& l, tcp_server::session_id_t id) { ++connections; };
+    callbacks.OnSessionCreated = [&](tcp_server&, tcp_server::session_id_t) { ++connections; };
 
     callbacks.OnDisconnected = [&](tcp_server&, tcp_server::session_id_t,
                                    std::optional<std::exception>) { ++disconnections; };

@@ -200,13 +200,18 @@ boost::asio::awaitable<void> tcp_session::writer() {
             } else {
                 using namespace boost::asio::experimental::awaitable_operators;
 
+                // even though we set the socket time-out using SO_SNDTIMEO, it is not enforced for
+                // select()/poll()/epoll_wait(), which might be used by asio internally
                 auto deadline = std::chrono::steady_clock::now() +
                                 std::chrono::milliseconds(m_options.timeout_msec);
 
                 auto front = m_write_msgs.pop_front().value();
-                co_await (boost::asio::async_write(m_socket,
+                auto result = co_await (boost::asio::async_write(m_socket,
                                                   boost::asio::buffer(front.get(), front.size()),
                                                   boost::asio::use_awaitable) || async_timeout(deadline));
+
+                if (result.index()==1)
+                    SG_THROW(exceptions::net<exceptions::errors::net::time_out>, "operation timeout");
             }
         }
     } catch (const std::exception& ex) {
@@ -221,8 +226,9 @@ boost::asio::awaitable<void> tcp_session::writer() {
 
     co_return;
 }
+
 boost::asio::awaitable<void>
-tcp_session::async_timeout(std::chrono::steady_clock::time_point& deadline) {
+tcp_session::async_timeout(std::chrono::steady_clock::time_point& deadline)  {
     boost::asio::steady_timer timer(m_socket.get_executor());
     auto now = std::chrono::steady_clock::now();
     while (deadline > now) {
@@ -230,6 +236,6 @@ tcp_session::async_timeout(std::chrono::steady_clock::time_point& deadline) {
         co_await timer.async_wait(boost::asio::use_awaitable);
         now = std::chrono::steady_clock::now();
     }
-    throw boost::system::system_error(std::make_error_code(std::errc::timed_out));
+
 }
 } // namespace sg::net
