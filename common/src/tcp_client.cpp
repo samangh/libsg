@@ -19,6 +19,9 @@ void tcp_client::connect(const end_point& endpoint, tcp_session::on_data_availab
     if (m_session && m_session->is_connected())
         throw std::runtime_error("the client is already connected");
 
+    // reset session before removing the io_context, as the session destructor might make calls into
+    // the io_context it was created with
+    m_session.reset();
     m_context = asio_io_pool::create();
 
     boost::asio::ip::tcp::socket socket(m_context->context());

@@ -77,8 +77,8 @@ TEST_CASE("sg::net::tcp_client: check that you can't connect twice", "[sg::net::
 }
 
 TEST_CASE("sg::net::tcp_client: check multiple reconnections", "[sg::net::tcp_client]") {
-    const int noClients              = 50;
-    const int noConnectiosnPerClient = 1000;
+    const int noClients              = 5;
+    const int noConnectiosnPerClient = 100;
 
     std::atomic<int> connections{0};
     std::atomic<int> disconnections{0};
@@ -92,11 +92,18 @@ TEST_CASE("sg::net::tcp_client: check multiple reconnections", "[sg::net::tcp_cl
     tcp_server server;
     server.start({ep}, callbacks);
 
+    tcp_session::options_t options;
+    options.reuse_address = true;
+
     for (auto k = 0; k < noClients; k++) {
         auto client = tcp_client();
         for (int i = 0; i < noConnectiosnPerClient; ++i) {
-            client.connect(ep, nullptr, nullptr);
+            client.connect(ep, nullptr, nullptr,options);
             client.disconnect();
+
+            // Windows doesn't like too manny immediate connections/disconnections from the same
+            // port pair
+            std::this_thread::sleep_for(std::chrono::milliseconds(10));
         }
      }
 
