@@ -156,6 +156,18 @@ TEST_CASE("sg::net::tcp_client: set_timeout(...)", "[sg::net::tcp_client]") {
     client.session().set_timeout(100);
 }
 
+TEST_CASE("sg::net::tcp_client: test that connect(...) will timeout", "[sg::net::tcp_client]") {
+    using namespace sg::net;
+
+    auto context = asio_io_pool::create();
+    auto client = tcp_client(context);
+
+    tcp_session::options_t options;
+    options.timeout_msec=1000;
+    REQUIRE_THROWS_AS(client.connect(end_point("87.5.66.1", 53), nullptr, nullptr, options),
+                      sg::exceptions::net<sg::exceptions::errors::net::time_out>);
+}
+
 TEST_CASE("sg::net::tcp_client: check destruction of unused client", "[sg::net::tcp_client]") {
     using namespace sg::net;
 
