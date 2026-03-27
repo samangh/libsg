@@ -29,7 +29,7 @@ tcp_session::~tcp_session() {
 void tcp_session::start(on_connected_cb_t onConn) {
     {
         std::lock_guard lock(m_exception_mutex);
-        m_exception_msg = "";
+        m_exception ={};
     }
 
     m_reader_running.store(true);
@@ -137,15 +137,14 @@ void tcp_session::close() {
     if (m_disconnected_cb_called.exchange(true))
         return;
 
-    std::optional<std::exception> ex{};
+    std::exception_ptr exPtr;
     {
         std::lock_guard lock(m_exception_mutex);
-        if (!m_exception_msg.empty())
-            ex = std::runtime_error(m_exception_msg);
+        exPtr =  m_exception;
     }
 
     if (m_on_disconnected_cb)
-        m_on_disconnected_cb.invoke(*this, ex);
+        m_on_disconnected_cb.invoke(*this, exPtr);
 
     m_stopped.store(true, std::memory_order::release);
     m_stopped.notify_all(); // needed for atomic wait()
@@ -171,12 +170,13 @@ boost::asio::awaitable<void> tcp_session::reader() {
                     m_on_data_cb.invoke(*this, data.get(), n);
             }
         }
-    } catch (const std::exception& ex) {
+    } catch (...) {
         /* if clean closing, do not throw error */
         if (!m_stop_requested.load(std::memory_order::acquire))
         {
             std::lock_guard lock(m_exception_mutex);
-            m_exception_msg = ex.what();
+            if (!m_exception)
+                m_exception = std::current_exception();
         }
     }
 
@@ -214,10 +214,11 @@ boost::asio::awaitable<void> tcp_session::writer() {
                     SG_THROW(exceptions::net<exceptions::errors::net::time_out>, "operation timeout");
             }
         }
-    } catch (const std::exception& ex) {
+    } catch (...) {
         {
             std::lock_guard lock(m_exception_mutex);
-            m_exception_msg = ex.what();
+            if (!m_exception)
+                m_exception = std::current_exception();
         }
     }
 

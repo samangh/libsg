@@ -34,7 +34,7 @@ TEST_CASE("tcp_server: check start/stop callback", "[sg::net::tcp_server]") {
     tcp_server::stopped_listening_cb_t onStop  = [&](tcp_server&) { stop_count++; };
 
     tcp_server::session_disconnected_cb_t onDisconn =
-        [&](tcp_server&, tcp_server::session_id_t, std::optional<std::exception>) { stop_count++; };
+        [&](tcp_server&, tcp_server::session_id_t, std::exception_ptr) { stop_count++; };
 
     end_point ep("127.0.0.1", PORT);
 
@@ -70,7 +70,7 @@ struct tcp_server_test0 {
     }
     void on_start(tcp_server&) { start_sem.release(); }
     void on_stop(tcp_server&) { stop_count++; }
-    void on_disconn(tcp_server&, tcp_server::session_id_t, std::optional<std::exception>) {
+    void on_disconn(tcp_server&, tcp_server::session_id_t, std::exception_ptr) {
         stop_count++;
     }
 };
@@ -106,7 +106,7 @@ TEST_CASE("tcp_server: check read/write with many simultaneous clients", "[sg::n
 
     tcp_server::session_disconnected_cb_t onClose = [&counterClosed,
                                                      count](tcp_server& l, tcp_server::session_id_t,
-                                                            std::optional<std::exception>) {
+                                                            std::exception_ptr) {
         counterClosed++;
         if (counterClosed == count)
             l.stop_async();
@@ -169,7 +169,7 @@ TEST_CASE("tcp_server: check can disconnect client", "[sg::net::tcp_server]") {
                                                          size_t) { l.disconnect(id); };
 
     tcp_server::session_disconnected_cb_t on_disconn = [](tcp_server& l, tcp_server::session_id_t,
-                                                          std::optional<std::exception>) {
+                                                          std::exception_ptr) {
         l.stop_async();
     };
 
@@ -217,7 +217,7 @@ TEST_CASE("tcp_server: check what happens if client disconnects", "[sg::net::tcp
     std::atomic_bool has_exception{false};
 
     tcp_server::session_disconnected_cb_t on_disconn = [&](tcp_server& l, tcp_server::session_id_t,
-                                                           std::optional<std::exception> ex) {
+                                                           std::exception_ptr ex) {
         if (ex)
             has_exception = true;
         l.stop_async();
@@ -297,7 +297,7 @@ TEST_CASE("tcp_server: check session(...)", "[sg::net::tcp_server]") {
     };
 
     tcp_server::session_disconnected_cb_t on_disconn = [](tcp_server& l, tcp_server::session_id_t,
-                                                          std::optional<std::exception>) {
+                                                          std::exception_ptr) {
         l.stop_async();
     };
 
@@ -356,7 +356,7 @@ TEST_CASE("tcp_server: check local/remote_endpoint(...)", "[sg::net::tcp_server]
     };
 
     tcp_server::session_disconnected_cb_t on_disconn = [](tcp_server& l, tcp_server::session_id_t,
-                                                          std::optional<std::exception>) {
+                                                          std::exception_ptr) {
         l.stop_async();
     };
 
@@ -408,7 +408,7 @@ TEST_CASE("tcp_server: check reaction to client immediate disconnection", "[sg::
         boolCon = true;
     };
     tcp_server::session_disconnected_cb_t on_disconn = [&](tcp_server& l, tcp_server::session_id_t,
-                                                           std::optional<std::exception>) {
+                                                           std::exception_ptr) {
         boolDis = true;
         l.stop_async();
     };

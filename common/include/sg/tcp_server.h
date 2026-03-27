@@ -38,7 +38,7 @@ class SG_COMMON_EXPORT tcp_server {
     CREATE_CALLBACK(stopped_listening_cb_t, void, tcp_server&)
     CREATE_CALLBACK(session_created_cb_t, void, tcp_server&, session_id_t)
     CREATE_CALLBACK(session_data_available_cb_t, void, tcp_server&, session_id_t, const std::byte*, size_t)
-    CREATE_CALLBACK(session_disconnected_cb_t, void, tcp_server&, session_id_t, std::optional<std::exception>)
+    CREATE_CALLBACK(session_disconnected_cb_t, void, tcp_server&, session_id_t, std::exception_ptr)
 
     struct CallBacks {
         started_listening_cb_t OnStartedListening;
@@ -111,7 +111,7 @@ class SG_COMMON_EXPORT tcp_server {
     void on_io_pool_stopped(asio_io_pool&);
 
     void inform_user_of_data(session_id_t id, const std::byte* data, size_t size);
-    void on_session_stopped(session_id_t id, std::optional<std::exception> ex);
+    void on_session_stopped(session_id_t id,  std::exception_ptr ex);
 
 };
 

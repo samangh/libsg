@@ -54,7 +54,7 @@ TEST_CASE("sg::net::tcp_client: check disconnect()", "[sg::net::tcp_client]") {
     tcp_server server;
     tcp_server::CallBacks callbacks;
     callbacks.OnDisconnected = [&](tcp_server&, tcp_server::session_id_t,
-                                   std::optional<std::exception>) { can_stop.release(); };
+                                   std::exception_ptr) { can_stop.release(); };
 
     server.start({ep}, callbacks);
 
@@ -87,7 +87,7 @@ TEST_CASE("sg::net::tcp_client: check multiple reconnections", "[sg::net::tcp_cl
     callbacks.OnSessionCreated = [&](tcp_server&, tcp_server::session_id_t) { ++connections; };
 
     callbacks.OnDisconnected = [&](tcp_server&, tcp_server::session_id_t,
-                                   std::optional<std::exception>) { ++disconnections; };
+                                   std::exception_ptr) { ++disconnections; };
 
     tcp_server server;
     server.start({ep}, callbacks);

@@ -35,7 +35,7 @@ class SG_COMMON_EXPORT tcp_session {
 
     CREATE_CALLBACK(on_data_available_cb_t, void, tcp_session&, const std::byte*, size_t)
     CREATE_CALLBACK(on_connected_cb_t, void, tcp_session&)
-    CREATE_CALLBACK(on_disconnected_cb_t, void, tcp_session&, std::optional<std::exception>)
+    CREATE_CALLBACK(on_disconnected_cb_t, void, tcp_session&, std::exception_ptr)
 
     tcp_session(boost::asio::ip::tcp::socket socket, on_data_available_cb_t onReadCb,
                 on_disconnected_cb_t onErrorCb, options_t options);
@@ -76,7 +76,7 @@ class SG_COMMON_EXPORT tcp_session {
     options_t m_options;
 
     std::mutex m_exception_mutex;
-    std::string m_exception_msg;
+    std::exception_ptr m_exception;
 
     void close();
 

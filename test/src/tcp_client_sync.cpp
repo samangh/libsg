@@ -30,7 +30,7 @@ TEST_CASE("tcp_client_sync: check connect/disconn", "[sg::net::tcp_client_sync]"
         connected.release();
     };
 
-    tcp_server::session_disconnected_cb_t Disconn= [&](tcp_server&, tcp_server::session_id_t, std::optional<std::exception>) {
+    tcp_server::session_disconnected_cb_t Disconn= [&](tcp_server&, tcp_server::session_id_t, std::exception_ptr) {
         disconn.release();
     };
 
@@ -55,7 +55,7 @@ TEST_CASE("tcp_client_sync: check disconnection on destructor", "[sg::net::tcp_c
 
     tcp_server server;
     tcp_server::session_disconnected_cb_t Disconn = [&](tcp_server&, tcp_server::session_id_t,
-                                                        std::optional<std::exception>) {
+                                                        std::exception_ptr) {
         disconn.release();
     };
 
