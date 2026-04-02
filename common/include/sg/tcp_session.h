@@ -28,7 +28,8 @@ class SG_COMMON_EXPORT tcp_session {
          *
          * This is useful if you want to pass the native handle to another library for reading,etc.*/
         bool dont_read {false};
-        bool reuse_address {false};
+        bool reuse_address{LIBSG_NET_REUSEADDR_DEFAULT};
+
         keepalive_t keepalive{};
         unsigned timeout_msec{5000};
     };

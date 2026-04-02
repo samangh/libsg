@@ -9,6 +9,14 @@
 #include <string>
 #include <vector>
 
+#if defined(_WIN32)
+    #define LIBSG_NET_REUSEADDR_DEFAULT false
+    #define LIBSG_NET_EXCLUSIVEADDRUSE_DEFAULT true
+#else
+    #define LIBSG_NET_REUSEADDR_DEFAULT true
+    #define LIBSG_NET_EXCLUSIVEADDRUSE_DEFAULT false
+#endif
+
 namespace sg::net {
 
 enum class address_family { IPv4, IPv6 };
