@@ -9,6 +9,10 @@
 #include <string>
 #include <vector>
 
+/* On Linux, SO_REUSEADDR is used so that a socket in TIME-WAIT state can be rebound after a
+ * listening process is restarted. It does not allow two processes to listen on the exact same
+ * (addr, port) combination. However, on Windows, it does, and SO_EXCLUSIVEADDRUSE is required to
+ * reproduce the Linux behaviour. */
 #if defined(_WIN32)
     #define LIBSG_NET_REUSEADDR_DEFAULT false
     #define LIBSG_NET_EXCLUSIVEADDRUSE_DEFAULT true

@@ -575,37 +575,51 @@ TEST_CASE("tcp_server: set_timeout(...)", "[sg::net::tcp_server]") {
     }
 }
 
-TEST_CASE("tcp_server: set_reuse_address(...)", "[sg::net::tcp_server]") {
+TEST_CASE("tcp_server: you can't listen to same port twice", "[sg::net::tcp_server]") {
     using namespace sg::net;
-    end_point ep("0.0.0.0", PORT);
 
+    // wild-card address
     {
-        tcp_server server;
-        server.start({ep}, {});
+        end_point ep("0.0.0.0", PORT);
 
-        server.set_reuse_address(true);
-        server.set_reuse_address(false);
-        server.set_reuse_address(true);
-        server.set_reuse_address(false);
+        tcp_server server1;
+        tcp_server server2;
+        server1.start({ep}, {});
+        REQUIRE_THROWS(server2.start({ep}, {}));
     }
 
-    // Set options.reuse_address to true
+    // specific address
     {
-        tcp_server::options_t options;
-        options.reuse_address = true;
+        end_point ep("127.0.0.1", PORT);
 
-        tcp_server server;
-        server.start({ep}, {}, options);
+        tcp_server server1;
+        tcp_server server2;
+        server1.start({ep}, {});
+        REQUIRE_THROWS(server2.start({ep}, {}));
     }
 
-    // Set options.reuse_address to false
+    // mix
     {
-        tcp_server::options_t options;
-        options.reuse_address = true;
+        end_point ep1("0.0.0.0", PORT);
+        end_point ep2("127.0.0.1", PORT);
 
-        tcp_server server;
-        server.start({ep}, {}, options);
+        tcp_server server1;
+        tcp_server server2;
+        server1.start({ep1}, {});
+        REQUIRE_THROWS(server2.start({ep2}, {}));
     }
+
+    // mix
+    {
+        end_point ep1("127.0.0.1", PORT);
+        end_point ep2("0.0.0.0", PORT);
+
+        tcp_server server1;
+        tcp_server server2;
+        server1.start({ep1}, {});
+        REQUIRE_THROWS(server2.start({ep2}, {}));
+    }
+
 }
 
 TEST_CASE("tcp_server: allow for disconnection in OnSessionCreated() callbacks", "[sg::net::tcp_server]") {

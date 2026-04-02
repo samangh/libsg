@@ -188,28 +188,21 @@ void tcp_server::start_listening() {
     for (auto e : m_endpoints) {
         boost::asio::ip::tcp::endpoint ep(boost::asio::ip::make_address(e.ip), e.port);
 
-        /** The boost acceptor(conext, endpoint) function is equivalent to:
-         *
-         * @code
-         * basic_socket_acceptor<Protocol> acceptor(my_context);
-         * acceptor.open(endpoint.protocol());
-         * if (reuse_addr)
-         *   acceptor.set_option(socket_base::reuse_address(true));
-         * acceptor.bind(endpoint);
-         * acceptor.listen();
-         * @endcode
-         *
-         * So may be we should do above directly (in case we want to add our own options). */
-        auto a = std::make_shared<boost::asio::ip::tcp::acceptor>(m_context->context(), ep);
+        // We can't do this, as SO_REUSEADDR and SO_EXCLUSIVEADDRUSE  have to be set before bind()
+        // auto a = std::make_shared<boost::asio::ip::tcp::acceptor>(m_context->context(), ep);
+
+        auto a = std::make_shared<boost::asio::ip::tcp::acceptor>(m_context->context());
+        a->open(ep.protocol());
+        native::set_exclusive_addr_use(a->native_handle(), m_options.exclusive_address_use);
+        native::set_reuse_address(a->native_handle(), m_options.reuse_address);
+        native::set_keepalive(a->native_handle(), m_options.session_options.keepalive);
+        native::set_timeout(a->native_handle(), m_options.session_options.timeout_msec);
+        a->bind(ep);
+        a->listen();
+
         boost::asio::co_spawn(m_context->context(), listener(a), boost::asio::detached);
-
-
         m_acceptors.push_back(a);
     }
-
-    set_keepalive(m_options.session_options.keepalive);
-    set_timeout(m_options.session_options.timeout_msec);
-    set_reuse_address(m_options.reuse_address);
 
     if (m_callbacks.OnStartedListening)
         m_callbacks.OnStartedListening.invoke(*this);

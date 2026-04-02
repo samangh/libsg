@@ -93,7 +93,6 @@ TEST_CASE("sg::net::tcp_client: check multiple reconnections", "[sg::net::tcp_cl
     server.start({ep}, callbacks);
 
     tcp_session::options_t options;
-    options.reuse_address = true;
 
     for (auto k = 0; k < noClients; k++) {
         auto client = tcp_client();
@@ -151,38 +150,6 @@ TEST_CASE("sg::net::tcp_client: set_keepalive(...)", "[sg::net::tcp_client]") {
         .enable = true, .idle_seconds = 1, .interval_seconds = outsideRange, .count = 5}));
     REQUIRE_THROWS(client.session().set_keepalive(keepalive_t{
         .enable = true, .idle_seconds = 1, .interval_seconds = 1, .count = outsideRange}));
-}
-
-TEST_CASE("tcp_session: set_reuse_address(...)", "[sg::net::tcp_server]") {
-    using namespace sg::net;
-
-    {
-        auto client = tcp_client();
-        client.connect(end_point("8.8.8.8", 53), nullptr, nullptr);
-
-        client.session().set_reuse_address(true);
-        client.session().set_reuse_address(false);
-        client.session().set_reuse_address(true);
-        client.session().set_reuse_address(false);
-    }
-
-    // Set options.reuse_address to true
-    {
-        tcp_session::options_t options;
-        options.reuse_address = true;
-
-        auto client = tcp_client();
-        client.connect(end_point("8.8.8.8", 53), nullptr, nullptr);
-    }
-
-    // Set options.reuse_address to false
-    {
-        tcp_session::options_t options;
-        options.reuse_address = false;
-
-        auto client = tcp_client();
-        client.connect(end_point("8.8.8.8", 53), nullptr, nullptr);
-    }
 }
 
 TEST_CASE("sg::net::tcp_client: set_timeout(...)", "[sg::net::tcp_client]") {

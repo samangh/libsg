@@ -41,7 +41,6 @@ void tcp_session::start(on_connected_cb_t onConn) {
 
     set_keepalive(m_options.keepalive);
     set_timeout(m_options.timeout_msec);
-    set_reuse_address(m_options.reuse_address);
 
     co_spawn(
         m_socket.get_executor(),
@@ -82,9 +81,7 @@ void tcp_session::set_keepalive(keepalive_t keeepAliveParameters) {
 void tcp_session::set_timeout(unsigned timeoutMSec) {
     sg::net::native::set_timeout(m_socket.native_handle(), timeoutMSec);
 }
-void tcp_session::set_reuse_address(bool enabled) {
-    sg::net::native::set_reuse_address(m_socket.native_handle(), enabled);
-}
+
 native::socket_t tcp_session::native_handle() { return m_socket.native_handle(); }
 
 void tcp_session::stop_async() {

@@ -49,13 +49,16 @@ class SG_COMMON_EXPORT tcp_server {
     };
 
     struct options_t {
-        options_t() {
-            session_options.reuse_address = reuse_address;
-        }; // work around bug https://github.com/llvm/llvm-project/issues/36032
-        tcp_session::options_t session_options{};
+        // work around bug https://github.com/llvm/llvm-project/issues/36032
+        options_t() {};
+
+        // server-specific options
         bool reuse_address{LIBSG_NET_REUSEADDR_DEFAULT};
         bool exclusive_address_use{LIBSG_NET_EXCLUSIVEADDRUSE_DEFAULT}; // Only used in Windows
         size_t no_threads{1};
+
+        //options that will apply to child sockets
+        tcp_session::options_t session_options{};
     };
 
     ~tcp_server() noexcept(false);
