@@ -647,21 +647,25 @@ TEST_CASE("tcp_server: multiple connections", "[sg::net::tcp_server]") {
     end_point ep("127.0.0.1", PORT);
 
     tcp_server::CallBacks cb;
-    cb.OnSessionDataAvailable =
-        [](tcp_server& l, tcp_server::session_id_t, const std::byte* data, size_t length) {
-            for (auto& [_, sess] : l.sessions())
-                sess->write(data, length);
+    cb.OnSessionDataAvailable = [](tcp_server& l, tcp_server::session_id_t id,
+                                   const std::byte* data, size_t length) {
+        l.session(id)->write(data, length);
     };
 
     tcp_server l;
     l.start({ep}, cb);
 
-    for (auto i = 0; i< 150; ++i)
-    {
-        tcp_client_sync client;
-        client.connect(ep);
-        client.write("Dasdas");
+    // all connected
+    std::vector<std::shared_ptr<tcp_client_sync>> clients;
+    for (auto i = 0; i< 150; ++i) {
+        auto client = std::make_shared<tcp_client_sync>();
+        client->connect(ep);
+        clients.push_back(client);
+        client->write(fmt::format("{}\n", i));
     }
+
+    for (auto i = 0; i< 150; ++i)
+        REQUIRE(clients[i]->read_until("\n") == fmt::format("{}\n", i));
 }
 
 TEST_CASE("tcp_server: proxy simulation", "[sg::net::tcp_server]") {
