@@ -83,4 +83,13 @@ void set_reuse_address(socket_t nativeHandle, bool enbaled) {
     THROW_ON_ERRORNO_SOCKET(setsockopt(nativeHandle, SOL_SOCKET, SO_REUSEADDR,
                                        (const char*)&enableInt, sizeof(enableInt)));
 }
+
+void set_exclusive_addr_use(socket_t nativeHandle, bool enabled) {
+#ifdef _WIN32
+    int enableInt = enabled;
+    THROW_ON_ERRORNO_SOCKET(setsockopt(nativeHandle, SOL_SOCKET, SO_EXCLUSIVEADDRUSE,
+                                       (const char*)&enableInt, sizeof(enableInt)));
+#endif
+}
+
 } // namespace sg::net::native

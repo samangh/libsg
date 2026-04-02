@@ -21,4 +21,10 @@ void SG_COMMON_EXPORT set_keepalive(socket_t nativeHandle, keepalive_t keepAlive
 void SG_COMMON_EXPORT set_timeout(socket_t nativeHandle, unsigned timeoutMSec);
 
 void SG_COMMON_EXPORT set_reuse_address(socket_t nativeHandle, bool enbaled);
+
+/** Sets the SO_EXCLUSIVEADDRUSE option in Windows. Is a no-op in other systems.
+ *
+ * See https://learn.microsoft.com/en-us/windows/win32/winsock/using-so-reuseaddr-and-so-exclusiveaddruse */
+void SG_COMMON_EXPORT set_exclusive_addr_use(socket_t, bool enabled);
+
 }
