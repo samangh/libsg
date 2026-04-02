@@ -17,7 +17,7 @@ tcp_session::tcp_session(boost::asio::ip::tcp::socket socket, on_data_available_
       m_on_data_cb(std::move(onReadCb)),
       m_on_disconnected_cb(std::move(onErrorCb)),
       m_options(options) {
-    m_timer.expires_at((std::chrono::steady_clock::time_point::max)());
+    m_timer.expires_after(std::chrono::seconds(1));
 }
 
 tcp_session::~tcp_session() {
@@ -210,6 +210,8 @@ boost::asio::awaitable<void> tcp_session::writer() {
                 if (result.index()==1)
                     SG_THROW(exceptions::net<exceptions::errors::net::time_out>, "operation timeout");
             }
+
+            m_timer.expires_after(std::chrono::seconds(1));
         }
     } catch (...) {
         {
