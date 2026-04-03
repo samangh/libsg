@@ -84,7 +84,7 @@ void set_reuse_address(socket_t nativeHandle, bool enbaled) {
                                        (const char*)&enableInt, sizeof(enableInt)));
 }
 
-void set_exclusive_addr_use(socket_t nativeHandle, bool enabled) {
+void set_exclusive_addr_use([[maybe_unused]] socket_t nativeHandle, [[maybe_unused]] bool enabled) {
 #ifdef _WIN32
     int enableInt = enabled;
     THROW_ON_ERRORNO_SOCKET(setsockopt(nativeHandle, SOL_SOCKET, SO_EXCLUSIVEADDRUSE,
