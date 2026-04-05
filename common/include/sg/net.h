@@ -14,14 +14,15 @@
  * (addr, port) combination. However, on Windows, it does, and SO_EXCLUSIVEADDRUSE is required to
  * reproduce the Linux behaviour.
  *
- * On macOS setting SO_REUSEADDR allows multiple threads to bind to the same port, so let's disable
- * that.
+ * On macOS setting SO_REUSEADDR allows multiple threads to bind to the same port. But we don't
+ * disable it by default, as otherwise a connection can't be used until it comes out TIME_WAIT
+ * state.
  */
 #if defined(_WIN32)
     #define LIBSG_NET_REUSEADDR_DEFAULT false
     #define LIBSG_NET_EXCLUSIVEADDRUSE_DEFAULT true
 #elif defined(__APPLE__)
-    #define LIBSG_NET_REUSEADDR_DEFAULT false
+    #define LIBSG_NET_REUSEADDR_DEFAULT true
     #define LIBSG_NET_EXCLUSIVEADDRUSE_DEFAULT false
 #else
     #define LIBSG_NET_REUSEADDR_DEFAULT true

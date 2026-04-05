@@ -575,6 +575,7 @@ TEST_CASE("tcp_server: set_timeout(...)", "[sg::net::tcp_server]") {
     }
 }
 
+#if !defined(__APPLE__)
 TEST_CASE("tcp_server: you can't listen to same port twice", "[sg::net::tcp_server]") {
     using namespace sg::net;
 
@@ -621,6 +622,7 @@ TEST_CASE("tcp_server: you can't listen to same port twice", "[sg::net::tcp_serv
     }
 
 }
+#endif
 
 TEST_CASE("tcp_server: allow for disconnection in OnSessionCreated() callbacks", "[sg::net::tcp_server]") {
     using namespace sg::net;
