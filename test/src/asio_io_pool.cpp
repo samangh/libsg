@@ -6,7 +6,7 @@
 
 using namespace sg::net;
 
-TEST_CASE("sg::net::asio_context_pool: check unused context", "[sg::net::asio_io_pool]") {
+TEST_CASE("asio_context_pool: check unused context", "[sg::net::asio_io_pool]") {
     {
         auto context = asio_io_pool::create(1);
         auto context2 = asio_io_pool::create(4);
@@ -20,7 +20,7 @@ TEST_CASE("sg::net::asio_context_pool: check unused context", "[sg::net::asio_io
     }
 }
 
-TEST_CASE("sg::net::asio_context_pool check stop() calls callback", "[sg::net::asio_io_pool]") {
+TEST_CASE("asio_context_pool: check stop() calls callback", "[sg::net::asio_io_pool]") {
         std::atomic<bool> called{false};
 
         asio_io_pool::stopped_cb_t onStop = [&called](asio_io_pool&) {
@@ -36,7 +36,7 @@ TEST_CASE("sg::net::asio_context_pool check stop() calls callback", "[sg::net::a
         called.wait(false);
 }
 
-TEST_CASE("sg::net::asio_context_pool check destructor calls callback", "[sg::net::asio_io_pool]") {
+TEST_CASE("asio_context_pool: check destructor calls callback", "[sg::net::asio_io_pool]") {
     std::atomic<bool> called{false};
 
     {
@@ -52,7 +52,7 @@ TEST_CASE("sg::net::asio_context_pool check destructor calls callback", "[sg::ne
     called.wait(false);
 }
 
-TEST_CASE("sg::net::asio_context_pool callback called once", "[sg::net::asio_io_pool]") {
+TEST_CASE("asio_context_pool: callback called once", "[sg::net::asio_io_pool]") {
     std::atomic<int> count{0};
 
     {
@@ -68,7 +68,7 @@ TEST_CASE("sg::net::asio_context_pool callback called once", "[sg::net::asio_io_
 }
 
 
-TEST_CASE("sg::net::asio_context_pool check stop_async() can be called from a context thread", "[sg::net::asio_io_pool]") {
+TEST_CASE("asio_context_pool: check stop_async() can be called from a context thread", "[sg::net::asio_io_pool]") {
     std::atomic<bool> called{false};
 
     asio_io_pool::stopped_cb_t onStop = [&called](asio_io_pool&) {
@@ -85,7 +85,7 @@ TEST_CASE("sg::net::asio_context_pool check stop_async() can be called from a co
     called.wait(false);
 }
 
-TEST_CASE("sg::net::asio_context_pool check pool is stopped after guard reset", "[sg::net::asio_io_pool]") {
+TEST_CASE("asio_context_pool: check pool is stopped after guard reset", "[sg::net::asio_io_pool]") {
     std::atomic<bool> called{false};
 
     asio_io_pool::stopped_cb_t onStop = [&called](asio_io_pool&) {
@@ -103,7 +103,7 @@ TEST_CASE("sg::net::asio_context_pool check pool is stopped after guard reset", 
     called.wait(false);
 }
 
-TEST_CASE("sg::net::asio_context_pool running() a running context throws error", "[sg::net::asio_io_pool]") {
+TEST_CASE("asio_context_pool: running() a running context throws error", "[sg::net::asio_io_pool]") {
     std::atomic<bool> called{false};
 
     asio_io_pool::stopped_cb_t onStop = [&called](asio_io_pool&) {
@@ -118,7 +118,7 @@ TEST_CASE("sg::net::asio_context_pool running() a running context throws error",
     REQUIRE_THROWS(context->run());
 }
 
-TEST_CASE("sg::net::asio_context_pool check resetting a non-guarded context throws error", "[sg::net::asio_io_pool]") {
+TEST_CASE("asio_context_pool: check resetting a non-guarded context throws error", "[sg::net::asio_io_pool]") {
     auto context = asio_io_pool::create(2, nullptr);
 
     /* make sure the context is running */
@@ -130,13 +130,13 @@ TEST_CASE("sg::net::asio_context_pool check resetting a non-guarded context thro
     stop.release();
 }
 
-TEST_CASE("sg::net::asio_context_pool check resetting a non-running context is OK", "[sg::net::asio_io_pool]") {
+TEST_CASE("asio_context_pool: check resetting a non-running context is OK", "[sg::net::asio_io_pool]") {
     auto context = asio_io_pool::create(2, nullptr);
 
     REQUIRE_NOTHROW(context->reset_guard());
 }
 
-TEST_CASE("sg::net::asio_context_pool you can stop without resetting", "[sg::net::asio_io_pool]") {
+TEST_CASE("asio_context_pool: you can stop without resetting", "[sg::net::asio_io_pool]") {
     // Destructor
     {
         auto context = asio_io_pool::create(2, nullptr);
@@ -151,7 +151,7 @@ TEST_CASE("sg::net::asio_context_pool you can stop without resetting", "[sg::net
     }
 }
 
-TEST_CASE("sg::net::asio_context_pool check guard_reset()", "[sg::net::asio_io_pool]") {
+TEST_CASE("asio_context_pool: check guard_reset()", "[sg::net::asio_io_pool]") {
     for (int i=0; i<100; ++i) {
         auto context = asio_io_pool::create(2, nullptr);
 
@@ -163,7 +163,7 @@ TEST_CASE("sg::net::asio_context_pool check guard_reset()", "[sg::net::asio_io_p
     }
 }
 
-TEST_CASE("sg::net::asio_context_pool exception on get_future_once()", "[sg::net::asio_io_pool]") {
+TEST_CASE("asio_context_pool: exception on get_future_once()", "[sg::net::asio_io_pool]") {
     auto context = asio_io_pool::create(3, nullptr);
 
     boost::asio::post(context->context(), []() { throw std::invalid_argument("tes"); });

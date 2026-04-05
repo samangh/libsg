@@ -42,7 +42,7 @@ void test_zstd(int level, int thread_count) {
     }
 }
 
-TEST_CASE("sg::compression::zstd check compress(...) and decompress(...) family", "[sg::compression::zstd]") {
+TEST_CASE("zstd: check compress(...) and decompress(...) family", "[sg::compression::zstd]") {
     // Test level 3 compression with 0=singlethreaded, 1=multithreaded with 1 thread, and 2 threads
     test_zstd(3, 0);
 
@@ -53,7 +53,7 @@ TEST_CASE("sg::compression::zstd check compress(...) and decompress(...) family"
     }
 }
 
-TEST_CASE("sg::compression::zstd check utility functions", "[sg::compression::zstd]") {
+TEST_CASE("zstd: check utility functions", "[sg::compression::zstd]") {
     auto bounds_clevel = sg::compression::zstd::bounds_compression_level();
     auto default_level = sg::compression::zstd::default_compresssion_level();
     REQUIRE(default_level >= bounds_clevel.first);

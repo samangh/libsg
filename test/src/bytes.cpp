@@ -4,7 +4,7 @@
 #include <catch2/catch_test_macros.hpp>
 #include <string>
 
-TEST_CASE("SG::common sg::bytes: check byteswap(...) family") {
+TEST_CASE("bytes: check byteswap(...) family", "[sg::bytes]") {
     // see https://www.scadacore.com/tools/programming-calculators/online-hex-converter/
 
     /* check byteswap() function family */
@@ -16,7 +16,7 @@ TEST_CASE("SG::common sg::bytes: check byteswap(...) family") {
     REQUIRE(int64_t(0xEFCDAB8967452301) == sg::bytes::byteswap(int64_t(0x0123456789ABCDEFull)));
 }
 
-TEST_CASE("sg::common sg::bytes: check to_bytes(const RangeT& range)") {
+TEST_CASE("bytes: check to_bytes(const RangeT& range)", "[sg::bytes]") {
     auto uint_vec = std::vector<uint16_t>{0xAABB, 0xCCDD};
     auto correct_ans =
         std::vector<std::byte>{std::byte{0xBB}, std::byte{0xAA}, std::byte{0xDD}, std::byte{0xCC}};
@@ -24,7 +24,7 @@ TEST_CASE("sg::common sg::bytes: check to_bytes(const RangeT& range)") {
     REQUIRE(correct_ans == sg::bytes::to_bytes(uint_vec));
 }
 
-TEST_CASE("SG::common sg::bytes: check to_bytes(...) and to_integral(...)") {
+TEST_CASE("bytes: check to_bytes(...) and to_integral(...)", "[sg::bytes]") {
     /* check to_bytes */
     auto uint8_test = sg::bytes::to_bytes(uint8_t(0xAA));
     auto uint16_test = sg::bytes::to_bytes(uint16_t(0xAABB));
@@ -62,7 +62,7 @@ TEST_CASE("SG::common sg::bytes: check to_bytes(...) and to_integral(...)") {
             sg::bytes::to_numeric<uint64_t>(uint64_test.data(), std::endian::big));
 }
 
-TEST_CASE("SG::common sg::bytes: check to_bytes/to_numeric(...) with floats", "[sg::bytes]") {
+TEST_CASE("bytes: check to_bytes/to_numeric(...) with floats", "[sg::bytes]") {
     // 1.23456789
     auto doubleBytesLE =
         std::array{std::byte{0x1B}, std::byte{0xDE}, std::byte{0x83}, std::byte{0x42},
@@ -81,7 +81,7 @@ TEST_CASE("SG::common sg::bytes: check to_bytes/to_numeric(...) with floats", "[
             (double)1.23456789);
 }
 
-TEST_CASE("sg::bytes: check to_integral_and_advance_...(...) family", "[sg::bytes]") {
+TEST_CASE("bytes: check to_integral_and_advance_...(...) family", "[sg::bytes]") {
     /*create byte array */
     std::vector<uint64_t> vec {1,2};
     auto buf = sg::make_unique_c_buffer<std::byte>(vec.size()*sizeof(uint64_t));
