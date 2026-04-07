@@ -59,7 +59,7 @@ class SG_COMMON_EXPORT file_writer {
     requires std::is_trivially_copyable_v<U>
     void write_async(const U* ptr,  size_t length) {
         auto a = sg::make_shared_c_buffer<std::byte>(length*sizeof(U));
-        std::memcpy(a.get(), ptr, length * sizeof(char));
+        std::memcpy(a.get(), ptr, length * sizeof(U));
         write_async(std::move(a));
     }
 
