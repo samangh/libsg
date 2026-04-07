@@ -51,9 +51,9 @@ uint32_t crc32(const void* data, std::size_t length, uint32_t remainder) {
 }
 
 uint16_t crc16(const void* data, std::size_t length) {
-    thread_local static boost::crc_16_type crc;
+    boost::crc_16_type crc;
     crc.process_bytes(data, length);
-    return crc();
+    return crc.checksum();
 }
 
 } // namespace sg::checksum
