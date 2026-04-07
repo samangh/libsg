@@ -109,7 +109,6 @@ void tcp_client_sync::write(const std::byte* data, size_t length) {
     if (!is_connected())
         SG_THROW(std::runtime_error, "client not connected");
 
-    boost::asio::write(m_socket, boost::asio::buffer(data, length));
     boost::asio::async_write(m_socket, boost::asio::buffer(data, length),
                              [&](const boost::system::error_code& result_error, std::size_t) {
                                  throw_error_if_not_timedout(result_error);
