@@ -93,6 +93,7 @@ std::map<tcp_server::session_id_t, tcp_server::ptr> tcp_server::sessions() const
     return  m_sessions;
 }
 void tcp_server::write(session_id_t id, std::string_view data) {
+    std::shared_lock lock(m_mutex);
     m_sessions.at(id)->write(data);
 }
 
