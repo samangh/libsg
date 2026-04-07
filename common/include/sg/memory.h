@@ -118,7 +118,7 @@ inline void CallocAndFree(size_t size, T** memory, const std::function<void()>& 
     if (size == 0) throw std::bad_alloc();
 
     try {
-        *memory = (T*)malloc(size);
+        *memory = (T*)calloc(1, size);
         if (!*memory) throw std::bad_alloc();
         func();
         free(*memory);
