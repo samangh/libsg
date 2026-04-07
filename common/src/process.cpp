@@ -1,4 +1,5 @@
 #include "sg/process.h"
+#include "sg/buffer.h"
 
 #include <stdexcept>
 
@@ -95,7 +96,9 @@ std::map<pid_t,Process> get_processes() {
     int bufferSize = proc_listpids(PROC_ALL_PIDS, 0, NULL, 0);
 
     //Create and populate buffer
-    int* processBuffer = (int*)malloc(sizeof(int) * bufferSize);
+    auto buffer = sg::make_unique_c_buffer<int>(bufferSize);
+    int* processBuffer = buffer.get();
+
     int k = proc_listpids(PROC_ALL_PIDS, 0, processBuffer, bufferSize * sizeof(int));
 
     for (int i = 0; i < k; i++) {
