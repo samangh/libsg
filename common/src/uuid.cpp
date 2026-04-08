@@ -7,8 +7,8 @@
 
 namespace {
 
-static boost::uuids::uuid random_uuid() {
-    static boost::uuids::random_generator generator;
+boost::uuids::uuid random_uuid() {
+    thread_local boost::uuids::random_generator generator;
     return generator();
 }
 
