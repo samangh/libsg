@@ -55,6 +55,9 @@ std::string to_string(const std::filesystem::path& input) {
 }
 
 std::string to_string(const sg::IBuffer<std::byte>& input) {
+    if (input.size() == 0)
+        return {};
+
     return {(const char*)(&*input.begin()), (const char*)(&*input.end())};
 }
 
