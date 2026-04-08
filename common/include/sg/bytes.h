@@ -20,7 +20,7 @@ namespace sg::bytes {
 template <std::integral T>
 [[nodiscard]] constexpr T byteswap(T value) {
 #ifdef __cpp_lib_byteswap
-    return std::byteswap(val);
+    return std::byteswap(value);
 #else
     static_assert(std::has_unique_object_representations_v<T>, "T may not have padding bits");
     auto value_representation = std::bit_cast<std::array<std::byte, sizeof(T)>>(value);
