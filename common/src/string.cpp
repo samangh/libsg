@@ -17,6 +17,9 @@
 namespace sg::string {
 
 std::wstring to_wstring(const char* input) {
+    if (input == nullptr)
+        return {};
+
     std::mbstate_t state{};
 
     // number of wchars needed (not including terminating null)
@@ -31,6 +34,9 @@ std::wstring to_wstring(const char* input) {
 }
 
 std::string to_string(const wchar_t* input) {
+    if (input == nullptr)
+        return {};
+
     std::mbstate_t state{};
 
     // number of chars needed (not including terminating null)
