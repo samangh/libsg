@@ -14,8 +14,8 @@ namespace sg::string {
  * wide-character conversion functions
  *******************************************************/
 
-/* Note, you MUST define a locale be converting to/from wide strings. This is so that the system
- * knows how represent the Unicode code points in raw bytes (i.e. the codepage)
+/* Note; you MUST define a locale be converting to/from wide strings. This is so that the system
+ * knows how to represent the Unicode code points in raw bytes (i.e. the codepage)
  *
  * I SUGGEST JUST CALLING `sg::locale::use_utf8_encoding()`.
  * To change the locale globally, say to C.utf8, do:
@@ -29,11 +29,11 @@ namespace sg::string {
 /* Converts a string to a wide-string. Thread safe. */
 [[nodiscard]] SG_COMMON_EXPORT std::wstring to_wstring(const std::string& input);
 
-/** Converts a null-terminated wide-character sequence to it's narrow multibyte representation.
+/** Converts a null-terminated wide-character sequence to its narrow multibyte representation.
  * Thread safe. */
 [[nodiscard]] SG_COMMON_EXPORT std::string to_string(const wchar_t* input);
 
-/** Converts a null-terminated wide-character sequence to it's narrow multibyte representation.
+/** Converts a null-terminated wide-character sequence to its narrow multibyte representation.
  * Thread safe. */
 [[nodiscard]] SG_COMMON_EXPORT std::string to_string(const std::wstring& input);
 
