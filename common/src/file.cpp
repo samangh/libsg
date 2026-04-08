@@ -22,7 +22,7 @@ sg::unique_c_buffer<std::byte> read(const std::filesystem::path& path,
 size_t read(const std::filesystem::path& path, std::byte* buffer, size_t count,
                     std::ios_base::openmode mode) {
     if (sg::enumeration::contains(mode, std::ios::out))
-        throw std::invalid_argument("can't read from a file when opened in `std::ios::in` write-mode");
+        throw std::invalid_argument("can't read from a file when opened in `std::ios::out` write-mode");
 
     std::ifstream stream;
 
