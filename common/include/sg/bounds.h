@@ -1,5 +1,7 @@
 #pragma once
 
+#include "debug.h"
+
 #include <algorithm>
 #include <cstdint>
 #include <memory>
@@ -13,6 +15,9 @@ namespace sg::bounds {
  */
 template <typename T, typename Value>
 [[nodiscard]] size_t upper_bound_index(const T *data, size_t count, const Value &to_find) {
+    if (count == 0)
+        SG_THROW(std::out_of_range, "empty input given");
+
     auto iterator = std::upper_bound(data, data + count, to_find);
     if (iterator == data + count)
         return count - 1;
@@ -25,6 +30,9 @@ template <typename T, typename Value>
  */
 template <typename T, typename Value>
 [[nodiscard]] size_t greater_or_equal_index(const T *data, size_t count, const Value &to_find) {
+    if (count == 0)
+        SG_THROW(std::out_of_range, "empty input given");
+
     auto i = upper_bound_index(data, count, to_find);
 
     if (i != 0 && data[i-1] >= to_find)
@@ -37,6 +45,9 @@ template <typename T, typename Value>
  */
 template <typename T, typename Value>
 [[nodiscard]] size_t lower_bound_index(const T *data, size_t count, const Value &to_find) {
+    if (count == 0)
+        SG_THROW(std::out_of_range, "empty input given");
+
     auto iterator = std::lower_bound(data, data + count, to_find);
     if (iterator == data + count)
         return count - 1;
@@ -46,6 +57,9 @@ template <typename T, typename Value>
 
 template <typename T, typename Value>
 [[nodiscard]] size_t less_or_equal_index(const T *data, size_t count, const Value &to_find) {
+    if (count == 0)
+        SG_THROW(std::out_of_range, "empty input given");
+
     auto i = lower_bound_index(data, count, to_find);
 
     if (i != count - 1 && data[i + 1] <= to_find)
@@ -57,6 +71,9 @@ template <template <typename, typename> class Container,
           typename Value,
           typename Allocator = std::allocator<Value>>
 [[nodiscard]] size_t upper_bound_index(const Container<Value, Allocator> &data, const Value &to_find) {
+    if (std::size(data) == 0 )
+        SG_THROW(std::out_of_range, "empty input given");
+
     auto upper = std::upper_bound(data.begin(), data.end(), to_find);
     if (upper == data.end())
         return data.size() - 1;
@@ -68,6 +85,9 @@ template <template <typename, typename> class Container,
           typename Value,
           typename Allocator = std::allocator<Value>>
 [[nodiscard]] size_t lower_bound_index(const Container<Value, Allocator> &data, const Value &to_find) {
+    if (std::size(data) == 0 )
+        SG_THROW(std::out_of_range, "empty input given");
+
     auto upper = std::lower_bound(data.begin(), data.end(), to_find);
     if (upper == data.end())
         return data.size() - 1;
