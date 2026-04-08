@@ -40,6 +40,7 @@ std::string tcp_client_sync::read_until(std::string_view delimiter) {
     }
 
     // find position of string to return/keep
+    // .find() will always find deliemeter as .async_read_until() was used
     auto pos = m_read_leftover.find(delimiter) + delimiter.length();
 
     std::string toReturn = m_read_leftover.substr(0, pos);
