@@ -27,8 +27,8 @@ template <typename T, typename Value>
 [[nodiscard]] size_t greater_or_equal_index(const T *data, size_t count, const Value &to_find) {
     auto i = upper_bound_index(data, count, to_find);
 
-    if (i != 0 && data[i] >= to_find)
-        return --i;
+    if (i != 0 && data[i-1] >= to_find)
+        return i-1;
     return i;
 }
 
