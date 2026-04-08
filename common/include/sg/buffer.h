@@ -91,7 +91,7 @@ class IBuffer {
 
     /* const front/back */
     [[nodiscard]] const_reference front() const {return *begin();}
-    [[nodiscard]] const_reference back() const {return *(end() - 1);;}
+    [[nodiscard]] const_reference back() const {return *(end() - 1);}
 
     [[nodiscard]] T&       operator[](size_t i) { return get()[i]; };
     [[nodiscard]] const T& operator[](size_t i) const { return get()[i]; };

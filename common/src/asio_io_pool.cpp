@@ -111,7 +111,7 @@ void asio_io_pool::future_get_once() noexcept(false) {
         } catch (const std::exception& e) {
             errors.emplace_back(e.what());
         } catch (...) {
-            errors.emplace_back("Unknow error");
+            errors.emplace_back("Unknown error");
         }
 
     if (!errors.empty())

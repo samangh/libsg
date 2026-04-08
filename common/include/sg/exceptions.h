@@ -34,7 +34,7 @@ template <typename ErrorT>
     requires(std::is_enum_v<ErrorT>)
 class exception : public any {
   protected:
-    explicit exception(ErrorT errr_code, const std::string& msg) : any(msg), error(errr_code) {}
+    explicit exception(ErrorT err_code, const std::string& msg) : any(msg), error(err_code) {}
     const ErrorT error;
 };
 

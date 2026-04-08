@@ -50,7 +50,7 @@ std::map<pid_t,Process> get_processes() {
 
         /* loop through all threads */
         if (!Thread32First(hProcessSnap, &te32))
-            throw std::runtime_error("CFailed first thread");
+            throw std::runtime_error("Failed first thread");
 
         do {
             auto& process = result.at(te32.th32OwnerProcessID);

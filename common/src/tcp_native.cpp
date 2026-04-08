@@ -26,7 +26,7 @@ void set_keepalive(socket_t nativeHandle, keepalive_t keepAlive) {
     auto count = keepAlive.count;
 
     /* note:
-     *  - in boost could have used teh set_option(..) to enable keep-alive, but that does not
+     *  - in boost could have used the set_option(..) to enable keep-alive, but that does not
      *    modify the interval values, etc
      *  - values have to be passed as `const char *` in Windows, but `void *` in Linux/Apple. As
      *    `void *` can automatically take `const char *`, let's use `const char *` everywhere

@@ -47,7 +47,7 @@ class SG_COMMON_EXPORT background_timer {
     void set_interval(uint32_t interval_ns,
                       sg::AccurateSleeper::Tragedy strategy = sg::AccurateSleeper::Tragedy::Auto);
 
-    /* sets whether the time shouuld account for how long the action takes,
+    /* sets whether the time should account for how long the action takes,
      * and remove that from the wait interval */
     void correct_for_task_delay(bool);
 
@@ -55,7 +55,7 @@ class SG_COMMON_EXPORT background_timer {
     void *data;
 
     /* mutex to use when using #data.This mutex is not used by
-     * #background_timer, and is purely for teh users' convenience. */
+     * #background_timer, and is purely for the users' convenience. */
     mutable std::shared_mutex data_mutex;
 };
 

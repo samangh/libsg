@@ -24,7 +24,7 @@ class SG_COMMON_EXPORT tcp_session {
 
         /* if set to true, the `on_data_available_cb_t` will be called when there is data available,
          * but the data won't have been read from the socket. You'll have to manually read it from
-         * teh native handle.
+         * the native handle.
          *
          * This is useful if you want to pass the native handle to another library for reading,etc.*/
         bool dont_read {false};

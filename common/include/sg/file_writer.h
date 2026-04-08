@@ -32,7 +32,7 @@ class SG_COMMON_EXPORT file_writer {
     ~file_writer();
 
     /**
-     * @brief stops the writer
+     * @brief starts the writer
      * @details note that this is not thread-safe
      */
     void start(path_type _path,

@@ -21,7 +21,7 @@ tcp_session::tcp_session(boost::asio::ip::tcp::socket socket, on_data_available_
 }
 
 tcp_session::~tcp_session() {
-    // this causes teh right call-backs to be called, if they haven't already
+    // this causes the right call-backs to be called, if they haven't already
     stop_async();
     wait_until_stopped();
 }
@@ -74,8 +74,8 @@ void tcp_session::write(const void* data, size_t size) {
     write(ptr);
 }
 
-void tcp_session::set_keepalive(keepalive_t keeepAliveParameters) {
-        sg::net::native::set_keepalive(m_socket.native_handle(), keeepAliveParameters);
+void tcp_session::set_keepalive(keepalive_t keepAliveParameters) {
+        sg::net::native::set_keepalive(m_socket.native_handle(), keepAliveParameters);
 }
 
 void tcp_session::set_timeout(unsigned timeoutMSec) {

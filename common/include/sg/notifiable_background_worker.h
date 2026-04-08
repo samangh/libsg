@@ -113,7 +113,7 @@ class SG_COMMON_EXPORT notifiable_background_worker {
     void set_interval(std::chrono::nanoseconds interval);
 
     /**
-     * @brief correct_for_task_delay sets whether the time shouuld account
+     * @brief correct_for_task_delay sets whether the time should account
      *        for how long the actiontakes, and remove that from the wait
      *        interval.
      *

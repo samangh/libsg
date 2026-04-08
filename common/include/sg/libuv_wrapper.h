@@ -63,7 +63,7 @@ struct deleter_uv_handle {
 
 
         if (uv_async_init(ptr->loop, async_handle, async_func)==0){
-            // to the pointer to be deleted/closed in teh async handle
+            // to the pointer to be deleted/closed in the async handle
             async_handle->data = ptr;
             uv_async_send(async_handle);
         }

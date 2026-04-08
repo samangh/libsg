@@ -45,7 +45,7 @@ uint32_t crc32(const void* data, std::size_t length, uint32_t remainder) {
 #ifdef HAVE_HARDWARE_CRC32_ARMV7
     return ~crc32_hardware_armv7(data, length, ~remainder);
 #else
-    // use CRC32 polynomial, teh only difference between CRC32-C and CRC32 is the polynomial, the
+    // use CRC32 polynomial, the only difference between CRC32-C and CRC32 is the polynomial, the
     // calculation is otherwise the same
     static auto pTbl = compute_tabular_method_tables(0xEDB88320);
     return ~crc32c_tabular(data, length, ~remainder, pTbl.get());

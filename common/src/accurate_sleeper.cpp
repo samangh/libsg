@@ -48,7 +48,7 @@ uint64_t sg::AccurateSleeper::interval() const { return m_interval_ns; }
 void sg::AccurateSleeper::enable_realtime() {
     if (!m_realtime_enabled) {
 #if defined(__linux__) || defined(__unix__) || (defined(__APPLE__) && defined(__MACH__))
-        /* Store the thread, so tha later on we restore the schedulign policy for teh same thread */
+        /* Store the thread, so that later on we restore the scheduling policy for the same thread */
         m_thread = pthread_self();
 
         /* Get current policy for later restoration */

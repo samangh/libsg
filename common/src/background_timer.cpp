@@ -44,7 +44,7 @@ class SG_COMMON_EXPORT background_timer::impl {
     uint64_t interval() const;
     void set_interval(uint32_t interval_ns, sg::AccurateSleeper::Tragedy strategy);
 
-    /* sets whether the time shouuld account for how long the action takes,
+    /* sets whether the time should account for how long the action takes,
      * and remove that from the wait interval */
     void correct_for_task_delay(bool);
 
