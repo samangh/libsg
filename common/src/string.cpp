@@ -64,7 +64,11 @@ std::string to_string(const sg::IBuffer<std::byte>& input) {
     if (input.size() == 0)
         return {};
 
-    return {(const char*)(&*input.begin()), (const char*)(&*input.end())};
+    // note: .end() on a proper stdlib interator should not be dereferenced. Now
+    // - in this case our implementation of IBuffer<> allows it, but best just
+    // to use begin() + size() anyway
+    return {(const char *)(&*input.begin()),
+            (const char *)(&*input.begin() + input.size())};
 }
 
 void toupper_inplace(std::string& refStr) {
