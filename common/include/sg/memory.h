@@ -63,23 +63,29 @@ SG_COMMON_EXPORT void* ReallocOrFreeAndThrow(void* ptr, size_t size);
  * @param[in]       size    amount of memory to allocation
  * @param[in,out]   memory  point to pointer to allocate
  * @param[in]       func    function to run after allocating memory
+ * @param[in]       args    arguments to pass the function
  *
  * @throw std::bad_alloc on failure to allocate storage.
- * @throw any other exceptions that @
+ * @throw any exception that the passed function might throw@
  */
-template <typename T>
-void MallocAndFree(size_t size, T** memory, const std::function<void()>& func) {
-    if (size == 0) throw std::bad_alloc();
+
+template <typename FuncT, typename... ArgsT>
+    requires(std::invocable<FuncT, ArgsT...>)
+void MallocAndFree(size_t sizeBytes, void** memory, const FuncT& func, ArgsT&&... args) {
+    if (sizeBytes == 0)
+        throw std::bad_alloc();
 
     try {
-        *memory = (T*)malloc(size);
-        if (!*memory) throw std::bad_alloc();
+        *memory = malloc(sizeBytes);
+        if (!*memory)
+            throw std::bad_alloc();
 
-        func();
+        std::invoke(func, std::forward<ArgsT>(args)...);
         free(*memory);
         *memory = nullptr;
     } catch (...) {
-        if (*memory) free(*memory);
+        if (*memory)
+            free(*memory);
         throw;
     }
 }
@@ -90,24 +96,30 @@ void MallocAndFree(size_t size, T** memory, const std::function<void()>& func) {
  * exception, the memory is clear and the exception in re-thrown.
  *
  * @param[in]       size    amount of memory to allocation
- * @param[in,out]   memory  point to pointer to allocate
- * @param[in]       func    function to run after allocating memoey
+ * @param[in,out]   memory  pointer to the pointer to allocate
+ * @param[in]       func    function to run after allocating memory
+ * @param[in]       args    arguments to pass the function
  *
- * @throw std::bad_alloc on failure to allocate storate.
- * @throw any other exceptons that @
+ * @throw std::bad_alloc on failure to allocate memory.
+ * @throw any exception that the passed function might throw@
  */
-template <typename T>
-void CallocAndFree(size_t size, T** memory, const std::function<void()>& func) {
-    if (size == 0) throw std::bad_alloc();
+
+template <typename FuncT, typename... ArgsT>
+    requires(std::invocable<FuncT, ArgsT...>)
+void CallocAndFree(size_t sizeBytes, void** memory, const FuncT& func, ArgsT&&... args) {
+    if (sizeBytes == 0)
+        throw std::bad_alloc();
 
     try {
-        *memory = (T*)calloc(1, size);
-        if (!*memory) throw std::bad_alloc();
-        func();
+        *memory = calloc(1, sizeBytes);
+        if (!*memory)
+            throw std::bad_alloc();
+        std::invoke(func, std::forward<ArgsT>(args)...);
         free(*memory);
         *memory = nullptr;
     } catch (...) {
-        if (*memory) free(*memory);
+        if (*memory)
+            free(*memory);
         throw;
     }
 }
