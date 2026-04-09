@@ -50,7 +50,7 @@ namespace sg::memory {
  *  @throw std::bad_alloc if size is zero
  *  @throw std::bad_alloc if can't allocate memory
  **/
-static inline void* MallocOrThrow(size_t size) {
+static void* MallocOrThrow(size_t size) {
     if (size == 0) throw std::bad_alloc();
 
     void* result = malloc(size);
@@ -59,7 +59,7 @@ static inline void* MallocOrThrow(size_t size) {
     return result;
 }
 
-static inline void* ReallocOrFreeAndThrow(void* ptr, size_t size) {
+static void* ReallocOrFreeAndThrow(void* ptr, size_t size) {
     void* result;
     if (size == 0) goto error;
 
@@ -86,7 +86,7 @@ error:
  * @throw any other exceptions that @
  */
 template <typename T>
-inline void MallocAndFree(size_t size, T** memory, const std::function<void()>& func) {
+void MallocAndFree(size_t size, T** memory, const std::function<void()>& func) {
     if (size == 0) throw std::bad_alloc();
 
     try {
@@ -95,6 +95,7 @@ inline void MallocAndFree(size_t size, T** memory, const std::function<void()>& 
 
         func();
         free(*memory);
+        *memory = nullptr;
     } catch (...) {
         if (*memory) free(*memory);
         throw;
@@ -114,7 +115,7 @@ inline void MallocAndFree(size_t size, T** memory, const std::function<void()>& 
  * @throw any other exceptons that @
  */
 template <typename T>
-inline void CallocAndFree(size_t size, T** memory, const std::function<void()>& func) {
+void CallocAndFree(size_t size, T** memory, const std::function<void()>& func) {
     if (size == 0) throw std::bad_alloc();
 
     try {
@@ -122,6 +123,7 @@ inline void CallocAndFree(size_t size, T** memory, const std::function<void()>& 
         if (!*memory) throw std::bad_alloc();
         func();
         free(*memory);
+        *memory = nullptr;
     } catch (...) {
         if (*memory) free(*memory);
         throw;
