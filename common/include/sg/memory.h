@@ -1,6 +1,7 @@
 #pragma once
 
-#include <exception>
+#include <sg/export/common.h>
+
 #include <functional>
 #include <memory>
 #include <new>
@@ -50,28 +51,9 @@ namespace sg::memory {
  *  @throw std::bad_alloc if size is zero
  *  @throw std::bad_alloc if can't allocate memory
  **/
-static void* MallocOrThrow(size_t size) {
-    if (size == 0) throw std::bad_alloc();
+SG_COMMON_EXPORT void* MallocOrThrow(size_t size);
 
-    void* result = malloc(size);
-    if (!result) throw std::bad_alloc();
-
-    return result;
-}
-
-static void* ReallocOrFreeAndThrow(void* ptr, size_t size) {
-    void* result;
-    if (size == 0) goto error;
-
-    result = realloc(ptr, size);
-    if (!result) goto error;
-
-    return result;
-
-error:
-    free(ptr);
-    throw std::bad_alloc();
-}
+SG_COMMON_EXPORT void* ReallocOrFreeAndThrow(void* ptr, size_t size);
 
 /** Allocated memory of specific size, runs the specified function, and then clears the memory.
  *

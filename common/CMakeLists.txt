@@ -36,6 +36,7 @@ setup_library(
     ${CMAKE_CURRENT_SOURCE_DIR}
 
   SOURCES_PRIVATE
+    src/memory.cpp
     src/accurate_sleeper.cpp
     src/background_timer.cpp
     src/cpu.cpp
