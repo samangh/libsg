@@ -63,6 +63,9 @@ class IBuffer {
 
     /* Returns the number of elements */
     [[nodiscard]] virtual size_t size() const noexcept = 0;
+    [[nodiscard]] virtual size_t empty() const noexcept {
+        return size() == 0;
+    };
 
     /** Frees the stored pointer.
      *
