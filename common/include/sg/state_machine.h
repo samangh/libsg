@@ -145,34 +145,39 @@ class state_machine {
     std::unique_ptr<sg::notifiable_background_worker> m_worker;
 
     void tick_action(sg::notifiable_background_worker*) {
+        /* cache some values, so that we don't hit the atomics so many times! */
+        auto current_state_ = m_current_state.load(std::memory_order::acquire);
+        auto requested_state_ = m_requested_state.load(std::memory_order::acquire);
+
         /* run entry action if just started */
         if (std::exchange(just_started, false))
         {
             state_change_details det{
-                                     .new_state = m_current_state, .old_state = m_current_state};
-            for (state_change_callback_t& entry_cbs : m_states.at(m_current_state).m_entry_cb)
+                                     .new_state = current_state_, .old_state = current_state_};
+            for (state_change_callback_t& entry_cbs : m_states.at(current_state_).m_entry_cb)
                 entry_cbs.invoke(*this, det);
         }
 
         /* if there is a state change */
-        if (m_current_state != m_requested_state)
+        if (current_state_ != requested_state_)
         {
-            state_change_details det {.new_state=m_requested_state, .old_state=m_current_state};
+            state_change_details det {.new_state=requested_state_, .old_state=current_state_};
 
             /* exit callbacks for old state */
-            for (state_change_callback_t& exit_cbs: m_states.at(m_current_state).m_exit_cb)
+            for (state_change_callback_t& exit_cbs: m_states.at(current_state_).m_exit_cb)
                 exit_cbs.invoke(*this, det);
 
             /* implement state change */
-            m_current_state.store(m_requested_state);
+            m_current_state.store(requested_state_);
+            current_state_ = requested_state_;
 
             /* call entry cbs of new state */
-            for (state_change_callback_t& entry_cbs: m_states.at(m_requested_state).m_entry_cb)
+            for (state_change_callback_t& entry_cbs: m_states.at(requested_state_).m_entry_cb)
                 entry_cbs.invoke(*this, det);
         }
 
-        current_state_details det {.current_state = m_current_state};
-        for (state_tick_callback_t& cbs: m_states.at(m_current_state).m_cbs_ticks)
+        current_state_details det {.current_state = current_state_};
+        for (state_tick_callback_t& cbs: m_states.at(current_state_).m_cbs_ticks)
             cbs.invoke(*this, det);
     }
 
