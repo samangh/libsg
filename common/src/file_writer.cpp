@@ -32,10 +32,11 @@ void sg::file_writer::action(const std::stop_token &stop_tok) {
         size_t count{0};
         try {
             while (!m_old_data.empty()) {
-                auto buff = m_old_data.back();
-                m_old_data.pop_back();
+                auto buff = m_old_data.front();
                 m_file.write((char *)(buff.get()), buff.size());
                 count += buff.size();
+
+                m_old_data.pop_front();
             }
             m_byte_count.fetch_add(count * sizeof(char));
         } catch (const std::exception &ex) {
