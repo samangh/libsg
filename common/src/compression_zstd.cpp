@@ -25,7 +25,12 @@ struct decompression_context_deleter {
 namespace sg::compression::zstd {
 
 size_t compress(const void *src, size_t srcSize, void *dst, size_t dstSize, int cLevel, int noThreads) {
-    thread_local auto comp_context = std::unique_ptr<ZSTD_CCtx, compression_context_deleter>(ZSTD_createCCtx());
+    thread_local auto comp_context = []() {
+        auto ctx = ZSTD_createCCtx();
+        if (ctx == nullptr)
+            throw std::bad_alloc();
+        return std::unique_ptr<ZSTD_CCtx, compression_context_deleter>(ctx);
+    }();
 
     /* Set parameters */
     ZSTD_THROW_ON_ERROR(ZSTD_CCtx_setParameter(comp_context.get(), ZSTD_c_nbWorkers, noThreads));
