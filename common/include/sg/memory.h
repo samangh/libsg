@@ -23,10 +23,14 @@ struct deleter_free {
  *
  * If a class inherits or contains this object as a member, then this
  * can be used to track if that class is in scope. */
-class enable_lifetime_indicator : std::enable_shared_from_this<enable_lifetime_indicator> {
+class enable_lifetime_indicator {
     /* note: This is similar to using std::enable_shared_from_this and
-     * casting to a weak ptr, but in the case the weak_ptr would become
-     * invalid if no other object is holding the shared_ptr */
+     * casting to a weak ptr, but in that case the weak_ptr would become
+     * invalid if no other object is holding the shared_ptr
+     *
+     * also: not virtual destructor is needed, as we won't be deleting any instances of dereved
+     * through a pointer to a base enable_lifetime_indicator
+     */
    public:
     typedef std::nullptr_t item_type;
     [[nodiscard]] std::weak_ptr<item_type> get_lifetime_indicator() const noexcept {
