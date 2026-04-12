@@ -3,9 +3,10 @@
 #include <sg/export/common.h>
 
 #include <functional>
+#include <concepts>
 #include <memory>
 #include <new>
-#include <stdexcept>
+#include <cstdlib>
 
 namespace sg {
 
