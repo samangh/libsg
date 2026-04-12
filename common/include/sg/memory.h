@@ -42,7 +42,7 @@ class enable_lifetime_indicator {
 namespace sg::memory {
 
 /**
- *  @brief Allocates memory using malloc, and throws an expcetion if there are issues.
+ *  @brief Allocates memory using malloc, and throws an exception if there are issues.
  *
  *  @param[in]     size  size of memory to allocate
  *
@@ -58,15 +58,15 @@ SG_COMMON_EXPORT void* ReallocOrFreeAndThrow(void* ptr, size_t size);
 /** Allocated memory of specific size, runs the specified function, and then clears the memory.
  *
  * On allocation error, throws std::bad_alloc and clears the memory. If #func throws an
- * exception, the memory is clear and the exception in re-thrown.
+ * exception, the memory is cleared and the exception is re-thrown.
  *
- * @param[in]       size    amount of memory to allocation
- * @param[in,out]   memory  point to pointer to allocate
- * @param[in]       func    function to run after allocating memory
- * @param[in]       args    arguments to pass the function
+ * @param[in]       sizeBytes  amount of memory to allocate
+ * @param[in,out]   memory     pointer to pointer to allocate
+ * @param[in]       func       function to run after allocating memory
+ * @param[in]       args       arguments to pass the function
  *
  * @throw std::bad_alloc on failure to allocate storage.
- * @throw any exception that the passed function might throw@
+ * @throw any exception that the passed function might throw
  */
 
 template <typename FuncT, typename... ArgsT>
@@ -94,16 +94,16 @@ void MallocAndFree(size_t sizeBytes, void** memory, const FuncT& func, ArgsT&&..
 
 /** Allocated memory of specific size, runs the specified function, and then clears the memory.
  *
- * On allocation error, throws std::bad_alloc aand clears the memory. If #func throws an an
- * exception, the memory is clear and the exception in re-thrown.
+ * On allocation error, throws std::bad_alloc and clears the memory. If #func throws an
+ * exception, the memory is cleared and the exception is re-thrown.
  *
- * @param[in]       size    amount of memory to allocation
- * @param[in,out]   memory  pointer to the pointer to allocate
- * @param[in]       func    function to run after allocating memory
- * @param[in]       args    arguments to pass the function
+ * @param[in]       sizeBytes  amount of memory to allocate
+ * @param[in,out]   memory     pointer to the pointer to allocate
+ * @param[in]       func       function to run after allocating memory
+ * @param[in]       args       arguments to pass the function
  *
  * @throw std::bad_alloc on failure to allocate memory.
- * @throw any exception that the passed function might throw@
+ * @throw any exception that the passed function might throw
  */
 
 template <typename FuncT, typename... ArgsT>
