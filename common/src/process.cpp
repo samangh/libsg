@@ -99,7 +99,7 @@ std::map<pid_t,Process> get_processes() {
     auto buffer = sg::make_unique_c_buffer<std::byte>(bufferSize);
 
     // note: proc_listpids always return buffer size in bytes, not the number of ints!
-    int k = proc_listpids(PROC_ALL_PIDS, 0, processBuffer, bufferSize) / sizeof(int);
+    int k = proc_listpids(PROC_ALL_PIDS, 0, buffer.get(), bufferSize) / sizeof(int);
     int* processBuffer = (int*)buffer.get();
 
     for (int i = 0; i < k; i++) {
