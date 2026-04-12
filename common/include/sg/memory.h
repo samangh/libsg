@@ -84,8 +84,10 @@ void MallocAndFree(size_t sizeBytes, void** memory, const FuncT& func, ArgsT&&..
         free(*memory);
         *memory = nullptr;
     } catch (...) {
-        if (*memory)
+        if (*memory) {
             free(*memory);
+            *memory = nullptr;
+        }
         throw;
     }
 }
@@ -118,8 +120,10 @@ void CallocAndFree(size_t sizeBytes, void** memory, const FuncT& func, ArgsT&&..
         free(*memory);
         *memory = nullptr;
     } catch (...) {
-        if (*memory)
+        if (*memory) {
             free(*memory);
+            *memory = nullptr;
+        }
         throw;
     }
 }
