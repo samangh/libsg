@@ -5,14 +5,16 @@
 #include "net.h"
 #include "tcp_native.h"
 
+#include <thread_pool/thread_safe_queue.h>
+
 #include <boost/asio/awaitable.hpp>
 #include <boost/asio/io_context.hpp>
 #include <boost/asio/ip/tcp.hpp>
-#include <thread_pool/thread_safe_queue.h>
+#include <boost/asio/strand.hpp>
 
-#include <optional>
-#include <future>
 #include <condition_variable>
+#include <future>
+#include <optional>
 
 namespace sg::net {
 
@@ -60,23 +62,23 @@ class SG_COMMON_EXPORT tcp_session {
 
   private:
     boost::asio::ip::tcp::socket m_socket;
-    boost::asio::steady_timer m_timer;
+    boost::asio::strand<boost::asio::any_io_executor> m_write_strand;
 
     on_data_available_cb_t m_on_data_cb;
     on_disconnected_cb_t  m_on_disconnected_cb;
 
-    dp::thread_safe_queue<sg::shared_c_buffer<std::byte>> m_write_msgs{};
+    std::mutex m_write_mutex;
+    bool m_write_scheduled {false};
+    std::vector<shared_c_buffer<std::byte>> m_write_msgs{};
 
-    std::atomic<bool> m_disconnected_cb_called {false};
     std::atomic<bool> m_stop_requested{false};
     std::atomic<bool> m_stopped {true};
+    std::atomic<bool> m_reader_running {false};
 
-    std::atomic<bool> m_reader_running;
-    std::atomic<bool> m_writer_running;
     options_t m_options;
 
     std::mutex m_exception_mutex;
-    std::exception_ptr m_exception;
+    std::exception_ptr m_exception{};
 
     void close();
 

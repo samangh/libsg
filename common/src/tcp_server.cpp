@@ -4,7 +4,9 @@
 #include <boost/asio/co_spawn.hpp>
 #include <boost/asio/detached.hpp>
 #include <boost/asio/redirect_error.hpp>
+
 #include <atomic>
+#include <cassert>
 
 namespace sg::net {
 
@@ -156,11 +158,9 @@ tcp_server::listener(std::shared_ptr<boost::asio::ip::tcp::acceptor> acceptor) {
                     m_callbacks.OnSessionCreated.invoke(*this, id);
             };
 
-            auto sess = std::make_shared<tcp_session>(
-                co_await acceptor.get()->async_accept(boost::asio::use_awaitable),
-                onData,
-                onSessionDisconnected,
-                m_options.session_options);
+            auto socket_ = co_await acceptor.get()->async_accept(boost::asio::use_awaitable);
+            auto sess    = std::make_shared<tcp_session>(
+                std::move(socket_), onData, onSessionDisconnected, m_options.session_options);
 
             /* check that the m_async did not return because stop_async was called */
             if (!m_stop_in_operation.load(std::memory_order::acquire)) {
@@ -169,6 +169,7 @@ tcp_server::listener(std::shared_ptr<boost::asio::ip::tcp::acceptor> acceptor) {
                     m_sessions.emplace(id, sess);
                 }
 
+                // note: start(...) does not throw
                 sess->start(onConn);
             }
         }
@@ -176,10 +177,13 @@ tcp_server::listener(std::shared_ptr<boost::asio::ip::tcp::acceptor> acceptor) {
         //TODO: how to handle exceptions?
 
         // this is the error that you get when the socket is closed
-        // err.code() == boost::asio::error::operation_aborted)
-    } catch (...) {}
+        if (err.code() != boost::asio::error::operation_aborted)
+            assert(false);
+    } catch (...) {
+        assert(false);
+    }
 
-    if (--m_acceptors_running_count==0) {
+    if (--m_acceptors_running_count == 0) {
         m_acceptors_stopped.store(true);
         m_acceptors_stopped.notify_all();
     }
