@@ -192,38 +192,43 @@ boost::asio::awaitable<void> tcp_session::reader() {
 boost::asio::awaitable<void> tcp_session::writer() {
     using namespace boost::asio::experimental::awaitable_operators;
 
-    /* swap data */
-    std::vector<shared_c_buffer<std::byte>> buff{};
-    {
-        std::lock_guard lock(m_write_mutex);
-        buff.swap(m_write_msgs);
-        m_write_scheduled = false;
-    }
+    for (;;) {
+        std::vector<shared_c_buffer<std::byte>> buff{};
+        {
+            std::lock_guard lock(m_write_mutex);
+            buff.swap(m_write_msgs);
+            if (buff.empty()) {
+                m_write_scheduled = false;
+                co_return;
+            }
+        }
 
-    try {
-        /* create ASIO buffers */
-        std::vector<boost::asio::const_buffer> asioBuffers;
-        for (const auto& buffer : buff) asioBuffers.emplace_back(buffer.get(), buffer.size());
+        try {
+            /* create ASIO buffers */
+            std::vector<boost::asio::const_buffer> asioBuffers;
+            for (const auto& buffer : buff) asioBuffers.emplace_back(buffer.get(), buffer.size());
 
             // even though we set the socket time-out using SO_SNDTIMEO, it is not enforced for
             // select()/poll()/epoll_wait(), which might be used by asio internally
             auto deadline = std::chrono::steady_clock::now() +
                             std::chrono::milliseconds(m_options.timeout_msec);
 
-        const auto result =
-            co_await (boost::asio::async_write(m_socket, asioBuffers, boost::asio::use_awaitable) ||
-                      async_timeout(deadline));
+            const auto result =
+                co_await (boost::asio::async_write(m_socket, asioBuffers, boost::asio::use_awaitable) ||
+                          async_timeout(deadline));
 
             if (result.index() == 1)
                 SG_THROW(exceptions::net<exceptions::errors::net::time_out>, "operation timeout");
 
-    } catch (...) {
-        {
-            std::lock_guard lock(m_exception_mutex);
-            if (!m_exception)
-                m_exception = std::current_exception();
+        } catch (...) {
+            {
+                std::lock_guard lock(m_exception_mutex);
+                if (!m_exception)
+                    m_exception = std::current_exception();
+            }
+            close();
+            co_return;
         }
-        close();
     }
 }
 
