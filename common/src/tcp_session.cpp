@@ -134,6 +134,12 @@ void tcp_session::close() {
         if (m_reader_running.load(std::memory_order::acquire))
             return;
 
+        // The m_reader_running guard above only prevents double-fire when the reader is still
+        // running. But if stop_async() and  reader() error concurrently, both can dispatch into
+        // the strand, and both can reach here
+        if (m_disconnected_cb_called.exchange(true))
+            return;
+
         std::exception_ptr exPtr;
         {
             std::lock_guard lock(m_exception_mutex);

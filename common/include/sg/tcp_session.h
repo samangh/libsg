@@ -71,6 +71,7 @@ class SG_COMMON_EXPORT tcp_session {
     bool m_write_scheduled {false};
     std::vector<shared_c_buffer<std::byte>> m_write_msgs{};
 
+    std::atomic<bool> m_disconnected_cb_called {false};
     std::atomic<bool> m_stop_requested{false};
     std::atomic<bool> m_stopped {true};
     std::atomic<bool> m_reader_running {false};
