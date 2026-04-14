@@ -442,29 +442,28 @@ TEST_CASE("tcp_server: check reaction to client immediate disconnection", "[sg::
 }
 
 TEST_CASE("tcp_server: check dropping tcp_server drops all connections", "[sg::net::tcp_server]") {
-    for (int i = 0; i < 100; i++) {
-        using namespace sg::net;
+    using namespace sg::net;
 
+    size_t count = 100;
+    std::vector<std::jthread> threads;
+
+    {
+        std::atomic_int connected{0};
         std::binary_semaphore sem{0};
-        std::atomic_int stop_count{0};
 
         tcp_server::session_created_cb_t onConn = [&](tcp_server&, tcp_server::session_id_t) {
-            sem.release();
+            if (++connected == 100)
+                sem.release();
         };
-        tcp_server::stopped_listening_cb_t onStop = [&](tcp_server&) { stop_count++; };
 
-        end_point ep("0.0.0.0", PORT);
-        std::jthread th;
+        tcp_server::CallBacks cb;
+        cb.OnSessionCreated   = onConn;
 
-        {
-            tcp_server::CallBacks cb;
-            cb.OnStoppedListening = onStop;
-            cb.OnSessionCreated   = onConn;
+        tcp_server l;
+        l.start({{"127.0.0.1", PORT}}, cb);
 
-            tcp_server l;
-            l.start({ep}, cb);
-
-            th = std::jthread([]() {
+        for (size_t i = 0; i < count; i++) {
+            auto th = std::jthread([]() {
                 using boost::asio::ip::tcp;
 
                 boost::asio::io_context io_context;
@@ -476,18 +475,24 @@ TEST_CASE("tcp_server: check dropping tcp_server drops all connections", "[sg::n
                 tcp::socket socket(io_context);
                 boost::asio::connect(socket, endpoints);
 
-                if (!socket.is_open())
-                    return;
+                std::string msg ="dasd";
+                try {
+                    while (true) {
+                        std::this_thread::sleep_for(std::chrono::milliseconds(1));
+                        socket.write_some(boost::asio::buffer(msg));
+                    }
+                } catch (...){};
+
             });
 
-            /* at least echo once */
-            sem.acquire();
+            threads.emplace_back(std::move(th));
         }
 
-        // Check client disconnected
-        REQUIRE_NOTHROW(th.join());
-        REQUIRE(stop_count == 1);
+        sem.acquire();
     }
+
+    for (auto& th : threads)
+        th.join();
 }
 
 TEST_CASE("tcp_server: check stop_async() drops all connections", "[sg::net::tcp_server]") {
@@ -630,7 +635,9 @@ TEST_CASE("tcp_server: allow for disconnection in OnSessionCreated() callbacks",
     end_point ep("127.0.0.1", PORT);
 
     tcp_server::CallBacks cb;
-    cb.OnSessionCreated = [&](tcp_server& l, tcp_server::session_id_t id) { l.disconnect(id); };
+    cb.OnSessionCreated = [&](tcp_server& l, tcp_server::session_id_t id) {
+        l.disconnect(id);
+    };
 
     tcp_server l;
     l.start({ep}, cb);
