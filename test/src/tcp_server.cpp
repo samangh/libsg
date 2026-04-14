@@ -133,18 +133,14 @@ TEST_CASE("tcp_server: check read/write with many simultaneous clients", "[sg::n
         tcp::socket socket(io_context);
         boost::asio::connect(socket, endpoints);
 
-        boost::system::error_code error;
         auto buf_write = sg::random::generate<char>(20);
-        std::vector<char> buf_read(20);
+        boost::asio::write(socket, boost::asio::buffer(buf_write));
 
-        socket.write_some(boost::asio::buffer(buf_write), error);
-        socket.read_some(boost::asio::buffer(buf_read), error);
+        std::vector<char> buf_read(20);
+        boost::asio::read(socket, boost::asio::buffer(buf_read));
 
         if (buf_write != buf_read)
             throw std::runtime_error("error");
-
-        if (error)
-            throw boost::system::system_error(error);
 
         socket.shutdown(tcp::socket::shutdown_type::shutdown_both);
         socket.close();
