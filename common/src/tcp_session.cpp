@@ -10,6 +10,13 @@
 
 namespace sg::net {
 
+std::shared_ptr<tcp_session> tcp_session::create(boost::asio::ip::tcp::socket socket,
+                                                  on_data_available_cb_t onReadCb,
+                                                  on_disconnected_cb_t onErrorCb, options_t options) {
+    return std::shared_ptr<tcp_session>(
+        new tcp_session(std::move(socket), std::move(onReadCb), std::move(onErrorCb), options));
+}
+
 tcp_session::tcp_session(boost::asio::ip::tcp::socket socket, on_data_available_cb_t onReadCb,
                          on_disconnected_cb_t onErrorCb, options_t options)
     : m_socket(std::move(socket)),
@@ -19,11 +26,7 @@ tcp_session::tcp_session(boost::asio::ip::tcp::socket socket, on_data_available_
       m_options(options) {
 }
 
-tcp_session::~tcp_session() {
-    // this causes the right call-backs to be called, if they haven't already
-    stop_async();
-    wait_until_stopped();
-}
+tcp_session::~tcp_session() = default;
 
 void tcp_session::start(on_connected_cb_t onConn) {
     m_stopped.store(false);
@@ -37,7 +40,7 @@ void tcp_session::start(on_connected_cb_t onConn) {
 
         m_reader_running.store(true, std::memory_order::release);
         co_spawn(
-            m_socket.get_executor(), [self = this] { return self->reader(); },
+            m_socket.get_executor(), [self = shared_from_this()] { return self->reader(); },
             boost::asio::detached);
     } catch (...) {
         {
@@ -63,8 +66,8 @@ void tcp_session::write(sg::shared_c_buffer<std::byte> msg) {
     }
 
     if (needtoScheduleWrite) {
-        co_spawn(m_write_strand, [this] {
-            return writer();
+        co_spawn(m_write_strand, [self = shared_from_this()] {
+            return self->writer();
         }, boost::asio::detached);
     }
 }
@@ -119,38 +122,38 @@ end_point tcp_session::remote_endpoint() {
 }
 
 void tcp_session::close() {
-    boost::asio::dispatch(m_write_strand, [this] {
+    boost::asio::dispatch(m_write_strand, [self = shared_from_this()] {
         /* graceful disconnection  */
         try {
-            if (m_socket.is_open())
-                m_socket.shutdown(m_socket.shutdown_both);
+            if (self->m_socket.is_open())
+                self->m_socket.shutdown(self->m_socket.shutdown_both);
         } catch (...) {}
 
         /*  you still need to close the socket, even if the connection is down */
         try {
-            m_socket.close();
+            self->m_socket.close();
         } catch (...) {}
 
-        if (m_reader_running.load(std::memory_order::acquire))
+        if (self->m_reader_running.load(std::memory_order::acquire))
             return;
 
         // The m_reader_running guard above only prevents double-fire when the reader is still
         // running. But if stop_async() and  reader() error concurrently, both can dispatch into
         // the strand, and both can reach here
-        if (m_disconnected_cb_called.exchange(true))
+        if (self->m_disconnected_cb_called.exchange(true))
             return;
 
         std::exception_ptr exPtr;
         {
-            std::lock_guard lock(m_exception_mutex);
-            exPtr = m_exception;
+            std::lock_guard lock(self->m_exception_mutex);
+            exPtr = self->m_exception;
         }
 
-        if (m_on_disconnected_cb)
-            m_on_disconnected_cb.invoke(*this, exPtr);
+        if (self->m_on_disconnected_cb)
+            self->m_on_disconnected_cb.invoke(*self, exPtr);
 
-        m_stopped.store(true, std::memory_order::release);
-        m_stopped.notify_all(); // needed for atomic wait()
+        self->m_stopped.store(true, std::memory_order::release);
+        self->m_stopped.notify_all(); // needed for atomic wait()
     });
 }
 
@@ -173,7 +176,7 @@ boost::asio::awaitable<void> tcp_session::reader() {
                 m_on_data_cb.invoke(*this, data.get(), n);
         }
 
-        co_spawn(m_socket.get_executor(), [this] { return reader(); }, boost::asio::detached);
+        co_spawn(m_socket.get_executor(), [self = shared_from_this()] { return self->reader(); }, boost::asio::detached);
     } catch (...) {
         /* if clean closing, do not throw error */
         if (!m_stop_requested.load(std::memory_order::acquire))

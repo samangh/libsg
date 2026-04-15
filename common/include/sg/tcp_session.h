@@ -14,11 +14,12 @@
 
 #include <condition_variable>
 #include <future>
+#include <memory>
 #include <optional>
 
 namespace sg::net {
 
-class SG_COMMON_EXPORT tcp_session {
+class SG_COMMON_EXPORT tcp_session : public std::enable_shared_from_this<tcp_session> {
   public:
     struct options_t {
         // needed to get around clang bug https://github.com/llvm/llvm-project/issues/36032
@@ -39,9 +40,10 @@ class SG_COMMON_EXPORT tcp_session {
     CREATE_CALLBACK(on_connected_cb_t, void, tcp_session&)
     CREATE_CALLBACK(on_disconnected_cb_t, void, tcp_session&, std::exception_ptr)
 
-    tcp_session(boost::asio::ip::tcp::socket socket, on_data_available_cb_t onReadCb,
-                on_disconnected_cb_t onErrorCb, options_t options);
-    virtual ~tcp_session();
+    static std::shared_ptr<tcp_session> create(boost::asio::ip::tcp::socket socket,
+                                               on_data_available_cb_t onReadCb,
+                                               on_disconnected_cb_t onErrorCb, options_t options);
+    ~tcp_session();
 
     void start(on_connected_cb_t);
     void stop_async();
@@ -61,6 +63,9 @@ class SG_COMMON_EXPORT tcp_session {
     native::socket_t native_handle();
 
   private:
+    tcp_session(boost::asio::ip::tcp::socket socket, on_data_available_cb_t onReadCb,
+                on_disconnected_cb_t onErrorCb, options_t options);
+
     boost::asio::ip::tcp::socket m_socket;
     boost::asio::strand<boost::asio::any_io_executor> m_write_strand;
 

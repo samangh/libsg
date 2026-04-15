@@ -159,7 +159,7 @@ tcp_server::listener(std::shared_ptr<boost::asio::ip::tcp::acceptor> acceptor) {
             };
 
             auto socket_ = co_await acceptor.get()->async_accept(boost::asio::use_awaitable);
-            auto sess    = std::make_shared<tcp_session>(
+            auto sess = tcp_session::create(
                 std::move(socket_), onData, onSessionDisconnected, m_options.session_options);
 
             /* check that the m_async did not return because stop_async was called */

@@ -24,7 +24,7 @@ class SG_COMMON_EXPORT tcp_client {
   private:
     // define m_session after m_context, so that m_session is destructed first
     std::shared_ptr<asio_io_pool> m_context;
-    std::unique_ptr<tcp_session> m_session;
+    std::shared_ptr<tcp_session> m_session;
 
     boost::asio::awaitable<void> async_timeout(std::chrono::steady_clock::time_point& deadline) const;
 };
