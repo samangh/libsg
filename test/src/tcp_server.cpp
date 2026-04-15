@@ -736,6 +736,24 @@ TEST_CASE("tcp_server: proxy simulation", "[sg::net::tcp_server]") {
         std::ignore = client.read_until("\n");
         std::ignore = client2.read_until("\n");
     }
+}
 
+TEST_CASE("tcp_server: check that disconnect callback is called if connect callback throws", "[sg::net::tcp_server]") {
+    tcp_server::CallBacks cbs;
+    std::binary_semaphore discCalled{0};
 
+    cbs.OnSessionCreated = [](tcp_server&, tcp_server::session_id_t) {
+        throw std::runtime_error("test");
+    };
+    cbs.OnDisconnected = [&](tcp_server&, tcp_server::session_id_t, std::exception_ptr) {
+        discCalled.release();
+    };
+
+    tcp_server l;
+    l.start({{"127.0.0.1", PORT}}, cbs);
+
+    tcp_client client;
+    client.connect({"127.0.0.1", PORT}, nullptr, nullptr);
+
+    discCalled.acquire();
 }

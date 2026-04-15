@@ -169,15 +169,18 @@ tcp_server::listener(std::shared_ptr<boost::asio::ip::tcp::acceptor> acceptor) {
                     m_sessions.emplace(id, sess);
                 }
 
+                // will not throw
                 sess->start(onConn);
             }
         }
-    } catch (const boost::system::system_error& err) {
-        //TODO: how to handle exceptions?
+    } catch (...) {
+        // note: if you catch (const boost::system::system_error& err), then this is the error that
+        // you get when the socket is closed err.code() == boost::asio::error::operation_aborted
 
-        // this is the error that you get when the socket is closed
-        // err.code() == boost::asio::error::operation_aborted)
-    } catch (...) {}
+        // capture error?
+        //TODO: save and pass exception as exception_ptr to stopped callback
+        stop_async();
+    }
 
     if (--m_acceptors_running_count==0) {
         m_acceptors_stopped.store(true);

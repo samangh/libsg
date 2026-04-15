@@ -27,31 +27,33 @@ tcp_session::~tcp_session() {
 }
 
 void tcp_session::start(on_connected_cb_t onConn) {
-    {
-        std::lock_guard lock(m_exception_mutex);
-        m_exception ={};
+    try {
+        m_stopped.store(false);
+
+        if (onConn)
+            onConn.invoke(*this);
+
+        // note: below can throw if the client has disconnected
+        set_keepalive(m_options.keepalive);
+        set_timeout(m_options.timeout_msec);
+
+        m_reader_running.store(true);
+        co_spawn(m_socket.get_executor(), [this] { return reader(); }, boost::asio::detached);
+
+        m_writer_running.store(true);
+        co_spawn(m_socket.get_executor(), [this] { return writer(); }, boost::asio::detached);
+    } catch (...) {
+        /* if clean closing, do not throw error */
+        if (!m_stop_requested.load(std::memory_order::acquire))
+        {
+            std::lock_guard lock(m_exception_mutex);
+            if (!m_exception)
+                m_exception = std::current_exception();
+        }
+
+        stop_async();
+        close();
     }
-
-    m_reader_running.store(true);
-    m_writer_running.store(true);
-    m_stopped.store(false);
-
-    if (onConn)
-        onConn.invoke(*this);
-
-    set_keepalive(m_options.keepalive);
-    set_timeout(m_options.timeout_msec);
-
-    co_spawn(
-        m_socket.get_executor(),
-        [self = this] { return self->reader(); },
-        boost::asio::detached);
-    co_spawn(
-        m_socket.get_executor(),
-        [self = this] { return self->writer(); },
-        boost::asio::detached);
-
-
 }
 
 void tcp_session::write(sg::shared_c_buffer<std::byte> msg) {

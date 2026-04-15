@@ -71,8 +71,9 @@ class SG_COMMON_EXPORT tcp_session {
     std::atomic<bool> m_stop_requested{false};
     std::atomic<bool> m_stopped {true};
 
-    std::atomic<bool> m_reader_running;
-    std::atomic<bool> m_writer_running;
+    // the _running vars need initialisation, as close() might be called in start()
+    std::atomic<bool> m_reader_running{false};
+    std::atomic<bool> m_writer_running{false};
     options_t m_options;
 
     std::mutex m_exception_mutex;
