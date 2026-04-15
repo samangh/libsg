@@ -16,7 +16,6 @@
 #include <boost/asio/ip/tcp.hpp>
 
 #include <map>
-#include <optional>
 
 namespace sg::net {
 
