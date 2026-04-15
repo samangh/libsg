@@ -62,7 +62,7 @@ void tcp_session::write(sg::shared_c_buffer<std::byte> msg) {
                  "attempt to write to tcp_session after a disconnection was requested");
 
     m_write_msgs.push_back(std::move(msg));
-    boost::asio::post(m_socket.get_executor(), [this] { m_timer.cancel_one(); });
+    boost::asio::dispatch(m_socket.get_executor(), [this] { m_timer.cancel_one(); });
 }
 
 void tcp_session::write(std::string_view msg) {
@@ -104,14 +104,16 @@ bool tcp_session::is_connected() const {
     return !m_stopped.load(std::memory_order::acquire);
 }
 
-end_point tcp_session::local_endpoint() {
+end_point tcp_session::local_endpoint() const noexcept(false) {
+    // may throw on closed socket
     auto asioEp = m_socket.local_endpoint();
-    return sg::net::end_point(asioEp.address().to_string(), asioEp.port());
+    return end_point(asioEp.address().to_string(), asioEp.port());
 }
 
-end_point tcp_session::remote_endpoint() {
+end_point tcp_session::remote_endpoint() const noexcept(false) {
+    // may throw on closed socket
     auto asioEp = m_socket.remote_endpoint();
-    return sg::net::end_point(asioEp.address().to_string(), asioEp.port());
+    return end_point(asioEp.address().to_string(), asioEp.port());
 }
 
 void tcp_session::close() {

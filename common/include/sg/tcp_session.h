@@ -44,10 +44,10 @@ class SG_COMMON_EXPORT tcp_session {
     void start(on_connected_cb_t);
     void stop_async();
     void wait_until_stopped() const;
-    bool is_connected() const;
+    [[nodiscard]] bool is_connected() const;
 
-    end_point local_endpoint();
-    end_point remote_endpoint();
+    [[nodiscard]] end_point local_endpoint() const noexcept(false);
+    [[nodiscard]] end_point remote_endpoint() const noexcept(false);
 
     void write(sg::shared_c_buffer<std::byte> msg);
     void write(std::string_view msg);
