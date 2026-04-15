@@ -80,7 +80,7 @@ void tcp_session::write(const void* data, size_t size) {
 }
 
 void tcp_session::set_keepalive(keepalive_t keepAliveParameters) {
-        sg::net::native::set_keepalive(m_socket.native_handle(), keepAliveParameters);
+    sg::net::native::set_keepalive(m_socket.native_handle(), keepAliveParameters);
 }
 
 void tcp_session::set_timeout(unsigned timeoutMSec) {
@@ -141,10 +141,10 @@ void tcp_session::close() {
         /* don't go past unless both reader and writer have stopped */
         if (m_reader_running || m_writer_running)
             return;
-    }
 
-    if (m_disconnected_cb_called.exchange(true))
-        return;
+        if (m_disconnected_cb_called.exchange(true))
+            return;
+    }
 
     std::exception_ptr exPtr;
     {
@@ -250,7 +250,7 @@ boost::asio::awaitable<void> tcp_session::writer() {
 }
 
 boost::asio::awaitable<void>
-tcp_session::async_timeout(std::chrono::steady_clock::time_point& deadline)  {
+tcp_session::async_timeout(const std::chrono::steady_clock::time_point& deadline)  {
     boost::asio::steady_timer timer(m_socket.get_executor());
     auto now = std::chrono::steady_clock::now();
     while (deadline > now) {
