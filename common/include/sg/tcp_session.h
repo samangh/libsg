@@ -79,6 +79,8 @@ class SG_COMMON_EXPORT tcp_session {
     std::mutex m_exception_mutex;
     std::exception_ptr m_exception;
 
+    std::mutex m_sock_op_mutex;
+
     void close();
 
     boost::asio::awaitable<void> reader();

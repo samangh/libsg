@@ -115,23 +115,29 @@ end_point tcp_session::remote_endpoint() {
 }
 
 void tcp_session::close() {
-    /* graceful disconnection  */
-    try {
-        if (m_socket.is_open())
-            m_socket.shutdown(m_socket.shutdown_both);
-    } catch(...) {}
+    {
+        // .close/.shutdown sock operations are not thread safe
+        std::lock_guard lock(m_sock_op_mutex);
 
-    /*  you still need to close the socket, even if the connection is down */
-    try {
-        m_socket.close();
-    } catch (...) {}
+        /* graceful disconnection  */
+        try {
+            if (m_socket.is_open())
+                m_socket.shutdown(m_socket.shutdown_both);
+        } catch(...) {}
 
-    /* un-lock the writer thread, in case it's sleeping */
-    m_timer.cancel();
+        /*  you still need to close the socket, even if the connection is down */
+        try {
+            m_socket.close();
+        } catch (...) {}
 
-    /* don't go past unless both reader and writer have stopped */
-    if (m_reader_running || m_writer_running)
-        return;
+
+        /* un-lock the writer thread, in case it's sleeping */
+        m_timer.cancel();
+
+        /* don't go past unless both reader and writer have stopped */
+        if (m_reader_running || m_writer_running)
+            return;
+    }
 
     if (m_disconnected_cb_called.exchange(true))
         return;
