@@ -62,7 +62,7 @@ void tcp_session::write(sg::shared_c_buffer<std::byte> msg) {
                  "attempt to write to tcp_session after a disconnection was requested");
 
     m_write_msgs.push_back(std::move(msg));
-    m_timer.cancel_one();
+    boost::asio::post(m_socket.get_executor(), [this] { m_timer.cancel_one(); });
 }
 
 void tcp_session::write(std::string_view msg) {
@@ -92,7 +92,7 @@ void tcp_session::stop_async() {
         return;
 
     m_stop_requested.store(true, std::memory_order::release);
-    m_timer.cancel();
+    boost::asio::dispatch(m_socket.get_executor(), [this] { m_timer.cancel_one(); });
 }
 
 void tcp_session::wait_until_stopped() const {
@@ -130,9 +130,8 @@ void tcp_session::close() {
             m_socket.close();
         } catch (...) {}
 
-
-        /* un-lock the writer thread, in case it's sleeping */
-        m_timer.cancel();
+        /* unlock the writer thread, in case it's sleeping */
+        boost::asio::dispatch(m_socket.get_executor(), [this] { m_timer.cancel(); });
 
         /* don't go past unless both reader and writer have stopped */
         if (m_reader_running || m_writer_running)
