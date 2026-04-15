@@ -8,11 +8,6 @@
 #include <boost/asio/awaitable.hpp>
 #include <boost/asio/io_context.hpp>
 #include <boost/asio/ip/tcp.hpp>
-#include <thread_pool/thread_safe_queue.h>
-
-#include <optional>
-#include <future>
-#include <condition_variable>
 
 namespace sg::net {
 
@@ -65,7 +60,8 @@ class SG_COMMON_EXPORT tcp_session {
     on_data_available_cb_t m_on_data_cb;
     on_disconnected_cb_t  m_on_disconnected_cb;
 
-    dp::thread_safe_queue<sg::shared_c_buffer<std::byte>> m_write_msgs{};
+    std::mutex m_write_mutex;
+    std::vector<sg::shared_c_buffer<std::byte>> m_write_msgs{};
 
     std::atomic<bool> m_disconnected_cb_called {false};
     std::atomic<bool> m_stop_requested{false};

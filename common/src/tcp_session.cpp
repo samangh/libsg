@@ -61,7 +61,10 @@ void tcp_session::write(sg::shared_c_buffer<std::byte> msg) {
         SG_THROW(std::runtime_error,
                  "attempt to write to tcp_session after a disconnection was requested");
 
-    m_write_msgs.push_back(std::move(msg));
+    {
+        std::lock_guard lock(m_write_mutex);
+        m_write_msgs.push_back(std::move(msg));
+    }
     boost::asio::dispatch(m_socket.get_executor(), [this] { m_timer.cancel_one(); });
 }
 
@@ -206,15 +209,25 @@ boost::asio::awaitable<void> tcp_session::writer() {
             } else {
                 using namespace boost::asio::experimental::awaitable_operators;
 
+                std::vector<sg::shared_c_buffer<std::byte>> buffers;
+                {
+                    std::lock_guard lock(m_write_mutex);
+                    m_write_msgs.swap(buffers);
+                }
+
+                std::vector<boost::asio::const_buffer> buffersAsio;
+                buffersAsio.reserve(buffers.size());
+                for (auto& buff : buffers)
+                    buffersAsio.emplace_back(buff.get(), buff.size());
+
                 // even though we set the socket time-out using SO_SNDTIMEO, it is not enforced for
                 // select()/poll()/epoll_wait(), which might be used by asio internally
                 auto deadline = std::chrono::steady_clock::now() +
                                 std::chrono::milliseconds(m_options.timeout_msec);
 
-                auto front = m_write_msgs.pop_front().value();
-                auto result = co_await (boost::asio::async_write(m_socket,
-                                                  boost::asio::buffer(front.get(), front.size()),
-                                                  boost::asio::use_awaitable) || async_timeout(deadline));
+                auto result = co_await (
+                    boost::asio::async_write(m_socket, buffersAsio, boost::asio::use_awaitable) ||
+                    async_timeout(deadline));
 
                 if (result.index()==1)
                     SG_THROW(exceptions::net<exceptions::errors::net::time_out>, "operation timeout");
