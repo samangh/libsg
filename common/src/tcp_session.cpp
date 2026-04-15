@@ -3,7 +3,6 @@
 #include "sg/debug.h"
 
 #include <boost/asio/detached.hpp>
-#include <boost/asio/redirect_error.hpp>
 #include <boost/asio/write.hpp>
 #include <boost/asio/co_spawn.hpp>
 #include <boost/asio/experimental/awaitable_operators.hpp>
@@ -13,11 +12,9 @@ namespace sg::net {
 tcp_session::tcp_session(boost::asio::ip::tcp::socket socket, on_data_available_cb_t onReadCb,
                          on_disconnected_cb_t onErrorCb, options_t options)
     : m_socket(std::move(socket)),
-      m_timer(m_socket.get_executor()),
       m_on_data_cb(std::move(onReadCb)),
       m_on_disconnected_cb(std::move(onErrorCb)),
       m_options(options) {
-    m_timer.expires_after(std::chrono::seconds(1));
 }
 
 tcp_session::~tcp_session() {
@@ -39,9 +36,6 @@ void tcp_session::start(on_connected_cb_t onConn) {
 
         m_reader_running.store(true);
         co_spawn(m_socket.get_executor(), [this] { return reader(); }, boost::asio::detached);
-
-        m_writer_running.store(true);
-        co_spawn(m_socket.get_executor(), [this] { return writer(); }, boost::asio::detached);
     } catch (...) {
         /* if clean closing, do not throw error */
         if (!m_stop_requested.load(std::memory_order::acquire))
@@ -61,11 +55,15 @@ void tcp_session::write(sg::shared_c_buffer<std::byte> msg) {
         SG_THROW(std::runtime_error,
                  "attempt to write to tcp_session after a disconnection was requested");
 
+    bool need_spawn = false;
     {
         std::lock_guard lock(m_write_mutex);
         m_write_msgs.push_back(std::move(msg));
+        need_spawn = !std::exchange(m_write_scheduled, true);
     }
-    boost::asio::dispatch(m_socket.get_executor(), [this] { m_timer.cancel_one(); });
+
+    if (need_spawn)
+        co_spawn(m_socket.get_executor(), [this] { return writer(); }, boost::asio::detached);
 }
 
 void tcp_session::write(std::string_view msg) {
@@ -95,7 +93,20 @@ void tcp_session::stop_async() {
         return;
 
     m_stop_requested.store(true, std::memory_order::release);
-    boost::asio::dispatch(m_socket.get_executor(), [this] { m_timer.cancel_one(); });
+
+    // spawn a writer to drain remaining messages then close,
+    // or close immediately if nothing is pending
+    bool need_spawn = false;
+    {
+        std::lock_guard lock(m_write_mutex);
+        if (!m_write_msgs.empty())
+            need_spawn = !std::exchange(m_write_scheduled, true);
+    }
+
+    if (need_spawn)
+        co_spawn(m_socket.get_executor(), [this] { return writer(); }, boost::asio::detached);
+    else
+        close();
 }
 
 void tcp_session::wait_until_stopped() const {
@@ -135,11 +146,8 @@ void tcp_session::close() {
             m_socket.close();
         } catch (...) {}
 
-        /* unlock the writer thread, in case it's sleeping */
-        boost::asio::dispatch(m_socket.get_executor(), [this] { m_timer.cancel(); });
-
-        /* don't go past unless both reader and writer have stopped */
-        if (m_reader_running || m_writer_running)
+        /* don't go past unless the reader has stopped */
+        if (m_reader_running)
             return;
 
         if (m_disconnected_cb_called.exchange(true))
@@ -196,44 +204,40 @@ boost::asio::awaitable<void> tcp_session::reader() {
 }
 
 boost::asio::awaitable<void> tcp_session::writer() {
+    using namespace boost::asio::experimental::awaitable_operators;
+
     try {
-        while (m_socket.is_open()) {
-            /* if shutdown is requested, wait until all message is written */
-            if (m_stop_requested.load(std::memory_order::acquire) && m_write_msgs.empty())
-                break;
+        for (;;) {
+            std::vector<sg::shared_c_buffer<std::byte>> buffers;
+            {
+                std::lock_guard lock(m_write_mutex);
+                buffers.swap(m_write_msgs);
+                if (buffers.empty()) {
+                    m_write_scheduled = false;
 
-            if (m_write_msgs.empty()) {
-                boost::system::error_code ec;
-                co_await m_timer.async_wait(
-                    boost::asio::redirect_error(boost::asio::use_awaitable, ec));
-            } else {
-                using namespace boost::asio::experimental::awaitable_operators;
+                    if (m_stop_requested.load(std::memory_order::acquire))
+                        close();
 
-                std::vector<sg::shared_c_buffer<std::byte>> buffers;
-                {
-                    std::lock_guard lock(m_write_mutex);
-                    m_write_msgs.swap(buffers);
+                    co_return;
                 }
-
-                std::vector<boost::asio::const_buffer> buffersAsio;
-                buffersAsio.reserve(buffers.size());
-                for (auto& buff : buffers)
-                    buffersAsio.emplace_back(buff.get(), buff.size());
-
-                // even though we set the socket time-out using SO_SNDTIMEO, it is not enforced for
-                // select()/poll()/epoll_wait(), which might be used by asio internally
-                auto deadline = std::chrono::steady_clock::now() +
-                                std::chrono::milliseconds(m_options.timeout_msec);
-
-                auto result = co_await (
-                    boost::asio::async_write(m_socket, buffersAsio, boost::asio::use_awaitable) ||
-                    async_timeout(deadline));
-
-                if (result.index()==1)
-                    SG_THROW(exceptions::net<exceptions::errors::net::time_out>, "operation timeout");
             }
 
-            m_timer.expires_after(std::chrono::seconds(1));
+            std::vector<boost::asio::const_buffer> buffersAsio;
+            buffersAsio.reserve(buffers.size());
+            for (auto& buff : buffers)
+                buffersAsio.emplace_back(buff.get(), buff.size());
+
+            // even though we set the socket time-out using SO_SNDTIMEO, it is not enforced for
+            // select()/poll()/epoll_wait(), which might be used by asio internally
+            auto deadline = std::chrono::steady_clock::now() +
+                            std::chrono::milliseconds(m_options.timeout_msec);
+
+            auto result = co_await (
+                boost::asio::async_write(m_socket, buffersAsio, boost::asio::use_awaitable) ||
+                async_timeout(deadline));
+
+            if (result.index() == 1)
+                SG_THROW(exceptions::net<exceptions::errors::net::time_out>, "operation timeout");
         }
     } catch (...) {
         {
@@ -243,7 +247,6 @@ boost::asio::awaitable<void> tcp_session::writer() {
         }
     }
 
-    m_writer_running.store(false);
     close();
 
     co_return;

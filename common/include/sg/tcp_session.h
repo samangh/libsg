@@ -55,21 +55,20 @@ class SG_COMMON_EXPORT tcp_session {
 
   private:
     boost::asio::ip::tcp::socket m_socket;
-    boost::asio::steady_timer m_timer;
 
     on_data_available_cb_t m_on_data_cb;
     on_disconnected_cb_t  m_on_disconnected_cb;
 
     std::mutex m_write_mutex;
+    bool m_write_scheduled{false};
     std::vector<sg::shared_c_buffer<std::byte>> m_write_msgs{};
 
     std::atomic<bool> m_disconnected_cb_called {false};
     std::atomic<bool> m_stop_requested{false};
     std::atomic<bool> m_stopped {true};
 
-    // the _running vars need initialisation, as close() might be called in start()
+    // needs initialisation, as close() might be called in start()
     std::atomic<bool> m_reader_running{false};
-    std::atomic<bool> m_writer_running{false};
     options_t m_options;
 
     std::mutex m_exception_mutex;
