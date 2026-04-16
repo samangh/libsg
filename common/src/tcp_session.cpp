@@ -89,10 +89,11 @@ native::socket_t tcp_session::native_handle() { return m_socket.native_handle();
 
 void tcp_session::stop_async() {
     // No action if we have already stopped
-    if (m_stopped.load(std::memory_order::acquire))
+    if (m_stop_requested.exchange(true))
         return;
 
-    m_stop_requested.store(true, std::memory_order::release);
+    if (m_stopped.load(std::memory_order::acquire))
+        return;
 
     // spawn a writer to drain remaining messages then close,
     // or close immediately if nothing is pending
@@ -131,6 +132,9 @@ end_point tcp_session::remote_endpoint() const noexcept(false) {
 }
 
 void tcp_session::close() {
+    // so that stop_async() can't call
+    m_stop_requested.store(true, std::memory_order::release);
+
     {
         // .close/.shutdown sock operations are not thread safe
         std::lock_guard lock(m_sock_op_mutex);
