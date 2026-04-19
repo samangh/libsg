@@ -10,7 +10,7 @@ using namespace sg::net;
 // port 55555 can't be used on macOS!
 static end_point ep("127.0.0.1", 4444);
 
-TEST_CASE("sg::net::tcp_client: check connect", "[sg::net::tcp_client]") {
+TEST_CASE("tcp_client: check connect", "[sg::net::tcp_client]") {
     std::string msg = "hello";
     std::string expectedEcho = "hellohello";
     std::string result;
@@ -48,7 +48,7 @@ TEST_CASE("sg::net::tcp_client: check connect", "[sg::net::tcp_client]") {
     REQUIRE(result == expectedEcho);
 }
 
-TEST_CASE("sg::net::tcp_client: check disconnect()", "[sg::net::tcp_client]") {
+TEST_CASE("tcp_client: check disconnect()", "[sg::net::tcp_client]") {
     std::binary_semaphore can_stop{0};
 
     tcp_server server;
@@ -67,7 +67,11 @@ TEST_CASE("sg::net::tcp_client: check disconnect()", "[sg::net::tcp_client]") {
     can_stop.acquire();
 }
 
-TEST_CASE("sg::net::tcp_client: check that you can't connect twice", "[sg::net::tcp_client]") {
+TEST_CASE("tcp_client: check destructor of unused client", "[sg::net::tcp_client]") {
+    tcp_client client;
+}
+
+TEST_CASE("tcp_client: check that you can't connect twice", "[sg::net::tcp_client]") {
     using namespace sg::net;
 
     auto context = asio_io_pool::create();
@@ -76,7 +80,7 @@ TEST_CASE("sg::net::tcp_client: check that you can't connect twice", "[sg::net::
     REQUIRE_THROWS(client.connect(end_point("8.8.8.8", 53), nullptr, nullptr));
 }
 
-TEST_CASE("sg::net::tcp_client: check multiple reconnections", "[sg::net::tcp_client]") {
+TEST_CASE("tcp_client: check multiple reconnections", "[sg::net::tcp_client]") {
     const int noClients              = 5;
     const int noConnectiosnPerClient = 100;
 
@@ -113,7 +117,7 @@ TEST_CASE("sg::net::tcp_client: check multiple reconnections", "[sg::net::tcp_cl
     REQUIRE(disconnections == noClients * noConnectiosnPerClient);
 }
 
-TEST_CASE("sg::net::tcp_client: check multiple disconnects are OK", "[sg::net::tcp_client]") {
+TEST_CASE("tcp_client: check multiple disconnects are OK", "[sg::net::tcp_client]") {
     using namespace sg::net;
 
     auto context = asio_io_pool::create();
@@ -124,7 +128,7 @@ TEST_CASE("sg::net::tcp_client: check multiple disconnects are OK", "[sg::net::t
     client.disconnect();
 }
 
-TEST_CASE("sg::net::tcp_client: check disconnect() without connect() is OK", "[sg::net::tcp_client]") {
+TEST_CASE("tcp_client: check disconnect() without connect() is OK", "[sg::net::tcp_client]") {
     using namespace sg::net;
 
     auto client = tcp_client();
@@ -133,7 +137,7 @@ TEST_CASE("sg::net::tcp_client: check disconnect() without connect() is OK", "[s
 }
 
 
-TEST_CASE("sg::net::tcp_client: set_keepalive(...)", "[sg::net::tcp_client]") {
+TEST_CASE("tcp_client: set_keepalive(...)", "[sg::net::tcp_client]") {
     using namespace sg::net;
 
     auto context = asio_io_pool::create();
@@ -152,7 +156,7 @@ TEST_CASE("sg::net::tcp_client: set_keepalive(...)", "[sg::net::tcp_client]") {
         .enable = true, .idle_seconds = 1, .interval_seconds = 1, .count = outsideRange}));
 }
 
-TEST_CASE("sg::net::tcp_client: set_timeout(...)", "[sg::net::tcp_client]") {
+TEST_CASE("tcp_client: set_timeout(...)", "[sg::net::tcp_client]") {
     using namespace sg::net;
 
     auto context = asio_io_pool::create();
@@ -162,7 +166,7 @@ TEST_CASE("sg::net::tcp_client: set_timeout(...)", "[sg::net::tcp_client]") {
     client.session().set_timeout(100);
 }
 
-TEST_CASE("sg::net::tcp_client: test that connect(...) will timeout", "[sg::net::tcp_client]") {
+TEST_CASE("tcp_client: test that connect(...) will timeout", "[sg::net::tcp_client]") {
     using namespace sg::net;
 
     auto context = asio_io_pool::create();
@@ -174,7 +178,7 @@ TEST_CASE("sg::net::tcp_client: test that connect(...) will timeout", "[sg::net:
                       sg::exceptions::net<sg::exceptions::errors::net::time_out>);
 }
 
-TEST_CASE("sg::net::tcp_client: check destruction of unused client", "[sg::net::tcp_client]") {
+TEST_CASE("tcp_client: check destruction of unused client", "[sg::net::tcp_client]") {
     using namespace sg::net;
 
     auto context = asio_io_pool::create();
