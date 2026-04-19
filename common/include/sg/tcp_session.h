@@ -9,9 +9,13 @@
 #include <boost/asio/io_context.hpp>
 #include <boost/asio/ip/tcp.hpp>
 
+#include <memory>
+
 namespace sg::net {
 
-class SG_COMMON_EXPORT tcp_session {
+class SG_COMMON_EXPORT tcp_session : public std::enable_shared_from_this<tcp_session> {
+    struct private_tag { explicit private_tag() = default; };
+
   public:
     struct options_t {
         // needed to get around clang bug https://github.com/llvm/llvm-project/issues/36032
@@ -32,7 +36,12 @@ class SG_COMMON_EXPORT tcp_session {
     CREATE_CALLBACK(on_connected_cb_t, void, tcp_session&)
     CREATE_CALLBACK(on_disconnected_cb_t, void, tcp_session&, std::exception_ptr)
 
-    tcp_session(boost::asio::ip::tcp::socket socket, on_data_available_cb_t onReadCb,
+    static std::shared_ptr<tcp_session> create(boost::asio::ip::tcp::socket socket,
+                                               on_data_available_cb_t onReadCb,
+                                               on_disconnected_cb_t onErrorCb,
+                                               options_t options);
+
+    tcp_session(private_tag, boost::asio::ip::tcp::socket socket, on_data_available_cb_t onReadCb,
                 on_disconnected_cb_t onErrorCb, options_t options);
     virtual ~tcp_session();
 
@@ -63,18 +72,15 @@ class SG_COMMON_EXPORT tcp_session {
     bool m_write_scheduled{false};
     std::vector<sg::shared_c_buffer<std::byte>> m_write_msgs{};
 
-    std::atomic<bool> m_disconnected_cb_called {false};
     std::atomic<bool> m_stop_requested{false};
     std::atomic<bool> m_stopped {true};
+    std::atomic<bool> m_close_called {false};
 
     // needs initialisation, as close() might be called in start()
-    std::atomic<bool> m_reader_running{false};
     options_t m_options;
 
     std::mutex m_exception_mutex;
     std::exception_ptr m_exception;
-
-    std::mutex m_sock_op_mutex;
 
     void close();
 

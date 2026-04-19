@@ -9,7 +9,17 @@
 
 namespace sg::net {
 
-tcp_session::tcp_session(boost::asio::ip::tcp::socket socket, on_data_available_cb_t onReadCb,
+std::shared_ptr<tcp_session> tcp_session::create(boost::asio::ip::tcp::socket socket,
+                                                  on_data_available_cb_t onReadCb,
+                                                  on_disconnected_cb_t onErrorCb,
+                                                  options_t options) {
+    return std::make_shared<tcp_session>(private_tag{}, std::move(socket),
+                                         std::move(onReadCb), std::move(onErrorCb),
+                                         std::move(options));
+}
+
+tcp_session::tcp_session(private_tag, boost::asio::ip::tcp::socket socket,
+                         on_data_available_cb_t onReadCb,
                          on_disconnected_cb_t onErrorCb, options_t options)
     : m_socket(std::move(socket)),
       m_on_data_cb(std::move(onReadCb)),
@@ -34,8 +44,7 @@ void tcp_session::start(on_connected_cb_t onConn) {
         set_keepalive(m_options.keepalive);
         set_timeout(m_options.timeout_msec);
 
-        m_reader_running.store(true);
-        co_spawn(m_socket.get_executor(), [this] { return reader(); }, boost::asio::detached);
+        co_spawn(m_socket.get_executor(), [self = shared_from_this()] { return self->reader(); }, boost::asio::detached);
     } catch (...) {
         /* if clean closing, do not throw error */
         if (!m_stop_requested.load(std::memory_order::acquire))
@@ -46,7 +55,7 @@ void tcp_session::start(on_connected_cb_t onConn) {
         }
 
         stop_async();
-        close();
+        wait_until_stopped();
     }
 }
 
@@ -63,7 +72,7 @@ void tcp_session::write(sg::shared_c_buffer<std::byte> msg) {
     }
 
     if (need_spawn)
-        co_spawn(m_socket.get_executor(), [this] { return writer(); }, boost::asio::detached);
+        co_spawn(m_socket.get_executor(), [self = shared_from_this()] { return self->writer(); }, boost::asio::detached);
 }
 
 void tcp_session::write(std::string_view msg) {
@@ -95,18 +104,14 @@ void tcp_session::stop_async() {
     if (m_stopped.load(std::memory_order::acquire))
         return;
 
-    // spawn a writer to drain remaining messages then close,
-    // or close immediately if nothing is pending
-    bool need_spawn = false;
+    //if a writer is running, it will close connection due to m_stop_requested
+    bool writer_active;
     {
         std::lock_guard lock(m_write_mutex);
-        if (!m_write_msgs.empty())
-            need_spawn = !std::exchange(m_write_scheduled, true);
+        writer_active = m_write_scheduled;
     }
 
-    if (need_spawn)
-        co_spawn(m_socket.get_executor(), [this] { return writer(); }, boost::asio::detached);
-    else
+    if (!writer_active)
         close();
 }
 
@@ -135,28 +140,21 @@ void tcp_session::close() {
     // so that stop_async() can't call
     m_stop_requested.store(true, std::memory_order::release);
 
-    {
-        // .close/.shutdown sock operations are not thread safe
-        std::lock_guard lock(m_sock_op_mutex);
+    if (m_close_called.exchange(true))
+        return;
 
-        /* graceful disconnection  */
-        try {
-            if (m_socket.is_open())
-                m_socket.shutdown(m_socket.shutdown_both);
-        } catch(...) {}
+    //note: .close/.shutdown sock operations are not thread safe
 
-        /*  you still need to close the socket, even if the connection is down */
-        try {
-            m_socket.close();
-        } catch (...) {}
+    /* graceful disconnection  */
+    try {
+        if (m_socket.is_open())
+            m_socket.shutdown(m_socket.shutdown_both);
+    } catch (...) {}
 
-        /* don't go past unless the reader has stopped */
-        if (m_reader_running)
-            return;
-
-        if (m_disconnected_cb_called.exchange(true))
-            return;
-    }
+    /*  you still need to close the socket, even if the connection is down */
+    try {
+        m_socket.close();
+    } catch (...) {}
 
     std::exception_ptr exPtr;
     {
@@ -201,7 +199,6 @@ boost::asio::awaitable<void> tcp_session::reader() {
         }
     }
 
-    m_reader_running.store(false);
     close();
 
     co_return;
@@ -244,6 +241,8 @@ boost::asio::awaitable<void> tcp_session::writer() {
                 SG_THROW(exceptions::net<exceptions::errors::net::time_out>, "operation timeout");
         }
     } catch (...) {
+        // We should end up here during graceful shutdown, as the writer waits until all messages
+        // are written
         {
             std::lock_guard lock(m_exception_mutex);
             if (!m_exception)
@@ -252,8 +251,6 @@ boost::asio::awaitable<void> tcp_session::writer() {
     }
 
     close();
-
-    co_return;
 }
 
 boost::asio::awaitable<void>

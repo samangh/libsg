@@ -156,7 +156,7 @@ tcp_server::listener(std::shared_ptr<boost::asio::ip::tcp::acceptor> acceptor) {
                     m_callbacks.OnSessionCreated.invoke(*this, id);
             };
 
-            auto sess = std::make_shared<tcp_session>(
+            auto sess = tcp_session::create(
                 co_await acceptor.get()->async_accept(boost::asio::use_awaitable),
                 onData,
                 onSessionDisconnected,
