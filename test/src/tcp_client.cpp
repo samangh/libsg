@@ -104,9 +104,11 @@ TEST_CASE("tcp_client: check multiple reconnections", "[sg::net::tcp_client]") {
             client.connect(ep, nullptr, nullptr,options);
             client.disconnect();
 
-            // Windows doesn't like too manny immediate connections/disconnections from the same
+#ifdef _WIN32
+            // Windows doesn't like too many immediate connections/disconnections from the same
             // port pair
             std::this_thread::sleep_for(std::chrono::milliseconds(10));
+#endif
         }
      }
 
