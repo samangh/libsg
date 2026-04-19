@@ -43,7 +43,7 @@ class SG_COMMON_EXPORT tcp_session : public std::enable_shared_from_this<tcp_ses
 
     tcp_session(private_tag, boost::asio::ip::tcp::socket socket, on_data_available_cb_t onReadCb,
                 on_disconnected_cb_t onErrorCb, options_t options);
-    virtual ~tcp_session();
+    ~tcp_session();
 
     void start(on_connected_cb_t);
     void stop_async();
