@@ -92,10 +92,17 @@ void tcp_session::write(const void* data, size_t size) {
 
 void tcp_session::set_keepalive(keepalive_t keepAliveParameters) {
     sg::net::native::set_keepalive(m_socket.native_handle(), keepAliveParameters);
+
+    // nothing actually reads back the keepalive parameters - no need for locks
+    m_options.keepalive = keepAliveParameters;
 }
 
 void tcp_session::set_timeout(unsigned timeoutMSec) {
     sg::net::native::set_timeout(m_socket.native_handle(), timeoutMSec);
+
+    // timeout is used by writer, so make sure it's thread safe
+    std::lock_guard lock(m_write_mutex);
+    m_options.timeout_msec = timeoutMSec;
 }
 
 native::socket_t tcp_session::native_handle() { return m_socket.native_handle(); }
@@ -224,6 +231,7 @@ boost::asio::awaitable<void> tcp_session::writer() {
 
     try {
         for (;;) {
+            unsigned timeoutMSec;
             std::vector<sg::shared_c_buffer<std::byte>> buffers;
             {
                 std::lock_guard lock(m_write_mutex);
@@ -236,6 +244,8 @@ boost::asio::awaitable<void> tcp_session::writer() {
 
                     co_return;
                 }
+
+                timeoutMSec = m_options.timeout_msec;
             }
 
             std::vector<boost::asio::const_buffer> buffersAsio;
@@ -246,7 +256,7 @@ boost::asio::awaitable<void> tcp_session::writer() {
             // even though we set the socket time-out using SO_SNDTIMEO, it is not enforced for
             // select()/poll()/epoll_wait(), which might be used by asio internally
             auto deadline = std::chrono::steady_clock::now() +
-                            std::chrono::milliseconds(m_options.timeout_msec);
+                            std::chrono::milliseconds(timeoutMSec);
 
             auto result = co_await (
                 boost::asio::async_write(m_socket, buffersAsio, boost::asio::use_awaitable) ||
