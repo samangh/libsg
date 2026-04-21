@@ -69,7 +69,7 @@ class SG_COMMON_EXPORT tcp_session : public std::enable_shared_from_this<tcp_ses
     on_disconnected_cb_t  m_on_disconnected_cb;
 
     std::mutex m_write_mutex;
-    bool m_write_scheduled{false};
+    bool m_write_scheduled{false}; //note: need to always lock m_write_mutex
     std::vector<sg::shared_c_buffer<std::byte>> m_write_msgs{};
 
     std::atomic<bool> m_stop_requested{false};

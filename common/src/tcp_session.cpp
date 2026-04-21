@@ -29,10 +29,10 @@ tcp_session::tcp_session(private_tag, boost::asio::ip::tcp::socket socket,
 
 tcp_session::~tcp_session() {
     // You can't use shared_from_this() in the destructor, so this flag tells close() not to
-    // dispatch the close even to io_context but to runit directly
+    // dispatch the close even to io_context but to run it directly
     m_destructor_called = true;
 
-    // this causes the right call-backs to be called, if they haven't already
+    // this causes the right callbacks to be called, if they haven't already
     stop_async();
     wait_until_stopped();
 }
@@ -222,8 +222,6 @@ boost::asio::awaitable<void> tcp_session::reader() {
     }
 
     close();
-
-    co_return;
 }
 
 boost::asio::awaitable<void> tcp_session::writer() {
