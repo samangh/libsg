@@ -677,6 +677,7 @@ TEST_CASE("tcp_server: proxy simulation", "[sg::net::tcp_server]") {
     using namespace sg::net;
 
     std::binary_semaphore sessConn{0};
+    std::counting_semaphore<2> sessDisc{0};
 
     end_point main_ep("127.0.0.1", PORT);
     end_point proxy_ep("127.0.0.1", PORT+1);
@@ -714,27 +715,34 @@ TEST_CASE("tcp_server: proxy simulation", "[sg::net::tcp_server]") {
         cb.OnSessionCreated = [&](tcp_server&, tcp_server::session_id_t) {
             sessConn.release();
         };
+        cb.OnDisconnected = [&](tcp_server&, tcp_server::session_id_t, std::exception_ptr) {
+            sessDisc.release();
+        };
         proxy_server.start({proxy_ep}, cb);
     }
 
 
     for (auto i = 0; i< 100; ++i)
     {
-        tcp_client_sync client;
-        tcp_client_sync client2;
-        client.connect(proxy_ep);
-        sessConn.acquire();
-        client2.connect(proxy_ep);
-        sessConn.acquire(); // make sure that server session is setup (as we write on client and read
-                            // from another)
+        {
+            tcp_client_sync client;
+            tcp_client_sync client2;
+            client.connect(proxy_ep);
+            sessConn.acquire();
+            client2.connect(proxy_ep);
+            sessConn.acquire();
 
-        client.write("Dasdas\n");
-        std::ignore = client.read_until("\n");
-        std::ignore = client2.read_until("\n");
+            client.write("Dasdas\n");
+            std::ignore = client.read_until("\n");
+            std::ignore = client2.read_until("\n");
 
-        client2.write("Dasdas\n");
-        std::ignore = client.read_until("\n");
-        std::ignore = client2.read_until("\n");
+            client2.write("Dasdas\n");
+            std::ignore = client.read_until("\n");
+            std::ignore = client2.read_until("\n");
+        }
+
+        sessDisc.acquire();
+        sessDisc.acquire();
     }
 }
 
