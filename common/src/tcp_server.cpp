@@ -127,7 +127,7 @@ void tcp_server::set_keepalive(keepalive_t keepAliveParameters) {
         sg::net::native::set_keepalive(a->native_handle(), keepAliveParameters);
 }
 void tcp_server::set_timeout(unsigned timeoutMSec) {
-    for (auto a: m_acceptors)
+    for (auto& a: m_acceptors)
         sg::net::native::set_timeout(a->native_handle(), timeoutMSec);
 }
 
@@ -186,18 +186,19 @@ tcp_server::listener(std::shared_ptr<boost::asio::ip::tcp::acceptor> acceptor) {
 }
 
 void tcp_server::start_listening() {
-    for (auto e : m_endpoints) {
+    for (const auto& e : m_endpoints) {
         boost::asio::ip::tcp::endpoint ep(boost::asio::ip::make_address(e.ip), e.port);
 
         // We can't do this, as SO_REUSEADDR and SO_EXCLUSIVEADDRUSE  have to be set before bind()
         // auto a = std::make_shared<boost::asio::ip::tcp::acceptor>(m_context->context(), ep);
 
+        // note: keep-alive and timeout will be inherited on some platforms (Linux) but not others
+        // (Windows), so we set them on a per-session basis instead.
+
         auto a = std::make_shared<boost::asio::ip::tcp::acceptor>(m_context->context());
         a->open(ep.protocol());
         native::set_exclusive_addr_use(a->native_handle(), m_options.exclusive_address_use);
         native::set_reuse_address(a->native_handle(), m_options.reuse_address);
-        native::set_keepalive(a->native_handle(), m_options.session_options.keepalive);
-        native::set_timeout(a->native_handle(), m_options.session_options.timeout_msec);
         a->bind(ep);
         a->listen();
 
