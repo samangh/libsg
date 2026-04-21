@@ -38,6 +38,8 @@ class SG_COMMON_EXPORT tcp_session : public std::enable_shared_from_this<tcp_ses
     CREATE_CALLBACK(on_connected_cb_t, void, tcp_session&)
     CREATE_CALLBACK(on_disconnected_cb_t, void, tcp_session&, std::exception_ptr)
 
+    enum class state_t {running, stop_requested, stopping, stopped };
+
     static std::shared_ptr<tcp_session> create(boost::asio::ip::tcp::socket socket,
                                                on_data_available_cb_t onReadCb,
                                                on_disconnected_cb_t onErrorCb,
@@ -50,7 +52,8 @@ class SG_COMMON_EXPORT tcp_session : public std::enable_shared_from_this<tcp_ses
     void start(on_connected_cb_t);
     void stop_async();
     void wait_until_stopped() const;
-    [[nodiscard]] bool is_connected() const;
+    [[nodiscard]] bool is_connected() const noexcept;
+    [[nodiscard]] state_t state() const noexcept;
 
     [[nodiscard]] end_point local_endpoint() const noexcept(false);
     [[nodiscard]] end_point remote_endpoint() const noexcept(false);
@@ -62,10 +65,11 @@ class SG_COMMON_EXPORT tcp_session : public std::enable_shared_from_this<tcp_ses
     void set_keepalive(keepalive_t);
     void set_timeout(unsigned timeoutMSec);
 
-    native::socket_t native_handle();
+    [[nodiscard]] native::socket_t native_handle();
 
   private:
     boost::asio::ip::tcp::socket m_socket;
+    options_t m_options;
 
     on_data_available_cb_t m_on_data_cb;
     on_disconnected_cb_t  m_on_disconnected_cb;
@@ -74,12 +78,7 @@ class SG_COMMON_EXPORT tcp_session : public std::enable_shared_from_this<tcp_ses
     bool m_write_scheduled{false}; //note: need to always lock m_write_mutex
     std::vector<sg::shared_c_buffer<std::byte>> m_write_msgs{};
 
-    std::atomic<bool> m_stop_requested{false};
-    std::atomic<bool> m_stopped {true};
-    std::atomic<bool> m_close_called {false};
-
-    // needs initialisation, as close() might be called in start()
-    options_t m_options;
+    std::atomic<state_t> m_state{state_t::stopped};
 
     std::mutex m_exception_mutex;
     std::exception_ptr m_exception;

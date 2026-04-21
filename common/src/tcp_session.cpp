@@ -15,17 +15,16 @@ std::shared_ptr<tcp_session> tcp_session::create(boost::asio::ip::tcp::socket so
                                                   options_t options) {
     return std::make_shared<tcp_session>(private_tag{}, std::move(socket),
                                          std::move(onReadCb), std::move(onErrorCb),
-                                         std::move(options));
+                                         options);
 }
 
 tcp_session::tcp_session(private_tag, boost::asio::ip::tcp::socket socket,
                          on_data_available_cb_t onReadCb,
                          on_disconnected_cb_t onErrorCb, options_t options)
     : m_socket(std::move(socket)),
+      m_options(options),
       m_on_data_cb(std::move(onReadCb)),
-      m_on_disconnected_cb(std::move(onErrorCb)),
-      m_options(options) {
-}
+      m_on_disconnected_cb(std::move(onErrorCb)) {}
 
 tcp_session::~tcp_session() {
     // You can't use shared_from_this() in the destructor, so this flag tells close() not to
@@ -39,7 +38,7 @@ tcp_session::~tcp_session() {
 
 void tcp_session::start(on_connected_cb_t onConn) {
     try {
-        m_stopped.store(false);
+        m_state.store(state_t::running);
 
         if (onConn)
             onConn.invoke(*this);
@@ -55,7 +54,7 @@ void tcp_session::start(on_connected_cb_t onConn) {
         co_spawn(m_socket.get_executor(), [self = shared_from_this()] { return self->reader(); }, boost::asio::detached);
     } catch (...) {
         /* if clean closing, do not throw error */
-        if (!m_stop_requested.load(std::memory_order::acquire))
+        if (m_state.load(std::memory_order::acquire) == state_t::running)
         {
             std::lock_guard lock(m_exception_mutex);
             if (!m_exception)
@@ -72,7 +71,7 @@ void tcp_session::write(sg::shared_c_buffer<std::byte> msg) {
     {
         std::lock_guard lock(m_write_mutex);
 
-        if (m_stop_requested.load(std::memory_order::acquire))
+        if (m_state.load(std::memory_order::acquire) != state_t::running)
             SG_THROW(std::runtime_error,
                      "attempt to write to tcp_session after a disconnection was requested");
 
@@ -111,32 +110,36 @@ void tcp_session::set_timeout(unsigned timeoutMSec) {
     std::lock_guard lock(m_write_mutex);
     m_options.timeout_msec = timeoutMSec;
 }
+enum tcp_session::state_t tcp_session::state() const noexcept {
+    return m_state.load(std::memory_order::acquire);
+}
 
 native::socket_t tcp_session::native_handle() { return m_socket.native_handle(); }
 
 void tcp_session::stop_async() {
-    // make sure that you stop_async runs after all writes are scheduled
+    // make sure that stop_async runs after all writes are scheduled
     std::lock_guard lock(m_write_mutex);
 
-    // No action if we have already stopped
-    if (m_stop_requested.exchange(true))
+    // Only act if currently running — CAS handles both "already stopped" and "already requested"
+    auto expected = state_t::running;
+    if (!m_state.compare_exchange_strong(expected, state_t::stop_requested,
+                                         std::memory_order::release,
+                                         std::memory_order::acquire))
         return;
 
-    if (m_stopped.load(std::memory_order::acquire))
-        return;
-
-    //if a writer is running, it will close connection due to m_stop_requested
+    // if a writer is running, it will close connection due to state_stop_requested
     if (!m_write_scheduled)
         close();
 }
 
 void tcp_session::wait_until_stopped() const {
-    // block until m_stopped is true
-    m_stopped.wait(false, std::memory_order::acquire);
+    state_t val;
+    while ((val = m_state.load(std::memory_order::acquire)) != state_t::stopped)
+        m_state.wait(val, std::memory_order::acquire);
 }
 
-bool tcp_session::is_connected() const {
-    return !m_stopped.load(std::memory_order::acquire);
+bool tcp_session::is_connected() const noexcept {
+    return m_state.load(std::memory_order::acquire) != state_t::stopped;
 }
 
 end_point tcp_session::local_endpoint() const noexcept(false) {
@@ -152,23 +155,27 @@ end_point tcp_session::remote_endpoint() const noexcept(false) {
 }
 
 void tcp_session::close() {
-    // so that stop_async() can't call
-    m_stop_requested.store(true, std::memory_order::release);
-
-    if (m_close_called.exchange(true))
-        return;
-
-    // socket operations should be run on the io_context, as they are technically thread safe.
-    //
-    // You can't use shared_from_this() in the destructor, so if we are in the destructor run
-    // close_impl() directly. In this case thread-safety is not important (as by definition no other
-    // thread can be holding a shared_ptr to this session!)
-    if (m_destructor_called)
-        close_impl();
-    else
-        boost::asio::dispatch(m_socket.get_executor(),
-                              [self = shared_from_this()] { self->close_impl(); });
-
+    // Transition to closing (from running or stop_requested). Only one caller succeeds.
+    auto cur = m_state.load(std::memory_order::acquire);
+    while (cur == state_t::running || cur == state_t::stop_requested) {
+        if (m_state.compare_exchange_weak(cur, state_t::stopping,
+                                           std::memory_order::release,
+                                           std::memory_order::acquire))
+        {
+            // socket operations should be run on the io_context, as they are technically thread safe.
+            //
+            // You can't use shared_from_this() in the destructor, so if we are in the destructor run
+            // close_impl() directly. In this case thread-safety is not important (as by definition no other
+            // thread can be holding a shared_ptr to this session!)
+            if (m_destructor_called)
+                close_impl();
+            else
+                boost::asio::dispatch(m_socket.get_executor(),
+                                      [self = shared_from_this()] { self->close_impl(); });
+            return;
+        }
+    }
+    // already closing or stopped — nothing to do
 }
 void tcp_session::close_impl() {
     /* graceful disconnection  */
@@ -191,8 +198,8 @@ void tcp_session::close_impl() {
     if (m_on_disconnected_cb)
         m_on_disconnected_cb.invoke(*this, exPtr);
 
-    m_stopped.store(true, std::memory_order::release);
-    m_stopped.notify_all();
+    m_state.store(state_t::stopped, std::memory_order::release);
+    m_state.notify_all();
 }
 
 boost::asio::awaitable<void> tcp_session::reader() {
@@ -217,7 +224,7 @@ boost::asio::awaitable<void> tcp_session::reader() {
         }
     } catch (...) {
         /* if clean closing, do not throw error */
-        if (!m_stop_requested.load(std::memory_order::acquire))
+        if (m_state.load(std::memory_order::acquire) == state_t::running)
         {
             std::lock_guard lock(m_exception_mutex);
             if (!m_exception)
@@ -241,7 +248,7 @@ boost::asio::awaitable<void> tcp_session::writer() {
                 if (buffers.empty()) {
                     m_write_scheduled = false;
 
-                    if (m_stop_requested.load(std::memory_order::acquire))
+                    if (m_state.load(std::memory_order::acquire)!= state_t::running)
                         close();
 
                     co_return;
