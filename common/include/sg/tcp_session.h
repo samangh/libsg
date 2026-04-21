@@ -58,7 +58,7 @@ class SG_COMMON_EXPORT tcp_session : public std::enable_shared_from_this<tcp_ses
     void write(const void* data, size_t size);
 
     void set_keepalive(keepalive_t);
-    void set_timeout(unsigned timeoutMSec = 5000);
+    void set_timeout(unsigned timeoutMSec);
 
     native::socket_t native_handle();
 
