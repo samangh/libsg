@@ -122,14 +122,6 @@ tcp_server::ptr tcp_server::session(session_id_t id) {
     std::shared_lock lock(m_mutex);
     return m_sessions.at(id);
 }
-void tcp_server::set_keepalive(keepalive_t keepAliveParameters) {
-    for (auto a: m_acceptors)
-        sg::net::native::set_keepalive(a->native_handle(), keepAliveParameters);
-}
-void tcp_server::set_timeout(unsigned timeoutMSec) {
-    for (auto& a: m_acceptors)
-        sg::net::native::set_timeout(a->native_handle(), timeoutMSec);
-}
 
 boost::asio::awaitable<void>
 tcp_server::listener(std::shared_ptr<boost::asio::ip::tcp::acceptor> acceptor) {

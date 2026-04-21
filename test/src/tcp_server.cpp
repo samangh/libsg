@@ -544,38 +544,6 @@ TEST_CASE("tcp_server: check destructor works if start(...) not started", "[sg::
     { tcp_server l; }
 }
 
-TEST_CASE("tcp_server: set_keepalive(...)", "[sg::net::tcp_server]") {
-    using namespace sg::net;
-    end_point ep("0.0.0.0", PORT);
-
-    tcp_server server;
-    server.start({ep}, tcp_server::CallBacks());
-
-    server.set_keepalive(keepalive_t{});
-
-    unsigned outsideRange = (unsigned)std::numeric_limits<int>::max() + 1;
-
-    // Check range errors
-    REQUIRE_THROWS(server.set_keepalive(keepalive_t{
-    .enable = true, .idle_seconds = outsideRange, .interval_seconds = 1, .count = 5}));
-    REQUIRE_THROWS(server.set_keepalive(keepalive_t{
-        .enable = true, .idle_seconds = 1, .interval_seconds = outsideRange, .count = 5}));
-    REQUIRE_THROWS(server.set_keepalive(keepalive_t{
-        .enable = true, .idle_seconds = 1, .interval_seconds = 1, .count = outsideRange}));
-}
-
-TEST_CASE("tcp_server: set_timeout(...)", "[sg::net::tcp_server]") {
-    for (int i = 0; i < 100; i++) {
-        using namespace sg::net;
-        end_point ep("0.0.0.0", PORT);
-
-        tcp_server server;
-        server.start({ep}, tcp_server::CallBacks());
-
-        server.set_timeout(true);
-    }
-}
-
 #if !defined(__APPLE__)
 TEST_CASE("tcp_server: you can't listen to same port twice", "[sg::net::tcp_server]") {
     using namespace sg::net;
