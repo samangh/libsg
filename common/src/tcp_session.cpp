@@ -64,17 +64,20 @@ void tcp_session::start(on_connected_cb_t onConn) {
 }
 
 void tcp_session::write(sg::shared_c_buffer<std::byte> msg) {
-    if (m_stop_requested.load(std::memory_order::acquire))
-        SG_THROW(std::runtime_error,
-                 "attempt to write to tcp_session after a disconnection was requested");
-
     bool need_spawn = false;
     {
         std::lock_guard lock(m_write_mutex);
+
+        if (m_stop_requested.load(std::memory_order::acquire))
+            SG_THROW(std::runtime_error,
+                     "attempt to write to tcp_session after a disconnection was requested");
+
+
         m_write_msgs.push_back(std::move(msg));
         need_spawn = !std::exchange(m_write_scheduled, true);
     }
 
+    //co_spawin might be slow, so have it outside the lock
     if (need_spawn)
         co_spawn(m_socket.get_executor(), [self = shared_from_this()] { return self->writer(); }, boost::asio::detached);
 }
@@ -108,6 +111,9 @@ void tcp_session::set_timeout(unsigned timeoutMSec) {
 native::socket_t tcp_session::native_handle() { return m_socket.native_handle(); }
 
 void tcp_session::stop_async() {
+    // make sure that you stop_async runs after all writes are scheduled
+    std::lock_guard lock(m_write_mutex);
+
     // No action if we have already stopped
     if (m_stop_requested.exchange(true))
         return;
@@ -116,13 +122,7 @@ void tcp_session::stop_async() {
         return;
 
     //if a writer is running, it will close connection due to m_stop_requested
-    bool writer_active;
-    {
-        std::lock_guard lock(m_write_mutex);
-        writer_active = m_write_scheduled;
-    }
-
-    if (!writer_active)
+    if (!m_write_scheduled)
         close();
 }
 
