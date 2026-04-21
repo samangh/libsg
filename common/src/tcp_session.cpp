@@ -28,6 +28,10 @@ tcp_session::tcp_session(private_tag, boost::asio::ip::tcp::socket socket,
 }
 
 tcp_session::~tcp_session() {
+    // You can't use shared_from_this() in the destructor, so this flag tells close() not to
+    // dispatch the close even to io_context but to runit directly
+    m_destructor_called = true;
+
     // this causes the right call-backs to be called, if they haven't already
     stop_async();
     wait_until_stopped();
@@ -143,8 +147,19 @@ void tcp_session::close() {
     if (m_close_called.exchange(true))
         return;
 
-    //note: .close/.shutdown sock operations are not thread safe
+    // socket operations should be run on the io_context, as they are technically thread safe.
+    //
+    // You can't use shared_from_this() in the destructor, so if we are in the destructor run
+    // close_impl() directly. In this case thread-safety is not important (as by definition no other
+    // thread can be holding a shared_ptr to this session!)
+    if (m_destructor_called)
+        close_impl();
+    else
+        boost::asio::dispatch(m_socket.get_executor(),
+                              [self = shared_from_this()] { self->close_impl(); });
 
+}
+void tcp_session::close_impl() {
     /* graceful disconnection  */
     try {
         if (m_socket.is_open())
@@ -166,7 +181,7 @@ void tcp_session::close() {
         m_on_disconnected_cb.invoke(*this, exPtr);
 
     m_stopped.store(true, std::memory_order::release);
-    m_stopped.notify_all(); // needed for atomic wait()
+    m_stopped.notify_all();
 }
 
 boost::asio::awaitable<void> tcp_session::reader() {

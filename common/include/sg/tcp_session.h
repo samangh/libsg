@@ -82,7 +82,9 @@ class SG_COMMON_EXPORT tcp_session : public std::enable_shared_from_this<tcp_ses
     std::mutex m_exception_mutex;
     std::exception_ptr m_exception;
 
+    bool m_destructor_called = false;
     void close();
+    void close_impl();
 
     boost::asio::awaitable<void> reader();
     boost::asio::awaitable<void> writer();
