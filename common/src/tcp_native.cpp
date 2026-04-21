@@ -92,4 +92,39 @@ void set_exclusive_addr_use([[maybe_unused]] socket_t nativeHandle, [[maybe_unus
 #endif
 }
 
+void set_recv_buffer_size(socket_t nativeHandle, int size) {
+    THROW_ON_ERRORNO_SOCKET(setsockopt(nativeHandle, SOL_SOCKET, SO_RCVBUF,
+                                       (const char*)&size, sizeof(size)));
+}
+
+void set_send_buffer_size(socket_t nativeHandle, int size) {
+    THROW_ON_ERRORNO_SOCKET(setsockopt(nativeHandle, SOL_SOCKET, SO_SNDBUF,
+                                       (const char*)&size, sizeof(size)));
+}
+
+int get_recv_buffer_size(socket_t nativeHandle) {
+    int size = 0;
+#if defined(_WIN32)
+    int len = sizeof(size);
+#else
+    socklen_t len = sizeof(size);
+#endif
+    THROW_ON_ERRORNO_SOCKET(getsockopt(nativeHandle, SOL_SOCKET, SO_RCVBUF,
+                                       (char*)&size, &len));
+
+    return size;
+}
+
+int get_send_buffer_size(socket_t nativeHandle) {
+    int size = 0;
+#if defined(_WIN32)
+    int len = sizeof(size);
+#else
+    socklen_t len = sizeof(size);
+#endif
+    THROW_ON_ERRORNO_SOCKET(getsockopt(nativeHandle, SOL_SOCKET, SO_SNDBUF, (char*)&size, &len));
+
+    return size;
+}
+
 } // namespace sg::net::native

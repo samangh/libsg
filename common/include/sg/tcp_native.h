@@ -27,4 +27,9 @@ void SG_COMMON_EXPORT set_reuse_address(socket_t nativeHandle, bool enbaled);
  * See https://learn.microsoft.com/en-us/windows/win32/winsock/using-so-reuseaddr-and-so-exclusiveaddruse */
 void SG_COMMON_EXPORT set_exclusive_addr_use(socket_t, bool enabled);
 
+void SG_COMMON_EXPORT set_recv_buffer_size(socket_t nativeHandle, int size);
+void SG_COMMON_EXPORT set_send_buffer_size(socket_t nativeHandle, int size);
+int SG_COMMON_EXPORT get_recv_buffer_size(socket_t nativeHandle);
+int SG_COMMON_EXPORT get_send_buffer_size(socket_t nativeHandle);
+
 }
