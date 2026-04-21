@@ -3,6 +3,7 @@
 #include <sg/jthread.h>
 #include <sg/random.h>
 #include <sg/tcp_client.h>
+#include <sg/tcp_native.h>
 #include <sg/tcp_server.h>
 
 using namespace sg::net;
@@ -178,6 +179,38 @@ TEST_CASE("tcp_client: test that connect(...) will timeout", "[sg::net::tcp_clie
     options.timeout_msec=1000;
     REQUIRE_THROWS_AS(client.connect(end_point("87.5.66.1", 53), nullptr, nullptr, options),
                       sg::exceptions::net<sg::exceptions::errors::net::time_out>);
+}
+
+TEST_CASE("tcp_client: set recv_buffer_size via options", "[sg::net::tcp_client]") {
+    using namespace sg::net;
+
+    tcp_session::options_t options;
+    options.recv_buffer_size = 16384;
+
+    tcp_server server;
+    server.start({ep}, tcp_server::CallBacks{});
+
+    auto client = tcp_client();
+    client.connect(ep, nullptr, nullptr, options);
+
+    auto actual = sg::net::native::get_recv_buffer_size(client.session().native_handle());
+    REQUIRE(actual >= 16384);
+}
+
+TEST_CASE("tcp_client: set send_buffer_size via options", "[sg::net::tcp_client]") {
+    using namespace sg::net;
+
+    tcp_session::options_t options;
+    options.send_buffer_size = 16384;
+
+    tcp_server server;
+    server.start({ep}, tcp_server::CallBacks{});
+
+    auto client = tcp_client();
+    client.connect(ep, nullptr, nullptr, options);
+
+    auto actual = sg::net::native::get_send_buffer_size(client.session().native_handle());
+    REQUIRE(actual >= 16384);
 }
 
 TEST_CASE("tcp_client: check destruction of unused client", "[sg::net::tcp_client]") {

@@ -47,6 +47,10 @@ void tcp_session::start(on_connected_cb_t onConn) {
         // note: below can throw if the client has disconnected
         set_keepalive(m_options.keepalive);
         set_timeout(m_options.timeout_msec);
+        if (m_options.recv_buffer_size)
+            sg::net::native::set_recv_buffer_size(m_socket.native_handle(), m_options.recv_buffer_size);
+        if (m_options.send_buffer_size)
+            sg::net::native::set_send_buffer_size(m_socket.native_handle(), m_options.send_buffer_size);
 
         co_spawn(m_socket.get_executor(), [self = shared_from_this()] { return self->reader(); }, boost::asio::detached);
     } catch (...) {
