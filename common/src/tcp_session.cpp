@@ -37,9 +37,11 @@ tcp_session::~tcp_session() {
 }
 
 void tcp_session::start(on_connected_cb_t onConn) {
-    try {
-        m_state.store(state_t::running);
+    if (auto expectedState = state_t::stopped; !m_state.compare_exchange_strong(
+            expectedState, state_t::running, std::memory_order_release, std::memory_order_acquire))
+        SG_THROW(std::runtime_error, "tcp_session is already running");
 
+    try {
         if (onConn)
             onConn.invoke(*this);
 
