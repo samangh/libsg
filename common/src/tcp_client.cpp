@@ -7,10 +7,13 @@
 
 namespace sg::net {
 
-tcp_client::tcp_client() : m_context(asio_io_pool::create()) {}
+tcp_client::tcp_client() {
+}
 
-tcp_client::tcp_client(std::shared_ptr<asio_io_pool> context) : m_context(context) {}
-
+tcp_client::tcp_client(std::shared_ptr<asio_io_pool> context) : m_context(std::move(context)) {
+    if (!m_context->has_guard())
+        SG_THROW(std::runtime_error, "asio_io_pool does not have guard enabled, it must be enabled for share ASIO pools");
+}
 tcp_client::~tcp_client() = default;
 
 void tcp_client::connect(const end_point& endpoint, tcp_session::on_data_available_cb_t onReadCb,
@@ -19,10 +22,15 @@ void tcp_client::connect(const end_point& endpoint, tcp_session::on_data_availab
     if (m_session && m_session->is_connected())
         throw std::runtime_error("the client is already connected");
 
-    // reset session before removing the io_context, as the session destructor might make calls into
-    // the io_context it was created with
-    m_session.reset();
-    m_context = asio_io_pool::create();
+    if (m_session) {
+        m_session->stop_async();
+        m_session->wait_until_stopped();
+        m_session.reset();
+    }
+
+    /* an externally passed asio_pool will alays have it's guard enabled */
+    if (!m_context || !m_context->has_guard())
+        m_context = asio_io_pool::create(1, false, nullptr);
 
     boost::asio::ip::tcp::socket socket(m_context->context());
     boost::asio::ip::tcp::resolver resolver(m_context->context());
@@ -42,19 +50,15 @@ void tcp_client::connect(const end_point& endpoint, tcp_session::on_data_availab
                     async_timeout(deadline));
                 if (result.index() == 1)
                     SG_THROW(exceptions::net<exceptions::errors::net::time_out>, "operation timeout");
+
+                m_session = tcp_session::create(std::move(socket), onReadCb, onDisconnect, options);
+                m_session->start(nullptr);
             },
             boost::asio::use_future);
 
-        m_context->context().run();
+        m_context->run();
         fut.get();
     }
-
-    m_context->restart();
-
-    m_session = tcp_session::create(std::move(socket), onReadCb, onDisconnect, options);
-    m_session->start(nullptr);
-
-    m_context->run();
 }
 
 bool tcp_client::is_connected() const {

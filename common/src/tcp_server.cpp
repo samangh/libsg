@@ -56,7 +56,7 @@ void tcp_server::start(std::vector<end_point> endpoints, CallBacks callbacks, op
         m_callbacks = std::move(callbacks);
 
         auto stoppedTask = std::bind(&tcp_server::on_io_pool_stopped, this, std::placeholders::_1);
-        m_context = asio_io_pool::create(options.no_threads, stoppedTask);
+        m_context = asio_io_pool::create(options.no_threads, false, stoppedTask);
 
         m_stop_in_operation.store(false);
 
@@ -76,7 +76,7 @@ void tcp_server::start(std::vector<end_point> endpoints, CallBacks callbacks, op
 }
 
 void tcp_server::future_get_once() noexcept(false) {
-    m_context->future_get_once();
+    m_context->wait_for_stop();
     m_running.wait(true);
 }
 

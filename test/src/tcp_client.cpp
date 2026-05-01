@@ -35,8 +35,7 @@ TEST_CASE("tcp_client: check connect", "[sg::net::tcp_client]") {
         can_stop.release();
     };
 
-    auto context = asio_io_pool::create();
-    auto client  = tcp_client(context);
+    auto client  = tcp_client();
     client.connect(ep, onClientdata, nullptr);
     client.session().write(msg);
 
@@ -75,8 +74,7 @@ TEST_CASE("tcp_client: check destructor of unused client", "[sg::net::tcp_client
 TEST_CASE("tcp_client: check that you can't connect twice", "[sg::net::tcp_client]") {
     using namespace sg::net;
 
-    auto context = asio_io_pool::create();
-    auto client = tcp_client(context);
+    auto client = tcp_client();
     client.connect(end_point("8.8.8.8", 53), nullptr, nullptr);
     REQUIRE_THROWS(client.connect(end_point("8.8.8.8", 53), nullptr, nullptr));
 }
@@ -123,8 +121,7 @@ TEST_CASE("tcp_client: check multiple reconnections", "[sg::net::tcp_client]") {
 TEST_CASE("tcp_client: check multiple disconnects are OK", "[sg::net::tcp_client]") {
     using namespace sg::net;
 
-    auto context = asio_io_pool::create();
-    auto client = tcp_client(context);
+    auto client = tcp_client();
     client.connect(end_point("8.8.8.8", 53), nullptr, nullptr);
 
     client.disconnect();
@@ -143,8 +140,7 @@ TEST_CASE("tcp_client: check disconnect() without connect() is OK", "[sg::net::t
 TEST_CASE("tcp_client: set_keepalive(...)", "[sg::net::tcp_client]") {
     using namespace sg::net;
 
-    auto context = asio_io_pool::create();
-    auto client = tcp_client(context);
+    auto client = tcp_client();
     client.connect(end_point("8.8.8.8", 53), nullptr, nullptr);
 
     unsigned outsideRange = (unsigned)std::numeric_limits<int>::max() + 1;
@@ -162,8 +158,7 @@ TEST_CASE("tcp_client: set_keepalive(...)", "[sg::net::tcp_client]") {
 TEST_CASE("tcp_client: set_timeout(...)", "[sg::net::tcp_client]") {
     using namespace sg::net;
 
-    auto context = asio_io_pool::create();
-    auto client = tcp_client(context);
+    auto client = tcp_client();
     client.connect(end_point("8.8.8.8", 53), nullptr, nullptr);
 
     client.session().set_timeout(100);
@@ -172,8 +167,7 @@ TEST_CASE("tcp_client: set_timeout(...)", "[sg::net::tcp_client]") {
 TEST_CASE("tcp_client: test that connect(...) will timeout", "[sg::net::tcp_client]") {
     using namespace sg::net;
 
-    auto context = asio_io_pool::create();
-    auto client = tcp_client(context);
+    auto client = tcp_client();
 
     tcp_session::options_t options;
     options.timeout_msec=1000;
@@ -216,6 +210,5 @@ TEST_CASE("tcp_client: set send_buffer_size via options", "[sg::net::tcp_client]
 TEST_CASE("tcp_client: check destruction of unused client", "[sg::net::tcp_client]") {
     using namespace sg::net;
 
-    auto context = asio_io_pool::create();
-    auto client = tcp_client(context);
+    auto client = tcp_client();
 }

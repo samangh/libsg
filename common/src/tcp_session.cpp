@@ -225,7 +225,11 @@ boost::asio::awaitable<void> tcp_session::reader() {
             }
         }
     } catch (...) {
-        /* if clean closing, do not throw error */
+        /* if clean closing, do not throw error
+         *
+         * We have to do this because during graceful shutdown, close() will close the socket and so
+         * cause the reader to throw.
+         */
         if (m_state.load(std::memory_order::acquire) == state_t::running)
         {
             std::lock_guard lock(m_exception_mutex);
