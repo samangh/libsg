@@ -37,7 +37,7 @@
         operator bool() const noexcept { return m_func != nullptr; }                               \
                                                                                                    \
         template <typename... ArgsT>                                                               \
-        RESULT_TYPE invoke(ArgsT&&... args) {                                                      \
+        constexpr RESULT_TYPE invoke(ArgsT&&... args) const {                                      \
             return std::invoke(m_func, std::forward<ArgsT>(args)...);                              \
         }                                                                                          \
                                                                                                    \
