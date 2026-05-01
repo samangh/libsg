@@ -22,7 +22,7 @@ class SG_COMMON_EXPORT tcp_client {
     void disconnect();
     tcp_session& session();
   private:
-    // define m_session after m_context, so that m_session is destructed first
+    // m_session declared after m_context so that m_session is destructed first
     std::shared_ptr<asio_io_pool> m_context;
     std::shared_ptr<tcp_session> m_session;
 

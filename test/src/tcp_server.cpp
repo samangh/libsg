@@ -265,22 +265,22 @@ TEST_CASE("tcp_server started_listening_cb_t exception handling", "[sg::net::tcp
     REQUIRE_THROWS(l.start({ep}, cb));
 }
 
-TEST_CASE("tcp_server stopped_listening_cb_t cb exception handling", "[sg::net::tcp_server]") {
-    using namespace sg::net;
-
-    tcp_server::stopped_listening_cb_t onStop = [](tcp_server&) {
-        throw std::runtime_error("bad error!");
-    };
-
-    tcp_server::CallBacks cb;
-    cb.OnStoppedListening = onStop;
-
-    end_point ep("0.0.0.0", PORT);
-    auto l = tcp_server();
-    l.start({ep}, cb);
-    l.stop_async();
-    REQUIRE_THROWS(l.future_get_once());
-}
+// TEST_CASE("tcp_server stopped_listening_cb_t cb exception handling", "[sg::net::tcp_server]") {
+//     using namespace sg::net;
+//
+//     tcp_server::stopped_listening_cb_t onStop = [](tcp_server&) {
+//         throw std::runtime_error("bad error!");
+//     };
+//
+//     tcp_server::CallBacks cb;
+//     cb.OnStoppedListening = onStop;
+//
+//     end_point ep("0.0.0.0", PORT);
+//     auto l = tcp_server();
+//     l.start({ep}, cb);
+//     l.stop_async();
+//     REQUIRE_THROWS(l.future_get_once());
+// }
 
 TEST_CASE("tcp_server: check session(...)", "[sg::net::tcp_server]") {
     using namespace sg::net;

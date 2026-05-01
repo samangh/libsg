@@ -1,131 +1,155 @@
 #include "sg/asio_io_pool.h"
+
 #include "sg/debug.h"
 
+#include <boost/asio.hpp>
 #include <fmt/format.h>
 #include <fmt/ranges.h>
-#include <boost/asio.hpp>
+#include <latch>
+#include <utility>
 
 namespace sg::net {
 
-asio_io_pool::asio_io_pool(Private, size_t noWorkers, stopped_cb_t onStoppedCallBack) {
-    /* setup worker*/
-    m_on_stopped_call_back = onStoppedCallBack;
-
-    auto workerTask = std::bind(&asio_io_pool::on_worker_tick, this, std::placeholders::_1);
-    auto stoppedTask = std::bind(&asio_io_pool::on_worker_stop, this, std::placeholders::_1);
-
-    for (size_t i = 0; i < noWorkers; ++i) {
-        auto w = std::make_unique<notifiable_background_worker>(std::chrono::seconds(1), workerTask,
-                                                                nullptr, stoppedTask);
-        m_workers.emplace_back(std::move(w));
-    }
+asio_io_pool::asio_io_pool(Private, size_t noWorkers, bool enableGuard,
+                           stopped_cb_t onStoppedCallBack)
+    : m_context(noWorkers),
+      m_no_workers(noWorkers),
+      m_guard_enabled(enableGuard),
+      m_on_stopped_call_back(std::move(onStoppedCallBack)) {
+    if (noWorkers == 0)
+        SG_THROW(std::invalid_argument, "noWorkers must be > 0");
 }
+
 asio_io_pool::~asio_io_pool() {
     stop_async();
     wait_for_stop();
-
-    future_get_once();
 }
 
-std::shared_ptr<asio_io_pool> asio_io_pool::create(size_t noWorkers, stopped_cb_t onStoppedCallBack) {
-    return std::make_shared<asio_io_pool>(Private(), noWorkers, onStoppedCallBack);
+std::shared_ptr<asio_io_pool> asio_io_pool::create(size_t noWorkers, bool enableGuard,
+                                                   stopped_cb_t onStoppedCallBack) {
+    return std::make_shared<asio_io_pool>(Private(), noWorkers, enableGuard, onStoppedCallBack);
 }
 
-void asio_io_pool::run(bool enableGuard) {
-    if (is_running())
-        SG_THROW(std::runtime_error, "this asio_io_pool is already running");
+bool asio_io_pool::run() {
+    /* can't interleave with stop_async() or another run() */
+    std::lock_guard lock(m_mutex);
 
-    if (enableGuard)
-        m_guard = std::make_unique<
-            boost::asio::executor_work_guard<boost::asio::io_context::executor_type>>(
-            boost::asio::make_work_guard(m_io_context_ptr));
+    auto valState = state_t::stopped;
+    while (!m_state.compare_exchange_weak(valState, state_t::starting)) {
+        if (valState == state_t::running)
+            return false;
+        // wait until stopped!
+        if (valState == state_t::stopping)
+            m_state.wait(valState, std::memory_order_acquire);
+    }
 
-    // We set the connection count before, because if the io_context has nothing to do the on_stop
-    // handlers may get called before we have started all of tem.
-    m_running_worker_threads_count.store(m_workers.size());
+    m_context.restart();
+    if (m_guard_enabled)
+        m_guard.emplace(boost::asio::make_work_guard(m_context));
 
-    /* wait until the context is running before returning! */
-    std::binary_semaphore contextRunning{0};
-    boost::asio::post(m_io_context_ptr, [&contextRunning](){contextRunning.release();});
+    /* start the pool */
+    m_pool = std::make_unique<boost::asio::thread_pool>(m_no_workers);
 
-    for (auto& worker : m_workers)
-        try {
-            if (!worker->is_running())
-                worker->start();
-        } catch (...) {
-            --m_running_worker_threads_count;
-            throw;
-        }
+    /* just set number of running workers to m_no_workers, as there is a latch that ensures it */
+    m_running_worker_threads_count.store(m_no_workers);
 
-    contextRunning.acquire();
+    /* latch needs to be shared_ptr. This is because a std::latch .arrive_and_wait() is actually
+     * ".count_down(); .wait();" so there is a chance that a thread might be in-between
+     * these two calls, whilst the .wait() on the main thread succeeds and destructs the latch */
+    auto latch_ = std::make_shared<std::latch>(static_cast<ptrdiff_t>(m_no_workers));
+
+    for (size_t i = 0; i < m_no_workers; ++i)
+        boost::asio::post(m_pool->executor(), [this, latch_]() {
+            /* need to have all pools running, just in case a callback in m_context runs
+             * async_stop() */
+            latch_->arrive_and_wait();
+
+            m_context.run();
+
+            if (--m_running_worker_threads_count == 0) {
+                /* run callback is separate loop to prevent any self-joint locks in the callback
+                 *
+                 * note: internally joins all threads, which provides a happens-before edge with
+                 * everything that happened inside the pool tasks, so  no need to add any locks in
+                 * here  */
+                m_cb_thread = std::jthread([this]() {
+                    m_pool->stop();
+                    m_state.store(state_t::stopped);
+                    m_state.notify_all();
+                    if (m_on_stopped_call_back)
+                        m_on_stopped_call_back.invoke(*this);
+                });
+            }
+        });
+
+    // wait until all threads are started. Otherwise, a call to stop_async may stop the pool
+    // before all threads are started, and so m_running_worker_threads_count will never
+    // reach zero!
+    latch_->wait();
+
+    // note: if the ASIO context has nothing to do the pool can stop before we got here!
+    auto state_ = state_t::starting;
+    m_state.compare_exchange_strong(state_, state_t::running);
+
+    return true;
 }
 
-boost::asio::io_context& asio_io_pool::context() { return m_io_context_ptr; }
+boost::asio::io_context& asio_io_pool::context() { return m_context; }
 
 const boost::asio::io_context& asio_io_pool::context() const {
-    return m_io_context_ptr;
+    return m_context;
 }
 
 bool asio_io_pool::is_running() const {
-    for (const auto& worker: m_workers)
-        if (worker->is_running())
-            return true;
-    return false;
+    auto state_ = m_state.load(std::memory_order_acquire);
+    return (state_ == state_t::running || state_ == state_t::starting);
 }
 
+size_t asio_io_pool::worker_count() const { return m_no_workers; }
+
+asio_io_pool::state_t asio_io_pool::state() const {
+    return m_state.load(std::memory_order_acquire);
+}
 
 void asio_io_pool::stop_async() {
+    /* needs mutex so we don't interleave with run() */
+    std::lock_guard lock(m_mutex);
+
+    /* don't do anything if are already stopping or stopped */
+    auto valState = state_t::running;
+    if (!m_state.compare_exchange_strong(valState, state_t::stopping))
+        if (valState == state_t::stopping || valState == state_t::stopped)
+            return;
+
+    /* note: we can't be in the starting state at this point, due to the lock */
+    assert(valState != state_t::starting);
+
     if (m_guard)
-        reset_guard();
+        m_guard.reset();
 
-    if (!m_io_context_ptr.stopped())
-        m_io_context_ptr.stop();
-
-    for (const auto& worker: m_workers)
-        if (worker->is_running())
-            worker->request_stop();
+    if (!m_context.stopped())
+        m_context.stop();
 }
 
 void asio_io_pool::wait_for_stop() {
-    for (const auto& worker: m_workers)
-        worker->wait_for_stop();
+    // join() is not thread safe!
+    std::lock_guard lock(m_mutex_pool_join);
+
+    if (m_pool)
+        m_pool->join();
+
+    if (m_cb_thread.joinable())
+        m_cb_thread.join();
 }
+
+bool asio_io_pool::has_guard() const {
+    return m_guard_enabled;
+}
+
 void asio_io_pool::restart() {
-    m_io_context_ptr.restart();
-}
-void asio_io_pool::reset_guard() {
-    if (!is_running())
-        return;
-
-    if (!m_guard)
-        SG_THROW(std::runtime_error, "this asio_io_pool has no guard");
-
-    // call guard (not smart_ptr!) reset
-    m_guard->reset();
-}
-void asio_io_pool::future_get_once() noexcept(false) {
-    std::vector<std::string> errors;
-    for (const auto& worker: m_workers)
-        try {
-            worker->future_get_once();
-        } catch (const std::exception& e) {
-            errors.emplace_back(e.what());
-        } catch (...) {
-            errors.emplace_back("Unknown error");
-        }
-
-    if (!errors.empty())
-        throw std::runtime_error(fmt::format("{}", fmt::join(errors, "\n")));
+    stop_async();
+    wait_for_stop();
+    run();
 }
 
-void asio_io_pool::on_worker_tick(notifiable_background_worker* worker) {
-    m_io_context_ptr.run();
-    worker->request_stop();
-}
-
-void asio_io_pool::on_worker_stop(notifiable_background_worker*) {
-    if (--m_running_worker_threads_count == 0)
-        if (m_on_stopped_call_back)
-            m_on_stopped_call_back.invoke(*this);
-}
 } // namespace sg::net
