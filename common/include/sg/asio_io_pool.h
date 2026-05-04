@@ -2,6 +2,7 @@
 #include <sg/export/common.h>
 
 #include "callback.h"
+#include "jthread.h"
 
 #include <boost/asio/io_context.hpp>
 #include <boost/asio/thread_pool.hpp>
@@ -19,9 +20,9 @@ class SG_COMMON_EXPORT asio_io_pool {
     ~asio_io_pool();
 
     /**
-     * Starts running the io_context pool. If the pools is already running, this is a no-op.
+     * Starts running the io_context pool. If the pool is already running, this is a no-op.
      *
-     * Note that this does not clear any handlers or actions are already queued on the ASIo
+     * Note that this does not clear any handlers or actions are already queued on the ASIO
      * io_context. So you can post things to the io_context, and they will run after calling this
      * function.
      *
@@ -52,8 +53,6 @@ private:
     mutable std::mutex m_mutex;
     std::unique_ptr<boost::asio::thread_pool> m_pool;
     boost::asio::io_context m_context;
-
-    mutable std::mutex m_mutex_pool_join;
 
     const size_t m_no_workers;
     std::atomic<size_t> m_running_worker_threads_count{0};
