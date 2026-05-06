@@ -1,4 +1,5 @@
 #include <catch2/catch_test_macros.hpp>
+#include <catch2/generators/catch_generators.hpp>
 
 #include "sg/tcp_client.h"
 #include "sg/tcp_client_sync.h"
@@ -732,4 +733,42 @@ TEST_CASE("tcp_server: check that disconnect callback is called if connect callb
     client.connect({"127.0.0.1", PORT}, nullptr, nullptr);
 
     discCalled.acquire();
+}
+
+TEST_CASE("tcp_server: echo works across a range of options_t::no_threads", "[sg::net::tcp_server]") {
+    using namespace sg::net;
+
+    auto no_threads = GENERATE(size_t{1}, size_t{2}, size_t{4}, size_t{8}, size_t{16});
+    CAPTURE(no_threads);
+
+    constexpr int client_count = 50;
+
+    end_point ep("127.0.0.1", PORT);
+
+    tcp_server::CallBacks cb;
+    cb.OnSessionDataAvailable = [](tcp_server& l, tcp_server::session_id_t id,
+                                   const std::byte* data, size_t length) {
+        l.session(id)->write(data, length);
+    };
+
+    tcp_server::options_t opts;
+    opts.no_threads = no_threads;
+
+    tcp_server l;
+    l.start({ep}, cb, opts);
+
+    std::vector<std::shared_ptr<tcp_client_sync>> clients;
+    clients.reserve(client_count);
+    for (auto i = 0; i < client_count; ++i) {
+        auto client = std::make_shared<tcp_client_sync>();
+        client->connect(ep);
+        clients.push_back(client);
+        client->write(fmt::format("{}\n", i));
+    }
+
+    for (auto i = 0; i < client_count; ++i)
+        REQUIRE(clients[i]->read_until("\n") == fmt::format("{}\n", i));
+
+    l.stop_async();
+    l.future_get_once();
 }
