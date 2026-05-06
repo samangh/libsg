@@ -34,6 +34,12 @@ std::shared_ptr<asio_io_pool> asio_io_pool::create(size_t noWorkers, bool enable
 }
 
 bool asio_io_pool::run() {
+    /* re-entry from inside the stopped-callback would deadlock on the mutex (run()
+     * waits for state_t::stopped, which is set by the callback thread itself). */
+    if (m_cb_thread_id.load(std::memory_order_acquire) == std::this_thread::get_id())
+        SG_THROW(std::logic_error,
+                 "asio_io_pool::run() must not be called from the stopped callback");
+
     /* can't interleave with stop_async() or another run() */
     std::lock_guard lock(m_mutex);
 
@@ -84,8 +90,13 @@ bool asio_io_pool::run() {
                         if (m_pool)
                             m_pool->join();
 
-                        if (m_on_stopped_call_back)
+                        if (m_on_stopped_call_back) {
+                            m_cb_thread_id.store(std::this_thread::get_id(),
+                                                 std::memory_order_release);
                             m_on_stopped_call_back.invoke(*this);
+                            m_cb_thread_id.store(std::thread::id{},
+                                                 std::memory_order_release);
+                        }
 
                         m_state.store(state_t::stopped);
                         m_state.notify_all();
@@ -162,6 +173,11 @@ void asio_io_pool::stop_async() {
 }
 
 void asio_io_pool::wait_for_stop() {
+    /* re-entry from inside the stopped-callback would wait for our own thread to set
+     * state_t::stopped — return instead; the stop completes once the callback returns. */
+    if (m_cb_thread_id.load(std::memory_order_acquire) == std::this_thread::get_id())
+        return;
+
     while (true) {
         const auto val = m_state.load(std::memory_order_acquire);
         if (val == state_t::stopped)

@@ -7,6 +7,8 @@
 #include <boost/asio/io_context.hpp>
 #include <boost/asio/thread_pool.hpp>
 
+#include <thread>
+
 namespace sg::net {
 
 class SG_COMMON_EXPORT asio_io_pool {
@@ -64,6 +66,7 @@ private:
 
     const stopped_cb_t m_on_stopped_call_back;
     std::jthread m_cb_thread;
+    std::atomic<std::thread::id> m_cb_thread_id{};
 };
 
 }
