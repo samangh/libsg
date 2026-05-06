@@ -29,9 +29,8 @@ namespace sg::net {
  * internal mutex.
  *
  * @par Ownership
- * Instances must be heap-allocated through @ref create(); the constructor is
- * gated by a private tag. This guarantees @c shared_ptr ownership, which the
- * internal callback thread relies on.
+ * Instances must be heap-allocated through @ref create(); as this class is intended to be shared
+ * across multiple user classes (e.g. tcp_client / tcp_server).
  *
  * @par Stopped callback re-entrancy
  * The @c stopped_cb_t callback runs on a dedicated thread distinct from the
@@ -141,7 +140,7 @@ class SG_COMMON_EXPORT asio_io_pool {
      * @warning Without a prior @ref stop_async(), this can wait forever if the
      *          pool has a work guard (see @ref has_guard()).
      */
-    void wait_for_stop();
+    void wait_for_stop() const;
 
     /**
      * @brief Returns whether the pool was constructed with a work guard.

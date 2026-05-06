@@ -145,7 +145,7 @@ void asio_io_pool::stop_async() {
         m_context.stop();
 }
 
-void asio_io_pool::wait_for_stop() {
+void asio_io_pool::wait_for_stop() const {
     /* re-entry from inside the stopped-callback would wait for our own thread to set
      * state_t::stopped — return instead; the stop completes once the callback returns. */
     if (m_cb_thread_id.load(std::memory_order_acquire) == std::this_thread::get_id())
