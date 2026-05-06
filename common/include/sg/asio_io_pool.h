@@ -5,7 +5,8 @@
 #include "jthread.h"
 
 #include <boost/asio/io_context.hpp>
-#include <boost/asio/thread_pool.hpp>
+
+#include <vector>
 
 namespace sg::net {
 
@@ -18,10 +19,9 @@ namespace sg::net {
  * user-supplied callback fires once per stop cycle.
  *
  * @par Lifecycle
- * Instances pass through four states (see @ref state_t):
- * @c stopped → @c starting → @c running → @c stopping → @c stopped. Transitions
- * are driven by @ref run() and @ref stop_async(); the @c starting and
- * @c stopping states are transient.
+ * Instances pass through three states (see @ref state_t):
+ * @c stopped → @c running → @c stopping → @c stopped. Transitions are driven
+ * by @ref run() and @ref stop_async(); the @c stopping state is transient.
  *
  * @par Thread safety
  * All public member functions are safe to call concurrently from multiple
@@ -51,10 +51,9 @@ class SG_COMMON_EXPORT asio_io_pool {
      * @brief Lifecycle state of the pool.
      */
     enum class state_t {
-        stopped,  ///< Idle. No worker threads are running.
-        starting, ///< Transient: workers are being spawned by @ref run().
-        running,  ///< Workers are processing the @c io_context.
-        stopping  ///< Transient: workers are draining toward @c stopped.
+        stopped, ///< Idle. No worker threads are running.
+        running, ///< Workers are processing the @c io_context.
+        stopping ///< Transient: workers are draining toward @c stopped.
     };
 
     /**
@@ -153,7 +152,7 @@ class SG_COMMON_EXPORT asio_io_pool {
     [[nodiscard]] bool has_guard() const;
 
     /**
-     * @brief Returns @c true if the pool is in @c starting or @c running state.
+     * @brief Returns @c true if the pool is in the @c running state.
      */
     [[nodiscard]] bool is_running() const;
 
@@ -194,13 +193,9 @@ class SG_COMMON_EXPORT asio_io_pool {
 
 private:
     mutable std::mutex m_mutex;
-    std::unique_ptr<boost::asio::thread_pool> m_pool;
     boost::asio::io_context m_context;
 
     const size_t m_no_workers;
-    /// Number of in-flight worker tasks (not threads). Reaches 0 when the last
-    /// worker exits @c io_context::run(); that worker spawns @ref m_cb_thread.
-    std::atomic<size_t> m_active_task_count{0};
 
     std::atomic<state_t> m_state{state_t::stopped};
 
@@ -208,14 +203,20 @@ private:
     std::optional<boost::asio::executor_work_guard<boost::asio::io_context::executor_type>> m_guard;
 
     const stopped_cb_t m_on_stopped_call_back;
-    /// Dedicated thread that joins the pool, runs the user callback, and
-    /// publishes @c state_t::stopped. Kept off the worker pool to avoid a
-    /// self-join in @c m_pool->join().
-    std::jthread m_cb_thread;
     /// ID of @ref m_cb_thread while it is executing the user callback. Used by
     /// @ref run() and @ref wait_for_stop() to detect re-entry from the
     /// callback and avoid self-deadlock.
     std::atomic<std::thread::id> m_cb_thread_id{};
+
+    /// Worker threads driving @ref m_context. Joined by @ref m_cb_thread, not
+    /// by the pool itself.
+    std::vector<std::jthread> m_workers;
+
+    /// Monitor thread: waits for the cycle to leave @c state_t::running, joins
+    /// the workers, runs the user callback, then publishes @c state_t::stopped.
+    /// Must be the last member so that its @c ~jthread joins before any other
+    /// member it touches is destroyed.
+    std::jthread m_cb_thread;
 };
 
 }

@@ -5,7 +5,6 @@
 #include <boost/asio.hpp>
 #include <fmt/format.h>
 #include <fmt/ranges.h>
-#include <latch>
 #include <utility>
 
 namespace sg::net {
@@ -49,91 +48,61 @@ bool asio_io_pool::run() {
     /* can't interleave with stop_async() or another run() */
     std::lock_guard lock(m_mutex);
 
-    /* latch needs to be shared_ptr. This is because a std::latch .arrive_and_wait() is actually
-     * ".count_down(); .wait();" so there is a chance that a thread might be in-between
-     * these two calls, whilst the .wait() on the main thread succeeds and destructs the latch */
-    auto latch_ = std::make_shared<std::latch>(static_cast<ptrdiff_t>(m_no_workers));
-    std::atomic<size_t> posts_started(0);
+    /* claim the running state, waiting out any in-flight previous cycle. */
+    auto valState = state_t::stopped;
+    while (!m_state.compare_exchange_weak(valState, state_t::running)) {
+        if (valState == state_t::running)
+            return false;
+        // valState is stopping; wait for the previous cycle's m_cb_thread to publish stopped.
+        m_state.wait(valState, std::memory_order_acquire);
+        valState = state_t::stopped;
+    }
+
+    m_context.restart();
+    if (m_guard_enabled)
+        m_guard.emplace(boost::asio::make_work_guard(m_context));
 
     try {
-        auto valState = state_t::stopped;
-        while (!m_state.compare_exchange_weak(valState, state_t::starting)) {
-            if (valState == state_t::running)
-                return false;
-            // wait until stopped!
-            if (valState == state_t::stopping)
-                m_state.wait(valState, std::memory_order_acquire);
-        }
-
-        m_context.restart();
-        if (m_guard_enabled)
-            m_guard.emplace(boost::asio::make_work_guard(m_context));
-
-        /* start the pool */
-        m_pool = std::make_unique<boost::asio::thread_pool>(m_no_workers);
-
-        /* just set number of running workers to m_no_workers, as there is a latch that ensures it */
-        m_active_task_count.store(m_no_workers);
-
+        m_workers.reserve(m_no_workers);
         for (size_t i = 0; i < m_no_workers; ++i) {
-            boost::asio::post(m_pool->executor(), [this, latch_]() {
-                /* need to have all pools running, just in case a callback in m_context runs
-                 * async_stop() */
-                latch_->arrive_and_wait();
-
+            m_workers.emplace_back([this]() {
                 m_context.run();
 
-                auto state_ = state_t::running;
-                m_state.compare_exchange_strong(state_, state_t::stopping);
-
-                if (--m_active_task_count == 0) {
-                    /* run callback is separate loop to prevent any self-join locks in the callback
-                     *
-                     * note: internally joins all threads, which provides a happens-before edge with
-                     * everything that happened inside the pool tasks, so no need to add any locks in
-                     * here  */
-                    m_cb_thread = std::jthread([this]() {
-                        if (m_pool)
-                            m_pool->join();
-
-                        if (m_on_stopped_call_back) {
-                            m_cb_thread_id.store(std::this_thread::get_id(),
-                                                 std::memory_order_release);
-                            m_on_stopped_call_back.invoke(*this);
-                            m_cb_thread_id.store(std::thread::id{},
-                                                 std::memory_order_release);
-                        }
-
-                        m_state.store(state_t::stopped);
-                        m_state.notify_all();
-                    });
-                }
+                /* signal natural drain so the monitor thread wakes. */
+                auto s = state_t::running;
+                if (m_state.compare_exchange_strong(s, state_t::stopping))
+                    m_state.notify_all();
             });
-            ++posts_started;
         }
 
-        // wait until all threads are started. Otherwise, a call to stop_async may stop the pool
-        // before all threads are started, and so m_running_worker_threads_count will never
-        // reach zero!
-        latch_->wait();
+        /* monitor: waits for the cycle to leave running, joins workers, runs the user
+         * callback, then publishes stopped. The previous cycle's m_cb_thread (if any)
+         * is joined by this move-assignment; it has already published stopped above. */
+        m_cb_thread = std::jthread([this]() {
+            while (m_state.load(std::memory_order_acquire) == state_t::running)
+                m_state.wait(state_t::running, std::memory_order_acquire);
 
-        // note: if the ASIO context has nothing to do the pool can stop before we got here!
-        auto state_ = state_t::starting;
-        m_state.compare_exchange_strong(state_, state_t::running);
+            m_workers.clear();  // joins all workers
+
+            if (m_on_stopped_call_back) {
+                m_cb_thread_id.store(std::this_thread::get_id(),
+                                     std::memory_order_release);
+                m_on_stopped_call_back.invoke(*this);
+                m_cb_thread_id.store(std::thread::id{},
+                                     std::memory_order_release);
+            }
+
+            m_state.store(state_t::stopped, std::memory_order_release);
+            m_state.notify_all();
+        });
 
         return true;
     } catch (...) {
-        // just in case the exception was thrown during the boost::asio::post(...), countback any
-        // posts that were not done (so that threads can go past the latch_).
-        for (size_t i = posts_started; i < m_no_workers; ++i)
-            latch_->count_down();
-
         if (m_guard)
             m_guard.reset();
         if (!m_context.stopped())
             m_context.stop();
-        if (m_pool)
-            m_pool->join();
+        m_workers.clear();  // joins any workers that did start
 
         m_state.store(state_t::stopped);
         m_state.notify_all();
@@ -148,8 +117,7 @@ const boost::asio::io_context& asio_io_pool::context() const {
 }
 
 bool asio_io_pool::is_running() const {
-    auto state_ = m_state.load(std::memory_order_acquire);
-    return (state_ == state_t::running || state_ == state_t::starting);
+    return m_state.load(std::memory_order_acquire) == state_t::running;
 }
 
 size_t asio_io_pool::worker_count() const { return m_no_workers; }
@@ -162,14 +130,13 @@ void asio_io_pool::stop_async() {
     /* needs mutex so we don't interleave with run() */
     std::lock_guard lock(m_mutex);
 
-    /* don't do anything if are already stopping or stopped */
+    /* no-op if already stopping or stopped */
     auto valState = state_t::running;
     if (!m_state.compare_exchange_strong(valState, state_t::stopping))
-        if (valState == state_t::stopping || valState == state_t::stopped)
-            return;
+        return;
 
-    /* note: we can't be in the starting state at this point */
-    assert(valState != state_t::starting);
+    /* wake the monitor thread waiting on state != running. */
+    m_state.notify_all();
 
     if (m_guard)
         m_guard.reset();
