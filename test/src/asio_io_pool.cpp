@@ -142,7 +142,7 @@ TEST_CASE("asio_context_pool: concurrent run/stop_async from multiple threads", 
     pool->wait_for_stop();
 
     auto s = pool->state();
-    REQUIRE((s == asio_io_pool::state_t::stopped || s == asio_io_pool::state_t::stopping));
+    REQUIRE((s == asio_io_pool::state_t::stopped));
 }
 
 TEST_CASE("asio_context_pool: restart under load", "[sg::net::asio_io_pool]") {
@@ -240,4 +240,88 @@ TEST_CASE("asio_context_pool: wait_for_stop on never-started pool", "[sg::net::a
 
     REQUIRE(pool->state() == asio_io_pool::state_t::stopped);
     REQUIRE_FALSE(pool->is_running());
+}
+
+TEST_CASE("asio_context_pool: stop_async() from inside callback is a no-op", "[sg::net::asio_io_pool]") {
+    std::atomic<bool> called{false};
+
+    asio_io_pool::stopped_cb_t onStop = [&called](asio_io_pool& pool) {
+        // documented as a no-op when called from the stopped callback;
+        // must not deadlock on the internal mutex.
+        pool.stop_async();
+        called.store(true);
+        called.notify_all();
+    };
+
+    auto pool = asio_io_pool::create(2, true, onStop);
+    pool->run();
+    pool->stop_async();
+    pool->wait_for_stop();
+
+    REQUIRE(called.load());
+    REQUIRE(pool->state() == asio_io_pool::state_t::stopped);
+}
+
+TEST_CASE("asio_context_pool: wait_for_stop() from inside callback returns immediately", "[sg::net::asio_io_pool]") {
+    std::atomic<bool> called{false};
+
+    asio_io_pool::stopped_cb_t onStop = [&called](asio_io_pool& pool) {
+        // documented to return immediately when called from the stopped
+        // callback; the calling thread is the one that finalises the stop.
+        pool.wait_for_stop();
+        called.store(true);
+        called.notify_all();
+    };
+
+    auto pool = asio_io_pool::create(2, true, onStop);
+    pool->run();
+    pool->stop_async();
+    pool->wait_for_stop();
+
+    REQUIRE(called.load());
+    REQUIRE(pool->state() == asio_io_pool::state_t::stopped);
+}
+
+TEST_CASE("asio_context_pool: run() from inside callback throws logic_error", "[sg::net::asio_io_pool]") {
+    std::atomic<bool> threw{false};
+
+    asio_io_pool::stopped_cb_t onStop = [&threw](asio_io_pool& pool) {
+        // an escaping exception from the callback would terminate the
+        // program, so swallow the documented logic_error here.
+        try {
+            pool.run();
+        } catch (const std::logic_error&) {
+            threw.store(true);
+            threw.notify_all();
+        }
+    };
+
+    auto pool = asio_io_pool::create(2, true, onStop);
+    pool->run();
+    pool->stop_async();
+    pool->wait_for_stop();
+
+    REQUIRE(threw.load());
+    REQUIRE(pool->state() == asio_io_pool::state_t::stopped);
+}
+
+TEST_CASE("asio_context_pool: restart() from inside callback throws logic_error", "[sg::net::asio_io_pool]") {
+    std::atomic<bool> threw{false};
+
+    asio_io_pool::stopped_cb_t onStop = [&threw](asio_io_pool& pool) {
+        try {
+            pool.restart();
+        } catch (const std::logic_error&) {
+            threw.store(true);
+            threw.notify_all();
+        }
+    };
+
+    auto pool = asio_io_pool::create(2, true, onStop);
+    pool->run();
+    pool->stop_async();
+    pool->wait_for_stop();
+
+    REQUIRE(threw.load());
+    REQUIRE(pool->state() == asio_io_pool::state_t::stopped);
 }
