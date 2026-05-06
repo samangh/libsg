@@ -67,7 +67,7 @@ bool asio_io_pool::run() {
         m_pool = std::make_unique<boost::asio::thread_pool>(m_no_workers);
 
         /* just set number of running workers to m_no_workers, as there is a latch that ensures it */
-        m_running_worker_threads_count.store(m_no_workers);
+        m_active_task_count.store(m_no_workers);
 
         for (size_t i = 0; i < m_no_workers; ++i) {
             boost::asio::post(m_pool->executor(), [this, latch_]() {
@@ -80,7 +80,7 @@ bool asio_io_pool::run() {
                 auto state_ = state_t::running;
                 m_state.compare_exchange_strong(state_, state_t::stopping);
 
-                if (--m_running_worker_threads_count == 0) {
+                if (--m_active_task_count == 0) {
                     /* run callback is separate loop to prevent any self-join locks in the callback
                      *
                      * note: internally joins all threads, which provides a happens-before edge with

@@ -57,7 +57,7 @@ private:
     boost::asio::io_context m_context;
 
     const size_t m_no_workers;
-    std::atomic<size_t> m_running_worker_threads_count{0};
+    std::atomic<size_t> m_active_task_count{0};
 
     std::atomic<state_t> m_state{state_t::stopped};
 
