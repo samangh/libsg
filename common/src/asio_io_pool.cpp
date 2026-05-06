@@ -16,8 +16,9 @@ asio_io_pool::asio_io_pool(Private, size_t noWorkers, bool enableGuard,
       m_no_workers(noWorkers),
       m_guard_enabled(enableGuard),
       m_on_stopped_call_back(std::move(onStoppedCallBack)) {
-    if (noWorkers == 0)
-        SG_THROW(std::invalid_argument, "noWorkers must be > 0");
+    // this can never be zero, if as create() will set this to hardware_concurrency()  or 1 if zero
+    // is passed
+    assert (noWorkers != 0);
 }
 
 asio_io_pool::~asio_io_pool() {
@@ -29,6 +30,11 @@ std::shared_ptr<asio_io_pool> asio_io_pool::create(size_t noWorkers, bool enable
                                                    stopped_cb_t onStoppedCallBack) {
     if (noWorkers == 0)
         noWorkers = std::thread::hardware_concurrency();
+
+    // hardware_concurrency() can return zero if the concurrency can't be calcualted, in which case
+    // we'll just set this to 1
+    if (noWorkers == 0)
+        noWorkers = 1;
     return std::make_shared<asio_io_pool>(Private(), noWorkers, enableGuard,
                                           std::move(onStoppedCallBack));
 }

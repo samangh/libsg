@@ -7,47 +7,188 @@
 #include <boost/asio/io_context.hpp>
 #include <boost/asio/thread_pool.hpp>
 
-#include <thread>
-
 namespace sg::net {
 
+/**
+ * @brief A restartable thread pool driving a single Boost.Asio @c io_context.
+ *
+ * The pool owns a @c boost::asio::io_context and a fixed-size set of worker
+ * threads, each of which calls @c io_context::run(). It can be started, stopped
+ * and restarted any number of times during its lifetime, and an optional
+ * user-supplied callback fires once per stop cycle.
+ *
+ * @par Lifecycle
+ * Instances pass through four states (see @ref state_t):
+ * @c stopped → @c starting → @c running → @c stopping → @c stopped. Transitions
+ * are driven by @ref run() and @ref stop_async(); the @c starting and
+ * @c stopping states are transient.
+ *
+ * @par Thread safety
+ * All public member functions are safe to call concurrently from multiple
+ * threads. @ref run() and @ref stop_async() are mutually serialised via an
+ * internal mutex.
+ *
+ * @par Ownership
+ * Instances must be heap-allocated through @ref create(); the constructor is
+ * gated by a private tag. This guarantees @c shared_ptr ownership, which the
+ * internal callback thread relies on.
+ *
+ * @par Stopped callback re-entrancy
+ * The @c stopped_cb_t callback runs on a dedicated thread distinct from the
+ * pool workers. From inside the callback:
+ * - @ref stop_async() is a safe no-op.
+ * - @ref wait_for_stop() returns immediately.
+ * - @ref run() and @ref restart() throw @c std::logic_error.
+ * The callback should not throw; an escaping exception terminates the program.
+ *
+ * @see boost::asio::io_context
+ */
 class SG_COMMON_EXPORT asio_io_pool {
     struct Private{ explicit Private() = default; };
 
   public:
-    enum class state_t {stopped, starting, running, stopping};
+    /**
+     * @brief Lifecycle state of the pool.
+     */
+    enum class state_t {
+        stopped,  ///< Idle. No worker threads are running.
+        starting, ///< Transient: workers are being spawned by @ref run().
+        running,  ///< Workers are processing the @c io_context.
+        stopping  ///< Transient: workers are draining toward @c stopped.
+    };
+
+    /**
+     * @brief Callback invoked once per stop cycle, after all worker threads
+     *        have finished and the @c io_context has drained.
+     *
+     * The pool reference passed in refers to the instance that just stopped.
+     * The callback runs on a dedicated thread; see the class-level
+     * "Stopped callback re-entrancy" notes for the operations it may perform.
+     */
     CREATE_CALLBACK(stopped_cb_t, void, asio_io_pool&)
 
+    /**
+     * @brief Tag-protected constructor. Use @ref create() instead.
+     *
+     * @param noWorkers          Number of worker threads. Must be > 0.
+     * @param enableGuard        If @c true, the pool installs an
+     *                           @c executor_work_guard that keeps the
+     *                           @c io_context alive even when no work is
+     *                           pending; only @ref stop_async() will then end
+     *                           the run cycle.
+     * @param onStoppedCallBack  Optional callback invoked once per stop cycle.
+     *                           Maybe @c nullptr.
+     */
     asio_io_pool(Private, size_t noWorkers, bool enableGuard, stopped_cb_t onStoppedCallBack);
+
+    /**
+     * @brief Stops the pool (if running) and waits for it to finish.
+     *
+     * Equivalent to calling @ref stop_async() followed by @ref wait_for_stop().
+     */
     ~asio_io_pool();
 
     /**
-     * Starts running the io_context pool. If the pool is already running, this is a no-op.
+     * @brief Starts the worker threads and begins running the @c io_context.
      *
-     * Note that this does not clear any handlers or actions are already queued on the ASIO
-     * io_context. So you can post things to the io_context, and they will run after calling this
-     * function.
+     * This call does not clear handlers already queued on the @c io_context;
+     * any work posted before @c run() is processed once the workers start.
      *
-     * If the io_context pool is in middle of stopping, this will block until the pool has stopped
-     * and then run it again.
+     * If the pool is currently in the @c stopping state, this call blocks until
+     * the previous cycle has finished and then begins a new one.
      *
-     * @return true if the io_context had to be started, false if it was already running.
+     * @return @c true if a new run cycle was started, @c false if the pool was
+     *         already running.
+     *
+     * @throws std::logic_error if called from within the stopped-callback.
+     * @throws std::bad_alloc, or any exception thrown by Boost.Asio during
+     *         pool/context setup; in this case the pool is left in the
+     *         @c stopped state.
+     *
+     * @note Even when @c true is returned, a guardless pool whose
+     *       @c io_context has no work may immediately transition out of
+     *       @c running before this function returns.
      */
     bool run();
+
+    /**
+     * @brief Stops the current run cycle and starts a new one.
+     *
+     * Equivalent to @ref stop_async() + @ref wait_for_stop() + @ref run().
+     *
+     * @throws std::logic_error if called from within the stopped-callback.
+     */
     void restart();
 
+    /**
+     * @brief Requests the pool to stop and returns immediately.
+     *
+     * Drops the work guard (if any) and calls @c io_context::stop(). The
+     * workers complete their currently-executing handlers and then exit.
+     * Use @ref wait_for_stop() to block until the cycle completes.
+     *
+     * Safe to call when the pool is already @c stopping or @c stopped: in that
+     * case it has no effect. Safe to call from a handler running on the pool
+     * itself, and from the stopped-callback (where it is a no-op).
+     */
     void stop_async();
-    /** note: this can wait forever if stop_async() is not called and the pool has a guard */
+
+    /**
+     * @brief Blocks until the pool reaches the @c stopped state.
+     *
+     * If called from within the stopped-callback this returns immediately,
+     * since the calling thread is the one that finalises the stop transition.
+     *
+     * @warning Without a prior @ref stop_async(), this can wait forever if the
+     *          pool has a work guard (see @ref has_guard()).
+     */
     void wait_for_stop();
 
+    /**
+     * @brief Returns whether the pool was constructed with a work guard.
+     *
+     * The flag is fixed at construction time; it does not reflect whether a
+     * guard is currently installed (the guard is dropped while stopping).
+     */
     [[nodiscard]] bool has_guard() const;
+
+    /**
+     * @brief Returns @c true if the pool is in @c starting or @c running state.
+     */
     [[nodiscard]] bool is_running() const;
+
+    /**
+     * @brief Returns the number of worker threads (fixed at construction).
+     */
     [[nodiscard]] size_t worker_count() const;
+
+    /**
+     * @brief Returns the current lifecycle state.
+     *
+     * The value is a snapshot; the state may change before the caller acts on
+     * it.
+     */
     [[nodiscard]] state_t state() const;
 
+    /**
+     * @brief Direct access to the underlying @c io_context.
+     *
+     * Use this to post handlers, create timers, sockets, etc. The context is
+     * valid for the lifetime of the pool, across run cycles.
+     */
     [[nodiscard]] boost::asio::io_context& context();
+
+    /// @copydoc context()
     [[nodiscard]] const boost::asio::io_context& context() const;
 
+    /**
+     * @brief Constructs a new pool wrapped in a @c shared_ptr.
+     *
+     * @param noWorkers          Number of worker threads. If zero, defaults to
+     *                           @c std::thread::hardware_concurrency().
+     * @param enableGuard        See the constructor.
+     * @param onStoppedCallBack  See the constructor.
+     */
     [[nodiscard]] static std::shared_ptr<asio_io_pool>
     create(size_t noWorkers, bool enableGuard, stopped_cb_t onStoppedCallBack);
 
@@ -57,6 +198,8 @@ private:
     boost::asio::io_context m_context;
 
     const size_t m_no_workers;
+    /// Number of in-flight worker tasks (not threads). Reaches 0 when the last
+    /// worker exits @c io_context::run(); that worker spawns @ref m_cb_thread.
     std::atomic<size_t> m_active_task_count{0};
 
     std::atomic<state_t> m_state{state_t::stopped};
@@ -65,7 +208,13 @@ private:
     std::optional<boost::asio::executor_work_guard<boost::asio::io_context::executor_type>> m_guard;
 
     const stopped_cb_t m_on_stopped_call_back;
+    /// Dedicated thread that joins the pool, runs the user callback, and
+    /// publishes @c state_t::stopped. Kept off the worker pool to avoid a
+    /// self-join in @c m_pool->join().
     std::jthread m_cb_thread;
+    /// ID of @ref m_cb_thread while it is executing the user callback. Used by
+    /// @ref run() and @ref wait_for_stop() to detect re-entry from the
+    /// callback and avoid self-deadlock.
     std::atomic<std::thread::id> m_cb_thread_id{};
 };
 
