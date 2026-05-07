@@ -3,44 +3,70 @@
 #include <concepts>
 #include <functional>
 
-/** Creates a class named `NAME` representing a callback function that results `RESULT_T` and
- * arguments `...`. Use of these macro prevents two callbacks, which have the same call signature,
- * but represent different things, from being mistakenly passed.
+namespace sg {
+
+/** A type-tagged wrapper around `std::function<Signature>`.
  *
- * To call the callback directly, run the .invoke() member function.
+ * The `Tag` parameter exists solely to give two otherwise-identical callback
+ * types distinct identities, so that two callbacks with the same call
+ * signature representing different things can't be mistakenly passed for one
+ * another. Use the @ref CREATE_CALLBACK macro to declare one (it generates
+ * the tag automatically), or write the alias by hand:
+ *
+ * @code
+ * using my_cb_t = sg::callback<struct my_cb_tag, void(int, int)>;
+ * @endcode
+ *
+ * Note: `operator()` is deliberately omitted. If it existed, every callback
+ * type would satisfy `std::convertible_to<func_t>` and the tag-based type
+ * distinction would collapse. Use `.invoke(...)` instead.
+ *
+ * Note: having a undefined-base and then specialisation allows use to pass in a std::function-type
+ * definition for the callback signature (e.g. void(int, int))
+ */
+template <typename Tag, typename Signature>
+class callback;
+
+template <typename Tag, typename ReturnT, typename... ArgsT>
+class callback<Tag, ReturnT(ArgsT...)> {
+  public:
+    using func_t = std::function<ReturnT(ArgsT...)>;
+
+    callback() = default;
+    callback(std::nullptr_t) noexcept {}
+
+    template <typename F>
+        requires std::convertible_to<F, func_t>
+    callback(F f) : m_func(std::move(f)) {}
+
+    explicit operator bool() const noexcept { return m_func != nullptr; }
+
+    //note: needs to be a template function for perfect forwarding to work in all cases
+    template <typename... Args>
+    constexpr ReturnT invoke(Args&&... args) const {
+        return std::invoke(m_func, std::forward<Args>(args)...);
+    }
+
+  private:
+    func_t m_func{nullptr};
+};
+
+}  // namespace sg
+
+/** Declares a tagged callback type alias. Expands to a `using` declaration
+ * over @ref sg::callback with an inline-declared phantom tag struct, so each
+ * use produces a distinct C++ type.
  *
  * @code
  * CREATE_CALLBACK(callback1_t, void, int, int)
  *
- * callback1_t test = [](int, int) {...};
- * test.invoke(1,2);
+ * callback1_t test = [](int, int) { ... };
+ * test.invoke(1, 2);
  * @endcode
  *
- * @param NAME name of callback class to create
- * @param RESULT_TYPE result type of the callback
- * @param ... argument input signature for the callback function
+ * @param NAME        name of the callback alias to create
+ * @param RESULT_TYPE return type of the callback
+ * @param ...         argument types of the callback
  */
-#define CREATE_CALLBACK(NAME, RESULT_TYPE, ...)                                                    \
-    struct NAME {                                                                                  \
-        typedef std::function<RESULT_TYPE(__VA_ARGS__)> func_t;                                    \
-                                                                                                   \
-        NAME() = default;                                                                          \
-        NAME(std::nullptr_t) {};                                                                   \
-                                                                                                   \
-        /* Because of this, we can't define an operator() overload. If we did, all callback types  \
-         * would satisfy the std::convertible_to concept and this whole class would become         \
-         * useless! */                                                                             \
-        template <typename InvokableT>                                                             \
-            requires std::convertible_to<InvokableT, func_t>                                       \
-        NAME(InvokableT func) : m_func(std::move(func)) {}                                         \
-                                                                                                   \
-        operator bool() const noexcept { return m_func != nullptr; }                               \
-                                                                                                   \
-        template <typename... ArgsT>                                                               \
-        constexpr RESULT_TYPE invoke(ArgsT&&... args) const {                                      \
-            return std::invoke(m_func, std::forward<ArgsT>(args)...);                              \
-        }                                                                                          \
-                                                                                                   \
-      private:                                                                                     \
-        func_t m_func{nullptr};                                                                    \
-    };
+#define CREATE_CALLBACK(NAME, RESULT_TYPE, ...) \
+    using NAME = ::sg::callback<struct NAME##_tag, RESULT_TYPE(__VA_ARGS__)>;
