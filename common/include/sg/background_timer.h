@@ -17,9 +17,9 @@ class SG_COMMON_EXPORT background_timer {
     sg::pimpl<impl> pimpl;
 
   public:
-    CREATE_CALLBACK(started_cb_t, void, background_timer *)
-    CREATE_CALLBACK(stopped_cb_t, void, background_timer *, std::exception_ptr)
-    CREATE_CALLBACK(task_t, void, background_timer *)
+    CREATE_CALLBACK(started_cb_t, void(background_timer *))
+    CREATE_CALLBACK(stopped_cb_t, void(background_timer *, std::exception_ptr))
+    CREATE_CALLBACK(task_t, void(background_timer *))
 
     /* encapsulates a thread that runs a provided task regularly on a timer */
     background_timer(const task_t &task,

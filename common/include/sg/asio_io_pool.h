@@ -63,7 +63,7 @@ class SG_COMMON_EXPORT asio_io_pool {
      * The callback runs on a dedicated thread; see the class-level
      * "Stopped callback re-entrancy" notes for the operations it may perform.
      */
-    CREATE_CALLBACK(stopped_cb_t, void, asio_io_pool&)
+    CREATE_CALLBACK(stopped_cb_t, void(asio_io_pool&))
 
     /**
      * @brief Tag-protected constructor. Use @ref create() instead.

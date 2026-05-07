@@ -34,9 +34,9 @@ class SG_COMMON_EXPORT tcp_session : public std::enable_shared_from_this<tcp_ses
         int send_buffer_size{0}; // 0 = user default OS value
     };
 
-    CREATE_CALLBACK(on_data_available_cb_t, void, tcp_session&, const std::byte*, size_t)
-    CREATE_CALLBACK(on_connected_cb_t, void, tcp_session&)
-    CREATE_CALLBACK(on_disconnected_cb_t, void, tcp_session&, std::exception_ptr)
+    CREATE_CALLBACK(on_data_available_cb_t, void(tcp_session&, const std::byte*, size_t))
+    CREATE_CALLBACK(on_connected_cb_t, void(tcp_session&))
+    CREATE_CALLBACK(on_disconnected_cb_t, void(tcp_session&, std::exception_ptr))
 
     enum class state_t {running, stop_requested, stopping, stopped };
 

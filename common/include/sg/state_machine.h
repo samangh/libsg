@@ -26,9 +26,9 @@ class state_machine {
         TState current_state;
     };
 
-    CREATE_CALLBACK(state_tick_callback_t, void, state_machine&, current_state_details details)
-    CREATE_CALLBACK(state_change_callback_t, void, state_machine&, state_change_details details)
-    CREATE_CALLBACK(started_stopped_callback_t, void, state_machine&)
+    CREATE_CALLBACK(state_tick_callback_t, void(state_machine&, current_state_details details))
+    CREATE_CALLBACK(state_change_callback_t, void(state_machine&, state_change_details details))
+    CREATE_CALLBACK(started_stopped_callback_t, void(state_machine&))
 
     [[nodiscard]] TState state() const { return m_current_state.load(std::memory_order::acquire); }
 

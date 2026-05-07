@@ -21,9 +21,9 @@ namespace sg {
  */
 class SG_COMMON_EXPORT notifiable_background_worker {
   public:
-    CREATE_CALLBACK(on_start_callback_t, void, notifiable_background_worker *)
-    CREATE_CALLBACK(on_stop_callback_t, void, notifiable_background_worker *)
-    CREATE_CALLBACK(on_tick_callback_t, void, notifiable_background_worker *)
+    CREATE_CALLBACK(on_start_callback_t, void(notifiable_background_worker *))
+    CREATE_CALLBACK(on_stop_callback_t, void(notifiable_background_worker *))
+    CREATE_CALLBACK(on_tick_callback_t, void(notifiable_background_worker *))
     /**
      * @brief notifiable_background_worker
      *

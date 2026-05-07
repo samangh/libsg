@@ -58,15 +58,14 @@ class callback<Tag, ReturnT(ArgsT...)> {
  * use produces a distinct C++ type.
  *
  * @code
- * CREATE_CALLBACK(callback1_t, void, int, int)
+ * CREATE_CALLBACK(callback1_t, void(int, int))
  *
  * callback1_t test = [](int, int) { ... };
  * test.invoke(1, 2);
  * @endcode
  *
  * @param NAME        name of the callback alias to create
- * @param RESULT_TYPE return type of the callback
- * @param ...         argument types of the callback
+ * @param SIGNATURE   signature the callback
  */
-#define CREATE_CALLBACK(NAME, RESULT_TYPE, ...) \
-    using NAME = ::sg::callback<struct NAME##_tag, RESULT_TYPE(__VA_ARGS__)>;
+#define CREATE_CALLBACK(NAME, SIGNATURE) \
+    using NAME = ::sg::callback<struct NAME##_tag, SIGNATURE>;
