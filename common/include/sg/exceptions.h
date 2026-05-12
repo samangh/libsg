@@ -35,7 +35,10 @@ template <typename ErrorT>
 class exception : public any {
   protected:
     explicit exception(ErrorT err_code, const std::string& msg) : any(msg), error(err_code) {}
-    const ErrorT error;
+    ErrorT error;
+
+  public:
+    [[nodiscard]] ErrorT code() const noexcept { return error; }
 };
 
 /** Create an exception class that can be used like NAME<ERR_TYPE>
@@ -57,10 +60,11 @@ class exception : public any {
          * https://stackoverflow.com/questions/77244527                                            \
          *                                                                                         \
          * clang/gcc will hide this because of copy elision when throwing, but MSVC won't. */      \
-        NAME(NAME&) = default;                                                                     \
+        NAME(const NAME&) = default;                                                               \
                                                                                                    \
         template <typename... ArgsT>                                                               \
-        NAME(ArgsT&&... args) : EXCEPTION_BASE<ERR_TYPE>(err, std::forward<ArgsT>(args)...) {}     \
+        explicit NAME(ArgsT&&... args)                                                             \
+            : EXCEPTION_BASE<ERR_TYPE>(err, std::forward<ArgsT>(args)...) {}                       \
     };
 
 CREATE_EXCEPTION_CLASS(net, errors::net, exception)
