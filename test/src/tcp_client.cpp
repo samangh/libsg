@@ -172,7 +172,7 @@ TEST_CASE("tcp_client: test that connect(...) will timeout", "[sg::net::tcp_clie
     tcp_session::options_t options;
     options.timeout_msec=1000;
     REQUIRE_THROWS_AS(client.connect(end_point("87.5.66.1", 53), nullptr, nullptr, options),
-                      sg::exceptions::net<sg::exceptions::errors::net::time_out>);
+                      sg::exceptions::net::time_out);
 }
 
 TEST_CASE("tcp_client: set recv_buffer_size via options", "[sg::net::tcp_client]") {

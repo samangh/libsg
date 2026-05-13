@@ -20,12 +20,12 @@ TEST_CASE("sg::net check resolve()", "[sg::net]") {
     REQUIRE((!loopback.empty() && (sg::net::resolve("localhost").front() == "127.0.0.1" ||
                                    sg::net::resolve("localhost").front() == "::1")));
 
-    // check error handling
+    // check exact error
     REQUIRE_THROWS_AS(sg::net::resolve("localhozxcst"),
-                      sg::exceptions::exception<sg::exceptions::errors::net>);
+                      sg::exceptions::net::host_not_found);
 
-    // Check exact error code
+    // Check higher-level error
     try {
         sg::net::resolve("localhozxcst");
-    } catch (const sg::exceptions::net<sg::exceptions::errors::net::host_not_found>&) {}
+    } catch (const sg::exceptions::net::any&) {}
 }

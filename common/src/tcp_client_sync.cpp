@@ -8,7 +8,7 @@
 namespace {
 void throw_error_if_not_timedout(const boost::system::error_code& result_error) {
     if (result_error && result_error != boost::asio::error::operation_aborted)
-        SG_THROW(sg::exceptions::net<sg::exceptions::errors::net::other>, result_error.message());
+        SG_THROW(sg::exceptions::net::other, result_error.message());
 };
 }
 
@@ -156,7 +156,7 @@ void tcp_client_sync::run(std::chrono::steady_clock::duration timeout) {
     if (!m_context.stopped()) {
         m_socket.close();
         m_context.run();
-        SG_THROW(exceptions::net<exceptions::errors::net::time_out>, "operation timeout");
+        SG_THROW(exceptions::net::time_out);
     }
 }
 

@@ -278,7 +278,7 @@ boost::asio::awaitable<void> tcp_session::writer() {
                 async_timeout(deadline));
 
             if (result.index() == 1)
-                SG_THROW(exceptions::net<exceptions::errors::net::time_out>, "operation timeout");
+                SG_THROW(exceptions::net::time_out);
         }
     } catch (...) {
         // We should end up here during graceful shutdown, as the writer waits until all messages

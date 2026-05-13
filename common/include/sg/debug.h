@@ -10,39 +10,42 @@
 
 namespace sg {
 
+/* note: SG_THROW_STACKTRACE and SG_THROW_DETAILS macros assume that you can construct an exception
+ * with only a single argument that represents teh exception message */
+
 #if defined(LIBSG_STACKTRACE)
     /**
      * Throws an exception, with a stacktrace.
      */
-    #define SG_THROW_STACKTRACE(type, what, ...)                                                   \
+    #define SG_THROW_STACKTRACE(type, ...)                                                         \
         do {                                                                                       \
+            const type ex{__VA_ARGS__};                                                            \
             auto location = std::source_location::current();                                       \
-            throw type(fmt::format("{}\nat `{}` in {}({}:{}), with stacktrace:\n{}", what,         \
+            throw type(fmt::format("{}\nat `{}` in {}({}:{}), with stacktrace:\n{}", ex.what(),    \
                                    location.function_name(), location.file_name(),                 \
                                    location.line(), location.column(),                             \
-                                   to_string(boost::stacktrace::stacktrace()))                     \
-                                   __VA_OPT__(,) __VA_ARGS__);                                     \
-        } while (0)
+                                   to_string(boost::stacktrace::stacktrace())));                   \
+        } while (0);
 #endif
 
 /**
  * Throws an exception, including the function name, file path and line number/column in the
  * message.
  */
-#define SG_THROW_DETAILS(type, what, ...)                                                          \
+#define SG_THROW_DETAILS(type, ...)                                                                \
     do {                                                                                           \
+        const type ex{__VA_ARGS__};                                                                \
         auto location = std::source_location::current();                                           \
-        throw type(fmt::format("{}, at `{}` in {}({}:{})", what, location.function_name(),         \
-                               location.file_name(), location.line(), location.column())           \
-                                __VA_OPT__(,) __VA_ARGS__);                                        \
-    } while (0)
+        throw type(fmt::format("{}, at `{}` in {}({}:{})", ex.what(), location.function_name(),    \
+                               location.file_name(), location.line(), location.column()));         \
+    } while (0);
 
 #if defined(LIBSG_STACKTRACE)
-    #define SG_THROW(type, what, ...) SG_THROW_STACKTRACE(type, what __VA_OPT__(,) __VA_ARGS__)
+    #define SG_THROW(type, ...) SG_THROW_STACKTRACE(type __VA_OPT__(,) __VA_ARGS__)
 #elif defined(LIBSG_EXCEPTION_DETAILS)
-    #define SG_THROW(type, what, ...) SG_THROW_DETAILS(type, what __VA_OPT__(,) __VA_ARGS__)
+    #define SG_THROW(type, ...) SG_THROW_DETAILS(type __VA_OPT__(,) __VA_ARGS__)
 #else
-    #define SG_THROW(type, what, ...) throw type(what __VA_OPT__(,) __VA_ARGS__)
+    #define SG_THROW(type, ...) throw type(__VA_ARGS__)
 #endif
 
 #if defined(LIBSG_STACKTRACE) || defined(LIBSG_EXCEPTION_DETAILS)
@@ -50,11 +53,11 @@ namespace sg {
         do {                                                                                       \
             try {                                                                                  \
                 (func);                                                                            \
-            } catch (const std::exception& ex) { SG_THROW(std::runtime_error, ex.what()); }        \
-        } while (0)
+            } catch (const std::exception& exc) { SG_THROW(std::runtime_error, exc.what()); }      \
+        } while (0);
 #else
     #define SG_CATCH_RETHROW(func)                                                                 \
-        do { (func); } while (0)
+        do { (func); } while (0);
 #endif
 
 /// Returns the type of the passed object as a string.

@@ -49,7 +49,7 @@ void tcp_client::connect(const end_point& endpoint, tcp_session::on_data_availab
                     boost::asio::async_connect(socket, endpoints, boost::asio::use_awaitable) ||
                     async_timeout(deadline));
                 if (result.index() == 1)
-                    SG_THROW(exceptions::net<exceptions::errors::net::time_out>, "operation timeout");
+                    SG_THROW(exceptions::net::time_out);
 
                 m_session = tcp_session::create(std::move(socket), onReadCb, onDisconnect, options);
                 m_session->start(nullptr);
