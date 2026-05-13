@@ -24,14 +24,14 @@ class any : public std::runtime_error {
     explicit any(const std::string& msg) : runtime_error(msg) {}
 };
 
-#define REGISTER_EXCEPTION_SUBSYSTEM(SUBSYSTEM_NAME)                                               \
+#define SG_REGISTER_EXCEPTION_SUBSYSTEM(SUBSYSTEM_NAME)                                            \
     namespace SUBSYSTEM_NAME {                                                                     \
         class any : public ::sg::exceptions::any {                                                 \
             using ::sg::exceptions::any::any;                                                      \
         };                                                                                         \
     }
 
-#define CREATE_SUBSYSTEM_EXCEPTION(SUBSYSTEM_NAME, EXCEPTION_NAME, DEFAULT_DESCRIPTION)            \
+#define SG_CREATE_SUBSYSTEM_EXCEPTION(SUBSYSTEM_NAME, EXCEPTION_NAME, DEFAULT_DESCRIPTION)         \
     namespace SUBSYSTEM_NAME {                                                                     \
         class EXCEPTION_NAME : public any {                                                        \
           public:                                                                                  \
@@ -39,11 +39,4 @@ class any : public std::runtime_error {
             explicit EXCEPTION_NAME(const std::string& msg) : any(msg) {}                          \
         };                                                                                         \
     }
-
-REGISTER_EXCEPTION_SUBSYSTEM(net);
-CREATE_SUBSYSTEM_EXCEPTION(net, time_out, "operation timed out");
-CREATE_SUBSYSTEM_EXCEPTION(net, host_not_found, "host not found");
-CREATE_SUBSYSTEM_EXCEPTION(net, network_unreachable, "network unreachable");
-CREATE_SUBSYSTEM_EXCEPTION(net, other, "other error");
-
 } // namespace sg::exceptions

@@ -29,6 +29,16 @@
     #define LIBSG_NET_EXCLUSIVEADDRUSE_DEFAULT false
 #endif
 
+namespace sg::exceptions {
+
+SG_REGISTER_EXCEPTION_SUBSYSTEM(net);
+SG_CREATE_SUBSYSTEM_EXCEPTION(net, time_out, "operation timed out");
+SG_CREATE_SUBSYSTEM_EXCEPTION(net, host_not_found, "host not found");
+SG_CREATE_SUBSYSTEM_EXCEPTION(net, network_unreachable, "network unreachable");
+SG_CREATE_SUBSYSTEM_EXCEPTION(net, other, "other error");
+
+} // namespace sg::exceptions
+
 namespace sg::net {
 
 enum class address_family { IPv4, IPv6 };
