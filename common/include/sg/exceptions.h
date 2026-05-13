@@ -33,42 +33,51 @@ class any : public std::runtime_error {
 template <typename ErrorT>
     requires(std::is_enum_v<ErrorT>)
 class exception : public any {
+    ErrorT error;
+
   protected:
     explicit exception(ErrorT err_code, const std::string& msg) : any(msg), error(err_code) {}
-    ErrorT error;
 
   public:
     [[nodiscard]] ErrorT code() const noexcept { return error; }
 };
 
-/** Create an exception class that can be used like NAME<ERR_TYPE>
+/** Concrete exception parameterised by a specific error enum.
  *
- * To catch:
- *   - specific error: use @code catch(const NAME<ERR_TYPE value>&) @endcode
- *   - any exception: use @code catch(const EXCEPTION_BASE<ERR_TYPE>&) @endcode
+ * Define new error classes using a templated <tt>using</tt>. For example, to add exceptions for the
+ * <tt>net</tt> subsystem:
+ * @code
+ *     template <errors::net Err>
+ *     using net = typed<Err>;
+ * @endcode
  *
- * @param NAME name of class to create
- * @param ERR_TYPE error type (this is usually an enum)
- * @param EXCEPTION_BASE exception class to use, (e.g. @code sg::exceptions::exception @endcode)
+ * Then, for a timeout error do:
+ *   - specific error: use @code catch(const net<errors::net::time_out>&) @endcode
+ *   - any exception: use @code catch(const exception<errors::net>&) @endcode
+ *
+ * @tparam Error specific error enum value
  */
-#define CREATE_EXCEPTION_CLASS(NAME, ERR_TYPE, EXCEPTION_BASE)                                     \
-    template <ERR_TYPE err>                                                                        \
-    class NAME : public EXCEPTION_BASE<ERR_TYPE> {                                                 \
-      public:                                                                                      \
-        /* A variadic constructor can match the copy operator, so define it separately to prevent  \
-         * problems. Otherwise, `throw exception(..)` will match the variadic constructor. See     \
-         * https://stackoverflow.com/questions/77244527                                            \
-         *                                                                                         \
-         * clang/gcc will hide this because of copy elision when throwing, but MSVC won't. */      \
-        NAME(const NAME&) = default;                                                               \
-                                                                                                   \
-        template <typename... ArgsT>                                                               \
-        explicit NAME(ArgsT&&... args)                                                             \
-            : EXCEPTION_BASE<ERR_TYPE>(err, std::forward<ArgsT>(args)...) {}                       \
-    };
+template <auto Error>
+    requires(std::is_enum_v<decltype(Error)>)
+class typed : public exception<decltype(Error)> {
+  public:
+    /* A variadic constructor can match the copy operator, so define it separately to prevent
+     * problems. Otherwise, `throw exception(..)` will match the variadic constructor. See
+     * https://stackoverflow.com/questions/77244527
+     *
+     * clang/gcc will hide this because of copy elision when throwing, but MSVC won't. */
+    typed(typed&) = default;
+    typed(const typed&) = default;
 
-CREATE_EXCEPTION_CLASS(net, errors::net, exception)
+    template <typename... ArgsT>
+    explicit typed(ArgsT&&... args)
+        : exception<decltype(Error)>(Error, std::forward<ArgsT>(args)...) {}
+};
 
+#define CREATE_SUBSYSTEM_EXCEPTION(NAME, ENUM_TYPE)                                                \
+    template <ENUM_TYPE Err>                                                                       \
+    using NAME = typed<Err>;
 
+CREATE_SUBSYSTEM_EXCEPTION(net, errors::net);
 
 } // namespace sg::exceptions
