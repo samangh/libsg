@@ -29,13 +29,13 @@
     #define LIBSG_NET_EXCLUSIVEADDRUSE_DEFAULT false
 #endif
 
-namespace sg::exceptions {
+namespace sg::exceptions::net {
 
-SG_REGISTER_EXCEPTION_SUBSYSTEM(net);
-SG_CREATE_SUBSYSTEM_EXCEPTION(net, time_out, "operation timed out");
-SG_CREATE_SUBSYSTEM_EXCEPTION(net, host_not_found, "host not found");
-SG_CREATE_SUBSYSTEM_EXCEPTION(net, network_unreachable, "network unreachable");
-SG_CREATE_SUBSYSTEM_EXCEPTION(net, other, "other error");
+SG_CREATE_EXCEPTION_ANY();
+SG_CREATE_EXCEPTION(time_out, "operation timed out");
+SG_CREATE_EXCEPTION(host_not_found, "host not found");
+SG_CREATE_EXCEPTION(network_unreachable, "network unreachable");
+SG_CREATE_EXCEPTION(other, "other error");
 
 } // namespace sg::exceptions
 
