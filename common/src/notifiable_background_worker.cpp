@@ -83,7 +83,7 @@ void notifiable_background_worker::wait_for_stop() {
 }
 
 bool notifiable_background_worker::is_running() const {
-    return m_is_running;
+    return m_is_running.load(std::memory_order::acquire);
 }
 
 bool notifiable_background_worker::stop_requested() const noexcept {
@@ -92,7 +92,8 @@ bool notifiable_background_worker::stop_requested() const noexcept {
     return m_stop_requested.load(std::memory_order_acquire);
 }
 
-std::chrono::nanoseconds notifiable_background_worker::interval() const { return m_interval.load(std::memory_order_acquire);
+std::chrono::nanoseconds notifiable_background_worker::interval() const {
+    return m_interval.load(std::memory_order_acquire);
 }
 
 void notifiable_background_worker::set_interval(std::chrono::nanoseconds interval) {
