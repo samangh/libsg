@@ -1,6 +1,8 @@
-#include <utility>
-
 #include "sg/notifiable_background_worker.h"
+
+#include "sg/debug.h"
+
+#include <utility>
 
 namespace sg {
 
@@ -68,17 +70,16 @@ void notifiable_background_worker::request_stop_after_iterations(size_t iteratio
 }
 
 void notifiable_background_worker::wait_for_stop() {
-    //mutex needed becasue of the gap between .joinable nad .join
+    if (m_thread.get_id() == std::this_thread::get_id())
+        SG_THROW(std::logic_error,
+                 "can't wait for notifiable_background_timer to stop from within itself");
+
+    // mutex needed because of the gap between .joinable nad .join
     std::lock_guard lock(m_join_mutex);
 
-    if (m_thread.get_id() != std::this_thread::get_id()) {
-        /* called from different thread */
-        if (m_thread.joinable())
-            m_thread.join();
-    } else {
-        throw std::logic_error(
-            "can't wait for notifiable_background_timer to stop from within itself");
-    }
+    /* called from different thread */
+    if (m_thread.joinable())
+        m_thread.join();
 }
 
 bool notifiable_background_worker::is_running() const {
