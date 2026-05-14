@@ -154,7 +154,6 @@ class SG_COMMON_EXPORT notifiable_background_worker {
     std::atomic<bool> m_stop_requested;
 
     std::binary_semaphore m_semaphore_notifier {0};
-    std::binary_semaphore m_semaphore_thread_started {0};
 
     on_tick_callback_t m_task;
     on_start_callback_t m_started_cb;

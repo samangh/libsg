@@ -102,8 +102,6 @@ void notifiable_background_worker::correct_for_task_delay(bool val) {
 }
 
 void notifiable_background_worker::action() {
-    m_semaphore_thread_started.release();
-
     try {
         if (m_started_cb)
             m_started_cb.invoke(this);
