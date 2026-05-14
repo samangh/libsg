@@ -133,12 +133,15 @@ void notifiable_background_worker::action() {
                     stop_after_iteration=true;
 
             if (m_correct_for_task_delay) {
-                auto t = std::chrono::high_resolution_clock::now();
+                const auto t = std::chrono::steady_clock::now();
                 m_task.invoke(this);
-                auto time_taken = std::chrono::high_resolution_clock::now() - t;
                 if (stop_after_iteration)
                     break;
-                std::ignore = m_semaphore_notifier.try_acquire_for(m_interval.load(std::memory_order_acquire) - time_taken);
+                const auto remaining = m_interval.load(std::memory_order_acquire)
+                                     - (std::chrono::steady_clock::now() - t);
+                if (remaining > std::chrono::nanoseconds::zero())
+                    std::ignore = m_semaphore_notifier.try_acquire_for(remaining);
+                // else: task overran the interval — fall through and tick immediately.
             } else {
                 m_task.invoke(this);
                 if (stop_after_iteration)
