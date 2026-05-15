@@ -8,7 +8,7 @@
 #include <functional>
 #include <mutex>
 #include <shared_mutex>
-#include <semaphore>
+#include <condition_variable>
 #include <thread>
 #include <future>
 
@@ -153,7 +153,9 @@ class SG_COMMON_EXPORT notifiable_background_worker {
     std::atomic<bool> m_is_running;
     std::atomic<bool> m_stop_requested;
 
-    std::binary_semaphore m_semaphore_notifier {0};
+    std::mutex m_notify_mutex;
+    std::condition_variable m_notify_cv;
+    bool m_notified = false;
 
     on_tick_callback_t m_task;
     on_start_callback_t m_started_cb;

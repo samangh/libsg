@@ -41,6 +41,7 @@ void notifiable_background_worker::start() {
         m_stop_requested.store(false);
         m_stop_after_interations.store(false);
         m_checked_future.store(false);
+        m_notified = false;
 
         /* start */
         m_thread = std::thread(&notifiable_background_worker::action, this);
@@ -140,14 +141,20 @@ void notifiable_background_worker::action() {
                     break;
                 const auto remaining = m_interval.load(std::memory_order_acquire)
                                      - (std::chrono::steady_clock::now() - t);
-                if (remaining > std::chrono::nanoseconds::zero())
-                    std::ignore = m_semaphore_notifier.try_acquire_for(remaining);
+                if (remaining > std::chrono::nanoseconds::zero()) {
+                    std::unique_lock lock(m_notify_mutex);
+                    m_notify_cv.wait_for(lock, remaining, [this] { return m_notified; });
+                    m_notified = false;
+                }
                 // else: task overran the interval — fall through and tick immediately.
             } else {
                 m_task.invoke(this);
                 if (stop_after_iteration)
                     break;
-                std::ignore = m_semaphore_notifier.try_acquire_for(m_interval.load(std::memory_order_acquire));
+                std::unique_lock lock(m_notify_mutex);
+                m_notify_cv.wait_for(lock, m_interval.load(std::memory_order_acquire),
+                                     [this] { return m_notified; });
+                m_notified = false;
             }
 
         }
@@ -171,7 +178,13 @@ void notifiable_background_worker::action() {
 
 }
 
-void notifiable_background_worker::notify() { m_semaphore_notifier.release(); }
+void notifiable_background_worker::notify() {
+    {
+        std::lock_guard lock(m_notify_mutex);
+        m_notified = true;
+    }
+    m_notify_cv.notify_one();
+}
 
 std::shared_future<void> notifiable_background_worker::future() const { return m_result_future; }
 
