@@ -16,7 +16,7 @@ namespace sg {
 
 /**
  * @brief The notifiable_background_worker class represents a background
- *        worker, where the timer "tick" action can be trigerred on
+ *        worker, where the timer "tick" action can be triggered on
  *        demand by sending a "notify" signal.
  */
 class SG_COMMON_EXPORT notifiable_background_worker {
@@ -33,14 +33,14 @@ class SG_COMMON_EXPORT notifiable_background_worker {
      *   - stop callback WILL NOT be called even if is an error
      *     in the start callback.
      *   - if there is an exception in the start callback, the start()
-     *     functon will throw
-     *   - exceptions in the task or stopcallbacks are
+     *     function will throw
+     *   - exceptions in the task or stop callbacks are
      *     stored in future.
      *
      * @param interval_ns
      * @param task is the callback/action that is done on every iteration.
      * @param start_cb is the callback/action that is called BEFORE the worker starts
-     * @param stopped_cb s the callback/action that is called AFTER the worker starts
+     * @param stopped_cb is the callback/action that is called AFTER the worker stops
      */
     notifiable_background_worker(std::chrono::nanoseconds interval_ns,
                                  on_tick_callback_t task,
@@ -50,7 +50,7 @@ class SG_COMMON_EXPORT notifiable_background_worker {
 
 
     /**
-     * @brief start syncrhonously starts the thread
+     * @brief start synchronously starts the thread
      *
      * @throws if the thread could not be started for any reason.
      */
@@ -114,7 +114,7 @@ class SG_COMMON_EXPORT notifiable_background_worker {
 
     /**
      * @brief correct_for_task_delay sets whether the time should account
-     *        for how long the actiontakes, and remove that from the wait
+     *        for how long the action takes, and remove that from the wait
      *        interval.
      *
      *        Is NOT thread safe. Set before starting the thread.
@@ -122,13 +122,13 @@ class SG_COMMON_EXPORT notifiable_background_worker {
     void correct_for_task_delay(bool);
 
     /**
-     * @brief mutex for use by the user as neeeded. This is not used by
+     * @brief mutex for use by the user as needed. This is not used by
      *        the worker. This is purely for the users' convenience.
      */
     mutable std::shared_mutex data_mutex;
     /**
      * @brief opaque pointer for use by the user as needed. This is not used by
-     *        the worker. Thi is purely for the users' convenience.
+     *        the worker. This is purely for the users' convenience.
      */
     void *data;
 
@@ -136,14 +136,14 @@ class SG_COMMON_EXPORT notifiable_background_worker {
     /* needs to be atomic because we can change it */
     std::atomic<std::chrono::nanoseconds> m_interval;
 
-    std::atomic<size_t> m_stop_after_interations_count{0};
+    std::atomic<size_t> m_stop_after_iterations_count{0};
     std::atomic<bool> m_checked_future;
 
     // We don't use `std::jthread` because:
     //
     //  * in MSVC/MSYS it seemed that the stop_token is buggy/not thread safe;
     //  * in some implementations the stop_token uses relaxed memory ordering,
-    //    which is not thead safe
+    //    which is not thread safe
 
     mutable std::mutex m_join_mutex;
     std::thread m_thread;

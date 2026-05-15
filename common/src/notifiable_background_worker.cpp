@@ -39,7 +39,7 @@ void notifiable_background_worker::start() {
          * function during this delay */
         m_is_running.store(true);
         m_stop_requested.store(false);
-        m_stop_after_interations_count.store(0);
+        m_stop_after_iterations_count.store(0);
         m_checked_future.store(false);
         m_notified = false;
 
@@ -65,16 +65,16 @@ void notifiable_background_worker::request_stop_after_iterations(size_t iteratio
         return;
     }
 
-    m_stop_after_interations_count.store(iteration_count, std::memory_order_release);
+    m_stop_after_iterations_count.store(iteration_count, std::memory_order_release);
     notify();
 }
 
 void notifiable_background_worker::wait_for_stop() {
     if (m_thread.get_id() == std::this_thread::get_id())
         SG_THROW(std::logic_error,
-                 "can't wait for notifiable_background_timer to stop from within itself");
+                 "can't wait for notifiable_background_worker to stop from within itself");
 
-    // mutex needed because of the gap between .joinable nad .join
+    // mutex needed because of the gap between .joinable and .join
     std::lock_guard lock(m_join_mutex);
 
     /* called from different thread */
@@ -87,8 +87,6 @@ bool notifiable_background_worker::is_running() const {
 }
 
 bool notifiable_background_worker::stop_requested() const noexcept {
-    // Even though we use our own stop atomic, jthread will still use the stop token if the
-    // thread gets destructed whilst running
     return m_stop_requested.load(std::memory_order_acquire);
 }
 
@@ -123,14 +121,14 @@ void notifiable_background_worker::action() {
      *  - if we are meant to stop *after* this iteration, we don't want to do request_stop() before the iteration
      *    in case the worker action checks for it (e.g. if it's a long-lived operation).
      *
-     *  - we don't want to do request_stop() after, because then we have waited for the interval for not reason
+     *  - we don't want to do request_stop() after, because then we have waited for the interval for no reason
      */
     bool stop_after_iteration =false;
 
     try {
         while (!stop_requested()) {
-            if (m_stop_after_interations_count.load(std::memory_order_acquire))
-                if(m_stop_after_interations_count.fetch_sub(1, std::memory_order_acq_rel) == 1)
+            if (m_stop_after_iterations_count.load(std::memory_order_acquire))
+                if(m_stop_after_iterations_count.fetch_sub(1, std::memory_order_acq_rel) == 1)
                     stop_after_iteration=true;
 
             if (m_correct_for_task_delay) {
