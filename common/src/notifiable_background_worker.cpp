@@ -39,7 +39,7 @@ void notifiable_background_worker::start() {
          * function during this delay */
         m_is_running.store(true);
         m_stop_requested.store(false);
-        m_stop_after_interations.store(false);
+        m_stop_after_interations_count.store(0);
         m_checked_future.store(false);
         m_notified = false;
 
@@ -66,7 +66,6 @@ void notifiable_background_worker::request_stop_after_iterations(size_t iteratio
     }
 
     m_stop_after_interations_count.store(iteration_count, std::memory_order_release);
-    m_stop_after_interations.store(true, std::memory_order_release);
     notify();
 }
 
@@ -130,8 +129,8 @@ void notifiable_background_worker::action() {
 
     try {
         while (!stop_requested()) {
-            if (m_stop_after_interations.load(std::memory_order_acquire))
-                if(--m_stop_after_interations_count == 0)
+            if (m_stop_after_interations_count.load(std::memory_order_acquire))
+                if(m_stop_after_interations_count.fetch_sub(1, std::memory_order_acq_rel) == 1)
                     stop_after_iteration=true;
 
             if (m_correct_for_task_delay) {

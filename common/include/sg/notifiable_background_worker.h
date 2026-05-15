@@ -123,11 +123,11 @@ class SG_COMMON_EXPORT notifiable_background_worker {
 
     /**
      * @brief mutex for use by the user as neeeded. This is not used by
-     *        the worker. Thi is purely for the users' convenience.
+     *        the worker. This is purely for the users' convenience.
      */
     mutable std::shared_mutex data_mutex;
     /**
-     * @brief opaque pointer for use by the user as neeeded. This is not used by
+     * @brief opaque pointer for use by the user as needed. This is not used by
      *        the worker. Thi is purely for the users' convenience.
      */
     void *data;
@@ -136,8 +136,7 @@ class SG_COMMON_EXPORT notifiable_background_worker {
     /* needs to be atomic because we can change it */
     std::atomic<std::chrono::nanoseconds> m_interval;
 
-    std::atomic<bool> m_stop_after_interations;
-    std::atomic<size_t> m_stop_after_interations_count;
+    std::atomic<size_t> m_stop_after_interations_count{0};
 
     mutable std::mutex m_checked_future_mutex;
     std::atomic<bool> m_checked_future;
