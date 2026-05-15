@@ -137,8 +137,6 @@ class SG_COMMON_EXPORT notifiable_background_worker {
     std::atomic<std::chrono::nanoseconds> m_interval;
 
     std::atomic<size_t> m_stop_after_interations_count{0};
-
-    mutable std::mutex m_checked_future_mutex;
     std::atomic<bool> m_checked_future;
 
     // We don't use `std::jthread` because:

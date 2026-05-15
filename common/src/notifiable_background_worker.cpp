@@ -188,7 +188,6 @@ void notifiable_background_worker::notify() {
 std::shared_future<void> notifiable_background_worker::future() const { return m_result_future; }
 
 void notifiable_background_worker::future_get_once(){
-    std::lock_guard lock(m_checked_future_mutex);
     if (!m_checked_future.exchange(true))
         if (const auto fut=future(); fut.valid())
             fut.get();
