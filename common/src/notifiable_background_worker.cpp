@@ -95,6 +95,7 @@ std::chrono::nanoseconds notifiable_background_worker::interval() const {
 
 void notifiable_background_worker::set_interval(std::chrono::nanoseconds interval) {
     m_interval.store(interval, std::memory_order_release);
+    notify();
 }
 void notifiable_background_worker::correct_for_task_delay(bool val) {
     m_correct_for_task_delay = val;
@@ -106,24 +107,26 @@ void notifiable_background_worker::action() {
             m_started_cb.invoke(this);
         m_start_promise.set_value();
     } catch(...) {
+        m_state.store(state_t::stopped, std::memory_order::release);
         m_start_promise.set_exception(std::current_exception());
-        request_stop();
         return;
     }
 
     /* catch latest exception */
     std::exception_ptr ex;
 
-    /* we use this placeholder in case of "stop_after_iterations" request because:
-     *
-     *  - if we are meant to stop *after* this iteration, we don't want to do request_stop() before the iteration
-     *    in case the worker action checks for it (e.g. if it's a long-lived operation).
-     *
-     *  - we don't want to do request_stop() after, because then we have waited for the interval for no reason
-     */
-    bool stop_after_iteration =false;
-
     try {
+        /* we use this placeholder in case of "stop_after_iterations" request because:
+         *
+         *  - if we are meant to stop *after* this iteration, we don't want to do request_stop()
+         * before the iteration in case the worker action checks for it (e.g. if it's a long-lived
+         * operation).
+         *
+         *  - we don't want to do request_stop() after, because then we have waited for the interval
+         * for no reason
+         */
+        bool stop_after_iteration = false;
+
         while (!stop_requested()) {
             if (m_stop_after_iterations_count.load(std::memory_order_acquire))
                 if(m_stop_after_iterations_count.fetch_sub(1, std::memory_order_acq_rel) == 1)

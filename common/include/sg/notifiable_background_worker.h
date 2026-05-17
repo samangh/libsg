@@ -28,7 +28,7 @@ class SG_COMMON_EXPORT notifiable_background_worker {
      * @brief notifiable_background_worker
      *
      * Notes:
-	 *
+     *
      *   - all callbacks are done on the worker thread.
      *   - stop callback WILL NOT be called even if is an error
      *     in the start callback.
@@ -65,10 +65,10 @@ class SG_COMMON_EXPORT notifiable_background_worker {
     void request_stop();
 
     /**
-     * @brief request_stop_after_iterations stops after the provider number of iterations have been
-     *        done
-     * @param iteration_count, note if this is called inside the worker then it does NOT include the
-     *        current iteration
+     * Request stops after the provider number of iterations have been done. This should not be
+     * called concurrently by multiple threads.
+     *
+     * Note if this is called inside the worker then it does NOT include the current iteration.
      */
     void request_stop_after_iterations(size_t iteration_count);
 
@@ -98,26 +98,23 @@ class SG_COMMON_EXPORT notifiable_background_worker {
      */
     void future_get_once();
 
-    /* interval in nanoseconds */
-    /**
-     * @brief returns the interval
-     *        Is thread safe
-     * @return
-     */
+    /** Returns the interval. Is thread safe. */
     std::chrono::nanoseconds interval() const;
+
     /**
-     * @brief set_interval sets the interval
-     *        Is thread safe.
-     * @param interval
+     * Sets the interval. Is thread safe.
+     *
+     * Calling this call wil cause a @code notify()@endcode to happen, causing the worker to tick
+     * immediately.
      */
     void set_interval(std::chrono::nanoseconds interval);
 
     /**
-     * @brief correct_for_task_delay sets whether the time should account
-     *        for how long the action takes, and remove that from the wait
-     *        interval.
+     *  correct_for_task_delay sets whether the time should account
+     *  for how long the action takes, and remove that from the wait
+     *  interval.
      *
-     *        Is NOT thread safe. Set before starting the thread.
+     *  This must be set before starting the worker.
      */
     void correct_for_task_delay(bool);
 
