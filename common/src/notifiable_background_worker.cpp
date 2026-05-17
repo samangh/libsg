@@ -24,7 +24,10 @@ notifiable_background_worker::~notifiable_background_worker() noexcept(false) {
 }
 
 void notifiable_background_worker::start() {
-    if (is_running()) throw std::runtime_error("this worker is already running");
+    if (auto state_ = state_t::stopped; !m_state.compare_exchange_strong(state_, state_t::running,
+                                                            std::memory_order::acq_rel,
+                                                            std::memory_order::acquire))
+            SG_THROW(std::runtime_error, "this worker is already running");
 
     /* if the thread has finished executing code,but has not been joined yet */
     wait_for_stop();
@@ -34,10 +37,6 @@ void notifiable_background_worker::start() {
         m_start_promise = std::promise<void>();
         m_result_future = m_result_promise.get_future();
 
-        /* we set m_is_running, as usually there is a delay before a
-         * thread gets going and so the user can call the is_running
-         * function during this delay */
-        m_is_running.store(true);
         m_stop_requested.store(false);
         m_stop_after_iterations_count.store(0);
         m_checked_future.store(false);
@@ -48,7 +47,7 @@ void notifiable_background_worker::start() {
 
         m_start_promise.get_future().get();
     } catch (...) {
-        m_is_running.store(false);
+        m_state.store(state_t::stopped, std::memory_order::release);
         m_result_promise.set_value();
         throw;
     }
@@ -83,7 +82,7 @@ void notifiable_background_worker::wait_for_stop() {
 }
 
 bool notifiable_background_worker::is_running() const {
-    return m_is_running.load(std::memory_order::acquire);
+    return m_state.load(std::memory_order::acquire) == state_t::running;
 }
 
 bool notifiable_background_worker::stop_requested() const noexcept {
@@ -111,7 +110,6 @@ void notifiable_background_worker::action() {
         request_stop();
         return;
     }
-
 
     /* catch latest exception */
     std::exception_ptr ex;
@@ -159,6 +157,8 @@ void notifiable_background_worker::action() {
         ex = std::current_exception();
     }
 
+    m_state.store(state_t::stopped, std::memory_order::release);
+
     /* run m_stopped_cb even if there was a previous exception */
     try {
         if (m_stopped_cb)
@@ -167,7 +167,6 @@ void notifiable_background_worker::action() {
         ex = std::current_exception();
     }
 
-    m_is_running.store(false);
     if (ex)
         m_result_promise.set_exception(ex);
     else

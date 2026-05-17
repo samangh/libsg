@@ -133,8 +133,12 @@ class SG_COMMON_EXPORT notifiable_background_worker {
     void *data;
 
   private:
+    enum class state_t { running, stopped };
+
     /* needs to be atomic because we can change it */
     std::atomic<std::chrono::nanoseconds> m_interval;
+
+    std::atomic<state_t> m_state {state_t::stopped};
 
     std::atomic<size_t> m_stop_after_iterations_count{0};
     std::atomic<bool> m_checked_future;
@@ -147,7 +151,6 @@ class SG_COMMON_EXPORT notifiable_background_worker {
 
     mutable std::mutex m_join_mutex;
     std::thread m_thread;
-    std::atomic<bool> m_is_running;
     std::atomic<bool> m_stop_requested;
 
     std::mutex m_notify_mutex;
