@@ -128,33 +128,24 @@ void notifiable_background_worker::action() {
         bool stop_after_iteration = false;
 
         while (!stop_requested()) {
-            if (m_stop_after_iterations_count.load(std::memory_order_acquire))
-                if(m_stop_after_iterations_count.fetch_sub(1, std::memory_order_acq_rel) == 1)
-                    stop_after_iteration=true;
+            if (m_stop_after_iterations_count.load(std::memory_order::acquire))
+                if (m_stop_after_iterations_count.fetch_sub(1, std::memory_order_acq_rel) == 1)
+                    stop_after_iteration = true;
 
-            if (m_correct_for_task_delay) {
-                const auto t = std::chrono::steady_clock::now();
-                m_task.invoke(this);
-                if (stop_after_iteration)
-                    break;
-                const auto remaining = m_interval.load(std::memory_order_acquire)
-                                     - (std::chrono::steady_clock::now() - t);
-                if (remaining > std::chrono::nanoseconds::zero()) {
-                    std::unique_lock lock(m_notify_mutex);
-                    m_notify_cv.wait_for(lock, remaining, [this] { return m_notified; });
-                    m_notified = false;
-                }
-                // else: task overran the interval — fall through and tick immediately.
-            } else {
-                m_task.invoke(this);
-                if (stop_after_iteration)
-                    break;
-                std::unique_lock lock(m_notify_mutex);
-                m_notify_cv.wait_for(lock, m_interval.load(std::memory_order_acquire),
-                                     [this] { return m_notified; });
-                m_notified = false;
-            }
+            /* calculate start time if needed */
+            const auto t_start = m_correct_for_task_delay ? std::chrono::steady_clock::now()
+                                                          : std::chrono::steady_clock::time_point{};
+            m_task.invoke(this);
+            if (stop_after_iteration)
+                break;
 
+            /* calculate wait time */
+            const auto interval = m_interval.load(std::memory_order::acquire);
+            const auto wait_duration = m_correct_for_task_delay
+                ? interval - (std::chrono::steady_clock::now() - t_start)
+                : interval;
+
+            wait_until_next_tick(wait_duration);
         }
     } catch (...) {
         ex = std::current_exception();
@@ -175,6 +166,13 @@ void notifiable_background_worker::action() {
     else
         m_result_promise.set_value();
 
+}
+
+void notifiable_background_worker::wait_until_next_tick(std::chrono::nanoseconds duration) {
+    std::unique_lock lock(m_notify_mutex);
+    if (duration > std::chrono::nanoseconds::zero())
+        m_notify_cv.wait_for(lock, duration, [this] { return m_notified; });
+    m_notified = false;
 }
 
 void notifiable_background_worker::notify() {

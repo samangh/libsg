@@ -166,6 +166,7 @@ class SG_COMMON_EXPORT notifiable_background_worker {
     bool m_correct_for_task_delay = false;
 
     void action();
+    void wait_until_next_tick(std::chrono::nanoseconds duration);
 };
 
 } // namespace sg
