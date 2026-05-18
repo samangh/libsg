@@ -19,7 +19,7 @@ namespace sg {
  *        worker, where the timer "tick" action can be triggered on
  *        demand by sending a "notify" signal.
  */
-class SG_COMMON_EXPORT notifiable_background_worker {
+class SG_COMMON_EXPORT notifiable_background_worker final {
   public:
     CREATE_CALLBACK(on_start_callback_t, void(notifiable_background_worker *))
     CREATE_CALLBACK(on_stop_callback_t, void(notifiable_background_worker *))
@@ -46,7 +46,7 @@ class SG_COMMON_EXPORT notifiable_background_worker {
                                  on_tick_callback_t task,
                                  on_start_callback_t start_cb,
                                  on_stop_callback_t stopped_cb);
-    virtual ~notifiable_background_worker() noexcept(false);
+    ~notifiable_background_worker() noexcept(false);
 
 
     /**
@@ -117,17 +117,6 @@ class SG_COMMON_EXPORT notifiable_background_worker {
      *  This must be set before starting the worker.
      */
     void correct_for_task_delay(bool);
-
-    /**
-     * @brief mutex for use by the user as needed. This is not used by
-     *        the worker. This is purely for the users' convenience.
-     */
-    mutable std::shared_mutex data_mutex;
-    /**
-     * @brief opaque pointer for use by the user as needed. This is not used by
-     *        the worker. This is purely for the users' convenience.
-     */
-    void *data;
 
   private:
     enum class state_t { running, stopped };
