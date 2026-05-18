@@ -1,20 +1,19 @@
 #pragma once
 
 #include "ConfigFlags.h"
+#include "sg/callback.h"
 
 #include <imgui.h>
-#include <implot.h>
 
-#include <functional>
 #include <string>
 
 namespace sg::imgui {
 
 class IImGuiWrapper {
   public:
-    typedef std::function<void(void)> on_start_t;
-    typedef std::function<void(void)> on_end_t;
-    typedef std::function<void(bool &done)> on_iteration_t;
+    CREATE_CALLBACK(on_start_t, void(void));
+    CREATE_CALLBACK(on_end_t, void(void));
+    CREATE_CALLBACK(on_iteration_t, void(bool &done));
 
     IImGuiWrapper(on_start_t, on_end_t, on_iteration_t, ConfigFlags);
     virtual void start(const std::string &title) = 0;
@@ -24,7 +23,7 @@ class IImGuiWrapper {
     void setup_io(ImGuiIO&);
 
     /* this is called after the platform/renderer backends have been
-	 * intialised*/
+     * intialised*/
     void initalise();
 
     void iterate(bool &done);
@@ -37,8 +36,6 @@ class IImGuiWrapper {
     const on_start_t m_on_start;
     const on_end_t m_on_end;
     const on_iteration_t m_on_iteration;
-
-
 };
 
 } // namespace sg::imgui
