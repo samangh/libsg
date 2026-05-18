@@ -18,7 +18,7 @@ static port_t PORT = 4444; // 55555 can't be used on macOS!
 
 TEST_CASE("tcp_server: check bad endpoint throws exception during start()", "[sg::net::tcp_server]") {
     end_point ep;
-    ep.ip = PORT;
+    ep.port = PORT;
     ep.ip = "8.8.8.8";
 
     tcp_server l;
