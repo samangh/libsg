@@ -15,6 +15,8 @@ IImGuiWrapper::IImGuiWrapper(IImGuiWrapper::on_start_t on_start_cb,
       m_on_end(on_end_cb),
       m_on_iteration(on_it_cb) {}
 
+IImGuiWrapper::~IImGuiWrapper()  =default;
+
 void IImGuiWrapper::initalise()
 {
     if (sg::enumeration::contains(m_configflags, ConfigFlags::IncludeImPlot))

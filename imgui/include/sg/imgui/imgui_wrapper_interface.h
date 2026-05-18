@@ -16,6 +16,8 @@ class IImGuiWrapper {
     CREATE_CALLBACK(on_iteration_t, void(bool &done));
 
     IImGuiWrapper(on_start_t, on_end_t, on_iteration_t, ConfigFlags);
+    virtual ~IImGuiWrapper();
+
     virtual void start(const std::string &title) = 0;
 
   protected:
