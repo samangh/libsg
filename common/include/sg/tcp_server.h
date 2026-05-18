@@ -82,7 +82,8 @@ class SG_COMMON_EXPORT tcp_server {
 
     mutable std::shared_mutex m_mutex;
     std::map<session_id_t, ptr> m_sessions;
-    std::atomic<size_t> m_last_id;
+    std::atomic<size_t> m_active_sessions{0};
+    std::atomic<size_t> m_last_id{0};
 
     std::vector<end_point> m_endpoints;
     std::promise<void> m_promise_started_listening;

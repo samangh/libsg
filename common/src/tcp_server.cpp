@@ -34,7 +34,8 @@ void tcp_server::stop_async() {
         disconnect_all();
 
         /* wait until all clients disconnected and all callbacks called, etc */
-        while (clients_count() != 0) std::this_thread::sleep_for(std::chrono::milliseconds(10));
+        for (size_t n; (n = m_active_sessions.load(std::memory_order::acquire)) != 0; )
+            m_active_sessions.wait(n, std::memory_order::acquire);
 
         if (m_context->is_running()) {
             m_context->stop_async();
@@ -156,6 +157,7 @@ tcp_server::listener(std::shared_ptr<boost::asio::ip::tcp::acceptor> acceptor) {
                 {
                     std::unique_lock lock(m_mutex);
                     m_sessions.emplace(id, sess);
+                    m_active_sessions.fetch_add(1, std::memory_order::release);
                 }
 
                 // will not throw
@@ -225,8 +227,12 @@ void tcp_server::on_session_stopped(session_id_t id, std::exception_ptr ex) {
         if (m_callbacks.OnDisconnected)
             m_callbacks.OnDisconnected.invoke(*this, id, ex);
 
-        std::unique_lock lock(m_mutex);
-        m_sessions.erase(id);
+        {
+            std::unique_lock lock(m_mutex);
+            m_sessions.erase(id);
+        }
+        if (m_active_sessions.fetch_sub(1, std::memory_order::acq_rel) == 1)
+            m_active_sessions.notify_all();
     });
 }
 }
