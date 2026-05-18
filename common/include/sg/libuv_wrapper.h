@@ -49,13 +49,13 @@ struct deleter_uv_handle {
 
             if(!uv_is_closing(hndl_to_close))
                 uv_close(hndl_to_close, [](uv_handle_t* handle) {
-                    delete handle;
+                    free(handle);
                     handle=nullptr;
                 });
 
             // remove the async handle itself
             uv_close((uv_handle_t*)async_handle,  [](uv_handle_t* h) {
-                delete h;
+                free(h);
                 h=nullptr;
             });
 
