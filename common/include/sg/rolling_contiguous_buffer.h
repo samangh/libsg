@@ -39,6 +39,19 @@ class rolling_contiguous_buffer {
             pos_begin=pos_end - m_cb_size;;
     }
 
+    /* create a new vector and moves data, instead of calling memcp */
+    void ensure_space_move(size_t noNewPoints) {
+        std::vector<T> newVec;
+        newVec.reserve(m_cb_size);
+        newVec.insert(newVec.begin(),
+                      std::move_iterator(m_data.cbegin() + pos_begin + noNewPoints),
+                      std::move_iterator(m_data.cbegin() + pos_end));
+        m_data.swap(newVec);
+
+        pos_begin = 0;
+        pos_end   = m_data.size();
+    }
+
     void ensure_space(size_t noNewPoints) {
         /* if buffer is at max size */
         if (pos_end == m_max_size) {
@@ -53,32 +66,24 @@ class rolling_contiguous_buffer {
                 return;
             }
 
-            /* if there is enough reserve to just copy everything to the start */
-            if (m_max_size - m_cb_size >=m_cb_size) {
-                /* ensure destructor is called */
-                for (size_t i = 0; i < pos_begin+noNewPoints; ++i)
-                    m_data[i].~T();
+            /* if there is enough reserve to just copy everything to the start
+             *
+             * note: this requires T to be trivial */
+            if constexpr (std::is_trivially_copyable_v<T>) {
+                if (m_max_size - m_cb_size >=m_cb_size) {
+                    std::memcpy(static_cast<void*>(m_data.data()),
+                                static_cast<void*>(&m_data.data()[pos_begin + noNewPoints]),
+                                (m_cb_size - noNewPoints) * sizeof(T));
 
-                std::memcpy(static_cast<void*>(m_data.data()),
-                            static_cast<void*>(&m_data.data()[pos_begin + noNewPoints]),
-                            (m_cb_size - noNewPoints) * sizeof(T));
+                    pos_begin = 0;
+                    pos_end = m_cb_size - noNewPoints;
 
-                pos_begin=0;
-                pos_end = m_cb_size - noNewPoints;
-
-                m_data.erase(m_data.begin()+pos_end,m_data.end());
-            }
-            else {
-                std::vector<T> newVec;
-                newVec.reserve(m_cb_size);
-                newVec.insert(newVec.begin(),
-                              std::move_iterator(m_data.cbegin() + pos_begin + noNewPoints),
-                              std::move_iterator(m_data.cbegin() + pos_end));
-                m_data.swap(newVec);
-
-                pos_begin=0;
-                pos_end = m_data.size();
-            }
+                    m_data.erase(m_data.begin()+pos_end,m_data.end());
+                }
+                else
+                    ensure_space_move(noNewPoints);
+            } else
+                ensure_space_move(noNewPoints);
 
             return;
         }
