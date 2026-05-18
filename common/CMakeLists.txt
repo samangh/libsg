@@ -43,7 +43,7 @@ setup_library(
     src/file_writer.cpp
     src/gettimeofday.cpp
     src/net.cpp
-    src/notifiable_background_worker.cpp
+    src/worker.cpp
     src/progress.cpp
     src/version.cpp
     src/libuv_wrapper.cpp

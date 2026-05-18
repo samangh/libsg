@@ -1,8 +1,8 @@
 #pragma once
 #include "asio_io_pool.h"
 #include "net.h"
-#include "notifiable_background_worker.h"
 #include "tcp_session.h"
+#include "worker.h"
 
 #include <sg/export/common.h>
 

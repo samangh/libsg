@@ -45,7 +45,7 @@ setup_executable(
     src/rolling_contiguous_buffer.cpp
     src/bytes.cpp
     src/process.cpp
-    src/notifiable_background_worker.cpp
+    src/worker.cpp
     $<$<BOOL:${LIBSG_ZSTD}>:src/compression_zstd.cpp>
     src/ranges.cpp
     src/gettimeofday.cpp

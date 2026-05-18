@@ -1,21 +1,18 @@
 #pragma once
-#include <sg/export/common.h>
-
 #include "asio_io_pool.h"
 #include "buffer.h"
+#include "callback.h"
 #include "jthread.h"
 #include "net.h"
-#include "notifiable_background_worker.h"
 #include "tcp_session.h"
-#include "callback.h"
-
-#include <thread_pool/thread_pool.h>
+#include "worker.h"
 
 #include <boost/asio/awaitable.hpp>
 #include <boost/asio/io_context.hpp>
 #include <boost/asio/ip/tcp.hpp>
-
 #include <map>
+#include <sg/export/common.h>
+#include <thread_pool/thread_pool.h>
 
 namespace sg::net {
 

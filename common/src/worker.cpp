@@ -1,25 +1,24 @@
-#include "sg/notifiable_background_worker.h"
-
 #include "sg/debug.h"
+#include "sg/worker.h"
 
 #include <utility>
 
 namespace sg {
 
-notifiable_background_worker::notifiable_background_worker(std::chrono::nanoseconds interval_ns,
+worker::worker(std::chrono::nanoseconds interval_ns,
                                                            on_tick_callback_t task,
                                                            on_start_callback_t start_cb,
                                                            on_stop_callback_t stopped_cb)
-    : notifiable_background_worker(interval_ns, callbacks_t{.on_start_callback = std::move(start_cb),
+    : worker(interval_ns, callbacks_t{.on_start_callback = std::move(start_cb),
                                                             .on_tick_callback  = std::move(task),
                                                             .on_stop_callback  = std::move(stopped_cb)}) {};
 
-notifiable_background_worker::notifiable_background_worker(std::chrono::nanoseconds intervalNs,
+worker::worker(std::chrono::nanoseconds intervalNs,
                                                            callbacks_t callbacks)
     : m_interval(intervalNs),
       m_callbacks(std::move(callbacks)) {}
 
-notifiable_background_worker::~notifiable_background_worker() noexcept(false) {
+worker::~worker() noexcept(false) {
     request_stop();
     wait_for_stop();
 
@@ -27,7 +26,7 @@ notifiable_background_worker::~notifiable_background_worker() noexcept(false) {
     future_get_once();
 }
 
-void notifiable_background_worker::start() {
+void worker::start() {
     if (auto state_ = state_t::stopped; !m_state.compare_exchange_strong(state_, state_t::running,
                                                             std::memory_order::acq_rel,
                                                             std::memory_order::acquire))
@@ -47,7 +46,7 @@ void notifiable_background_worker::start() {
         m_notified = false;
 
         /* start */
-        m_thread = std::thread(&notifiable_background_worker::action, this);
+        m_thread = std::thread(&worker::action, this);
 
         m_start_promise.get_future().get();
     } catch (...) {
@@ -57,12 +56,12 @@ void notifiable_background_worker::start() {
     }
 }
 
-void notifiable_background_worker::request_stop() {
+void worker::request_stop() {
     m_stop_requested.store(true, std::memory_order_release);
     notify();  // notify so that the loop immediately sees the stop event
 }
 
-void notifiable_background_worker::request_stop_after_iterations(size_t iteration_count){
+void worker::request_stop_after_iterations(size_t iteration_count){
     if(iteration_count==0){
         request_stop();
         return;
@@ -72,7 +71,7 @@ void notifiable_background_worker::request_stop_after_iterations(size_t iteratio
     notify();
 }
 
-void notifiable_background_worker::wait_for_stop() {
+void worker::wait_for_stop() {
     if (m_thread.get_id() == std::this_thread::get_id())
         SG_THROW(std::logic_error,
                  "can't wait for notifiable_background_worker to stop from within itself");
@@ -85,26 +84,26 @@ void notifiable_background_worker::wait_for_stop() {
         m_thread.join();
 }
 
-bool notifiable_background_worker::is_running() const {
+bool worker::is_running() const {
     return m_state.load(std::memory_order::acquire) == state_t::running;
 }
 
-bool notifiable_background_worker::stop_requested() const noexcept {
+bool worker::stop_requested() const noexcept {
     return m_stop_requested.load(std::memory_order::acquire);
 }
 
-std::chrono::nanoseconds notifiable_background_worker::interval() const {
+std::chrono::nanoseconds worker::interval() const {
     return m_interval.load(std::memory_order::acquire);
 }
 
-void notifiable_background_worker::set_interval(std::chrono::nanoseconds interval) {
+void worker::set_interval(std::chrono::nanoseconds interval) {
     m_interval.store(interval, std::memory_order_release);
 }
-void notifiable_background_worker::correct_for_task_delay(bool val) {
+void worker::correct_for_task_delay(bool val) {
     m_correct_for_task_delay = val;
 }
 
-void notifiable_background_worker::action() {
+void worker::action() {
     try {
         if (m_callbacks.on_start_callback)
             m_callbacks.on_start_callback.invoke(this);
@@ -171,14 +170,14 @@ void notifiable_background_worker::action() {
 
 }
 
-void notifiable_background_worker::wait_until_next_tick(std::chrono::nanoseconds duration) {
+void worker::wait_until_next_tick(std::chrono::nanoseconds duration) {
     std::unique_lock lock(m_notify_mutex);
     if (duration > std::chrono::nanoseconds::zero())
         m_notify_cv.wait_for(lock, duration, [this] { return m_notified; });
     m_notified = false;
 }
 
-void notifiable_background_worker::notify() {
+void worker::notify() {
     {
         std::lock_guard lock(m_notify_mutex);
         m_notified = true;
@@ -186,9 +185,9 @@ void notifiable_background_worker::notify() {
     m_notify_cv.notify_one();
 }
 
-std::shared_future<void> notifiable_background_worker::future() const { return m_result_future; }
+std::shared_future<void> worker::future() const { return m_result_future; }
 
-void notifiable_background_worker::future_get_once(){
+void worker::future_get_once(){
     if (!m_checked_future.exchange(true))
         if (const auto fut=future(); fut.valid())
             fut.get();

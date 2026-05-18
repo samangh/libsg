@@ -1,8 +1,8 @@
 #pragma once
 
-#include "notifiable_background_worker.h"
 #include "callback.h"
 #include "debug.h"
+#include "worker.h"
 
 #include <functional>
 #include <map>
@@ -86,7 +86,7 @@ class state_machine {
         auto on_start_bind = std::bind(&state_machine::worker_on_start, this, std::placeholders::_1);
         auto on_stop_bind = std::bind(&state_machine::worker_on_stop, this, std::placeholders::_1);
 
-        m_worker = std::make_unique<sg::notifiable_background_worker>(interval, tick_action_, on_start_bind, on_stop_bind);
+        m_worker = std::make_unique<sg::worker>(interval, tick_action_, on_start_bind, on_stop_bind);
         m_worker->start();
     }
 
@@ -142,9 +142,9 @@ class state_machine {
 
     bool just_started;
     std::map<TState, state_config> m_states;
-    std::unique_ptr<sg::notifiable_background_worker> m_worker;
+    std::unique_ptr<sg::worker> m_worker;
 
-    void tick_action(sg::notifiable_background_worker*) {
+    void tick_action(sg::worker*) {
         /* cache some values, so that we don't hit the atomics so many times! */
         auto current_state_ = m_current_state.load(std::memory_order::acquire);
         auto requested_state_ = m_requested_state.load(std::memory_order::acquire);
@@ -181,7 +181,7 @@ class state_machine {
             cbs.invoke(*this, det);
     }
 
-    void worker_on_start (notifiable_background_worker*) {
+    void worker_on_start (worker*) {
         /* do overall on_start callback first, then the state's entry callbacks */
         if (m_on_start_cb)
             m_on_start_cb.invoke(*this);
@@ -189,7 +189,7 @@ class state_machine {
         /* cause the worker to run the entry actions for the initial state */
         just_started=true;
     }
-    void worker_on_stop (notifiable_background_worker*) {
+    void worker_on_stop (worker*) {
         /* do the state's exit callbacks first, then the overall state machine one*/
         state_change_details det{
             .new_state = m_current_state, .old_state = m_current_state};
