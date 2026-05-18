@@ -10,10 +10,14 @@ notifiable_background_worker::notifiable_background_worker(std::chrono::nanoseco
                                                            on_tick_callback_t task,
                                                            on_start_callback_t start_cb,
                                                            on_stop_callback_t stopped_cb)
-    : m_interval(interval_ns),
-      m_task(std::move(task)),
-      m_started_cb(std::move(start_cb)),
-      m_stopped_cb(std::move(stopped_cb)) {}
+    : notifiable_background_worker(interval_ns, callbacks_t{.on_start_callback = std::move(start_cb),
+                                                            .on_tick_callback  = std::move(task),
+                                                            .on_stop_callback  = std::move(stopped_cb)}) {};
+
+notifiable_background_worker::notifiable_background_worker(std::chrono::nanoseconds intervalNs,
+                                                           callbacks_t callbacks)
+    : m_interval(intervalNs),
+      m_callbacks(std::move(callbacks)) {}
 
 notifiable_background_worker::~notifiable_background_worker() noexcept(false) {
     request_stop();
@@ -102,8 +106,8 @@ void notifiable_background_worker::correct_for_task_delay(bool val) {
 
 void notifiable_background_worker::action() {
     try {
-        if (m_started_cb)
-            m_started_cb.invoke(this);
+        if (m_callbacks.on_start_callback)
+            m_callbacks.on_start_callback.invoke(this);
         m_start_promise.set_value();
     } catch(...) {
         m_state.store(state_t::stopped, std::memory_order::release);
@@ -134,7 +138,7 @@ void notifiable_background_worker::action() {
             /* calculate start time if needed */
             const auto t_start = m_correct_for_task_delay ? std::chrono::steady_clock::now()
                                                           : std::chrono::steady_clock::time_point{};
-            m_task.invoke(this);
+            m_callbacks.on_tick_callback.invoke(this);
             if (stop_after_iteration)
                 break;
 
@@ -154,8 +158,8 @@ void notifiable_background_worker::action() {
 
     /* run m_stopped_cb even if there was a previous exception */
     try {
-        if (m_stopped_cb)
-            m_stopped_cb.invoke(this);
+        if (m_callbacks.on_stop_callback)
+            m_callbacks.on_stop_callback.invoke(this);
     } catch (...) {
         ex = std::current_exception();
     }

@@ -25,25 +25,26 @@ class SG_COMMON_EXPORT notifiable_background_worker final {
     CREATE_CALLBACK(on_stop_callback_t, void(notifiable_background_worker *))
     CREATE_CALLBACK(on_tick_callback_t, void(notifiable_background_worker *))
 
-    /**
-     * @brief notifiable_background_worker
-     *
+    /** callbacks for the worker
      * Notes:
      *
      *   - all callbacks are done on the worker thread.
      *   - stop callback WILL NOT be called if is an error in the start callback.
      *   - if there is an exception in the start callback, the start() function will throw
      *   - exceptions in the task or stop callbacks are stored in future.
-     *
-     * @param interval_ns
-     * @param task is the callback/action that is done on every iteration.
-     * @param start_cb is the callback/action that is called BEFORE the worker starts
-     * @param stopped_cb is the callback/action that is called AFTER the worker stops
      */
+    struct callbacks_t {
+        on_start_callback_t on_start_callback{nullptr};
+        on_tick_callback_t on_tick_callback{nullptr};
+        on_stop_callback_t on_stop_callback{nullptr};
+    };
+
     notifiable_background_worker(std::chrono::nanoseconds interval_ns,
                                  on_tick_callback_t task,
                                  on_start_callback_t start_cb,
                                  on_stop_callback_t stopped_cb);
+    notifiable_background_worker(std::chrono::nanoseconds intervalNs, callbacks_t callbacks);
+
     ~notifiable_background_worker() noexcept(false);
 
 
@@ -141,12 +142,9 @@ class SG_COMMON_EXPORT notifiable_background_worker final {
     std::condition_variable m_notify_cv;
     bool m_notified = false;
 
-    on_tick_callback_t m_task;
-    on_start_callback_t m_started_cb;
-    on_stop_callback_t m_stopped_cb;
+    callbacks_t m_callbacks;
 
     std::promise<void> m_start_promise;
-
     std::promise<void> m_result_promise;
     std::shared_future<void> m_result_future;
 
