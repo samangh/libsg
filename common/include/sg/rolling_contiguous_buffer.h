@@ -224,9 +224,5 @@ class rolling_contiguous_buffer {
 
     const T& operator[](size_type i) const  { return m_data[pos_begin+i]; };
     T&       operator[](size_type i)  { return m_data[pos_begin+i]; }
-
-    ~rolling_contiguous_buffer() {
-        clear();
-    }
 };
 } // namespace sg
