@@ -86,16 +86,15 @@ bool notifiable_background_worker::is_running() const {
 }
 
 bool notifiable_background_worker::stop_requested() const noexcept {
-    return m_stop_requested.load(std::memory_order_acquire);
+    return m_stop_requested.load(std::memory_order::acquire);
 }
 
 std::chrono::nanoseconds notifiable_background_worker::interval() const {
-    return m_interval.load(std::memory_order_acquire);
+    return m_interval.load(std::memory_order::acquire);
 }
 
 void notifiable_background_worker::set_interval(std::chrono::nanoseconds interval) {
     m_interval.store(interval, std::memory_order_release);
-    notify();
 }
 void notifiable_background_worker::correct_for_task_delay(bool val) {
     m_correct_for_task_delay = val;

@@ -24,18 +24,16 @@ class SG_COMMON_EXPORT notifiable_background_worker final {
     CREATE_CALLBACK(on_start_callback_t, void(notifiable_background_worker *))
     CREATE_CALLBACK(on_stop_callback_t, void(notifiable_background_worker *))
     CREATE_CALLBACK(on_tick_callback_t, void(notifiable_background_worker *))
+
     /**
      * @brief notifiable_background_worker
      *
      * Notes:
      *
      *   - all callbacks are done on the worker thread.
-     *   - stop callback WILL NOT be called even if is an error
-     *     in the start callback.
-     *   - if there is an exception in the start callback, the start()
-     *     function will throw
-     *   - exceptions in the task or stop callbacks are
-     *     stored in future.
+     *   - stop callback WILL NOT be called if is an error in the start callback.
+     *   - if there is an exception in the start callback, the start() function will throw
+     *   - exceptions in the task or stop callbacks are stored in future.
      *
      * @param interval_ns
      * @param task is the callback/action that is done on every iteration.
@@ -104,8 +102,8 @@ class SG_COMMON_EXPORT notifiable_background_worker final {
     /**
      * Sets the interval. Is thread safe.
      *
-     * Calling this call wil cause a @code notify()@endcode to happen, causing the worker to tick
-     * immediately.
+     * If the new interval is shorter than the old one, consider calling @code notify()@endcode
+     * after this.
      */
     void set_interval(std::chrono::nanoseconds interval);
 
