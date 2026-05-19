@@ -29,7 +29,7 @@ setup_library(
   TARGET
     sg_common
   NAMESPACE
-    SG
+    ${NAMESPACE}
   NAMESPACE_TARGET
      common
   DIRECTORY
@@ -100,3 +100,8 @@ setup_library(
   GENERATE_EXPORT_HEADER
   # STATIC
 )
+
+set_property(TARGET sg_common PROPERTY OUTPUT_NAME sg)
+
+# For legacy users
+add_library(SG::common ALIAS sg_common)

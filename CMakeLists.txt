@@ -5,7 +5,7 @@ project(libsg
   DESCRIPTION "libsg"
   LANGUAGES CXX)
 
-set(NAMESPACE SG)
+set(NAMESPACE sg)
 
 ##
 ## Additional Options

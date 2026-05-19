@@ -48,7 +48,7 @@ setup_library(
   TARGET
     sg_imgui
   NAMESPACE
-    SG
+    ${NAMESPACE}
   NAMESPACE_TARGET
     imgui
   DIRECTORY
@@ -82,7 +82,7 @@ setup_library(
   INCLUDE_PRIVATE
   LINK_INTERFACE
   LINK_PUBLIC
-    SG::common
+    sg::common
     portable_file_dialogs
     $<$<BOOL:${LIBSG_IMGUI_OPENGL}>:SDL2::SDL2main>
   LINK_PRIVATE
@@ -133,3 +133,6 @@ if(LIBSG_IMGUI_OPENGL)
     target_link_libraries(${TARGET} PUBLIC ${SDL2_LIBRARIES})
   endif()
 endif()
+
+# For legacy users
+add_library(SG::imgui ALIAS sg_imgui)
