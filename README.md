@@ -12,11 +12,11 @@ buffers, file I/O, compression, and assorted helpers behind a single
 
 ## Requirements
 
-- A C++20 compiler (GCC, Clang, AppleClang, MSVC).
-- CMake 3.15 or newer.
-- [Boost](https://www.boost.org) (headers; `Boost::stacktrace` optional).
-- [{fmt}](https://github.com/fmtlib/fmt).
-- [libuv](https://libuv.org).
+- A C++20 compiler (GCC, Clang, AppleClang, MSVC);
+- CMake 3.15 or newer;
+- [Boost](https://www.boost.org) (headers);
+- [{fmt}](https://github.com/fmtlib/fmt) (can use system library, or pull own copy);
+- [libuv](https://libuv.org) (can use system library, or pull own copy);
 - Optional: [zstd](https://github.com/facebook/zstd) for compression support.
 
 ## Installation
@@ -47,15 +47,41 @@ add_executable(main main.cpp)
 target_link_libraries(main PRIVATE SG::common)
 ```
 
-## Build Options
+## Build options
 
-| Option                     | Default | Description                                              |
-| -------------------------- | ------- | -------------------------------------------------------- |
-| `LIBSG_IMGUI`              | `ON`    | Build the optional ImGui helpers (`SG::imgui`).          |
-| `LIBSG_ZSTD`               | `ON`    | Build the zstd compression helpers.                      |
-| `LIBSG_STACKTRACE`         | `OFF`   | Attach stack traces to `SG_THROW` exceptions.            |
-| `LIBSG_EXCEPTION_DETAILS`  | `OFF`   | Attach function/file/line info to `SG_THROW` exceptions. |
-| `LIBSG_BUILD_TESTING`      | `ON`*   | Build the Catch2 test suite (*off when sub-project).     |
+Project specific options `CMakeLists.txt`:
+
+| Option                    | Default | Description                                                                  |
+|---------------------------|---------|------------------------------------------------------------------------------|
+| `LIBSG_IMGUI`             | `ON`    | Build the optional ImGui helpers (`SG::imgui`).                              |
+| `LIBSG_IMGUI_DIRECTX`     | `ON`    | Enable the DirectX ImGui backend (Windows only).                             |
+| `LIBSG_IMGUI_OPENGL`      | `ON`    | Enable the OpenGL ImGui backend (default off on Windows).                    |
+| `LIBSG_ZSTD`              | `ON`    | Build the zstd compression helpers.                                          |
+| `LIBSG_STACKTRACE`        | `OFF`   | Attach stack traces to `SG_THROW` exceptions.                                |
+| `LIBSG_EXCEPTION_DETAILS` | `OFF`   | Attach function/file/line info to `SG_THROW` exceptions.                     |
+| `LIBSG_BUILD_TESTING`     | `ON`    | Build the Catch2 test suite (off when a libsg is included as a sub-project). |
+| `LIBSG_BUILD_DOCS`        | `OFF`   | Generate Doxygen docs (only honoured as a sub-project).                      |
+
+ Additional options (from `cmake/DefaultPreamble.cmake`)
+
+| Option                   | Default              | Description                                                                                    |
+|--------------------------|----------------------|------------------------------------------------------------------------------------------------|
+| `BUILD_SHARED_LIBS`      | `ON`                 | Build shared libraries (set `OFF` for static).                                                 |
+| `USE_STATIC_LIBS`        | `!BUILD_SHARED_LIBS` | Prefer `.a` over `.so`/`.dylib` when locating external libraries.                              |
+| `USE_STATIC_RUNTIME`     | `USE_STATIC_LIBS`    | Statically link the C++ runtime (MSVC only).                                                   |
+| `IPO`                    | `OFF`                | Enable interprocedural / link-time optimisation if the toolchain supports it.                  |
+| `ARCH_NATIVE`            | `OFF`                | Add `-march=native` (non-MSVC) or the equivalent SSE/AVX flags.                                |
+| `USE_SSE`                | `ARCH_NATIVE`        | Enable SSE4.2 / AVX2 (+ CLMUL on x86-64) globally where supported.                             |
+| `USE_LIBC++`             | `OFF`                | Build against `libc++` (Clang only).                                                           |
+| `USE_LINTING`            | `OFF`                | Run `clang-tidy` on every target via `CXX_CLANG_TIDY`.                                         |
+| `SANITIZE`               | `OFF`                | Turn on address + UB sanitizers (also exposes `SANITIZE_THREAD` / `SANITIZE_MEMORY`).          |
+| `COVERAGE`               | `OFF`                | Add `-fprofile-instr-generate -fcoverage-mapping` and create a `coverage` target (Clang only). |
+| `OWN_FMT`                | `OFF`                | Fetch & build `{fmt}` via CPM instead of using a system package.                               |
+| `OWN_UV`                 | `OFF`                | Fetch & build `libuv` via CPM instead of using a system package.                               |
+| `BUILD_DOCS`             | `OFF`                | Generate Doxygen documentation (requires Doxygen).                                             |
+| `BUILD_DOCS_SRC`         | `OFF`                | Also scan source files when generating docs (requires `BUILD_DOCS`).                           |
+
+There maybe other CMake options available, consult [this file](cmake/DefaultPreamble.cmake).
 
 ## What's in the library
 
@@ -63,17 +89,16 @@ All public headers live under `sg/`. Most types are in the `sg::` namespace,
 with subsystem-specific namespaces (`sg::net`, `sg::compression::zstd`, etc.).
 
 ### Networking (`sg::net`)
-- `tcp_server` — accept-loop based server with callback-driven session model.
-- `tcp_client` — asynchronous TCP client sharing a session abstraction.
-- `tcp_client_sync` — blocking client with `read_until` / `read_some` helpers.
-- `tcp_session` — per-connection object exposing read/write/disconnect.
-- `asio_io_pool` — restartable thread pool driving a single `boost::asio::io_context`.
-- `end_point`, `keepalive_t`, `interfaces()`, `resolve(...)`.
+- `tcp_server` — accept-loop based server with callback-driven session model
+- `tcp_client` — asynchronous TCP client sharing a session abstraction
+- `tcp_client_sync` — blocking TCP 
+- `asio_io_pool` — restartable thread pool driving a single `boost::asio::io_context`
+- number of utility functions to list all local IP addresses, interfaces and do DNS lookup
 
 ### Concurrency
 - `worker` — interval-driven background thread with start/tick/stop callbacks and
-  on-demand `notify()`.
-- `state_machine<TState>` — generic state machine layered on top of `worker`.
+  on-demand `notify()`
+- `state_machine<TState>` — generic state machine layered on top of `worker`
 - `jthread.h` — wrapper that uses `std::jthread` when available, polyfills it otherwise.
 
 ### Buffers and memory
