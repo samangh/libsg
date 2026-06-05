@@ -7,6 +7,7 @@
 #include <boost/asio/io_context.hpp>
 
 #include <vector>
+#include <optional>
 
 namespace sg::net {
 
