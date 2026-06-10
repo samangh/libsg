@@ -11,8 +11,41 @@ namespace sg::imgui {
 /* Create a version of ImGui::InputText for std::string */
 bool InputText(const char *label, std::string &str, ImGuiInputTextFlags flags = 0);
 
-/* Create a numeric input for UInt32 integers */
-bool InputUInt32(const char *label, uint32_t &v, ImGuiInputTextFlags flags = 0);
+template<typename T>
+    requires(std::is_arithmetic_v<T>)
+bool InputNumeric(const char* label, T& v, ImGuiInputTextFlags flags = ImGuiInputFlags_None) {
+    ImGuiDataType_ imguiType = ImGuiDataType_S8;
+
+    if constexpr (std::is_same_v<T, char> || std::is_same_v<T, signed char>)
+        imguiType = ImGuiDataType_S8;
+    else if constexpr (std::is_same_v<T, unsigned char>)
+        imguiType = ImGuiDataType_U8;
+    else if constexpr (std::is_same_v<T, short>)
+        imguiType = ImGuiDataType_S16;
+    else if constexpr (std::is_same_v<T, unsigned short>)
+        imguiType = ImGuiDataType_U16;
+    else if constexpr (std::is_same_v<T, int>)
+        imguiType = ImGuiDataType_S32;
+    else if constexpr (std::is_same_v<T, unsigned int>)
+        imguiType = ImGuiDataType_U32;
+    else if constexpr (std::is_same_v<T, long>)
+        imguiType = (sizeof(T) == 8) ? ImGuiDataType_S64 : ImGuiDataType_S32;
+    else if constexpr (std::is_same_v<T, unsigned long>)
+        imguiType = (sizeof(T) == 8) ? ImGuiDataType_U64 : ImGuiDataType_U32;
+    else if constexpr (std::is_same_v<T, long long>)
+        imguiType = ImGuiDataType_S64;
+    else if constexpr (std::is_same_v<T, unsigned long long>)
+        imguiType = ImGuiDataType_U64;
+    else if constexpr (std::is_same_v<T, float>)
+        imguiType = ImGuiDataType_Float;
+    else if constexpr (std::is_same_v<T, double>)
+        imguiType = ImGuiDataType_Double;
+    else
+        static_assert(false, "provided arithmetic type does not match to a ImGuiDataType_");
+
+    return ImGui::InputScalar(label, imguiType, static_cast<void*>(&v), nullptr, nullptr, nullptr,
+                              flags);
+}
 
 /* Disables the ImGUI items defined in func if visibile is false */
 void disable_item(bool visible, std::function<void(void)> func);
