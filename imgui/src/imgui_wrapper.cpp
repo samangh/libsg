@@ -22,7 +22,7 @@ void IImGuiWrapper::initalise()
     if (sg::enumeration::contains(m_configflags, ConfigFlags::IncludeImPlot))
         ImPlot::CreateContext();
     if (m_on_start)
-        m_on_start.invoke();
+        m_on_start.invoke(*this);
 }
 
 void IImGuiWrapper::iterate(bool& done)
@@ -30,13 +30,13 @@ void IImGuiWrapper::iterate(bool& done)
     if (sg::enumeration::contains(m_configflags, ConfigFlags::Docking))
         ImGui::DockSpaceOverViewport(0, nullptr, ImGuiDockNodeFlags_PassthruCentralNode, nullptr);
     if (m_on_iteration)
-        m_on_iteration.invoke(done);
+        m_on_iteration.invoke(*this, done);
 }
 
 void IImGuiWrapper::cleanup()
 {
     if (m_on_end)
-        m_on_end.invoke();
+        m_on_end.invoke(*this);
     if (sg::enumeration::contains(m_configflags, ConfigFlags::IncludeImPlot))
         ImPlot::DestroyContext();
 }

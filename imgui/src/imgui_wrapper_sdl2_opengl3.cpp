@@ -24,6 +24,10 @@
 
 namespace sg::imgui {
 
+struct ImGuiWrapper_Sdl2_OpenGl3::impl {
+    SDL_Window * windowHandle = nullptr;
+};
+
 ImGuiWrapper_Sdl2_OpenGl3::ImGuiWrapper_Sdl2_OpenGl3(sg::imgui::IImGuiWrapper::on_start_t a,
                                                      sg::imgui::IImGuiWrapper::on_end_t b,
                                                      sg::imgui::IImGuiWrapper::on_iteration_t c,
@@ -92,6 +96,7 @@ void ImGuiWrapper_Sdl2_OpenGl3::start(const std::string &title)
      ******************/
     // modified to include title
     SDL_Window* window = SDL_CreateWindow(title.c_str(), SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, (int)(1280 * main_scale), (int)(800 * main_scale), window_flags);
+    m_pimpl->windowHandle = window;
     /******************/
     if (window == nullptr)
     {
@@ -273,6 +278,12 @@ void ImGuiWrapper_Sdl2_OpenGl3::start(const std::string &title)
     SDL_Quit();
 }
 
+void ImGuiWrapper_Sdl2_OpenGl3::changeWindowTitle(const std::string& title) {
+    SDL_SetWindowTitle(m_pimpl->windowHandle, title.c_str());
 }
+
+ImGuiWrapper_Sdl2_OpenGl3::~ImGuiWrapper_Sdl2_OpenGl3() =default;
+
+} // namespace sg::imgui
 
 #endif

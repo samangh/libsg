@@ -355,6 +355,10 @@ LRESULT WINAPI WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
 
 namespace sg::imgui {
 
+struct ImGuiWrapper_Win32_DirectX12::impl {
+    HWND windowHandle = nullptr;
+};
+
 ImGuiWrapper_Win32_DirectX12::ImGuiWrapper_Win32_DirectX12(sg::imgui::IImGuiWrapper::on_start_t a,
                                                      sg::imgui::IImGuiWrapper::on_end_t b,
                                                      sg::imgui::IImGuiWrapper::on_iteration_t c,
@@ -376,6 +380,7 @@ void ImGuiWrapper_Win32_DirectX12::start(const std::string &title)
     WNDCLASSEXW wc = { sizeof(wc), CS_CLASSDC, WndProc, 0L, 0L, GetModuleHandle(nullptr), nullptr, nullptr, nullptr, nullptr, wtitle.c_str(), nullptr };
     ::RegisterClassExW(&wc);
     HWND hwnd = ::CreateWindowW(wc.lpszClassName, wtitle.c_str(), WS_OVERLAPPEDWINDOW, 100, 100, (int)(1280 * main_scale), (int)(800 * main_scale), nullptr, nullptr, wc.hInstance, nullptr);
+    m_pimpl->windowHandle = hwnd;
     /******************/
 
     // Initialize Direct3D
@@ -589,6 +594,12 @@ void ImGuiWrapper_Win32_DirectX12::start(const std::string &title)
     ::UnregisterClassW(wc.lpszClassName, wc.hInstance);
 }
 
+void ImGuiWrapper_Win32_DirectX12::changeWindowTitle(const std::string& title) {
+    ::SetWindowTextW(m_pimpl->windowHandle, sg::string::to_wstring(title).c_str());
 }
+
+ImGuiWrapper_Win32_DirectX12::~ImGuiWrapper_Win32_DirectX12() =default;
+
+} // namespace sg::imgui
 
 #endif

@@ -11,14 +11,15 @@ namespace sg::imgui {
 
 class IImGuiWrapper {
   public:
-    CREATE_CALLBACK(on_start_t, void(void));
-    CREATE_CALLBACK(on_end_t, void(void));
-    CREATE_CALLBACK(on_iteration_t, void(bool &done));
+    CREATE_CALLBACK(on_start_t, void(IImGuiWrapper&));
+    CREATE_CALLBACK(on_end_t, void(IImGuiWrapper&));
+    CREATE_CALLBACK(on_iteration_t, void(IImGuiWrapper&, bool &done));
 
     IImGuiWrapper(on_start_t, on_end_t, on_iteration_t, ConfigFlags);
     virtual ~IImGuiWrapper();
 
     virtual void start(const std::string &title) = 0;
+    virtual void changeWindowTitle(const std::string &title) = 0;
 
   protected:
     /* sets up ImGUI IO */
