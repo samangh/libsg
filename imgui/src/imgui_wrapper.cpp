@@ -4,6 +4,8 @@
 
 #include <implot.h>
 
+#include <utility>
+
 namespace sg::imgui {
 
 IImGuiWrapper::IImGuiWrapper(IImGuiWrapper::on_start_t on_start_cb,
@@ -11,9 +13,13 @@ IImGuiWrapper::IImGuiWrapper(IImGuiWrapper::on_start_t on_start_cb,
                              IImGuiWrapper::on_iteration_t on_it_cb,
                              ConfigFlags flags)
     : m_configflags(flags),
-      m_on_start(on_start_cb),
-      m_on_end(on_end_cb),
-      m_on_iteration(on_it_cb) {}
+      m_callbacks(Callbacks{.onStart     = std::move(on_start_cb),
+                            .onEnd       = std::move(on_end_cb),
+                            .onIteration = std::move(on_it_cb)}) {}
+
+IImGuiWrapper::IImGuiWrapper(Callbacks callbacks, ConfigFlags flags)
+    : m_configflags(flags),
+      m_callbacks(std::move(callbacks)) {}
 
 IImGuiWrapper::~IImGuiWrapper()  =default;
 
@@ -21,22 +27,22 @@ void IImGuiWrapper::initalise()
 {
     if (sg::enumeration::contains(m_configflags, ConfigFlags::IncludeImPlot))
         ImPlot::CreateContext();
-    if (m_on_start)
-        m_on_start.invoke(*this);
+    if (m_callbacks.onStart)
+        m_callbacks.onStart.invoke(*this);
 }
 
 void IImGuiWrapper::iterate(bool& done)
 {
     if (sg::enumeration::contains(m_configflags, ConfigFlags::Docking))
         ImGui::DockSpaceOverViewport(0, nullptr, ImGuiDockNodeFlags_PassthruCentralNode, nullptr);
-    if (m_on_iteration)
-        m_on_iteration.invoke(*this, done);
+    if (m_callbacks.onIteration)
+        m_callbacks.onIteration.invoke(*this, done);
 }
 
 void IImGuiWrapper::cleanup()
 {
-    if (m_on_end)
-        m_on_end.invoke(*this);
+    if (m_callbacks.onEnd)
+        m_callbacks.onEnd.invoke(*this);
     if (sg::enumeration::contains(m_configflags, ConfigFlags::IncludeImPlot))
         ImPlot::DestroyContext();
 }

@@ -28,11 +28,11 @@ struct ImGuiWrapper_Sdl2_OpenGl3::impl {
     SDL_Window * windowHandle = nullptr;
 };
 
-ImGuiWrapper_Sdl2_OpenGl3::ImGuiWrapper_Sdl2_OpenGl3(sg::imgui::IImGuiWrapper::on_start_t a,
-                                                     sg::imgui::IImGuiWrapper::on_end_t b,
-                                                     sg::imgui::IImGuiWrapper::on_iteration_t c,
-                                                     sg::imgui::ConfigFlags configFlags)
-    : IImGuiWrapper(a, b, c, configFlags) {}
+ImGuiWrapper_Sdl2_OpenGl3::ImGuiWrapper_Sdl2_OpenGl3(on_start_t a, on_end_t b, on_iteration_t c, ConfigFlags configFlags)
+    : IImGuiWrapper(Callbacks{std::move(a), std::move(b), std::move(c)}, configFlags) {}
+
+ImGuiWrapper_Sdl2_OpenGl3::ImGuiWrapper_Sdl2_OpenGl3(Callbacks callbacks, ConfigFlags configFlags)
+    : IImGuiWrapper(std::move(callbacks), configFlags) {}
 
 void ImGuiWrapper_Sdl2_OpenGl3::start(const std::string &title)
 {
@@ -282,6 +282,8 @@ void ImGuiWrapper_Sdl2_OpenGl3::changeWindowTitle(const std::string& title) {
     SDL_SetWindowTitle(m_pimpl->windowHandle, title.c_str());
 }
 
+/* that the destructor must be in the implementation, as the destructor needs to know the size
+ * of impl */
 ImGuiWrapper_Sdl2_OpenGl3::~ImGuiWrapper_Sdl2_OpenGl3() =default;
 
 } // namespace sg::imgui

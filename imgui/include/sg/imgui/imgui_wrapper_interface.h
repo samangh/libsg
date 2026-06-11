@@ -15,7 +15,16 @@ class IImGuiWrapper {
     CREATE_CALLBACK(on_end_t, void(IImGuiWrapper&));
     CREATE_CALLBACK(on_iteration_t, void(IImGuiWrapper&, bool &done));
 
+    struct Callbacks {
+        on_start_t onStart {nullptr};
+        on_end_t onEnd {nullptr};
+        on_iteration_t onIteration {nullptr};
+    };
+
+    [[deprecated("Use Callbacks struct instead")]]
     IImGuiWrapper(on_start_t, on_end_t, on_iteration_t, ConfigFlags);
+    IImGuiWrapper(Callbacks, ConfigFlags);
+
     virtual ~IImGuiWrapper();
 
     virtual void start(const std::string &title) = 0;
@@ -36,9 +45,7 @@ class IImGuiWrapper {
     ImGuiConfigFlags to_imgui_configflags(ConfigFlags);
 
   private:
-    const on_start_t m_on_start;
-    const on_end_t m_on_end;
-    const on_iteration_t m_on_iteration;
+    const Callbacks m_callbacks;
 };
 
 } // namespace sg::imgui

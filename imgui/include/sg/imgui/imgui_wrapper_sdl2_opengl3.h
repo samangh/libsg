@@ -13,14 +13,16 @@ namespace sg::imgui {
 class ImGuiWrapper_Sdl2_OpenGl3 : public IImGuiWrapper {
     struct impl;
     pimpl<impl> m_pimpl;
+
   public:
-    ImGuiWrapper_Sdl2_OpenGl3(on_start_t, on_end_t, on_iteration_t, ConfigFlags = ConfigFlags::None);
+    [[deprecated("Use Callbacks struct instead")]]
+    ImGuiWrapper_Sdl2_OpenGl3(on_start_t, on_end_t, on_iteration_t,
+                              ConfigFlags = ConfigFlags::None);
+    ImGuiWrapper_Sdl2_OpenGl3(Callbacks, ConfigFlags = ConfigFlags::None);
+    ~ImGuiWrapper_Sdl2_OpenGl3() override;
+
     void start(const std::string &title) override;
     void changeWindowTitle(const std::string& title) override;
-
-    /* that the destructor must be in the implementation, as the destructor needs to know the size
-     * of impl */
-    ~ImGuiWrapper_Sdl2_OpenGl3() override;
 };
 } // namespace sg::imgui
 
