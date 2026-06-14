@@ -11,9 +11,11 @@ namespace sg::imgui {
 /* Create a version of ImGui::InputText for std::string */
 bool InputText(const char *label, std::string &str, ImGuiInputTextFlags flags = 0);
 
-template<typename T>
+template <typename T>
     requires(std::is_arithmetic_v<T>)
-bool InputNumeric(const char* label, T& v, ImGuiInputTextFlags flags = ImGuiInputFlags_None) {
+bool InputNumeric(const char* label, T& v, const T* p_step = nullptr,
+                  const T* p_step_fast = nullptr, const char* format = nullptr,
+                  ImGuiInputTextFlags flags = ImGuiInputFlags_None) {
     ImGuiDataType_ imguiType = ImGuiDataType_S8;
 
     if constexpr (std::is_same_v<T, char> || std::is_same_v<T, signed char>)
@@ -43,8 +45,9 @@ bool InputNumeric(const char* label, T& v, ImGuiInputTextFlags flags = ImGuiInpu
     else
         static_assert(false, "provided arithmetic type does not match to a ImGuiDataType_");
 
-    return ImGui::InputScalar(label, imguiType, static_cast<void*>(&v), nullptr, nullptr, nullptr,
-                              flags);
+    return ImGui::InputScalar(label, imguiType, static_cast<void*>(&v),
+                              static_cast<const void*>(p_step),
+                              static_cast<const void*>(p_step_fast), format, flags);
 }
 
 /* Disables the ImGUI items defined in func if visibile is false */
