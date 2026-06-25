@@ -8,10 +8,17 @@
 #include "sg/tcp_server.h"
 
 #include <boost/asio.hpp>
+#include <fmt/format.h>
 
 #include <atomic>
+#include <chrono>
+#include <cstdio>
+#include <cstdlib>
+#include <random>
 #include <semaphore>
 #include <string>
+#include <thread>
+#include <vector>
 
 using namespace sg::net;
 static port_t PORT = 4444; // 55555 can't be used on macOS!
@@ -780,4 +787,154 @@ TEST_CASE("tcp_server: echo works across a range of options_t::no_threads", "[sg
 
     l.stop_async();
     l.future_get_once();
+}
+
+// ---------------------------------------------------------------------------
+// Run this ideally under ThreadSanitizer, which:
+//
+//   cmake -DSANITIZE=ON -DSANITIZE_THREAD=ON
+//
+// It tests concurrentcy on on a pool of hardware_concurrency() io threads:
+//   * streamers  -> sustained, pipelined traffic => a read and a write are in
+//                   flight on the same session at once (per-session strand);
+//   * churners   -> connect/echo/disconnect in a loop => accept racing the
+//                   close() posted by stop_async() (per-acceptor strand), plus
+//                   a connection storm overlapping teardown;
+//   * stop is issued MID-FLIGHT, so teardown happens under load.
+//
+// A watchdog aborts (with a message) if teardown exceeds a deadline, so a
+// regression of the stop_async() deadlock fails loudly instead of hanging.
+// Worker threads never call Catch2 macros (they are not thread-safe); they only
+// set atomics, which the main thread asserts on after joining.
+// ---------------------------------------------------------------------------
+TEST_CASE("tcp_server: multi-threaded stress (strands + teardown under load)",
+          "[sg::net::tcp_server]") {
+    using namespace std::chrono_literals;
+
+    constexpr int kIterations = 25;
+    constexpr int kStreamers  = 16;
+    constexpr int kChurners   = 16;
+    constexpr int kBatch      = 8;   // messages pipelined per streamer round
+    const size_t  kThreads    = std::max<unsigned>(2, std::thread::hardware_concurrency());
+    const port_t  kBasePort   = 4600;
+
+    std::mt19937 rng(std::random_device{}());
+    std::atomic<long> total_roundtrips{0}; // guards against the test doing nothing
+
+    for (int it = 0; it < kIterations; ++it) {
+        const port_t port = static_cast<port_t>(kBasePort + (it % 50));
+        end_point ep("127.0.0.1", port);
+
+        tcp_server::CallBacks cb;
+        cb.OnSessionDataAvailable = [](tcp_server& s, tcp_server::session_id_t id,
+                                       const std::byte* data, size_t len) {
+            // Echo back on the same session; tolerate a session that is going away.
+            try { s.session(id)->write(data, len); } catch (...) {}
+        };
+
+        tcp_server::options_t opts;
+        opts.no_threads = kThreads;
+
+        tcp_server server;
+        server.start({ep}, cb, opts);
+
+        std::atomic<bool> stop_clients{false};
+        std::atomic<bool> corruption{false};
+        std::vector<std::thread> clients;
+        clients.reserve(kStreamers + kChurners);
+
+        // Streamers: one long-lived connection, pipelined batches.
+        for (int c = 0; c < kStreamers; ++c) {
+            clients.emplace_back([&, c]() {
+                try {
+                    tcp_client_sync client;
+                    tcp_session::options_t sopts;
+                    sopts.timeout_msec = 2000;
+                    client.connect(ep, sopts);
+
+                    long n = 0;
+                    while (!stop_clients.load(std::memory_order_relaxed)) {
+                        std::vector<std::string> sent;
+                        sent.reserve(kBatch);
+                        for (int b = 0; b < kBatch; ++b) {
+                            auto msg = fmt::format("s{}-{}\n", c, n++);
+                            client.write(msg);
+                            sent.push_back(std::move(msg));
+                        }
+                        for (auto& msg : sent) {
+                            if (client.read_until("\n") != msg) {
+                                corruption.store(true, std::memory_order_relaxed);
+                                return;
+                            }
+                            total_roundtrips.fetch_add(1, std::memory_order_relaxed);
+                        }
+                    }
+                } catch (...) {
+                    // Expected: the server stops mid-stream / a read times out.
+                }
+            });
+        }
+
+        // Churners: connect/echo/disconnect in a tight loop.
+        for (int c = 0; c < kChurners; ++c) {
+            clients.emplace_back([&, c]() {
+                long n = 0;
+                while (!stop_clients.load(std::memory_order_relaxed)) {
+                    try {
+                        tcp_client_sync client;
+                        tcp_session::options_t sopts;
+                        sopts.timeout_msec = 2000;
+                        client.connect(ep, sopts);
+                        auto msg = fmt::format("k{}-{}\n", c, n++);
+                        client.write(msg);
+                        if (client.read_until("\n") != msg)
+                            corruption.store(true, std::memory_order_relaxed);
+                        else
+                            total_roundtrips.fetch_add(1, std::memory_order_relaxed);
+                    } catch (...) {
+                        // Expected once the server begins shutting down.
+                    }
+                }
+            });
+        }
+
+        // Let traffic ramp up, then stop MID-FLIGHT after a randomised delay.
+        std::this_thread::sleep_for(
+            std::chrono::milliseconds(std::uniform_int_distribution<int>(2, 40)(rng)));
+
+        // --- watchdog-guarded teardown ---
+        std::atomic<bool> teardown_done{false};
+        std::thread watchdog([&]() {
+            const auto deadline = std::chrono::steady_clock::now() + 60s;
+            while (std::chrono::steady_clock::now() < deadline) {
+                if (teardown_done.load(std::memory_order_acquire))
+                    return;
+                std::this_thread::sleep_for(50ms);
+            }
+            if (!teardown_done.load(std::memory_order_acquire)) {
+                std::fprintf(stderr,
+                             "\n[STRESS] DEADLOCK: teardown exceeded 60s "
+                             "(iteration %d, no_threads=%zu)\n", it, kThreads);
+                std::fflush(stderr);
+                std::abort();
+            }
+        });
+
+        server.stop_async();
+        server.future_get_once();   // hangs here if stop_async() deadlocks
+
+        stop_clients.store(true, std::memory_order_relaxed);
+        for (auto& t : clients)
+            t.join();
+
+        teardown_done.store(true, std::memory_order_release);
+        watchdog.join();
+
+        REQUIRE_FALSE(corruption.load());
+        REQUIRE(server.is_stopped());
+        REQUIRE(server.clients_count() == 0);
+    }
+
+    // Make sure the run actually exercised the server (e.g. connects succeeded).
+    REQUIRE(total_roundtrips.load() > 0);
 }
