@@ -22,6 +22,7 @@ tcp_session::tcp_session(private_tag, boost::asio::ip::tcp::socket socket,
                          on_data_available_cb_t onReadCb,
                          on_disconnected_cb_t onErrorCb, options_t options)
     : m_socket(std::move(socket)),
+      m_strand(boost::asio::make_strand(m_socket.get_executor())),
       m_options(options),
       m_on_data_cb(std::move(onReadCb)),
       m_on_disconnected_cb(std::move(onErrorCb)) {}
@@ -53,7 +54,7 @@ void tcp_session::start(on_connected_cb_t onConn) {
         if (m_options.send_buffer_size)
             sg::net::native::set_send_buffer_size(m_socket.native_handle(), m_options.send_buffer_size);
 
-        co_spawn(m_socket.get_executor(), [self = shared_from_this()] { return self->reader(); }, boost::asio::detached);
+        co_spawn(m_strand, [self = shared_from_this()] { return self->reader(); }, boost::asio::detached);
     } catch (...) {
         /* if clean closing, do not throw error */
         if (m_state.load(std::memory_order::acquire) == state_t::running)
@@ -84,7 +85,7 @@ void tcp_session::write(sg::shared_c_buffer<std::byte> msg) {
 
     //co_spawin might be slow, so have it outside the lock
     if (need_spawn)
-        co_spawn(m_socket.get_executor(), [self = shared_from_this()] { return self->writer(); }, boost::asio::detached);
+        co_spawn(m_strand, [self = shared_from_this()] { return self->writer(); }, boost::asio::detached);
 }
 
 void tcp_session::write(std::string_view msg) {
@@ -164,7 +165,8 @@ void tcp_session::close() {
                                            std::memory_order::release,
                                            std::memory_order::acquire))
         {
-            // socket operations should be run on the io_context, as they are technically thread safe.
+            // Socket operations must be serialised with the reader/writer, so run close_impl()
+            // on the session strand (same strand the reader and writer run on).
             //
             // You can't use shared_from_this() in the destructor, so if we are in the destructor run
             // close_impl() directly. In this case thread-safety is not important (as by definition no other
@@ -172,7 +174,7 @@ void tcp_session::close() {
             if (m_destructor_called)
                 close_impl();
             else
-                boost::asio::dispatch(m_socket.get_executor(),
+                boost::asio::dispatch(m_strand,
                                       [self = shared_from_this()] { self->close_impl(); });
             return;
         }
@@ -205,6 +207,12 @@ void tcp_session::close_impl() {
 }
 
 boost::asio::awaitable<void> tcp_session::reader() {
+    /* reader() and writer() share m_strand, but that does NOT serialise their I/O. A strand
+     * gates handler *execution* (one handler on a CPU at a time), not operation *pendency*:
+     * it is released the moment a coroutine hits co_await. So while a write is pending the
+     * writer is suspended and off the strand, leaving us free to run here and start a read.
+     * A read and a write are therefore in flight simultaneously (full duplex); only the brief
+     * completion-handler bodies are serialised, never the network I/O. */
     try {
         boost::asio::socket_base::receive_buffer_size option;
         m_socket.get_option(option);

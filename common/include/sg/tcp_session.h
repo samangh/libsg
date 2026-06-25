@@ -8,6 +8,7 @@
 #include <boost/asio/awaitable.hpp>
 #include <boost/asio/io_context.hpp>
 #include <boost/asio/ip/tcp.hpp>
+#include <boost/asio/strand.hpp>
 
 #include <memory>
 
@@ -69,6 +70,12 @@ class SG_COMMON_EXPORT tcp_session : public std::enable_shared_from_this<tcp_ses
 
   private:
     boost::asio::ip::tcp::socket m_socket;
+
+    /* Per-session strand. The socket is not thread-safe, so the reader, writer and close handlers
+     * (which all touch m_socket) must not run concurrently. Routing all three through this strand
+     * serialises them. It does NOT serialise the underlying I/O. */
+    boost::asio::strand<boost::asio::ip::tcp::socket::executor_type> m_strand;
+
     options_t m_options;
 
     on_data_available_cb_t m_on_data_cb;
