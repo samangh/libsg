@@ -22,7 +22,16 @@ TEST_CASE("tcp_server: check bad endpoint throws exception during start()", "[sg
     ep.ip = "8.8.8.8";
 
     tcp_server l;
-    REQUIRE_THROWS(l.start({ep}, decltype(l)::CallBacks()));
+    REQUIRE_THROWS(l.start({ep}, {}));
+}
+
+TEST_CASE("tcp_server: check empty endpoint list throws during start()", "[sg::net::tcp_server]") {
+    tcp_server l;
+    REQUIRE_THROWS_AS(l.start({}, {}), std::invalid_argument);
+
+    // start() must have left the server un-started, so a subsequent valid start works.
+    end_point ep("127.0.0.1", PORT);
+    REQUIRE_NOTHROW(l.start({ep}, {}));
 }
 
 TEST_CASE("tcp_server: check start/stop callback", "[sg::net::tcp_server]") {

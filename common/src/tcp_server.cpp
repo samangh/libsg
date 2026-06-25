@@ -47,9 +47,13 @@ void tcp_server::stop_async() {
     });
 }
 
-void tcp_server::start(std::vector<end_point> endpoints, CallBacks callbacks, options_t options) noexcept(false) {
+void tcp_server::start(std::vector<end_point> endpoints, CallBacks callbacks, options_t options) {
+    if (endpoints.empty())
+        SG_THROW(std::invalid_argument, "tcp_server requires at least one endpoint to listen on");
+
     if (m_running.exchange(true))
-        throw std::runtime_error("tcp_server is already running");
+        SG_THROW(std::runtime_error, "tcp_server is already running");
+
     m_running.notify_all();
 
     try {
