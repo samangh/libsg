@@ -1,4 +1,5 @@
 #include "sg/tcp_server.h"
+#include "sg/debug.h"
 #include "sg/tcp_native.h"
 
 #include <boost/asio/co_spawn.hpp>
@@ -23,13 +24,16 @@ void tcp_server::stop_async() {
         return;
 
     m_stopping_thread = std::jthread([this]() {
-        for (auto& acceptor : m_acceptors) {
-            try {
-                acceptor->close();
-            } catch (...) {}
+        /* Socket operations should be run on the io_context, as they are not thread safe.*/
+        for (const auto& acceptor : m_acceptors) {
+            boost::asio::post(acceptor->get_executor(), [acceptor]() {
+                try {
+                    acceptor->close();
+                } catch (...) {}
+            });
         }
 
-        /* wait until all acceptors have disconnected */
+        /* wait until every listener coroutine has exited (the last one to unwind sets this flag).*/
         m_acceptors_stopped.wait(false, std::memory_order::acquire);
         disconnect_all();
 
