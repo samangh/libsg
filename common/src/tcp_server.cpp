@@ -5,6 +5,7 @@
 #include <boost/asio/co_spawn.hpp>
 #include <boost/asio/detached.hpp>
 #include <boost/asio/redirect_error.hpp>
+#include <boost/asio/strand.hpp>
 #include <atomic>
 
 namespace sg::net {
@@ -154,8 +155,11 @@ tcp_server::listener(std::shared_ptr<boost::asio::ip::tcp::acceptor> acceptor) {
                     m_callbacks.OnSessionCreated.invoke(*this, id);
             };
 
+            /* Accept onto the general io_context, not this acceptor's strand: the new
+             * session must run across all workers. Passing the io_context explicitly
+             * overrides the default of inheriting the acceptor's (strand) executor. */
             auto sess = tcp_session::create(
-                co_await acceptor.get()->async_accept(boost::asio::use_awaitable),
+                co_await acceptor->async_accept(m_context->context(), boost::asio::use_awaitable),
                 onData,
                 onSessionDisconnected,
                 m_options.session_options);
@@ -197,14 +201,21 @@ void tcp_server::start_listening() {
         // note: keep-alive and timeout will be inherited on some platforms (Linux) but not others
         // (Windows), so we set them on a per-session basis instead.
 
-        auto a = std::make_shared<boost::asio::ip::tcp::acceptor>(m_context->context());
+        /* Bind the acceptor (and its listener) to a dedicated strand. An acceptor is a
+         * Boost.Asio I/O object and so con-current use in multiple threads is not thread-safe.;
+         * with more than one io worker thread, an in-flight async_accept and the close() posted by
+         * stop_async() could run on different workers at the same time. Routing every operation on
+         * this acceptor through one strand serialises them without a mutex. */
+        auto strand = boost::asio::make_strand(m_context->context());
+
+        auto a = std::make_shared<boost::asio::ip::tcp::acceptor>(strand);
         a->open(ep.protocol());
         native::set_exclusive_addr_use(a->native_handle(), m_options.exclusive_address_use);
         native::set_reuse_address(a->native_handle(), m_options.reuse_address);
         a->bind(ep);
         a->listen();
 
-        boost::asio::co_spawn(m_context->context(), listener(a), boost::asio::detached);
+        boost::asio::co_spawn(strand, listener(a), boost::asio::detached);
         m_acceptors.push_back(a);
     }
 
