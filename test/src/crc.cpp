@@ -5,7 +5,7 @@
 
 #include <string>
 
-TEST_CASE("sg::checksum: check crc", "[sg::checksum]") {
+TEST_CASE("checksum: check crc", "[sg::checksum]") {
     // see https://crccalc.com/
 
     /* long input, as lots of bytes (>144 for intel, >112 for AMD) are needed to kick-in the harware CR32*/
@@ -119,7 +119,7 @@ TEST_CASE("sg::checksum: check crc", "[sg::checksum]") {
     }
 }
 
-TEST_CASE("sg::checksum: check crc performnce", "[sg::checksum]" ){
+TEST_CASE("checksum: check crc performance", "[.][sg::checksum]" ){
     BENCHMARK_ADVANCED("crc32c(...), 1 MB input")(Catch::Benchmark::Chronometer meter) {
         auto dat = sg::random::generate<uint8_t>(1000*1000);
         meter.measure([&dat] {
