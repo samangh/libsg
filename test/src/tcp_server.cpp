@@ -790,7 +790,7 @@ TEST_CASE("tcp_server: echo works across a range of options_t::no_threads", "[sg
 }
 
 // ---------------------------------------------------------------------------
-// Run this ideally under ThreadSanitizer, which:
+// Run this ideally under ThreadSanitizer,:
 //
 //   cmake -DSANITIZE=ON -DSANITIZE_THREAD=ON
 //
@@ -808,7 +808,7 @@ TEST_CASE("tcp_server: echo works across a range of options_t::no_threads", "[sg
 // set atomics, which the main thread asserts on after joining.
 // ---------------------------------------------------------------------------
 TEST_CASE("tcp_server: multi-threaded stress (strands + teardown under load)",
-          "[sg::net::tcp_server]") {
+          "[.][sg::net::tcp_server]") {
     using namespace std::chrono_literals;
 
     constexpr int kIterations = 25;

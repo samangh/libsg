@@ -139,7 +139,7 @@ TEST_CASE("SG::common sg::file_writer: test large sequental writes") {
     CHECK(std::filesystem::file_size(path)== 1024*2048);
 }
 
-TEST_CASE("SG::common benchmark file_writer", "[sg::file_writer]" ){
+TEST_CASE("file_writer: benchmark file_writer", "[.][sg::file_writer]" ){
     std::string path = "benchmark-buffer";
 
     BENCHMARK_ADVANCED("sg::file_writer(..)")(Catch::Benchmark::Chronometer meter) {
