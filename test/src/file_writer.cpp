@@ -36,7 +36,7 @@ static std::vector<std::vector<uint64_t>> random_data(std::size_t count, std::si
     return vec_data;
 }
 
-TEST_CASE("SG::common sg::file_writer: check writer flushes correctly") {
+TEST_CASE("file_writer: check writer flushes correctly") {
     std::string text = "TEST";
     std::string path = "test.txt";
 
@@ -71,7 +71,7 @@ TEST_CASE("SG::common sg::file_writer: check writer flushes correctly") {
     }
 }
 
-TEST_CASE("SG::common sg::file_writer: check write_async(...) variations work") {
+TEST_CASE("file_writer: check write_async(...) variations work") {
     std::string text = "TEST";
     std::string path = "test.txt";
 
@@ -99,7 +99,7 @@ TEST_CASE("SG::common sg::file_writer: check write_async(...) variations work") 
     CHECK(read_file(path) == text);
 }
 
-TEST_CASE("SG::common sg::file_writer: check that you can't start twice") {
+TEST_CASE("file_writer: check that you can't start twice") {
     std::string text = "TEST";
     std::string path = "test.txt";
 
@@ -108,7 +108,7 @@ TEST_CASE("SG::common sg::file_writer: check that you can't start twice") {
     CHECK_THROWS(writer.start(path, nullptr, nullptr, nullptr));
 }
 
-TEST_CASE("SG::common sg::file_writer: check bytes_transferred()") {
+TEST_CASE("file_writer: check bytes_transferred()") {
     std::string text = "TEST";
     std::string path = "test.txt";
 
@@ -121,7 +121,7 @@ TEST_CASE("SG::common sg::file_writer: check bytes_transferred()") {
     CHECK(writer.bytes_transferred()== 4);
 }
 
-TEST_CASE("SG::common sg::file_writer: test large sequental writes") {
+TEST_CASE("file_writer: test large sequential writes") {
     std::string path = "sequ-write";
     std::vector<std::vector<uint64_t>> vec_data = random_data(1024, 2048); //2 MiB
 
