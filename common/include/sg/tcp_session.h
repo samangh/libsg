@@ -94,6 +94,12 @@ class SG_COMMON_EXPORT tcp_session : public std::enable_shared_from_this<tcp_ses
     void close();
     void close_impl();
 
+    /* Raw socket-option work. NOT thread-safe with respect to other socket access — callers must
+     * either be running on m_strand or be in a phase where no other thread can touch m_socket
+     * (e.g. start(), before the reader/writer coroutines are spawned). */
+    void apply_keepalive_unsafe(keepalive_t);
+    void apply_timeout_unsafe(unsigned timeoutMSec);
+
     boost::asio::awaitable<void> reader();
     boost::asio::awaitable<void> writer();
 

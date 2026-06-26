@@ -3,9 +3,12 @@
 #include "sg/debug.h"
 
 #include <boost/asio/detached.hpp>
+#include <boost/asio/dispatch.hpp>
 #include <boost/asio/write.hpp>
 #include <boost/asio/co_spawn.hpp>
 #include <boost/asio/experimental/awaitable_operators.hpp>
+
+#include <future>
 
 namespace sg::net {
 
@@ -46,9 +49,11 @@ void tcp_session::start(on_connected_cb_t onConn) {
         if (onConn)
             onConn.invoke(*this);
 
-        // note: below can throw if the client has disconnected
-        set_keepalive(m_options.keepalive);
-        set_timeout(m_options.timeout_msec);
+        // note: below can throw if the client has disconnected.
+        // Safe to call the *_unsafe helpers directly here: the reader/writer coroutines
+        // haven't been spawned yet, so we're the only thread touching m_socket.
+        apply_keepalive_unsafe(m_options.keepalive);
+        apply_timeout_unsafe(m_options.timeout_msec);
         if (m_options.recv_buffer_size)
             sg::net::native::set_recv_buffer_size(m_socket.native_handle(), m_options.recv_buffer_size);
         if (m_options.send_buffer_size)
@@ -99,19 +104,41 @@ void tcp_session::write(const void* data, size_t size) {
     write(ptr);
 }
 
-void tcp_session::set_keepalive(keepalive_t keepAliveParameters) {
+void tcp_session::apply_keepalive_unsafe(keepalive_t keepAliveParameters) {
     sg::net::native::set_keepalive(m_socket.native_handle(), keepAliveParameters);
-
-    // nothing actually reads back the keepalive parameters - no need for locks
     m_options.keepalive = keepAliveParameters;
 }
 
-void tcp_session::set_timeout(unsigned timeoutMSec) {
+void tcp_session::apply_timeout_unsafe(unsigned timeoutMSec) {
     sg::net::native::set_timeout(m_socket.native_handle(), timeoutMSec);
 
-    // timeout is used by writer, so make sure it's thread safe
+    // m_options.timeout_msec is read by writer() under m_write_mutex (see writer() for the read).
     std::lock_guard lock(m_write_mutex);
     m_options.timeout_msec = timeoutMSec;
+}
+
+/* m_socket is not thread-safe, so any setsockopt() on its native handle must be serialised with
+ * reader()/writer()/close_impl(). Route the work through m_strand via a std::packaged_task so
+ * exceptions thrown by are captured and rethrown in the caller's thread.
+ *
+ * boost::asio::dispatch runs the task inline if the caller is already on m_strand (e.g. invoked
+ * from on_data_cb), so fut.get() will return immediately in that case rather than deadlocking. */
+void tcp_session::set_keepalive(keepalive_t keepAliveParameters) {
+    std::packaged_task<void()> task([self = shared_from_this(), keepAliveParameters] {
+        self->apply_keepalive_unsafe(keepAliveParameters);
+    });
+    auto fut = task.get_future();
+    boost::asio::dispatch(m_strand, std::move(task));
+    fut.get();
+}
+
+void tcp_session::set_timeout(unsigned timeoutMSec) {
+    std::packaged_task<void()> task([self = shared_from_this(), timeoutMSec] {
+        self->apply_timeout_unsafe(timeoutMSec);
+    });
+    auto fut = task.get_future();
+    boost::asio::dispatch(m_strand, std::move(task));
+    fut.get();
 }
 enum tcp_session::state_t tcp_session::state() const noexcept {
     return m_state.load(std::memory_order::acquire);
