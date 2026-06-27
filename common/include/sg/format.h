@@ -9,6 +9,11 @@
 #include <fmt/format.h>
 #include <fmt/ranges.h>
 #include <fmt/chrono.h>
+//fmt has moved formatters for standard library stuff to fmt/std.h
+#if __has_include(<fmt/std.h>)
+    #include <fmt/std.h>
+#endif
+
 #include <ranges>
 #include <string>
 #include <type_traits>
