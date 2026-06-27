@@ -54,6 +54,14 @@ void tcp_session::start(on_connected_cb_t onConn) {
         // haven't been spawned yet, so we're the only thread touching m_socket.
         apply_keepalive_unsafe(m_options.keepalive);
         apply_timeout_unsafe(m_options.timeout_msec);
+
+        // store local/remote endpoints, so that we don't have to faff about with strands later, as
+        // m_socket access needs to be through a strand due to thread safety
+        auto remEP = m_socket.remote_endpoint();
+        auto localEP = m_socket.local_endpoint();
+        m_remote_endpoint = end_point(remEP.address().to_string(), remEP.port());
+        m_local_endpoint = end_point(localEP.address().to_string(), localEP.port());
+
         if (m_options.recv_buffer_size)
             sg::net::native::set_recv_buffer_size(m_socket.native_handle(), m_options.recv_buffer_size);
         if (m_options.send_buffer_size)
@@ -172,16 +180,12 @@ bool tcp_session::is_connected() const noexcept {
     return m_state.load(std::memory_order::acquire) != state_t::stopped;
 }
 
-end_point tcp_session::local_endpoint() const noexcept(false) {
-    // may throw on closed socket
-    auto asioEp = m_socket.local_endpoint();
-    return end_point(asioEp.address().to_string(), asioEp.port());
+end_point tcp_session::local_endpoint() const {
+    return m_local_endpoint;
 }
 
-end_point tcp_session::remote_endpoint() const noexcept(false) {
-    // may throw on closed socket
-    auto asioEp = m_socket.remote_endpoint();
-    return end_point(asioEp.address().to_string(), asioEp.port());
+end_point tcp_session::remote_endpoint() const {
+    return m_remote_endpoint;
 }
 
 void tcp_session::close() {

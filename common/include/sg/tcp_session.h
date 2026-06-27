@@ -32,7 +32,7 @@ class SG_COMMON_EXPORT tcp_session : public std::enable_shared_from_this<tcp_ses
         keepalive_t keepalive{};
         unsigned timeout_msec{5000};
         int recv_buffer_size{0}; // 0 = use default OS value
-        int send_buffer_size{0}; // 0 = user default OS value
+        int send_buffer_size{0}; // 0 = use default OS value
     };
 
     CREATE_CALLBACK(on_data_available_cb_t, void(tcp_session&, const std::byte*, size_t))
@@ -56,8 +56,8 @@ class SG_COMMON_EXPORT tcp_session : public std::enable_shared_from_this<tcp_ses
     [[nodiscard]] bool is_connected() const noexcept;
     [[nodiscard]] state_t state() const noexcept;
 
-    [[nodiscard]] end_point local_endpoint() const noexcept(false);
-    [[nodiscard]] end_point remote_endpoint() const noexcept(false);
+    [[nodiscard]] end_point local_endpoint() const;
+    [[nodiscard]] end_point remote_endpoint() const;
 
     void write(sg::shared_c_buffer<std::byte> msg);
     void write(std::string_view msg);
@@ -77,9 +77,11 @@ class SG_COMMON_EXPORT tcp_session : public std::enable_shared_from_this<tcp_ses
     boost::asio::strand<boost::asio::ip::tcp::socket::executor_type> m_strand;
 
     options_t m_options;
-
     on_data_available_cb_t m_on_data_cb;
     on_disconnected_cb_t  m_on_disconnected_cb;
+
+    end_point m_local_endpoint;
+    end_point m_remote_endpoint;
 
     std::mutex m_write_mutex;
     bool m_write_scheduled{false}; //note: need to always lock m_write_mutex
