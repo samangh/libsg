@@ -104,12 +104,12 @@ void tcp_session::write(sg::shared_c_buffer<std::byte> msg) {
 void tcp_session::write(std::string_view msg) {
     auto buff = sg::make_shared_c_buffer<std::byte>(msg.size());
     std::memcpy(buff.get(), msg.data(), msg.size());
-    write(buff);
+    write(std::move(buff));
 }
 void tcp_session::write(const void* data, size_t size) {
     auto ptr = sg::make_shared_c_buffer<std::byte>(size);
     std::memcpy(ptr.get(), data, size);
-    write(ptr);
+    write(std::move(ptr));
 }
 
 void tcp_session::apply_keepalive_unsafe(keepalive_t keepAliveParameters) {
