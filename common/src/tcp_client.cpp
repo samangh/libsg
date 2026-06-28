@@ -14,7 +14,14 @@ tcp_client::tcp_client(std::shared_ptr<asio_io_pool> context) : m_context(std::m
     if (!m_context->has_guard())
         SG_THROW(std::runtime_error, "asio_io_pool does not have guard enabled, it must be enabled for share ASIO pools");
 }
-tcp_client::~tcp_client() = default;
+tcp_client::~tcp_client() {
+    /* if the asio_io_pool was supplied externally, then it may carry on running after this client
+     * is disconnected. This means that the tcp_session won't disconnect, as the reader/writer
+     * coroutines will have a shared_ptr to the tcp_session.
+     *
+     * so ensure that we disconnect if tcp_client is destructed */
+    disconnect();
+};
 
 void tcp_client::connect(const end_point& endpoint, tcp_session::on_data_available_cb_t onReadCb,
                          tcp_session::on_disconnected_cb_t onDisconnect,

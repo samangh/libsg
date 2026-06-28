@@ -207,8 +207,35 @@ TEST_CASE("tcp_client: set send_buffer_size via options", "[sg::net::tcp_client]
     REQUIRE(actual >= 16384);
 }
 
-TEST_CASE("tcp_client: check destruction of unused client", "[sg::net::tcp_client]") {
+TEST_CASE("tcp_client: client disconnects when destructed (with shared asio_io_pool)",
+          "[sg::net::tcp_client]") {
     using namespace sg::net;
 
-    auto client = tcp_client();
+    std::binary_semaphore serverDisconnSem{0};
+    std::binary_semaphore clientDisconnSem{0};
+
+    // Crate io pool
+    auto pool = asio_io_pool::create(1, true, nullptr);
+    pool->run();
+
+    // server
+    tcp_server server;
+    tcp_server::CallBacks cbs;
+    cbs.OnDisconnected = [&](tcp_server&, tcp_server::session_id_t, std::exception_ptr) {
+        serverDisconnSem.release();
+    };
+    server.start({ep}, cbs);
+
+    // client
+    {
+        auto client = tcp_client(pool);
+        tcp_session::on_disconnected_cb_t onDisconnected = [&](tcp_session&, std::exception_ptr) {
+            clientDisconnSem.release();
+        };
+        client.connect(ep, nullptr, onDisconnected, {});
+    }
+
+    // wait for destructor
+    serverDisconnSem.acquire();
+    clientDisconnSem.acquire();
 }
