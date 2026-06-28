@@ -42,7 +42,7 @@ tcp_session::~tcp_session() {
 
 void tcp_session::start(on_connected_cb_t onConn) {
     if (auto expectedState = state_t::stopped; !m_state.compare_exchange_strong(
-            expectedState, state_t::running, std::memory_order_release, std::memory_order_acquire))
+            expectedState, state_t::running, std::memory_order::acq_rel, std::memory_order::acquire))
         SG_THROW(std::runtime_error, "tcp_session is already running");
 
     try {
@@ -193,7 +193,7 @@ void tcp_session::close() {
     auto cur = m_state.load(std::memory_order::acquire);
     while (cur == state_t::running || cur == state_t::stop_requested) {
         if (m_state.compare_exchange_weak(cur, state_t::stopping,
-                                           std::memory_order::release,
+                                           std::memory_order::acq_rel,
                                            std::memory_order::acquire))
         {
             // Socket operations must be serialised with the reader/writer, so run close_impl()
