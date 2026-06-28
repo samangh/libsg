@@ -46,9 +46,6 @@ void tcp_session::start(on_connected_cb_t onConn) {
         SG_THROW(std::runtime_error, "tcp_session is already running");
 
     try {
-        if (onConn)
-            onConn.invoke(*this);
-
         // note: below can throw if the client has disconnected.
         // Safe to call the *_unsafe helpers directly here: the reader/writer coroutines
         // haven't been spawned yet, so we're the only thread touching m_socket.
@@ -66,6 +63,9 @@ void tcp_session::start(on_connected_cb_t onConn) {
             sg::net::native::set_recv_buffer_size(m_socket.native_handle(), m_options.recv_buffer_size);
         if (m_options.send_buffer_size)
             sg::net::native::set_send_buffer_size(m_socket.native_handle(), m_options.send_buffer_size);
+
+        if (onConn)
+            onConn.invoke(*this);
 
         co_spawn(m_strand, [self = shared_from_this()] { return self->reader(); }, boost::asio::detached);
     } catch (...) {
@@ -155,18 +155,28 @@ enum tcp_session::state_t tcp_session::state() const noexcept {
 native::socket_t tcp_session::native_handle() { return m_socket.native_handle(); }
 
 void tcp_session::stop_async() {
-    // make sure that stop_async runs after all writes are scheduled
-    std::lock_guard lock(m_write_mutex);
+    bool shouldClose = false;
 
-    // Only act if currently running — CAS handles both "already stopped" and "already requested"
-    auto expected = state_t::running;
-    if (!m_state.compare_exchange_strong(expected, state_t::stop_requested,
-                                         std::memory_order::release,
-                                         std::memory_order::acquire))
-        return;
+    {
+        // make sure that stop_async runs after all writes are scheduled
+        std::lock_guard lock(m_write_mutex);
 
-    // if a writer is running, it will close connection due to state_stop_requested
-    if (!m_write_scheduled)
+        // Only act if currently running — CAS handles both "already stopped" and "already requested"
+        auto expected = state_t::running;
+        if (!m_state.compare_exchange_strong(expected, state_t::stop_requested,
+                                             std::memory_order::acq_rel,
+                                             std::memory_order::acquire))
+            return;
+
+        // if a writer is running, it will close connection due to state_stop_requested
+        shouldClose= !m_write_scheduled;
+    }
+
+    /* We make sure that that the close() is called when the lock is not held. This is because if
+     * stop_async() is called from on_data_cb (which runs on the strand), the dispatched close_impl
+     * runs inline, and invokes on_disconnected_cb. If that callback accidentally calls write()
+     * then you have a deadlock */
+    if (shouldClose)
         close();
 }
 
@@ -290,16 +300,19 @@ boost::asio::awaitable<void> tcp_session::writer() {
             {
                 std::lock_guard lock(m_write_mutex);
                 buffers.swap(m_write_msgs);
-                if (buffers.empty()) {
+                if (buffers.empty())
                     m_write_scheduled = false;
 
-                    if (m_state.load(std::memory_order::acquire)!= state_t::running)
-                        close();
-
-                    co_return;
-                }
-
                 timeoutMSec = m_options.timeout_msec;
+            }
+
+            // make sure close() is called outside the m_write_mutex lock, as close() could call
+            // the user-defined on-disconnection callback. If in the callback the user calls
+            // write(), we'll have a deadlock as write() as locks that mutex
+            if (buffers.empty()) {
+                if (m_state.load(std::memory_order::acquire)!= state_t::running)
+                    close();
+                co_return;
             }
 
             std::vector<boost::asio::const_buffer> buffersAsio;
