@@ -10,23 +10,25 @@ env:
 
 jobs:
   build:
-    name: ${{matrix.os}}-${{matrix.compiler.cc}}-${{matrix.type.label}}
+    name: ${{matrix.os}}-${{matrix.config.label}}
     runs-on: ${{ matrix.os }}
     timeout-minutes: 20
     strategy:
       fail-fast: true
       matrix:
         os: [ubuntu-latest]
-        type:
-          - { build_shared_libs: ON, label: shared}
-          - { build_shared_libs: OFF, label: static}
-        compiler:
-          - {cc: gcc, cxx: g++, cmake_args: "-DSANITIZE=ON -DSANITIZE_THREAD=ON"}
-          - {cc: clang, cxx: clang++, cmake_args: "-DCOVERAGE=ON -DSANITIZE=ON -DSANITIZE_THREAD=ON"}
+        config:
+          - {label: "gcc-shared-release",      cc: gcc,   cxx: g++,     shared: ON,  build: "Release", flags: "",                               cmake_args: ""}
+          - {label: "gcc-static-release",      cc: gcc,   cxx: g++,     shared: OFF, build: "Release", flags: "",                               cmake_args: ""}
+          - {label: "clang-shared-release",    cc: clang, cxx: clang++, shared: ON,  build: "Release", flags: "-fprofile-update=prefer-atomic", cmake_args: "", coverage: true}
+          - {label: "clang-static-release",    cc: clang, cxx: clang++, shared: OFF, build: "Release", flags: "",                               cmake_args: ""}
+          - {label: "clang-shared-debug-tsan", cc: clang, cxx: clang++, shared: ON,  build: "Debug",   flags: "-O1",                            cmake_args: "-DSANITIZE=ON -DSANITIZE_THREAD=ON"}
+          - {label: "clang-shared-debug-asan", cc: clang, cxx: clang++, shared: ON,  build: "Debug",   flags: "-O1 -fno-omit-frame-pointer",    cmake_args: "-DSANITIZE=ON -DSANITIZE_ADDRESS=ON"}
+          - {label: "clang-shared-debug-usan", cc: clang, cxx: clang++, shared: ON,  build: "Debug",   flags: "-O1",                            cmake_args: "-DSANITIZE=ON -DSANITIZE_UNDEFINED=ON"}
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           submodules: recursive
 
@@ -37,23 +39,22 @@ jobs:
         run: |
              sudo apt update
              sudo apt install llvm coreutils libboost-dev libboost-stacktrace-dev libsdl2-dev libuv1-dev libfmt-dev libzstd-dev doxygen graphviz
-             # brew install zstd
 
       - name: Run CMake
         working-directory: ${{github.workspace}}
-        env:
-          CC: ${{ matrix.compiler.cc }}
-          CXX: ${{ matrix.compiler.cxx }}
-          CXXFLAGS: "-fprofile-update=prefer-atomic"
-          CFLAGS: "-fprofile-update=prefer-atomic"
-          # CMAKE_PREFIX_PATH: /home/linuxbrew
+        # env:
+        #   CMAKE_PREFIX_PATH: /home/linuxbrew
         # Download libfmt from source, as the packaged one is too old
         run: |
              mkdir build
              cd build
-             cmake .. -DBUILD_SHARED_LIBS=${{matrix.type.build_shared_libs}} \
-                   -DCMAKE_BUILD_TYPE=Release -DIPO=ON -DARCH_NATIVE=ON \
-                   -DBUILD_TESTING=ON -DBUILD_DOCS=ON -DOWN_FMT=ON -DLIBSG_STACKTRACE=ON ${{matrix.compiler.cmake_args}}
+             cmake .. \
+                   -DBUILD_SHARED_LIBS=${{matrix.config.shared}} -DCMAKE_BUILD_TYPE=${{matrix.config.build}} \
+                   -DCMAKE_C_FLAGS="${{matrix.config.flags}}" -DCMAKE_CXX_FLAGS="${{matrix.config.flags}}" \
+                   -DCMAKE_C_COMPILER="${{matrix.config.cc}}" -DCMAKE_CXX_COMPILER="${{matrix.config.cxx}}" \
+                   -DCOVERAGE="${{matrix.config.coverage}}" \
+                   -DARCH_NATIVE=ON -DBUILD_TESTING=ON -DBUILD_DOCS=ON -DOWN_FMT=ON -DLIBSG_STACKTRACE=ON \
+                   ${{matrix.config.cmake_args}}
 
       - name: Build
         working-directory: ${{github.workspace}}/build
@@ -65,11 +66,7 @@ jobs:
 
       - name: Test
         working-directory: ${{github.workspace}}/build
-        env:
-          TSAN_OPTIONS: "suppressions=${{github.workspace}}/test/tsan.supp"
-        run: ./test/sg_test -d yes "*"
-        # the "*" also selects hidden tests
-        # ctest --output-on-failure
+        run: ctest --output-on-failure
 
       - name: List dependencies
         working-directory: ${{github.workspace}}/build
@@ -77,7 +74,7 @@ jobs:
 
       - name: Generate coverage report
         working-directory: ${{github.workspace}}/build
-        if: ${{ (matrix.compiler.cc == 'clang') && (matrix.type.label == 'shared')  }}
+        if: ${{matrix.config.coverage}}
         run: |
           # Run Code Generation
           cmake --build . --target coverage
