@@ -17,7 +17,7 @@ jobs:
       fail-fast: false
       matrix:
         config:
-          - { sys: clang64, CXXFLAGS: ""  }
+          - { sys: clang64, CXXFLAGS: "", cmake_args: "-DSANITIZE=ON -DSANITIZE_THREAD=ON"}
           # We don't use these, as GCC (as of v14.10 on 02/2025) has a bug when using semaphores,
           # see https://gcc.gnu.org/bugzilla/show_bug.cgi?id=104928
           # - { sys: mingw64, CXXFLAGS: "" }
@@ -44,7 +44,7 @@ jobs:
              cd build
              # The Releae setting is a workaround vcpkg and
              # multi-release targets
-             cmake .. -DBUILD_SHARED_LIBS=ON -DBUILD_TESTING=ON -DBUILD_DOCS=ON -DBENCHMARK=ON -DCMAKE_BUILD_TYPE=Release -DARCH_NATIVE=ON -DLIBSG_STACKTRACE=ON -DLIBSG_IMGUI_DIRECTX=ON -DLIBSG_IMGUI_OPENGL=ON
+             cmake .. -DBUILD_SHARED_LIBS=ON -DBUILD_TESTING=ON -DBUILD_DOCS=ON -DBENCHMARK=ON -DCMAKE_BUILD_TYPE=Release -DARCH_NATIVE=ON -DLIBSG_STACKTRACE=ON -DLIBSG_IMGUI_DIRECTX=ON -DLIBSG_IMGUI_OPENGL=ON ${{matrix.config.cmake_args}}
 
       - name: Build
         working-directory: ${{github.workspace}}/build
@@ -58,5 +58,5 @@ jobs:
 
       - name: Test
         working-directory: ${{github.workspace}}/build
-        run: ./test/sg_test.exe -d yes
-        # ctest --output-on-failure
+        run: ctest --output-on-failure
+
