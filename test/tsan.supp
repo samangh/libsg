@@ -1,0 +1,26 @@
+# ThreadSanitizer suppressions for sg_test.
+#
+# ---------------------------------------------------------------------------
+# Boost.Asio executor reference-count: false positive
+# ---------------------------------------------------------------------------
+# boost::asio::detail::ref_count_down() (asio/detail/atomic_count.hpp) releases
+# a shared executor impl with the standard pattern:
+#
+#     if (a.fetch_sub(1, std::memory_order_release) == 1) {
+#         std::atomic_thread_fence(std::memory_order_acquire);
+#         delete impl;
+#     }
+#
+# This is the same correct idiom std::shared_ptr uses.
+#
+# Triggered whenever the same strand executor is shared across two io_contexts,
+# e.g. the "tcp_server: proxy simulation" test where a callback on one pool's
+# io thread calls write() on a session owned by the other pool. That sharing is
+# itself thread-safe (post/dispatch/co_spawn to a strand from any thread is
+# allowed).
+#
+# See:
+#   - https://github.com/chriskohlhoff/asio/issues/1512
+#   - https://github.com/google/sanitizers/issues/1104
+race:boost::asio::detail::ref_count_down
+race:boost::asio::execution::detail::shared_target_executor::~shared_target_executor

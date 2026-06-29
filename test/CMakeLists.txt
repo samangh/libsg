@@ -84,8 +84,18 @@ setup_executable(
 ## Enable testing
 ##
 
+include(CTest)
 include(${catch2_SOURCE_DIR}/extras/Catch.cmake)
-catch_discover_tests(sg_test)
+
+# Under a ThreadSanitizer build, point TSan at our suppressions file
+# Note: this only sets the correct environment var when using "ctest"
+if(SANITIZE_THREAD)
+  catch_discover_tests(sg_test
+    PROPERTIES
+      TEST_EXECUTOR ${CMAKE_COMMAND} -E env "TSAN_OPTIONS=suppressions=${CMAKE_CURRENT_SOURCE_DIR}/tsan.supp")
+else()
+  catch_discover_tests(sg_test)
+endif()
 
 if(COVERAGE)
   coverage_add_exe(sg_test
