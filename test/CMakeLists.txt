@@ -88,17 +88,19 @@ include(CTest)
 include(${catch2_SOURCE_DIR}/extras/Catch.cmake)
 
 # Under a ThreadSanitizer build, point TSan at our suppressions file
-# Note: this only sets the correct environment var when using "ctest"
-if(SANITIZE_THREAD)
-  catch_discover_tests(sg_test
-    PROPERTIES
-      TEST_EXECUTOR ${CMAKE_COMMAND} -E env "TSAN_OPTIONS=suppressions=${CMAKE_CURRENT_SOURCE_DIR}/tsan.supp")
-else()
-  catch_discover_tests(sg_test)
-endif()
+# Note:
+#  - this only sets the correct environment var when using "ctest"
+#  - we also enable all hidden tests
+catch_discover_tests(sg_test
+  TEST_SPEC "*"
+  EXTRA_ARGS "--skip-benchmarks"
+  PROPERTIES
+    TEST_EXECUTOR ${CMAKE_COMMAND} -E env "TSAN_OPTIONS=suppressions=${CMAKE_CURRENT_SOURCE_DIR}/tsan.supp")
 
 if(COVERAGE)
+  # Not: we also run hidden tests in coverage!
   coverage_add_exe(sg_test
     EXCLUDE ${CMAKE_CURRENT_SOURCE_DIR}/*
-    ARGUMENTS "--skip-benchmarks")
+    ARGUMENTS "--skip-benchmarks *"
+    ENVIRONMENT "TSAN_OPTIONS=suppressions=${CMAKE_CURRENT_SOURCE_DIR}/tsan.supp")
 endif()

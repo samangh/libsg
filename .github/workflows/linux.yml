@@ -65,10 +65,11 @@ jobs:
 
       - name: Test
         working-directory: ${{github.workspace}}/build
-        run: ctest --output-on-failure
-        # ./test/sg_test -d yes
-        # Note: we run ctest, because that automatically sets up the right env variable for applying
-        # the ThreadSanitizer supressions
+        env:
+          TSAN_OPTIONS: "suppressions=${{github.workspace}}/test/tsan.supp"
+        run: ./test/sg_test -d yes "*"
+        # the "*" also selects hidden tests
+        # ctest --output-on-failure
 
       - name: List dependencies
         working-directory: ${{github.workspace}}/build
