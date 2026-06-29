@@ -21,8 +21,8 @@ jobs:
           - { build_shared_libs: ON, label: shared}
           - { build_shared_libs: OFF, label: static}
         compiler:
-          - {cc: gcc, cxx: g++, cmake_args: ""}
-          - {cc: clang, cxx: clang++, cmake_args: "-DCOVERAGE=ON"}
+          - {cc: gcc, cxx: g++, cmake_args: "-DSANITIZE=ON -DSANITIZE_THREAD=ON"}
+          - {cc: clang, cxx: clang++, cmake_args: "-DCOVERAGE=ON -DSANITIZE=ON -DSANITIZE_THREAD=ON"}
 
     steps:
       - name: Checkout repository
@@ -65,8 +65,10 @@ jobs:
 
       - name: Test
         working-directory: ${{github.workspace}}/build
-        run: ./test/sg_test -d yes
-        # ctest --output-on-failure
+        run: ctest --output-on-failure
+        # ./test/sg_test -d yes
+        # Note: we run ctest, because that automatically sets up the right env variable for applying
+        # the ThreadSanitizer supressions
 
       - name: List dependencies
         working-directory: ${{github.workspace}}/build
