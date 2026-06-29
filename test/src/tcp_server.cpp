@@ -355,15 +355,16 @@ TEST_CASE("tcp_server: check session(...)", "[sg::net::tcp_server]") {
 TEST_CASE("tcp_server: check local/remote_endpoint(...)", "[sg::net::tcp_server]") {
     using namespace sg::net;
 
-    tcp_server::session_data_available_cb_t on_data = [](tcp_server& l, tcp_server::session_id_t id,
+    bool allMatch = false;
+
+    tcp_server::session_data_available_cb_t on_data = [&](tcp_server& l, tcp_server::session_id_t id,
                                                          const std::byte* dat, size_t size) {
         auto w = sg::make_shared_c_buffer<std::byte>(size);
         std::memcpy(w.get(), dat, size);
 
         auto local  = l.session(id)->local_endpoint();
         auto remote = l.session(id)->remote_endpoint();
-        REQUIRE(local.ip == remote.ip);
-        REQUIRE(local.port == PORT);
+        allMatch = (local.ip == remote.ip) && (local.port == PORT);
 
         l.session(id)->write(w);
     };
@@ -409,6 +410,8 @@ TEST_CASE("tcp_server: check local/remote_endpoint(...)", "[sg::net::tcp_server]
 
     REQUIRE_NOTHROW(th.join());
     l.future_get_once();
+
+    REQUIRE(allMatch);
 }
 
 TEST_CASE("tcp_server: check reaction to client immediate disconnection", "[sg::net::tcp_server]") {
