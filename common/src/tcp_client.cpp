@@ -23,8 +23,8 @@ tcp_client::~tcp_client() {
     disconnect();
 };
 
-void tcp_client::connect(const end_point& endpoint, tcp_session::on_data_available_cb_t onReadCb,
-                         tcp_session::on_disconnected_cb_t onDisconnect,
+void tcp_client::connect(const end_point& endpoint, tcp_session::Callbacks::OnDataAvailable onReadCb,
+                         tcp_session::Callbacks::OnDisconnected onDisconnect,
                          tcp_session::options_t options) {
     if (m_session && m_session->is_connected())
         throw std::runtime_error("the client is already connected");
@@ -58,8 +58,13 @@ void tcp_client::connect(const end_point& endpoint, tcp_session::on_data_availab
                 if (result.index() == 1)
                     SG_THROW(exceptions::net::time_out);
 
-                m_session = tcp_session::create(std::move(socket), onReadCb, onDisconnect, options);
-                m_session->start(nullptr);
+                m_session =
+                    tcp_session::create(std::move(socket),
+                                        tcp_session::Callbacks{.onConnected     = nullptr,
+                                                               .onDisconnected  = onDisconnect,
+                                                               .onDataAvailable = onReadCb},
+                                        options);
+                m_session->start();
             },
             boost::asio::use_future);
 

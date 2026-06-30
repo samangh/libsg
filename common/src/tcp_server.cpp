@@ -150,7 +150,7 @@ tcp_server::listener(std::shared_ptr<boost::asio::ip::tcp::acceptor> acceptor) {
                 inform_user_of_data(id, data, size);
             };
 
-            tcp_session::on_connected_cb_t onConn = [this, id](tcp_session&) {
+            tcp_session::Callbacks::OnConnected onConn = [this, id](tcp_session&) {
                 if (m_callbacks.OnSessionCreated)
                     m_callbacks.OnSessionCreated.invoke(*this, id);
             };
@@ -160,8 +160,11 @@ tcp_server::listener(std::shared_ptr<boost::asio::ip::tcp::acceptor> acceptor) {
              * overrides the default of inheriting the acceptor's (strand) executor. */
             auto sess = tcp_session::create(
                 co_await acceptor->async_accept(m_context->context(), boost::asio::use_awaitable),
-                onData,
-                onSessionDisconnected,
+                tcp_session::Callbacks {
+                    .onConnected = onConn,
+                    .onDisconnected = onSessionDisconnected,
+                    .onDataAvailable = onData
+                },
                 m_options.session_options);
 
             /* check that the m_async did not return because stop_async was called */
@@ -180,7 +183,7 @@ tcp_server::listener(std::shared_ptr<boost::asio::ip::tcp::acceptor> acceptor) {
                  * already fired the session's on_disconnected callback, which
                  * cleans things up. */
                 try {
-                  sess->start(onConn);
+                  sess->start();
                 } catch (...) {
                 }
             }

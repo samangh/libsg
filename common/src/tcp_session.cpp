@@ -13,22 +13,18 @@
 namespace sg::net {
 
 std::shared_ptr<tcp_session> tcp_session::create(boost::asio::ip::tcp::socket socket,
-                                                  on_data_available_cb_t onReadCb,
-                                                  on_disconnected_cb_t onErrorCb,
-                                                  options_t options) {
-    return std::make_shared<tcp_session>(private_tag{}, std::move(socket),
-                                         std::move(onReadCb), std::move(onErrorCb),
+                                                 Callbacks callbacks, options_t options) {
+
+    return std::make_shared<tcp_session>(private_tag{}, std::move(socket), std::move(callbacks),
                                          options);
 }
 
-tcp_session::tcp_session(private_tag, boost::asio::ip::tcp::socket socket,
-                         on_data_available_cb_t onReadCb,
-                         on_disconnected_cb_t onErrorCb, options_t options)
-    : m_socket(std::move(socket)),
-      m_strand(boost::asio::make_strand(m_socket.get_executor())),
-      m_options(options),
-      m_on_data_cb(std::move(onReadCb)),
-      m_on_disconnected_cb(std::move(onErrorCb)) {}
+tcp_session::tcp_session(private_tag, boost::asio::ip::tcp::socket socket, Callbacks cb,
+                         options_t options)
+: m_socket(std::move(socket)),
+  m_strand(boost::asio::make_strand(m_socket.get_executor())),
+  m_options(options),
+  m_callbacks(std::move(cb)) {};
 
 tcp_session::~tcp_session() {
     // You can't use shared_from_this() in the destructor, so this flag tells close() not to
@@ -40,7 +36,7 @@ tcp_session::~tcp_session() {
     wait_until_stopped();
 }
 
-void tcp_session::start(on_connected_cb_t onConn) {
+void tcp_session::start() {
     if (auto expectedState = state_t::stopped; !m_state.compare_exchange_strong(
             expectedState, state_t::running, std::memory_order::acq_rel, std::memory_order::acquire))
         SG_THROW(std::runtime_error, "tcp_session is already running");
@@ -64,8 +60,8 @@ void tcp_session::start(on_connected_cb_t onConn) {
         if (m_options.send_buffer_size)
             sg::net::native::set_send_buffer_size(m_socket.native_handle(), m_options.send_buffer_size);
 
-        if (onConn)
-            onConn.invoke(*this);
+        if (m_callbacks.onConnected)
+            m_callbacks.onConnected.invoke(*this);
 
         co_spawn(m_strand, [self = shared_from_this()] { return self->reader(); }, boost::asio::detached);
     } catch (...) {
@@ -242,8 +238,8 @@ void tcp_session::close_impl() {
         exPtr =  m_exception;
     }
 
-    if (m_on_disconnected_cb)
-        m_on_disconnected_cb.invoke(*this, exPtr);
+    if (m_callbacks.onDisconnected)
+        m_callbacks.onDisconnected.invoke(*this, exPtr);
 
     m_state.store(state_t::stopped, std::memory_order::release);
     m_state.notify_all();
@@ -265,14 +261,14 @@ boost::asio::awaitable<void> tcp_session::reader() {
         while (m_socket.is_open()) {
             if (m_options.dont_read) {
                 co_await m_socket.async_wait(boost::asio::ip::tcp::socket::wait_read, boost::asio::use_awaitable);
-                if (m_on_data_cb)
-                    m_on_data_cb.invoke(*this, nullptr, 0);
+                if (m_callbacks.onDataAvailable)
+                    m_callbacks.onDataAvailable.invoke(*this, nullptr, 0);
             }
             else {
                 std::size_t n = co_await m_socket.async_read_some(boost::asio::buffer(data.get(), size),
                                                               boost::asio::use_awaitable);
-                if (m_on_data_cb)
-                    m_on_data_cb.invoke(*this, data.get(), n);
+                if (m_callbacks.onDataAvailable)
+                    m_callbacks.onDataAvailable.invoke(*this, data.get(), n);
             }
         }
     } catch (...) {

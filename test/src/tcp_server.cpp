@@ -683,7 +683,7 @@ TEST_CASE("tcp_server: proxy simulation", "[sg::net::tcp_server]") {
     }
 
     {
-        tcp_session::on_data_available_cb_t onDataAvailable =
+        tcp_session::Callbacks::OnDataAvailable onDataAvailable =
             [&](tcp_session&, const std::byte* data, size_t length) {
                 for (const auto& sess : proxy_server.sessions() | std::views::values)
                     sess->write(data, length);

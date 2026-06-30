@@ -30,7 +30,7 @@ TEST_CASE("tcp_client: check connect", "[sg::net::tcp_client]") {
     server.start({ep}, callbacks);
 
     /* client: collect echo response */
-    tcp_session::on_data_available_cb_t onClientdata = [&](tcp_session&, const std::byte* dat, size_t size) {
+    tcp_session::Callbacks::OnDataAvailable onClientdata = [&](tcp_session&, const std::byte* dat, size_t size) {
         result = std::string((char*)dat, size);
         can_stop.release();
     };
@@ -229,7 +229,7 @@ TEST_CASE("tcp_client: client disconnects when destructed (with shared asio_io_p
     // client
     {
         auto client = tcp_client(pool);
-        tcp_session::on_disconnected_cb_t onDisconnected = [&](tcp_session&, std::exception_ptr) {
+        tcp_session::Callbacks::OnDisconnected onDisconnected = [&](tcp_session&, std::exception_ptr) {
             clientDisconnSem.release();
         };
         client.connect(ep, nullptr, onDisconnected, {});

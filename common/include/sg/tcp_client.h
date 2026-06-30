@@ -15,8 +15,8 @@ class SG_COMMON_EXPORT tcp_client {
     virtual ~tcp_client();
 
     void connect(const end_point& endpoint,
-                 tcp_session::on_data_available_cb_t onReadCb,
-                 tcp_session::on_disconnected_cb_t onDisconnect,
+                 tcp_session::Callbacks::OnDataAvailable onReadCb,
+                 tcp_session::Callbacks::OnDisconnected onDisconnect,
                  tcp_session::options_t options={});
     [[nodiscard]] bool is_connected() const;
     void disconnect();

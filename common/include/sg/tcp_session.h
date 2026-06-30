@@ -35,22 +35,31 @@ class SG_COMMON_EXPORT tcp_session : public std::enable_shared_from_this<tcp_ses
         int send_buffer_size{0}; // 0 = use default OS value
     };
 
-    CREATE_CALLBACK(on_data_available_cb_t, void(tcp_session&, const std::byte*, size_t))
-    CREATE_CALLBACK(on_connected_cb_t, void(tcp_session&))
-    CREATE_CALLBACK(on_disconnected_cb_t, void(tcp_session&, std::exception_ptr))
+    struct Callbacks {
+        CREATE_CALLBACK(OnConnected, void(tcp_session&))
+        CREATE_CALLBACK(OnDisconnected, void(tcp_session&, std::exception_ptr))
+        CREATE_CALLBACK(OnDataAvailable, void(tcp_session&, const std::byte*, size_t))
+
+        OnConnected onConnected;
+        OnDisconnected onDisconnected;
+        OnDataAvailable onDataAvailable;
+    };
+
+    // For legacy
+    typedef Callbacks::OnConnected on_connected_cb_t;
+    typedef Callbacks::OnDisconnected on_disconnected_cb_t;
+    typedef Callbacks::OnDataAvailable on_data_available_cb_t;
 
     enum class state_t {running, stop_requested, stopping, stopped };
 
     static std::shared_ptr<tcp_session> create(boost::asio::ip::tcp::socket socket,
-                                               on_data_available_cb_t onReadCb,
-                                               on_disconnected_cb_t onErrorCb,
+                                               Callbacks callbacks,
                                                options_t options);
 
-    tcp_session(private_tag, boost::asio::ip::tcp::socket socket, on_data_available_cb_t onReadCb,
-                on_disconnected_cb_t onErrorCb, options_t options);
+    tcp_session(private_tag, boost::asio::ip::tcp::socket socket, Callbacks cb, options_t options);
     ~tcp_session();
 
-    void start(on_connected_cb_t);
+    void start();
     void stop_async();
     void wait_until_stopped() const;
     [[nodiscard]] bool is_connected() const noexcept;
@@ -77,11 +86,10 @@ class SG_COMMON_EXPORT tcp_session : public std::enable_shared_from_this<tcp_ses
     boost::asio::strand<boost::asio::ip::tcp::socket::executor_type> m_strand;
 
     options_t m_options;
-    on_data_available_cb_t m_on_data_cb;
-    on_disconnected_cb_t  m_on_disconnected_cb;
+    Callbacks m_callbacks;
 
-    end_point m_local_endpoint;
-    end_point m_remote_endpoint;
+    end_point m_local_endpoint {};
+    end_point m_remote_endpoint {};
 
     std::mutex m_write_mutex;
     bool m_write_scheduled{false}; //note: need to always lock m_write_mutex
