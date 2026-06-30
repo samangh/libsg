@@ -79,6 +79,8 @@ void tcp_session::start(on_connected_cb_t onConn) {
 
         stop_async();
         wait_until_stopped();
+
+        throw;
     }
 }
 

@@ -172,8 +172,17 @@ tcp_server::listener(std::shared_ptr<boost::asio::ip::tcp::acceptor> acceptor) {
                     m_active_sessions.fetch_add(1, std::memory_order::release);
                 }
 
-                // will not throw
-                sess->start(onConn);
+                /* start() may throw if session setup fails (e.g. the peer reset
+                 * the connection). Contain it here so that a single bad client
+                 * cannot tear down the whole listener via the outer catch.
+                 *
+                 * No manual cleanup is needed: start()'s own failure path has
+                 * already fired the session's on_disconnected callback, which
+                 * cleans things up. */
+                try {
+                  sess->start(onConn);
+                } catch (...) {
+                }
             }
         }
     } catch (...) {
