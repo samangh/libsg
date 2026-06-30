@@ -23,7 +23,7 @@ jobs:
           - {label: "clang-shared-release",    cc: clang, cxx: clang++, shared: ON,  build: "Release", flags: "-fprofile-update=prefer-atomic", cmake_args: "", coverage: true}
           - {label: "clang-static-release",    cc: clang, cxx: clang++, shared: OFF, build: "Release", flags: "",                               cmake_args: ""}
           - {label: "clang-shared-debug-tsan", cc: clang, cxx: clang++, shared: ON,  build: "Debug",   flags: "-O1",                            cmake_args: "-DSANITIZE=ON -DSANITIZE_THREAD=ON"}
-          - {label: "clang-shared-debug-asan", cc: clang, cxx: clang++, shared: ON,  build: "Debug",   flags: "-O1 -fno-omit-frame-pointer",    cmake_args: "-DSANITIZE=ON -DSANITIZE_ADDRESS=ON"}
+          - {label: "clang-shared-debug-asan", cc: clang, cxx: clang++, shared: ON,  build: "Debug",   flags: "-O1",                            cmake_args: "-DSANITIZE=ON -DSANITIZE_ADDRESS=ON"}
           - {label: "clang-shared-debug-usan", cc: clang, cxx: clang++, shared: ON,  build: "Debug",   flags: "-O1",                            cmake_args: "-DSANITIZE=ON -DSANITIZE_UNDEFINED=ON"}
 
     steps:
