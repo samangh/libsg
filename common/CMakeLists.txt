@@ -98,6 +98,7 @@ setup_library(
 
   ## Options
   GENERATE_EXPORT_HEADER
+  VISIBILITY_HIDDEN
   # STATIC
 )
 
