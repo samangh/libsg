@@ -8,5 +8,5 @@
 	branch = main
 [submodule "cmake"]
 	path = cmake
-	url = git@github.com:samangh/libsg_cmake.git
+	url = https://github.com/samangh/libsg_cmake.git
 	branch = master
