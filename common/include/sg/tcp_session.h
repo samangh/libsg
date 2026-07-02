@@ -5,6 +5,7 @@
 #include "net.h"
 #include "tcp_native.h"
 
+#include <boost/asio/any_io_executor.hpp>
 #include <boost/asio/awaitable.hpp>
 #include <boost/asio/io_context.hpp>
 #include <boost/asio/ip/tcp.hpp>
@@ -76,6 +77,9 @@ class SG_COMMON_EXPORT tcp_session : public std::enable_shared_from_this<tcp_ses
     void set_timeout(unsigned timeoutMSec);
 
     [[nodiscard]] native::socket_t native_handle();
+
+    /* rerturns the ASIO exectutor that all the I/O operations run on */
+    [[nodiscard]] boost::asio::any_io_executor get_executor() const { return m_strand; }
 
   private:
     boost::asio::ip::tcp::socket m_socket;

@@ -4,6 +4,7 @@
 
 #include <boost/asio/co_spawn.hpp>
 #include <boost/asio/detached.hpp>
+#include <boost/asio/post.hpp>
 #include <boost/asio/redirect_error.hpp>
 #include <boost/asio/strand.hpp>
 #include <atomic>
@@ -258,10 +259,25 @@ void tcp_server::on_session_stopped(session_id_t id, std::exception_ptr ex) {
         if (m_callbacks.OnDisconnected)
             m_callbacks.OnDisconnected.invoke(*this, id, ex);
 
+        /* Take the session out of the map, but keep it alive so we control where it is destroyed. */
+        std::shared_ptr<tcp_session> sess;
         {
             std::unique_lock lock(m_mutex);
+            sess = m_sessions.at(id);
             m_sessions.erase(id);
         }
+
+        /* Drop the last reference on the session's own strand rather than on this thread-pool
+         * thread. The session is already stopped, so ~tcp_session's wait_until_stopped() is a
+         * no-op (no deadlock). Running the release on the strand ensures m_strand is not destroyed
+         * while an io worker is still finishing a handler on it: the invoker executing this handler
+         * holds its own reference to the underlying strand_impl, so it cannot be freed from under
+         * the strand's post-handler bookkeeping (which would otherwise be a data race / UAF). */
+        if (sess) {
+            auto ex2 = sess->get_executor();
+            boost::asio::post(std::move(ex2), [sess = std::move(sess)]() mutable { sess.reset(); });
+        }
+
         if (m_active_sessions.fetch_sub(1, std::memory_order::acq_rel) == 1)
             m_active_sessions.notify_all();
     });
