@@ -39,8 +39,8 @@ std::shared_ptr<asio_io_pool> asio_io_pool::create(size_t noWorkers, bool enable
 }
 
 bool asio_io_pool::run() {
-    /* re-entry from inside the stopped-callback would deadlock on the mutex (run()
-     * waits for state_t::stopped, which is set by the callback thread itself). */
+    /* re-entry from inside the stopped-callback would deadlock (run() waits for
+     * the cycle to finish, which is finalised by the callback thread itself). */
     if (m_cb_thread_id.load(std::memory_order_acquire) == std::this_thread::get_id())
         SG_THROW(std::logic_error,
                  "asio_io_pool::run() must not be called from the stopped callback");
@@ -48,40 +48,38 @@ bool asio_io_pool::run() {
     /* can't interleave with stop_async() or another run() */
     std::lock_guard lock(m_mutex);
 
-    /* claim the running state, waiting out any in-flight previous cycle. */
-    auto valState = state_t::stopped;
-    while (!m_state.compare_exchange_weak(valState, state_t::running)) {
-        if (valState == state_t::running)
+    /* wait out any in-flight cycle. A cycle whose context is still live is
+     * healthy — nothing to do. A stopped context means the cycle is winding
+     * down (stop_async(), or a guardless pool that ran out of work — possibly
+     * so recently that the workers are still inside m_context.run()); handlers
+     * posted now would be stranded, so wait for the monitor thread to publish
+     * completion and start a fresh cycle. */
+    while (m_cycle_active.load(std::memory_order_acquire)) {
+        if (!m_context.stopped())
             return false;
-        // valState is stopping; wait for the previous cycle's m_cb_thread to publish stopped.
-        m_state.wait(valState, std::memory_order_acquire);
-        valState = state_t::stopped;
+        m_cycle_active.wait(true, std::memory_order_acquire);
     }
 
     m_context.restart();
     if (m_guard_enabled)
         m_guard.emplace(boost::asio::make_work_guard(m_context));
 
+    /* must be set before the monitor thread exists: on an instant drain the
+     * monitor's completing store(false) would otherwise be overwritten by this
+     * store(true), wedging the pool. */
+    m_cycle_active.store(true, std::memory_order_release);
+
     try {
         m_workers.reserve(m_no_workers);
-        for (size_t i = 0; i < m_no_workers; ++i) {
-            m_workers.emplace_back([this]() {
-                m_context.run();
+        for (size_t i = 0; i < m_no_workers; ++i)
+            m_workers.emplace_back([this]() { m_context.run(); });
 
-                /* signal natural drain so the monitor thread wakes. */
-                auto s = state_t::running;
-                if (m_state.compare_exchange_strong(s, state_t::stopping))
-                    m_state.notify_all();
-            });
-        }
-
-        /* monitor: waits for the cycle to leave running, joins workers, runs the user
-         * callback, then publishes stopped. The previous cycle's m_cb_thread (if any)
-         * is joined by this move-assignment; it has already published stopped above. */
+        /* monitor: joining the workers blocks until the cycle ends (stop or
+         * natural drain), so no signalling from the workers is needed. Then run
+         * the user callback and publish completion. The previous cycle's
+         * m_cb_thread (if any) is joined by this move-assignment; it has
+         * already published completion. */
         m_cb_thread = std::jthread([this]() {
-            while (m_state.load(std::memory_order_acquire) == state_t::running)
-                m_state.wait(state_t::running, std::memory_order_acquire);
-
             m_workers.clear();  // joins all workers
 
             if (m_on_stopped_call_back) {
@@ -92,20 +90,19 @@ bool asio_io_pool::run() {
                                      std::memory_order_release);
             }
 
-            m_state.store(state_t::stopped, std::memory_order_release);
-            m_state.notify_all();
+            m_cycle_active.store(false, std::memory_order_release);
+            m_cycle_active.notify_all();
         });
 
         return true;
     } catch (...) {
-        if (m_guard)
-            m_guard.reset();
+        m_guard.reset();
         if (!m_context.stopped())
             m_context.stop();
         m_workers.clear();  // joins any workers that did start
 
-        m_state.store(state_t::stopped);
-        m_state.notify_all();
+        m_cycle_active.store(false, std::memory_order_release);
+        m_cycle_active.notify_all();
         throw;
     }
 }
@@ -117,47 +114,42 @@ const boost::asio::io_context& asio_io_pool::context() const {
 }
 
 bool asio_io_pool::is_running() const {
-    return m_state.load(std::memory_order_acquire) == state_t::running;
+    return m_cycle_active.load(std::memory_order_acquire) && !m_context.stopped();
 }
 
 size_t asio_io_pool::worker_count() const { return m_no_workers; }
 
 asio_io_pool::state_t asio_io_pool::state() const {
-    return m_state.load(std::memory_order_acquire);
+    if (!m_cycle_active.load(std::memory_order_acquire))
+        return state_t::stopped;
+    return m_context.stopped() ? state_t::stopping : state_t::running;
 }
 
 void asio_io_pool::stop_async() {
     /* needs mutex so we don't interleave with run() */
     std::lock_guard lock(m_mutex);
 
-    /* no-op if already stopping or stopped */
-    auto valState = state_t::running;
-    if (!m_state.compare_exchange_strong(valState, state_t::stopping))
+    /* no-op if no cycle is in flight. A cycle already winding down falls
+     * through harmlessly: resetting an empty guard and stopping a stopped
+     * context both do nothing. */
+    if (!m_cycle_active.load(std::memory_order_acquire))
         return;
 
-    /* wake the monitor thread waiting on state != running. */
-    m_state.notify_all();
-
-    if (m_guard)
-        m_guard.reset();
+    m_guard.reset();
 
     if (!m_context.stopped())
         m_context.stop();
 }
 
 void asio_io_pool::wait_for_stop() const {
-    /* re-entry from inside the stopped-callback would wait for our own thread to set
-     * state_t::stopped — return instead; the stop completes once the callback returns. */
+    /* re-entry from inside the stopped-callback would wait for our own thread to
+     * publish completion — return instead; the stop completes once the callback
+     * returns. */
     if (m_cb_thread_id.load(std::memory_order_acquire) == std::this_thread::get_id())
         return;
 
-    while (true) {
-        const auto val = m_state.load(std::memory_order_acquire);
-        if (val == state_t::stopped)
-            return;
-
-        m_state.wait(val, std::memory_order_acquire);
-    }
+    while (m_cycle_active.load(std::memory_order_acquire))
+        m_cycle_active.wait(true, std::memory_order_acquire);
 }
 
 bool asio_io_pool::has_guard() const {

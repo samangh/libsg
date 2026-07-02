@@ -21,8 +21,11 @@ namespace sg::net {
  *
  * @par Lifecycle
  * Instances pass through three states (see @ref state_t):
- * @c stopped → @c running → @c stopping → @c stopped. Transitions are driven
- * by @ref run() and @ref stop_async(); the @c stopping state is transient.
+ * @c stopped → @c running → @c stopping → @c stopped. A cycle is claimed by
+ * @ref run() and ends via @ref stop_async() or — for guardless pools — when
+ * the @c io_context runs out of work. The transient @c stopping state indicates
+ * that@c io_context has stopped but whose workers and stopped-callback have not
+ * yet finished.
  *
  * @par Thread safety
  * All public member functions are safe to call concurrently from multiple
@@ -30,8 +33,9 @@ namespace sg::net {
  * internal mutex.
  *
  * @par Ownership
- * Instances must be heap-allocated through @ref create(); as this class is intended to be shared
- * across multiple user classes (e.g. tcp_client / tcp_server).
+ * Instances must be heap-allocated through @ref create(); as this class is
+ * intended to be shared across multiple user classes (e.g. tcp_client /
+ * tcp_server).
  *
  * @par Stopped callback re-entrancy
  * The @c stopped_cb_t callback runs on a dedicated thread distinct from the
@@ -94,10 +98,14 @@ class SG_COMMON_EXPORT asio_io_pool {
      * any work posted before @c run() is processed once the workers start.
      *
      * If the pool is currently in the @c stopping state, this call blocks until
-     * the previous cycle has finished and then begins a new one.
+     * the previous cycle has finished and then begins a new one. The same
+     * applies if the pool is nominally @c running but its @c io_context has
+     * already run out of work (a guardless cycle draining naturally): the call
+     * waits for that cycle to wind down and starts a fresh one, so handlers
+     * posted just before calling @c run() are never stranded.
      *
      * @return @c true if a new run cycle was started, @c false if the pool was
-     *         already running.
+     *         already running (and its @c io_context still processing).
      *
      * @throws std::logic_error if called from within the stopped-callback.
      * @throws std::bad_alloc, or any exception thrown by Boost.Asio during
@@ -174,6 +182,12 @@ class SG_COMMON_EXPORT asio_io_pool {
      *
      * Use this to post handlers, create timers, sockets, etc. The context is
      * valid for the lifetime of the pool, across run cycles.
+     *
+     * @warning Do not call @c restart() on the context directly — the pool
+     *          derives its lifecycle from the context's stopped flag, and an
+     *          external @c restart() would make a finished cycle appear
+     *          @c running. Prefer @ref stop_async() over calling @c stop()
+     *          directly.
      */
     [[nodiscard]] boost::asio::io_context& context();
 
@@ -197,7 +211,14 @@ private:
 
     const size_t m_no_workers;
 
-    std::atomic<state_t> m_state{state_t::stopped};
+    /// True from the moment @ref run() claims a cycle until @ref m_cb_thread
+    /// has joined the workers and finished the stopped-callback. Whether an
+    /// active cycle is processing or winding down is derived from
+    /// @c m_context.stopped(); the @c io_context is the single source of truth
+    /// for that. Set to @c true only by @ref run(), under @ref m_mutex and
+    /// always before the monitor thread is spawned (so the monitor's completing
+    /// store of @c false cannot be overwritten).
+    std::atomic<bool> m_cycle_active{false};
 
     const bool m_guard_enabled;
     std::optional<boost::asio::executor_work_guard<boost::asio::io_context::executor_type>> m_guard;
@@ -212,10 +233,10 @@ private:
     /// by the pool itself.
     std::vector<std::jthread> m_workers;
 
-    /// Monitor thread: waits for the cycle to leave @c state_t::running, joins
-    /// the workers, runs the user callback, then publishes @c state_t::stopped.
-    /// Must be the last member so that its @c ~jthread joins before any other
-    /// member it touches is destroyed.
+    /// Monitor thread: joins the workers (which blocks until the cycle ends),
+    /// runs the user callback, then publishes completion via
+    /// @ref m_cycle_active. Must be the last member so that its @c ~jthread
+    /// joins before any other member it touches is destroyed.
     std::jthread m_cb_thread;
 };
 
