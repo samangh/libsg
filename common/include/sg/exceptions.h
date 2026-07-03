@@ -1,5 +1,7 @@
 #pragma once
 
+#include <sg/export/common.h>
+
 #include <string>
 #include <stdexcept>
 #include <utility>
@@ -15,11 +17,16 @@
  *
  *  To catch a specific error:
  *      @code catch(const sg::exceptions::net::time_out&) @endcode
- */
+ *
+ *  Since the default viability is set to hidden, note the comments about
+ *  exception classes in https://gcc.gnu.org/wiki/Visibility. Exception classes
+ *  MUST have be exported (i.e. visibility set to "default")
+  */
 namespace sg::exceptions {
 
+
 /** base exception common to all libsg exceptions */
-class any : public std::runtime_error {
+class SG_COMMON_EXPORT any : public std::runtime_error {
   protected:
     explicit any(const std::string& msg) : runtime_error(msg) {}
 };
@@ -28,7 +35,7 @@ class any : public std::runtime_error {
  * Creates the top level 'any' exception in the current namespace
  */
 #define SG_CREATE_EXCEPTION_ANY()                                                                  \
-    class any : public ::sg::exceptions::any {                                                     \
+    class SG_COMMON_EXPORT any : public ::sg::exceptions::any {                                    \
         using ::sg::exceptions::any::any;                                                          \
     };
 
@@ -45,7 +52,7 @@ class any : public std::runtime_error {
  * @param DEFAULT_DESCRIPTION  String literal used as the default error message.
  */
 #define SG_CREATE_EXCEPTION(EXCEPTION_NAME, DEFAULT_DESCRIPTION)                                   \
-    class EXCEPTION_NAME : public any {                                                            \
+    class SG_COMMON_EXPORT EXCEPTION_NAME : public any {                                           \
       public:                                                                                      \
         EXCEPTION_NAME() : any(DEFAULT_DESCRIPTION) {}                                             \
         explicit EXCEPTION_NAME(const std::string& msg) : any(msg) {}                              \
