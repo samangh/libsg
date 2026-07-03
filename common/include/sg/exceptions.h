@@ -1,6 +1,6 @@
 #pragma once
 
-#include <sg/export/common.h>
+#include "export.h"
 
 #include <string>
 #include <stdexcept>
@@ -26,7 +26,7 @@ namespace sg::exceptions {
 
 
 /** base exception common to all libsg exceptions */
-class SG_COMMON_EXPORT any : public std::runtime_error {
+class VISIBLE any : public std::runtime_error {
   protected:
     explicit any(const std::string& msg) : runtime_error(msg) {}
 };
@@ -35,7 +35,7 @@ class SG_COMMON_EXPORT any : public std::runtime_error {
  * Creates the top level 'any' exception in the current namespace
  */
 #define SG_CREATE_EXCEPTION_ANY()                                                                  \
-    class SG_COMMON_EXPORT any : public ::sg::exceptions::any {                                    \
+    class VISIBLE any : public ::sg::exceptions::any {                                             \
         using ::sg::exceptions::any::any;                                                          \
     };
 
@@ -52,7 +52,7 @@ class SG_COMMON_EXPORT any : public std::runtime_error {
  * @param DEFAULT_DESCRIPTION  String literal used as the default error message.
  */
 #define SG_CREATE_EXCEPTION(EXCEPTION_NAME, DEFAULT_DESCRIPTION)                                   \
-    class SG_COMMON_EXPORT EXCEPTION_NAME : public any {                                           \
+    class VISIBLE EXCEPTION_NAME : public any {                                                    \
       public:                                                                                      \
         EXCEPTION_NAME() : any(DEFAULT_DESCRIPTION) {}                                             \
         explicit EXCEPTION_NAME(const std::string& msg) : any(msg) {}                              \
