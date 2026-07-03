@@ -156,14 +156,20 @@ TEST_CASE("asio_io_pool: restart under load", "[sg::net::asio_io_pool]") {
         while (keep_posting.load()) {
             boost::asio::post(pool->context(), [&work_count]() {
                 ++work_count;
+                work_count.notify_all();
             });
+
+            // Give the thread a tiny break
             std::this_thread::yield();
         }
     });
 
-    for (int i = 0; i < 5; ++i) {
+    for (int i = 0; i < 50; ++i) {
         pool->restart();
         REQUIRE(pool->is_running());
+        int lastcount = work_count;
+        work_count.wait(lastcount);
+        REQUIRE(work_count > lastcount);
     }
 
     keep_posting.store(false);
@@ -171,8 +177,6 @@ TEST_CASE("asio_io_pool: restart under load", "[sg::net::asio_io_pool]") {
 
     pool->stop_async();
     pool->wait_for_stop();
-
-    REQUIRE(work_count.load() > 0);
 }
 
 TEST_CASE("asio_io_pool: callback invoked exactly once per cycle under stress", "[sg::net::asio_io_pool]") {
