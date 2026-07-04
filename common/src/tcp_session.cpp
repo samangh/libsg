@@ -130,27 +130,18 @@ void tcp_session::apply_timeout_unsafe(unsigned timeoutMSec) {
  * boost::asio::dispatch runs the task inline if the caller is already on m_strand (e.g. invoked
  * from on_data_cb), so fut.get() will return immediately in that case rather than deadlocking. */
 void tcp_session::set_keepalive(keepalive_t keepAliveParameters) {
-    std::packaged_task<void()> task([self = shared_from_this(), keepAliveParameters] {
-        self->apply_keepalive_unsafe(keepAliveParameters);
-    });
-    auto fut = task.get_future();
-    boost::asio::dispatch(m_strand, std::move(task));
-    fut.get();
+    run_in_executor([this, keepAliveParameters]() { apply_keepalive_unsafe(keepAliveParameters); });
 }
 
 void tcp_session::set_timeout(unsigned timeoutMSec) {
-    std::packaged_task<void()> task([self = shared_from_this(), timeoutMSec] {
-        self->apply_timeout_unsafe(timeoutMSec);
-    });
-    auto fut = task.get_future();
-    boost::asio::dispatch(m_strand, std::move(task));
-    fut.get();
+    run_in_executor([this, timeoutMSec]() { apply_timeout_unsafe(timeoutMSec); });
 }
 enum tcp_session::state_t tcp_session::state() const noexcept {
     return m_state.load(std::memory_order::acquire);
 }
 
 native::socket_t tcp_session::native_handle() { return m_socket.native_handle(); }
+boost::asio::any_io_executor tcp_session::get_executor() const {return m_strand;}
 
 void tcp_session::stop_async() {
     bool shouldClose = false;

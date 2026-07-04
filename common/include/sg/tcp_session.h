@@ -5,11 +5,12 @@
 #include "net.h"
 #include "tcp_native.h"
 
+#include <boost/asio/any_io_executor.hpp>
 #include <boost/asio/awaitable.hpp>
 #include <boost/asio/io_context.hpp>
 #include <boost/asio/ip/tcp.hpp>
 #include <boost/asio/strand.hpp>
-
+#include <boost/asio/use_future.hpp>
 #include <memory>
 
 namespace sg::net {
@@ -75,7 +76,18 @@ class SG_COMMON_EXPORT tcp_session : public std::enable_shared_from_this<tcp_ses
     void set_keepalive(keepalive_t);
     void set_timeout(unsigned timeoutMSec);
 
+    /** note: native sockets should ONLY be handled in the I/O thread ((as native handles are not
+     *  thread). Use @c get_executor or @c run_in_executor to achieve this. */
     [[nodiscard]] native::socket_t native_handle();
+
+    /** returns the ASIO executor that all the I/O operations run on */
+    [[nodiscard]] boost::asio::any_io_executor get_executor() const;
+
+    /** runs the passed function in the all the I/O operations runs on */
+    [[nodiscard]] auto run_in_executor(std::invocable<> auto func) {
+        auto fut = boost::asio::dispatch(m_strand, boost::asio::use_future(func));
+        return fut.get();
+    }
 
   private:
     boost::asio::ip::tcp::socket m_socket;
