@@ -40,7 +40,9 @@ void worker::start() {
         m_stop_requested.store(false);
         m_stop_after_iterations_count.store(0);
         m_checked_future.store(false);
-        m_notified = false;
+
+        /* discard notifications left over from a previous run */
+        while (m_notify_sem.try_acquire()) {}
 
         /* start */
         m_thread = std::thread(&worker::action, this);
@@ -168,18 +170,16 @@ void worker::action() {
 }
 
 void worker::wait_until_next_tick(std::chrono::nanoseconds duration) {
-    std::unique_lock lock(m_notify_mutex);
     if (duration > std::chrono::nanoseconds::zero())
-        m_notify_cv.wait_for(lock, duration, [this] { return m_notified; });
-    m_notified = false;
+        m_notify_sem.try_acquire_for(duration);
+
+    /* drain any extra releases so multiple notify() calls coalesce
+     * into at most one early tick */
+    while (m_notify_sem.try_acquire()) {}
 }
 
 void worker::notify() {
-    {
-        std::lock_guard lock(m_notify_mutex);
-        m_notified = true;
-    }
-    m_notify_cv.notify_one();
+    m_notify_sem.release();
 }
 
 std::shared_future<void> worker::future() const { return m_result_future; }

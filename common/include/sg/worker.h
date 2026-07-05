@@ -8,7 +8,7 @@
 #include <functional>
 #include <mutex>
 #include <shared_mutex>
-#include <condition_variable>
+#include <semaphore>
 #include <thread>
 #include <future>
 
@@ -138,9 +138,7 @@ class SG_COMMON_EXPORT worker final {
     std::thread m_thread;
     std::atomic<bool> m_stop_requested;
 
-    std::mutex m_notify_mutex;
-    std::condition_variable m_notify_cv;
-    bool m_notified = false;
+    std::counting_semaphore<> m_notify_sem{0};
 
     callbacks_t m_callbacks;
 
