@@ -21,9 +21,6 @@ worker::worker(std::chrono::nanoseconds intervalNs,
 worker::~worker() noexcept(false) {
     request_stop();
     wait_for_stop();
-
-    /* throw error if no one else has checked for it! */
-    future_get_once();
 }
 
 void worker::start() {

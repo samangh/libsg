@@ -146,18 +146,19 @@ TEST_CASE("worker: check destructor can throw an error", "[sg::worker]") {
         throw std::runtime_error("err");
     };
 
-    // Should throw
-    REQUIRE_THROWS([&](){
-        loop_run.release(0);
-
-        sg::worker worker =
-            sg::worker(std::chrono::nanoseconds(10), task, nullptr, nullptr);
-        worker.start();
-        loop_run.acquire();
-    }());
-
     // Should not throw
-    REQUIRE_NOTHROW([&](){
+    {
+        loop_run.release(0);
+
+        sg::worker worker =
+            sg::worker(std::chrono::nanoseconds(10), task, nullptr, nullptr);
+        worker.start();
+        loop_run.acquire();
+    };
+
+    // Should throw
+
+    {
         loop_run.release(0);
 
         sg::worker worker =
@@ -165,10 +166,8 @@ TEST_CASE("worker: check destructor can throw an error", "[sg::worker]") {
         worker.start();
         loop_run.acquire();
 
-        try {
-        worker.future_get_once();
-        } catch(...){}
-    }());
+        REQUIRE_THROWS(worker.future_get_once());
+    };
 }
 
 TEST_CASE("worker: check you can't start multiple times", "[sg::worker]") {
