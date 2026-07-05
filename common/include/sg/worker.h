@@ -133,8 +133,16 @@ class SG_COMMON_EXPORT worker final {
     //  * in some implementations the stop_token uses relaxed memory ordering,
     //    which is not thread safe
 
+    /* m_join_mutex protects all access to m_thread (assignment in start(),
+     * joinable()/join() in wait_for_stop()) */
     mutable std::mutex m_join_mutex;
     std::thread m_thread;
+
+    /* id of the running worker thread, for the self-wait check. Kept separate
+     * from m_thread so it can be read without m_join_mutex: the worker thread
+     * must never block on that mutex, as it may be held by a thread that is
+     * join()ing us (deadlock) */
+    std::atomic<std::thread::id> m_thread_id{};
     std::atomic<bool> m_stop_requested;
 
     std::counting_semaphore<> m_notify_sem{0};

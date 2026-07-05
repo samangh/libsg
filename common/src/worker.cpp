@@ -50,6 +50,7 @@ void worker::start() {
 
         /* start */
         try {
+            std::lock_guard lock(m_join_mutex);
             m_thread = std::thread(std::move(task));
         } catch (...) {
             /* the task never ran, so its future would report broken_promise;
@@ -83,16 +84,19 @@ void worker::request_stop_after_iterations(size_t iteration_count){
 }
 
 void worker::wait_for_stop() {
-    if (m_thread.get_id() == std::this_thread::get_id())
+    /* deliberately checked before taking m_join_mutex: the worker thread must
+     * not block on the mutex, as it may be held by a thread join()ing us */
+    if (m_thread_id.load(std::memory_order::acquire) == std::this_thread::get_id())
         SG_THROW(std::logic_error,
                  "can't wait for notifiable_background_worker to stop from within itself");
 
-    // mutex needed because of the gap between .joinable and .join
     std::lock_guard lock(m_join_mutex);
 
     /* called from different thread */
-    if (m_thread.joinable())
+    if (m_thread.joinable()) {
         m_thread.join();
+        m_thread_id.store({}, std::memory_order::release);
+    }
 }
 
 bool worker::is_running() const {
@@ -115,6 +119,10 @@ void worker::correct_for_task_delay(bool val) {
 }
 
 void worker::action(std::promise<void> start_promise) {
+    /* published before any callback runs, so the self-wait check in
+     * wait_for_stop() works even from inside the start callback */
+    m_thread_id.store(std::this_thread::get_id(), std::memory_order::release);
+
     try {
         if (m_callbacks.on_start_callback)
             m_callbacks.on_start_callback.invoke(this);
