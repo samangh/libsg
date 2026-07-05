@@ -33,9 +33,13 @@ void worker::start() {
     wait_for_stop();
 
     try {
-        m_result_promise = std::promise<void>();
-        m_start_promise = std::promise<void>();
-        m_result_future = m_result_promise.get_future();
+        std::promise<void> start_promise;
+        auto start_future = start_promise.get_future();
+
+        /* the future returned by packaged_task stores any exception thrown by action() */
+        std::packaged_task<void()> task(
+            [this, p = std::move(start_promise)]() mutable { action(std::move(p)); });
+        m_result_future = task.get_future().share();
 
         m_stop_requested.store(false);
         m_stop_after_iterations_count.store(0);
@@ -45,12 +49,20 @@ void worker::start() {
         while (m_notify_sem.try_acquire()) {}
 
         /* start */
-        m_thread = std::thread(&worker::action, this);
+        try {
+            m_thread = std::thread(std::move(task));
+        } catch (...) {
+            /* the task never ran, so its future would report broken_promise;
+             * invalidate it instead */
+            m_result_future = {};
+            throw;
+        }
 
-        m_start_promise.get_future().get();
+        /* throws if the start callback threw; action() marks the worker as
+         * stopped before delivering that exception */
+        start_future.get();
     } catch (...) {
         m_state.store(state_t::stopped, std::memory_order::release);
-        m_result_promise.set_value();
         throw;
     }
 }
@@ -102,14 +114,14 @@ void worker::correct_for_task_delay(bool val) {
     m_correct_for_task_delay = val;
 }
 
-void worker::action() {
+void worker::action(std::promise<void> start_promise) {
     try {
         if (m_callbacks.on_start_callback)
             m_callbacks.on_start_callback.invoke(this);
-        m_start_promise.set_value();
+        start_promise.set_value();
     } catch(...) {
         m_state.store(state_t::stopped, std::memory_order::release);
-        m_start_promise.set_exception(std::current_exception());
+        start_promise.set_exception(std::current_exception());
         return;
     }
 
@@ -149,24 +161,19 @@ void worker::action() {
             wait_until_next_tick(wait_duration);
         }
     } catch (...) {
+        /* catch exception as we want to run the completion callback even if there was an error */
         ex = std::current_exception();
     }
 
     m_state.store(state_t::stopped, std::memory_order::release);
 
     /* run m_stopped_cb even if there was a previous exception */
-    try {
-        if (m_callbacks.on_stop_callback)
-            m_callbacks.on_stop_callback.invoke(this);
-    } catch (...) {
-        ex = std::current_exception();
-    }
+    if (m_callbacks.on_stop_callback)
+        m_callbacks.on_stop_callback.invoke(this);
 
+    /* rethrown exceptions are stored in m_result_future by the packaged_task */
     if (ex)
-        m_result_promise.set_exception(ex);
-    else
-        m_result_promise.set_value();
-
+        std::rethrow_exception(ex);
 }
 
 void worker::wait_until_next_tick(std::chrono::nanoseconds duration) {

@@ -5,7 +5,6 @@
 
 #include <atomic>
 #include <chrono>
-#include <functional>
 #include <mutex>
 #include <shared_mutex>
 #include <semaphore>
@@ -142,13 +141,11 @@ class SG_COMMON_EXPORT worker final {
 
     callbacks_t m_callbacks;
 
-    std::promise<void> m_start_promise;
-    std::promise<void> m_result_promise;
     std::shared_future<void> m_result_future;
 
     bool m_correct_for_task_delay = false;
 
-    void action();
+    void action(std::promise<void> start_promise);
     void wait_until_next_tick(std::chrono::nanoseconds duration);
 };
 
