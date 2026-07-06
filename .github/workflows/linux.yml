@@ -53,7 +53,8 @@ jobs:
                    -DCMAKE_C_FLAGS="${{matrix.config.flags}}" -DCMAKE_CXX_FLAGS="${{matrix.config.flags}}" \
                    -DCMAKE_C_COMPILER="${{matrix.config.cc}}" -DCMAKE_CXX_COMPILER="${{matrix.config.cxx}}" \
                    -DCOVERAGE="${{matrix.config.coverage}}" \
-                   -DARCH_NATIVE=ON -DBUILD_TESTING=ON -DBUILD_DOCS=ON -DOWN_FMT=ON -DLIBSG_STACKTRACE=ON \
+                   -DARCH_NATIVE=ON -DBUILD_TESTING=ON -DBUILD_DOCS=ON -DLIBSG_STACKTRACE=ON \
+                   -DOWN_FMT=ON -DOWN_BOOST=ON -DBOOST_INCLUDE_LIBRARIES=stacktrace\;asio\;uuid\;crc \
                    ${{matrix.config.cmake_args}}
 
       - name: Build
