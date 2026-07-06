@@ -124,8 +124,6 @@ class SG_COMMON_EXPORT tcp_session : public std::enable_shared_from_this<tcp_ses
 
     boost::asio::awaitable<void> reader();
     boost::asio::awaitable<void> writer();
-
-    boost::asio::awaitable<void> async_timeout(const std::chrono::steady_clock::time_point& deadline);
 };
 
 }

@@ -2,13 +2,12 @@
 #include "sg/tcp_native.h"
 #include "sg/debug.h"
 
+#include <boost/asio/as_tuple.hpp>
+#include <boost/asio/cancel_after.hpp>
 #include <boost/asio/detached.hpp>
 #include <boost/asio/dispatch.hpp>
 #include <boost/asio/write.hpp>
 #include <boost/asio/co_spawn.hpp>
-#include <boost/asio/experimental/awaitable_operators.hpp>
-
-#include <future>
 
 namespace sg::net {
 
@@ -280,8 +279,6 @@ boost::asio::awaitable<void> tcp_session::reader() {
 }
 
 boost::asio::awaitable<void> tcp_session::writer() {
-    using namespace boost::asio::experimental::awaitable_operators;
-
     try {
         for (;;) {
             unsigned timeoutMSec;
@@ -310,16 +307,20 @@ boost::asio::awaitable<void> tcp_session::writer() {
                 buffersAsio.emplace_back(buff.get(), buff.size());
 
             // even though we set the socket time-out using SO_SNDTIMEO, it is not enforced for
-            // select()/poll()/epoll_wait(), which might be used by asio internally
-            auto deadline = std::chrono::steady_clock::now() +
-                            std::chrono::milliseconds(timeoutMSec);
+            // select()/poll()/epoll_wait(), which might be used by asio internally, so use
+            // cancel_after to enforce the timeout. as_tuple delivers the error code as a value,
+            // so a genuine write error is reported immediately rather than waiting out the timeout
+            auto result = co_await boost::asio::async_write(
+                m_socket, buffersAsio,
+                boost::asio::cancel_after(std::chrono::milliseconds(timeoutMSec),
+                                          boost::asio::as_tuple(boost::asio::use_awaitable)));
 
-            auto result = co_await (
-                boost::asio::async_write(m_socket, buffersAsio, boost::asio::use_awaitable) ||
-                async_timeout(deadline));
-
-            if (result.index() == 1)
-                SG_THROW(exceptions::net::time_out);
+            if (auto ec = std::get<0>(result); ec) {
+                if (ec == boost::asio::error::timed_out ||
+                    ec == boost::asio::error::operation_aborted)
+                    SG_THROW(exceptions::net::time_out);
+                throw boost::system::system_error(ec);
+            }
         }
     } catch (...) {
         // We should end up here during graceful shutdown, as the writer waits until all messages
@@ -332,17 +333,5 @@ boost::asio::awaitable<void> tcp_session::writer() {
     }
 
     close();
-}
-
-boost::asio::awaitable<void>
-tcp_session::async_timeout(const std::chrono::steady_clock::time_point& deadline)  {
-    boost::asio::steady_timer timer(m_socket.get_executor());
-    auto now = std::chrono::steady_clock::now();
-    while (deadline > now) {
-        timer.expires_at(deadline);
-        co_await timer.async_wait(boost::asio::use_awaitable);
-        now = std::chrono::steady_clock::now();
-    }
-
 }
 } // namespace sg::net
