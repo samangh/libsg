@@ -122,13 +122,19 @@ class SG_COMMON_EXPORT worker final {
   private:
     enum class state_t { running, stopped };
 
-    /* needs to be atomic because we can change it */
+    /* needs to be atomic because we can change it whilst the worker is running.
+     * Relaxed ordering is sufficient: only the value itself is communicated (see the
+     * note on the iteration counters below). */
     std::atomic<std::chrono::nanoseconds> m_interval;
 
     std::atomic<state_t> m_state {state_t::stopped};
 
     /* uint64_t (rather than size_t, which is 32-bit on some targets) cannot realistically
-     * wrap: even at 10ns per iteration, 2^64 iterations takes ~5,800 years. */
+     * wrap: even at 10ns per iteration, 2^64 iterations takes ~5,800 years.
+     *
+     * All accesses use relaxed ordering: these atomics communicate only their own values,
+     * never other memory, so all required happens-before edges come from thread start and
+     * the notify semaphore. Do not order reads of other state against them. */
     std::atomic<std::uint64_t> m_iterations_done{0};
     std::atomic<std::uint64_t> m_stop_at_iteration{MAX_ITERATION_COUNT};
 

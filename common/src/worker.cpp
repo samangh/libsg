@@ -51,8 +51,8 @@ void worker::start(size_t stopAtIteration) {
         set_result_future(task.get_future().share());
 
         m_stop_requested.store(false);
-        m_iterations_done.store(0);
-        m_stop_at_iteration.store(stopAtIteration);
+        m_iterations_done.store(0, std::memory_order::relaxed);
+        m_stop_at_iteration.store(stopAtIteration, std::memory_order::relaxed);
         m_checked_future.store(false);
 
         /* discard notifications left over from a previous run */
@@ -89,14 +89,14 @@ void worker::request_stop_after_iterations(size_t iteration_count){
         return;
     }
 
-    const auto done = m_iterations_done.load(std::memory_order::acquire);
+    const auto done = m_iterations_done.load(std::memory_order::relaxed);
 
     /* saturate so a huge request can't overflow into the no-stop sentinel */
     const auto target = iteration_count >= MAX_ITERATION_COUNT - done
                             ? MAX_ITERATION_COUNT - 1
                             : done + iteration_count;
 
-    m_stop_at_iteration.store(target, std::memory_order::release);
+    m_stop_at_iteration.store(target, std::memory_order::relaxed);
     notify();
 }
 
@@ -125,11 +125,11 @@ bool worker::stop_requested() const noexcept {
 }
 
 std::chrono::nanoseconds worker::interval() const {
-    return m_interval.load(std::memory_order::acquire);
+    return m_interval.load(std::memory_order::relaxed);
 }
 
 void worker::set_interval(std::chrono::nanoseconds interval) {
-    m_interval.store(interval, std::memory_order_release);
+    m_interval.store(interval, std::memory_order::relaxed);
 }
 void worker::correct_for_task_delay(bool val) {
     m_correct_for_task_delay = val;
@@ -154,7 +154,7 @@ void worker::action(std::promise<void> start_promise) {
 
     try {
         while (!stop_requested()) {
-            const auto iteration = m_iterations_done.fetch_add(1, std::memory_order::acq_rel) + 1;
+            const auto iteration = m_iterations_done.fetch_add(1, std::memory_order::relaxed) + 1;
 
             /* calculate start time if needed */
             const auto t_start = m_correct_for_task_delay ? std::chrono::steady_clock::now()
@@ -167,11 +167,11 @@ void worker::action(std::promise<void> start_promise) {
              *  - a long-running tick that polls stop_requested() isn't told to stop early;
              *  - a request made during the tick is honoured;
              *  - we don't wait for the interval only to then stop */
-            if (iteration >= m_stop_at_iteration.load(std::memory_order::acquire))
+            if (iteration >= m_stop_at_iteration.load(std::memory_order::relaxed))
                 break;
 
             /* calculate wait time */
-            const auto interval = m_interval.load(std::memory_order::acquire);
+            const auto interval = m_interval.load(std::memory_order::relaxed);
             const auto wait_duration = m_correct_for_task_delay
                 ? interval - (std::chrono::steady_clock::now() - t_start)
                 : interval;
