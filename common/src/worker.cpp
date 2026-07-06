@@ -39,7 +39,7 @@ void worker::start() {
         /* the future returned by packaged_task stores any exception thrown by action() */
         std::packaged_task<void()> task(
             [this, p = std::move(start_promise)]() mutable { action(std::move(p)); });
-        m_result_future = task.get_future().share();
+        set_result_future(task.get_future().share());
 
         m_stop_requested.store(false);
         m_stop_after_iterations_count.store(0);
@@ -55,7 +55,7 @@ void worker::start() {
         } catch (...) {
             /* the task never ran, so its future would report broken_promise;
              * invalidate it instead */
-            m_result_future = {};
+            set_result_future({});
             throw;
         }
 
@@ -197,7 +197,15 @@ void worker::notify() {
     m_notify_sem.release();
 }
 
-std::shared_future<void> worker::future() const { return m_result_future; }
+std::shared_future<void> worker::future() const {
+    std::lock_guard lock(m_future_mutex);
+    return m_result_future;
+}
+
+void worker::set_result_future(std::shared_future<void> fut) {
+    std::lock_guard lock(m_future_mutex);
+    m_result_future = std::move(fut);
+}
 
 void worker::future_get_once(){
     if (!m_checked_future.exchange(true))

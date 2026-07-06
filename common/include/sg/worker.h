@@ -149,12 +149,17 @@ class SG_COMMON_EXPORT worker final {
 
     callbacks_t m_callbacks;
 
+    /* m_future_mutex protects m_result_future, which is reassigned on every
+     * start(). It is only ever held to copy or assign the shared_future,
+     * never while waiting on it */
+    mutable std::mutex m_future_mutex;
     std::shared_future<void> m_result_future;
 
     bool m_correct_for_task_delay = false;
 
     void action(std::promise<void> start_promise);
     void wait_until_next_tick(std::chrono::nanoseconds duration);
+    void set_result_future(std::shared_future<void> fut);
 };
 
 } // namespace sg
