@@ -3,7 +3,6 @@
 #include "sg/debug.h"
 
 #include <boost/asio.hpp>
-#include <boost/asio/experimental/awaitable_operators.hpp>
 
 namespace sg::net {
 
@@ -44,19 +43,22 @@ void tcp_client::connect(const end_point& endpoint, tcp_session::Callbacks::OnDa
     const auto endpoints = resolver.resolve(endpoint.ip, std::to_string(endpoint.port));
 
     {
-        using namespace boost::asio::experimental::awaitable_operators;
-
-        auto deadline =
-            std::chrono::steady_clock::now() + std::chrono::milliseconds(options.timeout_msec);
-
         auto fut = boost::asio::co_spawn(
             m_context->context(),
             [&]() -> boost::asio::awaitable<void> {
-                auto result = co_await (
-                    boost::asio::async_connect(socket, endpoints, boost::asio::use_awaitable) ||
-                    async_timeout(deadline));
-                if (result.index() == 1)
-                    SG_THROW(exceptions::net::time_out);
+                /* cancel_after cancels the connect once the timeout elapses; as_tuple delivers
+                 * the error code as a value */
+                auto result = co_await boost::asio::async_connect(
+                    socket, endpoints,
+                    boost::asio::cancel_after(
+                        std::chrono::milliseconds(options.timeout_msec),
+                        boost::asio::as_tuple(boost::asio::use_awaitable)));
+
+                if (auto ec = std::get<0>(result); ec) {
+                    if (ec == boost::asio::error::operation_aborted)
+                        SG_THROW(exceptions::net::time_out);
+                    throw boost::system::system_error(ec);
+                }
 
                 m_session =
                     tcp_session::create(std::move(socket),
@@ -90,17 +92,5 @@ tcp_session& tcp_client::session() {
         SG_THROW(std::logic_error, "tcp_session not started");
 
     return *m_session.get();
-}
-boost::asio::awaitable<void>
-tcp_client::async_timeout(std::chrono::steady_clock::time_point& deadline) const {
-    boost::asio::steady_timer timer(m_context->context());
-    auto now = std::chrono::steady_clock::now();
-    while (deadline > now) {
-        timer.expires_at(deadline);
-        co_await timer.async_wait(boost::asio::use_awaitable);
-        now = std::chrono::steady_clock::now();
-    }
-    // m_context->context().stop();
-    // throw boost::system::system_error(std::make_error_code(std::errc::timed_out));
 }
 } // namespace sg::net
