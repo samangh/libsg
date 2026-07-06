@@ -32,7 +32,7 @@ worker::~worker() {
     wait_for_stop();
 }
 
-void worker::start() {
+void worker::start(size_t stopAtIteration) {
     if (auto state_ = state_t::stopped; !m_state.compare_exchange_strong(state_, state_t::running,
                                                             std::memory_order::acq_rel,
                                                             std::memory_order::acquire))
@@ -51,7 +51,8 @@ void worker::start() {
         set_result_future(task.get_future().share());
 
         m_stop_requested.store(false);
-        m_stop_after_iterations_count.store(0);
+        m_iterations_done.store(0);
+        m_stop_at_iteration.store(stopAtIteration);
         m_checked_future.store(false);
 
         /* discard notifications left over from a previous run */
@@ -88,7 +89,14 @@ void worker::request_stop_after_iterations(size_t iteration_count){
         return;
     }
 
-    m_stop_after_iterations_count.store(iteration_count, std::memory_order_release);
+    const auto done = m_iterations_done.load(std::memory_order::acquire);
+
+    /* saturate so a huge request can't overflow into the no-stop sentinel */
+    const auto target = iteration_count >= MAX_ITERATION_COUNT - done
+                            ? MAX_ITERATION_COUNT - 1
+                            : done + iteration_count;
+
+    m_stop_at_iteration.store(target, std::memory_order::release);
     notify();
 }
 
@@ -145,27 +153,21 @@ void worker::action(std::promise<void> start_promise) {
     std::exception_ptr ex;
 
     try {
-        /* we use this placeholder in case of "stop_after_iterations" request because:
-         *
-         *  - if we are meant to stop *after* this iteration, we don't want to do request_stop()
-         * before the iteration in case the worker action checks for it (e.g. if it's a long-lived
-         * operation).
-         *
-         *  - we don't want to do request_stop() after, because then we have waited for the interval
-         * for no reason
-         */
-        bool stop_after_iteration = false;
-
         while (!stop_requested()) {
-            if (m_stop_after_iterations_count.load(std::memory_order::acquire))
-                if (m_stop_after_iterations_count.fetch_sub(1, std::memory_order_acq_rel) == 1)
-                    stop_after_iteration = true;
+            const auto iteration = m_iterations_done.fetch_add(1, std::memory_order::acq_rel) + 1;
 
             /* calculate start time if needed */
             const auto t_start = m_correct_for_task_delay ? std::chrono::steady_clock::now()
                                                           : std::chrono::steady_clock::time_point{};
             m_callbacks.on_tick_callback.invoke(this);
-            if (stop_after_iteration)
+
+            /* the "stop after iterations" target is checked after the tick (rather than doing
+             * request_stop() before it) so that:
+             *
+             *  - a long-running tick that polls stop_requested() isn't told to stop early;
+             *  - a request made during the tick is honoured;
+             *  - we don't wait for the interval only to then stop */
+            if (iteration >= m_stop_at_iteration.load(std::memory_order::acquire))
                 break;
 
             /* calculate wait time */

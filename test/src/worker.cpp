@@ -257,6 +257,31 @@ TEST_CASE("worker: check request_stop_after_iterations(...) with zero input", "[
     REQUIRE(counter == 1);
 }
 
+TEST_CASE("worker: check request_stop_after_iterations(...) called from another thread",
+          "[sg::worker]") {
+    std::binary_semaphore first_tick_running{0}, first_tick_finish{0};
+    std::atomic<int> counter{0};
+
+    sg::worker::on_tick_callback_t task = [&](sg::worker*) {
+        if (++counter == 1) {
+            first_tick_running.release();
+            first_tick_finish.acquire();
+        }
+    };
+
+    sg::worker worker =
+        sg::worker(std::chrono::milliseconds(1), task, nullptr, nullptr);
+    worker.start();
+
+    /* request whilst the first tick is still in flight; that tick must not be counted */
+    first_tick_running.acquire();
+    worker.request_stop_after_iterations(2);
+    first_tick_finish.release();
+
+    worker.wait_for_stop();
+    REQUIRE(counter == 3);
+}
+
 TEST_CASE("worker: check start(...) will throw if the start callback has an error",
           "[sg::worker]") {
     std::atomic<int> counter{0};

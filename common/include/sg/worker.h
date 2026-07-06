@@ -5,6 +5,8 @@
 
 #include <atomic>
 #include <chrono>
+#include <cstdint>
+#include <limits>
 #include <mutex>
 #include <shared_mutex>
 #include <semaphore>
@@ -50,7 +52,7 @@ class SG_COMMON_EXPORT worker final {
      *
      * @throws if the thread could not be started for any reason.
      */
-    void start();
+    void start(size_t stopAtIteration = MAX_ITERATION_COUNT);
 
     /**
      * @brief request_stop asynchronously stops the thread.
@@ -61,10 +63,12 @@ class SG_COMMON_EXPORT worker final {
     void request_stop();
 
     /**
-     * Request stops after the provider number of iterations have been done. This should not be
-     * called concurrently by multiple threads.
+     * Requests a stop after the provided number of further iterations have been done.
      *
-     * Note if this is called inside the worker then it does NOT include the current iteration.
+     * Is thread safe; if called multiple times, the last call wins.
+     *
+     * Note: an iteration that is already in flight (including the current one, if this is
+     * called from inside the worker) is not counted.
      */
     void request_stop_after_iterations(size_t iteration_count);
 
@@ -114,6 +118,7 @@ class SG_COMMON_EXPORT worker final {
      */
     void correct_for_task_delay(bool);
 
+    static constexpr std::uint64_t MAX_ITERATION_COUNT = std::numeric_limits<std::uint64_t>::max();
   private:
     enum class state_t { running, stopped };
 
@@ -122,7 +127,11 @@ class SG_COMMON_EXPORT worker final {
 
     std::atomic<state_t> m_state {state_t::stopped};
 
-    std::atomic<size_t> m_stop_after_iterations_count{0};
+    /* uint64_t (rather than size_t, which is 32-bit on some targets) cannot realistically
+     * wrap: even at 10ns per iteration, 2^64 iterations takes ~5,800 years. */
+    std::atomic<std::uint64_t> m_iterations_done{0};
+    std::atomic<std::uint64_t> m_stop_at_iteration{MAX_ITERATION_COUNT};
+
     std::atomic<bool> m_checked_future;
 
     // We don't use `std::jthread` because:
