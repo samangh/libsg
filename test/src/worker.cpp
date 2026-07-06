@@ -280,6 +280,59 @@ TEST_CASE("worker: check start(...) will throw if the start callback has an erro
     REQUIRE(worker.is_running() == false);
 }
 
+TEST_CASE("worker: check wait_for_stop() can be called concurrently with restarts", "[sg::worker]") {
+    sg::worker::on_tick_callback_t task = [](sg::worker*) {};
+
+    sg::worker worker =
+        sg::worker(std::chrono::microseconds(1), task, nullptr, nullptr);
+
+    std::atomic<bool> done{false};
+    auto hammer = [&] {
+        while (!done)
+            worker.wait_for_stop();
+    };
+    std::thread t1(hammer), t2(hammer);
+
+    for (int i = 0; i < 50; ++i) {
+        worker.start();
+        worker.request_stop();
+        worker.wait_for_stop();
+    }
+
+    done = true;
+    t1.join();
+    t2.join();
+
+    REQUIRE(worker.is_running() == false);
+}
+
+TEST_CASE("worker: check future() can be called concurrently with restarts", "[sg::worker]") {
+    sg::worker::on_tick_callback_t task = [](sg::worker*) {};
+
+    sg::worker worker =
+        sg::worker(std::chrono::microseconds(1), task, nullptr, nullptr);
+
+    std::atomic<bool> done{false};
+    std::thread reader([&] {
+        while (!done) {
+            if (auto fut = worker.future(); fut.valid())
+                fut.wait_for(std::chrono::seconds(0));
+        }
+    });
+
+    for (int i = 0; i < 50; ++i) {
+        worker.start();
+        worker.request_stop();
+        worker.wait_for_stop();
+    }
+
+    done = true;
+    reader.join();
+
+    /* the last run stopped cleanly, so its future must be ready and hold no exception */
+    REQUIRE_NOTHROW(worker.future().get());
+}
+
 TEST_CASE("worker: check call callbacks are done in the worker thread", "[sg::worker]") {
     // You can't use thread_id of a stopped thread, so I use a hash instead.
 
