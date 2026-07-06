@@ -52,7 +52,7 @@ include(DefaultPreamble)
 ##
 
 # Boost is required
-find_package(Boost REQUIRED CONFIG)
+find_package(Boost 1.86 REQUIRED CONFIG)
 
 # Boost::stacktrace
 if(LIBSG_STACKTRACE)
