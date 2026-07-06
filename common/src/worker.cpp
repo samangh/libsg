@@ -1,6 +1,7 @@
 #include "sg/debug.h"
 #include "sg/worker.h"
 
+#include <cstdio>
 #include <utility>
 
 namespace sg {
@@ -18,7 +19,15 @@ worker::worker(std::chrono::nanoseconds intervalNs,
     : m_interval(intervalNs),
       m_callbacks(std::move(callbacks)) {}
 
-worker::~worker() noexcept(false) {
+worker::~worker() {
+    /* Destroying the worker from its own thread can never be safe: even if the thread could be
+     * "detached" from the class, it still uses member functions/variablles that would no longer
+     * exist */
+    if (m_thread_id.load(std::memory_order::acquire) == std::this_thread::get_id()) {
+        std::fputs("sg::worker destroyed from within its own callback\n", stderr);
+        std::terminate();
+    }
+
     request_stop();
     wait_for_stop();
 }

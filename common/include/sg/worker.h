@@ -43,9 +43,7 @@ class SG_COMMON_EXPORT worker final {
                                  on_start_callback_t start_cb,
                                  on_stop_callback_t stopped_cb);
     worker(std::chrono::nanoseconds intervalNs, callbacks_t callbacks);
-
-    ~worker() noexcept(false);
-
+    ~worker();
 
     /**
      * @brief start synchronously starts the thread

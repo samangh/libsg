@@ -138,7 +138,7 @@ TEST_CASE("worker: check future_get_once() throws errors only once", "[sg::worke
     REQUIRE(counter == 1);
 }
 
-TEST_CASE("worker: check destructor can throw an error", "[sg::worker]") {
+TEST_CASE("worker: check destructor does not throw", "[sg::worker]") {
     std::binary_semaphore loop_run{0};
 
     sg::worker::on_tick_callback_t task = [&](sg::worker*) {
@@ -157,7 +157,6 @@ TEST_CASE("worker: check destructor can throw an error", "[sg::worker]") {
     };
 
     // Should throw
-
     {
         loop_run.release(0);
 
