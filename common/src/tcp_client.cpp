@@ -67,8 +67,11 @@ void tcp_client::connect(const end_point& endpoint, tcp_session::Callbacks::OnDa
                 boost::asio::cancel_after(std::chrono::milliseconds(timeoutMSec),
                                           boost::asio::as_tuple(boost::asio::use_awaitable)));
 
+            // boost::asio::error::timed_out might be raised by async_connect
+            // boost::asio::error::operation_aborted will be raised by cancel_after
             if (auto ec = std::get<0>(result); ec) {
-                if (ec == boost::asio::error::operation_aborted)
+                if (ec == boost::asio::error::timed_out ||
+                    ec == boost::asio::error::operation_aborted)
                     SG_THROW(exceptions::net::time_out);
                 throw boost::system::system_error(ec);
             }

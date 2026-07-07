@@ -315,6 +315,8 @@ boost::asio::awaitable<void> tcp_session::writer() {
                 boost::asio::cancel_after(std::chrono::milliseconds(timeoutMSec),
                                           boost::asio::as_tuple(boost::asio::use_awaitable)));
 
+            // boost::asio::error::timed_out might be raised by async_write
+            // boost::asio::error::operation_aborted will be raised by cancel_after
             if (auto ec = std::get<0>(result); ec) {
                 if (ec == boost::asio::error::timed_out ||
                     ec == boost::asio::error::operation_aborted)
