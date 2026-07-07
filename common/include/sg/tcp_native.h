@@ -18,6 +18,7 @@ typedef int socket_t;
  * parameters are ignored */
 void SG_COMMON_EXPORT set_keepalive(socket_t nativeHandle, keepalive_t keepAlive);
 
+/* sets timeout for BLOCKING read/write operations. Does not apply to async operations */
 void SG_COMMON_EXPORT set_timeout(socket_t nativeHandle, unsigned timeoutMSec);
 
 void SG_COMMON_EXPORT set_reuse_address(socket_t nativeHandle, bool enbaled);

@@ -115,6 +115,8 @@ void tcp_session::apply_keepalive_unsafe(keepalive_t keepAliveParameters) {
 }
 
 void tcp_session::apply_timeout_unsafe(unsigned timeoutMSec) {
+    /* this has no effect in async read/write, but we apply it anyway just in case the user uses
+     * the native_handle */
     sg::net::native::set_timeout(m_socket.native_handle(), timeoutMSec);
 
     // m_options.timeout_msec is read by writer() under m_write_mutex (see writer() for the read).
@@ -306,10 +308,8 @@ boost::asio::awaitable<void> tcp_session::writer() {
             for (auto& buff : buffers)
                 buffersAsio.emplace_back(buff.get(), buff.size());
 
-            // even though we set the socket time-out using SO_SNDTIMEO, it is not enforced for
-            // select()/poll()/epoll_wait(), which might be used by asio internally, so use
-            // cancel_after to enforce the timeout. as_tuple delivers the error code as a value,
-            // so a genuine write error is reported immediately rather than waiting out the timeout
+            // SO_SNDTIMEO only applies for blocking calls, not async. Use cancel_after to enforce
+            // the timeout.
             auto result = co_await boost::asio::async_write(
                 m_socket, buffersAsio,
                 boost::asio::cancel_after(std::chrono::milliseconds(timeoutMSec),
