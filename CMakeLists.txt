@@ -64,7 +64,7 @@ if(LIBSG_STACKTRACE)
   else()
     set(SG_BOOST_STACKTRACE_COMP stacktrace_basic)
   endif()
-  find_package(Boost COMPONENTS ${SG_BOOST_STACKTRACE_COMP} REQUIRED CONFIG)
+  find_package(Boost COMPONENTS ${SG_BOOST_STACKTRACE_COMP} stacktrace_from_exception REQUIRED CONFIG)
 endif()
 
 # Some platforms don't have a Findfmt file, so search if the user has used OWN_FMT first

@@ -1,6 +1,7 @@
 #pragma once
 
 #include <fmt/format.h>
+#include <string>
 #include <string_view>
 #include <source_location>
 
@@ -10,22 +11,22 @@
 
 namespace sg {
 
-/* note: SG_THROW_STACKTRACE and SG_THROW_DETAILS macros assume that you can construct an exception
+/* note: the SG_THROW_DETAILS macro assumes that you can construct an exception
  * with only a single argument that represents teh exception message */
 
-#if defined(LIBSG_STACKTRACE)
-    /**
-     * Throws an exception, with a stacktrace.
-     */
-    #define SG_THROW_STACKTRACE(type, ...)                                                         \
-        do {                                                                                       \
-            const type ex{__VA_ARGS__};                                                            \
-            auto location = std::source_location::current();                                       \
-            throw type(fmt::format("{}\nat `{}` in {}({}:{}), with stacktrace:\n{}", ex.what(),    \
-                                   location.function_name(), location.file_name(),                 \
-                                   location.line(), location.column(),                             \
-                                   to_string(boost::stacktrace::stacktrace())));                   \
-        } while (0);
+#ifdef LIBSG_STACKTRACE
+/**
+ * Returns the (symbolised) stacktrace captured at the original throw site.
+ *
+ * When LIBSG_STACKTRACE is enabled, the boost_stacktrace_from_exception library captures the
+ * raw stack frames of every thrown exception. Capture is cheap - the expensive symbolisation only
+ * happens here on demand. This keeps throwing cheap on hot/error paths.
+ */
+inline std::string current_exception_stacktrace() {
+    if (const auto trace = boost::stacktrace::stacktrace::from_current_exception(); trace)
+        return to_string(trace);
+    return {};
+}
 #endif
 
 /**
@@ -40,9 +41,10 @@ namespace sg {
                                location.file_name(), location.line(), location.column()));         \
     } while (0);
 
-#if defined(LIBSG_STACKTRACE)
-    #define SG_THROW(type, ...) SG_THROW_STACKTRACE(type __VA_OPT__(,) __VA_ARGS__)
-#elif defined(LIBSG_EXCEPTION_DETAILS)
+/* With LIBSG_STACKTRACE the stacktrace is captured automatically at the throw point (see
+ * sg::current_exception_stacktrace() above), so SG_THROW only needs to add the source
+ * location to the message. */
+#if defined(LIBSG_STACKTRACE) || defined(LIBSG_EXCEPTION_DETAILS)
     #define SG_THROW(type, ...) SG_THROW_DETAILS(type __VA_OPT__(,) __VA_ARGS__)
 #else
     #define SG_THROW(type, ...) throw type(__VA_ARGS__)

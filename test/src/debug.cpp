@@ -40,8 +40,14 @@ TEST_CASE("sg::common check SG_THROW_...(..) macro") {
     REQUIRE_THROWS_WITH(test_throw_details(2), Catch::Matchers::ContainsSubstring("debug.cpp("));
 
 #ifdef LIBSG_STACKTRACE
-    /* includes stacktrace */
-    REQUIRE_THROWS_WITH(test_throw(2), Catch::Matchers::ContainsSubstring("test_throw"));
-    REQUIRE_THROWS_WITH(test_throw(2), Catch::Matchers::ContainsSubstring("debug.cp"));
+    /* the stacktrace is captured at the throw point and retrievable inside the catch block */
+    try {
+        test_throw(2);
+        FAIL("test_throw(2) did not throw");
+    } catch (const std::exception&) {
+        auto trace = sg::current_exception_stacktrace();
+        REQUIRE_THAT(trace, Catch::Matchers::ContainsSubstring("test_throw"));
+        REQUIRE_THAT(trace, Catch::Matchers::ContainsSubstring("debug.cpp"));
+    }
 #endif
 }

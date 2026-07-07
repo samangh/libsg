@@ -73,7 +73,7 @@ setup_library(
     Boost::boost
     $<$<OR:$<BOOL:${MSYS2}>,$<BOOL:${WIN32}>>:Mswsock> # Needed for some Boost ASIO functions, can move to LINK_PRIVATE when tcp_server implementation is moved outside headers
     $<$<BOOL:${LINUX}>:pfs>
-    $<$<BOOL:${LIBSG_STACKTRACE}>:Boost::${SG_BOOST_STACKTRACE_COMP}>
+    $<$<BOOL:${LIBSG_STACKTRACE}>:Boost::${SG_BOOST_STACKTRACE_COMP} Boost::stacktrace_from_exception>
   LINK_PRIVATE
     Threads::Threads
     $<$<BOOL:${WIN32}>:Winmm>
