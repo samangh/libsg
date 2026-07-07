@@ -65,6 +65,10 @@ if(LIBSG_STACKTRACE)
     set(SG_BOOST_STACKTRACE_COMP stacktrace_basic)
   endif()
   find_package(Boost COMPONENTS ${SG_BOOST_STACKTRACE_COMP} REQUIRED CONFIG)
+
+  if(SANITIZE_THREAD)
+    message(WARNING "Both SANITIZE_THREAD and LIBSG_STACKTRACE are ON. This is not a good idea if you are throwing exceptions in quick succession, as LIBSG_STACKTRACE will fork addr2line in quick sucession and cause TSAN to fail.")
+  endif()
 endif()
 
 # Some platforms don't have a Findfmt file, so search if the user has used OWN_FMT first
