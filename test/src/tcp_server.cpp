@@ -686,7 +686,14 @@ TEST_CASE("tcp_server: proxy simulation", "[sg::net::tcp_server]") {
         tcp_session::Callbacks::OnDataAvailable onDataAvailable =
             [&](tcp_session&, const std::byte* data, size_t length) {
                 for (const auto& sess : proxy_server.sessions() | std::views::values)
-                    sess->write(data, length);
+                    try {
+                        sess->write(data, length);
+                    } catch (...) {
+                        /* the session may be a disconnected one that is not yet removed from
+                         * proxy_server's session list (OnDisconnected fires before the removal);
+                         * letting the exception escape would kill this session's reader and with
+                         * it the whole relay */
+                    }
             };
         client_intermediate.connect(main_ep, onDataAvailable, nullptr);
     }
