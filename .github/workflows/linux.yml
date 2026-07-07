@@ -18,10 +18,10 @@ jobs:
       matrix:
         os: [ubuntu-latest]
         config:
-          - {label: "gcc-shared-release",      cc: gcc,   cxx: g++,     shared: ON,  build: "Release", flags: "",                               cmake_args: ""}
-          - {label: "gcc-static-release",      cc: gcc,   cxx: g++,     shared: OFF, build: "Release", flags: "",                               cmake_args: ""}
-          - {label: "clang-shared-release",    cc: clang, cxx: clang++, shared: ON,  build: "Release", flags: "-fprofile-update=prefer-atomic", cmake_args: "", coverage: true}
-          - {label: "clang-static-release",    cc: clang, cxx: clang++, shared: OFF, build: "Release", flags: "",                               cmake_args: ""}
+          - {label: "gcc-shared-release",      cc: gcc,   cxx: g++,     shared: ON,  build: "Release", flags: "",                               cmake_args: "-DLIBSG_STACKTRACE=ON"}
+          - {label: "gcc-static-release",      cc: gcc,   cxx: g++,     shared: OFF, build: "Release", flags: "",                               cmake_args: "-DLIBSG_STACKTRACE=ON"}
+          - {label: "clang-shared-release",    cc: clang, cxx: clang++, shared: ON,  build: "Release", flags: "-fprofile-update=prefer-atomic", cmake_args: "-DLIBSG_STACKTRACE=ON", coverage: true}
+          - {label: "clang-static-release",    cc: clang, cxx: clang++, shared: OFF, build: "Release", flags: "",                               cmake_args: "-DLIBSG_STACKTRACE=ON"}
           - {label: "clang-shared-debug-tsan", cc: clang, cxx: clang++, shared: ON,  build: "Debug",   flags: "-O1",                            cmake_args: "-DSANITIZE=ON -DSANITIZE_THREAD=ON"}
           - {label: "clang-shared-debug-asan", cc: clang, cxx: clang++, shared: ON,  build: "Debug",   flags: "-O1",                            cmake_args: "-DSANITIZE=ON -DSANITIZE_ADDRESS=ON"}
           - {label: "clang-shared-debug-usan", cc: clang, cxx: clang++, shared: ON,  build: "Debug",   flags: "-O1",                            cmake_args: "-DSANITIZE=ON -DSANITIZE_UNDEFINED=ON"}
@@ -53,7 +53,7 @@ jobs:
                    -DCMAKE_C_FLAGS="${{matrix.config.flags}}" -DCMAKE_CXX_FLAGS="${{matrix.config.flags}}" \
                    -DCMAKE_C_COMPILER="${{matrix.config.cc}}" -DCMAKE_CXX_COMPILER="${{matrix.config.cxx}}" \
                    -DCOVERAGE="${{matrix.config.coverage}}" \
-                   -DARCH_NATIVE=ON -DBUILD_TESTING=ON -DBUILD_DOCS=ON -DLIBSG_STACKTRACE=ON \
+                   -DARCH_NATIVE=ON -DBUILD_TESTING=ON -DBUILD_DOCS=ON \
                    -DOWN_FMT=ON -DOWN_BOOST=ON -DBOOST_INCLUDE_LIBRARIES=stacktrace\;asio\;uuid\;crc \
                    ${{matrix.config.cmake_args}}
 
