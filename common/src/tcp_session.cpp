@@ -144,6 +144,10 @@ enum tcp_session::state_t tcp_session::state() const noexcept {
 native::socket_t tcp_session::native_handle() { return m_socket.native_handle(); }
 boost::asio::any_io_executor tcp_session::get_executor() const {return m_strand;}
 
+bool tcp_session::running_in_io_thread() const {
+    return m_strand.running_in_this_thread();
+}
+
 void tcp_session::stop_async() {
     bool shouldClose = false;
 

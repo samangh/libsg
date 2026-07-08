@@ -89,6 +89,7 @@ class SG_COMMON_EXPORT tcp_session : public std::enable_shared_from_this<tcp_ses
         return fut.get();
     }
 
+    [[nodiscard]] bool running_in_io_thread() const;
   private:
     boost::asio::ip::tcp::socket m_socket;
 
