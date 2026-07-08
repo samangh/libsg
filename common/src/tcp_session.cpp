@@ -175,6 +175,13 @@ void tcp_session::stop_async() {
 }
 
 void tcp_session::wait_until_stopped() const {
+    /* all session handlers (callbacks, reader/writer, close_impl) run on m_strand, so waiting
+     * here from inside a strand handler would block close_impl from ever running */
+    if (running_in_io_thread())
+        SG_THROW(std::logic_error,
+                 "tcp_session::wait_until_stopped() must not be called from a handler running on "
+                 "the I/O pool (e.g. a session callback); use stop_async() instead");
+
     state_t val;
     while ((val = m_state.load(std::memory_order::acquire)) != state_t::stopped)
         m_state.wait(val, std::memory_order::acquire);
