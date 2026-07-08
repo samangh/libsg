@@ -25,15 +25,12 @@ tcp_session::tcp_session(private_tag, boost::asio::ip::tcp::socket socket, Callb
   m_options(options),
   m_callbacks(std::move(cb)) {};
 
-tcp_session::~tcp_session() {
-    // You can't use shared_from_this() in the destructor, so this flag tells close() not to
-    // dispatch the close even to io_context but to run it directly
-    m_destructor_called = true;
-
-    // this causes the right callbacks to be called, if they haven't already
-    stop_async();
-    wait_until_stopped();
-}
+/* you can be sure that by the time this is called all the callbacks are done:
+ *
+ *   - OnDisconnected/OnDisconnected callbacks are on the strand, which has a shared_ptr to this class
+ *   - OnConnected is done on start()
+ */
+tcp_session::~tcp_session() =default;
 
 void tcp_session::start() {
     if (auto expectedState = state_t::stopped; !m_state.compare_exchange_strong(
@@ -209,15 +206,8 @@ void tcp_session::close() {
         {
             // Socket operations must be serialised with the reader/writer, so run close_impl()
             // on the session strand (same strand the reader and writer run on).
-            //
-            // You can't use shared_from_this() in the destructor, so if we are in the destructor run
-            // close_impl() directly. In this case thread-safety is not important (as by definition no other
-            // thread can be holding a shared_ptr to this session!)
-            if (m_destructor_called)
-                close_impl();
-            else
-                boost::asio::dispatch(m_strand,
-                                      [self = shared_from_this()] { self->close_impl(); });
+
+            boost::asio::dispatch(m_strand, [self = shared_from_this()] { self->close_impl(); });
             return;
         }
     }
