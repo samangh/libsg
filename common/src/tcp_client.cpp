@@ -17,12 +17,26 @@ tcp_client::~tcp_client() {
      * coroutines will have a shared_ptr to the tcp_session.
      *
      * so ensure that we disconnect if tcp_client is destructed */
-    disconnect();
+
+    /* to prevent deadlock in cast somehow a callback from the session is calling this destructor,
+     * don't wait for session to stop from the session IO thread! */
+    if (m_session) {
+        if (m_session->running_in_io_thread())
+            m_session->stop_async();
+        else
+            disconnect();
+    }
 };
 
 void tcp_client::connect(const end_point& endpoint, tcp_session::Callbacks::OnDataAvailable onReadCb,
                          tcp_session::Callbacks::OnDisconnected onDisconnect,
                          tcp_session::options_t options) {
+    /* The user might call connect() from the OnDisconnected callback, but that's a bad idea as it
+     * can cause a deadlock */
+    if (m_session && m_session->running_in_io_thread())
+        SG_THROW(std::logic_error,
+                 "tcp_client::connect() must not be called from the I/O thread (e.g. from a callback)");
+
     if (m_session && m_session->is_connected())
         throw std::runtime_error("the client is already connected");
 
@@ -91,6 +105,10 @@ bool tcp_client::is_connected() const {
     return false;
 }
 void tcp_client::disconnect() {
+    if (m_session && m_session->running_in_io_thread())
+        SG_THROW(std::logic_error,
+                 "tcp_client::connect() must not be called from the I/O thread (e.g. from a callback)");
+
     if (is_connected()) {
         m_session->stop_async();
         m_session->wait_until_stopped();
