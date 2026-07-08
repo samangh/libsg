@@ -194,6 +194,8 @@ class SG_COMMON_EXPORT asio_io_pool {
     /// @copydoc context()
     [[nodiscard]] const boost::asio::io_context& context() const;
 
+    [[nodiscard]] bool running_in_pool_thread() const;
+
     /**
      * @brief Constructs a new pool wrapped in a @c shared_ptr.
      *
