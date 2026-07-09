@@ -30,7 +30,9 @@ tcp_session::tcp_session(private_tag, boost::asio::ip::tcp::socket socket, Callb
  *   - OnDisconnected/OnDisconnected callbacks are on the strand, which has a shared_ptr to this class
  *   - OnConnected is done on start()
  */
-tcp_session::~tcp_session() =default;
+tcp_session::~tcp_session() {
+    assert(m_state == state_t::stopped);
+}
 
 void tcp_session::start() {
     if (auto expectedState = state_t::stopped; !m_state.compare_exchange_strong(
