@@ -32,8 +32,8 @@ class state_machine {
 
     [[nodiscard]] TState state() const { return m_current_state.load(std::memory_order::acquire); }
 
-    state_machine() =default;
-    virtual ~state_machine() noexcept(false) = default;
+    state_machine() = default;
+    virtual ~state_machine() = default;
 
     void add_state(TState state) {
         if (is_running())
@@ -138,7 +138,6 @@ class state_machine {
     /* atomic because of set_state(..)  / state() */
     std::atomic<TState> m_current_state;
     std::atomic<TState> m_requested_state;
-
 
     bool just_started;
     std::map<TState, state_config> m_states;
