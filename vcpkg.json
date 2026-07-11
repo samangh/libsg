@@ -1,0 +1,15 @@
+{
+  "$schema": "https://raw.githubusercontent.com/microsoft/vcpkg-tool/main/docs/vcpkg.schema.json",
+  "name": "libsg",
+  "dependencies": [
+    "boost-asio",
+    "boost-bimap",
+    "boost-crc",
+    "boost-stacktrace",
+    "boost-uuid",
+    "fmt",
+    "libuv",
+    "sdl2",
+    "zstd"
+  ]
+}

@@ -23,23 +23,19 @@ jobs:
         with:
           submodules: recursive
 
-      - name: Install dependencies
-        run: |
-             vcpkg --triplet ${{ matrix.config.triplet }} install sdl2 fmt libuv zstd boost-crc boost-asio boost-uuid boost-bimap boost-stacktrace
-             vcpkg integrate install
-
       - name: Run CMake
         working-directory: ${{github.workspace}}
+        # Dependencies from vcpkg.json are installed by the vcpkg toolchain
+        # during configuration; the build-type is needed for VCPKG
         run: |
              mkdir build
              cd build
-             # The build-type is needed for VCPKG
              cmake .. `
                    -DBUILD_SHARED_LIBS=${{ matrix.config.shared }} `
                    -DUSE_STATIC_RUNTIME=${{ matrix.config.static_runtime }} `
                    -DCMAKE_TOOLCHAIN_FILE=C:/vcpkg/scripts/buildsystems/vcpkg.cmake `
-                   -DVCPKG_TARGET_TRIPLET=${{ matrix.config.triplet }} `
-                   -DBUILD_TESTING=ON -DBENCHMARK=ON `
+                   -DVCPKG_TARGET_TRIPLET=${{matrix.config.triplet}} `
+                   -DBUILD_TESTING=ON `
                    -DLIBSG_IMGUI_DIRECTX=ON -DLIBSG_IMGUI_OPENGL=ON `
                    -DCMAKE_BUILD_TYPE=Release -DIPO=ON -DARCH_NATIVE=ON -DLIBSG_STACKTRACE=ON
 
