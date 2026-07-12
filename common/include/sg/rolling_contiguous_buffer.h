@@ -1,6 +1,5 @@
 #pragma once
 
-#include "sg/buffer.h"
 #include "sg/iterator.h"
 
 #include <cstring>
@@ -41,10 +40,12 @@ class rolling_contiguous_buffer {
 
     /* create a new vector and moves data, instead of calling memcp */
     void ensure_space_move(size_t noNewPoints) {
+        auto noToKeep = m_cb_size - noNewPoints;
+
         std::vector<T> newVec;
         newVec.reserve(m_cb_size);
         newVec.insert(newVec.begin(),
-                      std::move_iterator(m_data.cbegin() + pos_begin + noNewPoints),
+                      std::move_iterator(m_data.cbegin() + (pos_end - noToKeep)),
                       std::move_iterator(m_data.cbegin() + pos_end));
         m_data.swap(newVec);
 
@@ -53,8 +54,8 @@ class rolling_contiguous_buffer {
     }
 
     void ensure_space(size_t noNewPoints) {
-        /* if buffer is at max size */
-        if (pos_end == m_max_size) {
+        /* if insertion would go past the total allocation */
+        if (pos_end + noNewPoints > m_max_size) {
 
             /* if the new number points is bigger than the store size,
              * just clear everything */
@@ -71,12 +72,14 @@ class rolling_contiguous_buffer {
              * note: this requires T to be trivial */
             if constexpr (std::is_trivially_copyable_v<T>) {
                 if (m_max_size - m_cb_size >=m_cb_size) {
+                    auto noToKeep = m_cb_size - noNewPoints;
+
                     std::memcpy(static_cast<void*>(m_data.data()),
-                                static_cast<void*>(&m_data.data()[pos_begin + noNewPoints]),
-                                (m_cb_size - noNewPoints) * sizeof(T));
+                                static_cast<void*>(&m_data.data()[pos_end - noToKeep]),
+                                noToKeep * sizeof(T));
 
                     pos_begin = 0;
-                    pos_end = m_cb_size - noNewPoints;
+                    pos_end = noToKeep;
 
                     m_data.erase(m_data.begin()+pos_end,m_data.end());
                 }
