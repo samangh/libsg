@@ -134,6 +134,74 @@ TEST_CASE("sg::common rolling_contiguous_buffer: check rolling works after memcp
     REQUIRE(buffer.size()== 5);
 }
 
+TEST_CASE("sg::common rolling_contiguous_buffer: check append() past total allocation",
+          "[sg::rolling_contiguous_buffer]") {
+
+    /* memcpy path: trivially-copyable T with reserve >= size.
+     *
+     * A bulk append can jump pos_end straight past the total allocation, so the shift must
+     * trigger on crossing the boundary, not on landing exactly at it. */
+    {
+        sg::rolling_contiguous_buffer<int> buffer(5);
+
+        /* 9 single pushes: one short of the total allocation (5+5) */
+        for (int i = 0; i < 9; i++)
+            buffer.push_back(i);
+
+        /* jumps from 9 to 12, past the allocation of 10 */
+        buffer.append({9, 10, 11});
+
+        REQUIRE(buffer.size() == 5);
+        for (int i = 0; i < 5; i++)
+            REQUIRE(buffer[i] == 7 + i);
+    }
+
+    /* move path: reserve < size, so the shift goes through ensure_space_move() */
+    {
+        sg::rolling_contiguous_buffer<int> buffer(10, 2);
+
+        for (int i = 0; i < 11; i++)
+            buffer.push_back(i);
+
+        /* jumps from 11 to 14, past the allocation of 12 */
+        buffer.append({11, 12, 13});
+
+        REQUIRE(buffer.size() == 10);
+        for (int i = 0; i < 10; i++)
+            REQUIRE(buffer[i] == 4 + i);
+    }
+
+    /* shift triggered before the window has ever filled */
+    {
+        sg::rolling_contiguous_buffer<int> buffer(10, 2);
+
+        for (int i = 0; i < 9; i++)
+            buffer.push_back(i);
+
+        /* jumps from 9 to 14, past the allocation of 12, while only 9 of 10 slots are used */
+        buffer.append({9, 10, 11, 12, 13});
+
+        REQUIRE(buffer.size() == 10);
+        for (int i = 0; i < 10; i++)
+            REQUIRE(buffer[i] == 4 + i);
+    }
+
+    /* repeated boundary-jumping appends keep the buffer consistent */
+    {
+        sg::rolling_contiguous_buffer<int> buffer(5);
+
+        int next = 0;
+        for (int i = 0; i < 100; i++) {
+            buffer.append({next, next + 1, next + 2});
+            next += 3;
+        }
+
+        REQUIRE(buffer.size() == 5);
+        for (int i = 0; i < 5; i++)
+            REQUIRE(buffer[i] == next - 5 + i);
+    }
+}
+
 TEST_CASE("sg::common rolling_contiguous_buffer: check resize() growth",
           "[sg::rolling_contiguous_buffer]") {
     sg::rolling_contiguous_buffer<int> buffer(5);
