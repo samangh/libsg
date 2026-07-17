@@ -1,9 +1,12 @@
 #include "sg/net.h"
 
 #include "sg/asio_io_pool.h"
+
+/* asio.hpp must come before libuv: uv/win.h redefines NSIG, which changes the
+ * size of asio's signal_state */
+#include <boost/asio.hpp>
 #include "sg/libuv_wrapper.h"
 
-#include <boost/asio.hpp>
 #include <vector>
 
 namespace sg::net {
