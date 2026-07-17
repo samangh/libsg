@@ -196,7 +196,7 @@ void worker::action(std::promise<void> start_promise) {
 
 void worker::wait_until_next_tick(std::chrono::nanoseconds duration) {
     if (duration > std::chrono::nanoseconds::zero())
-        m_notify_sem.try_acquire_for(duration);
+        std::ignore = m_notify_sem.try_acquire_for(duration);
 
     /* drain any extra releases so multiple notify() calls coalesce
      * into at most one early tick */

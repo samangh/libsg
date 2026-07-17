@@ -10,13 +10,17 @@
 #else
 #include <SDL_opengl.h>
 #endif
+
 #ifdef _WIN32
-    #define WIN32_LEAN_AND_MEAN
-    #define VC_EXTRALEAN
-#include <windows.h>        // SetProcessDPIAware()
+    #ifndef WIN32_LEAN_AND_MEAN
+        #define WIN32_LEAN_AND_MEAN 1
+    #endif
+    #ifndef VC_EXTRALEAN
+        #define VC_EXTRALEAN 1
+    #endif
+    #include <windows.h> // SetProcessDPIAware()
 #endif
 
-#include <stdio.h>
 #include <stdexcept>
 
 /* To see what has been manually added for libsg, please see search for
