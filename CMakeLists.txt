@@ -10,6 +10,7 @@ set(NAMESPACE sg)
 ##
 ## Additional Options
 ##
+option(LIBSG_NET "Include networking classes/functions" ON)
 option(LIBSG_IMGUI "Include IMGUI stuff" ON)
 option(LIBSG_ZSTD "Include zstd stuff" ON)
 option(LIBSG_STACKTRACE "Enable boost::stacktrace support" OFF)
@@ -76,16 +77,19 @@ if(NOT OWN_FMT)
   find_package(fmt REQUIRED)
 endif()
 
-if(NOT OWN_UV)
+if (NOT OWN_UV)
   find_package(libuv REQUIRED)
-endif()
+endif ()
 
 ##
 ## Targets/Sources
 ##
 
 add_subdirectory(common)
-add_subdirectory(net)
+
+if (LIBSG_NET)
+  add_subdirectory(net)
+endif ()
 
 if(LIBSG_IMGUI)
   add_subdirectory(imgui)
