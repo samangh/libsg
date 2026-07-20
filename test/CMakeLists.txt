@@ -52,7 +52,6 @@ setup_executable(
     src/enumeration.cpp
     src/format.cpp
     src/crc.cpp
-    src/libuv_wrapper.cpp
     src/file_writer.cpp
     src/uuid.cpp
     src/time.cpp

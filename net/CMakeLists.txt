@@ -14,7 +14,7 @@ setup_library(
 
   SOURCES_PRIVATE
     src/net.cpp
-    src/libuv_wrapper.cpp
+    src/net_uv.cpp
     src/tcp_session.cpp
     src/tcp_server.cpp
     src/asio_io_pool.cpp
@@ -28,9 +28,9 @@ setup_library(
   LINK_INTERFACE
   LINK_PUBLIC
     sg::common
-    libuv::libuv
     Boost::boost
   LINK_PRIVATE
+    libuv::libuv
     $<$<OR:$<BOOL:${MSYS2}>,$<BOOL:${WIN32}>>:Mswsock> # Needed for some Boost ASIO functions, can move to LINK_PRIVATE when tcp_server implementation is moved outside headers
   COMPILE_OPTIONS_INTERFACE
   COMPILE_OPTIONS_PUBLIC
