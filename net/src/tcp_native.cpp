@@ -1,7 +1,7 @@
-#include "sg/tcp_native.h"
+#include "sg/net/tcp_native.h"
+#include "sg/net/net.h"
 
 #include "sg/error.h"
-#include "sg/net.h"
 
 #include <limits>
 #include <stdexcept>

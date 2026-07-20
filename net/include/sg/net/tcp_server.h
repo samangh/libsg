@@ -1,23 +1,25 @@
 #pragma once
+#include <sg/export/net.h>
+
 #include "asio_io_pool.h"
-#include "buffer.h"
-#include "callback.h"
-#include "jthread.h"
 #include "net.h"
 #include "tcp_session.h"
-#include "worker.h"
+
+#include "sg/buffer.h"
+#include "sg/callback.h"
+#include "sg/worker.h"
 
 #include <boost/asio/awaitable.hpp>
 #include <boost/asio/io_context.hpp>
 #include <boost/asio/ip/tcp.hpp>
 #include <map>
-#include <sg/export/common.h>
+
 #include <thread_pool/thread_pool.h>
 
 namespace sg::net {
 
 
-class SG_COMMON_EXPORT tcp_server {
+class SG_NET_EXPORT tcp_server {
     /* notes:
      *
      *   - we store sessions as shared_ptr, so that when they user acquires them through the

@@ -65,7 +65,8 @@ setup_executable(
     ${DP_THREAD_POOL_DIR}/include
   INCLUDE_PRIVATE
   LINK_PRIVATE
-    SG::common
+    sg::common
+    sg::net
     Boost::boost
     Catch2::Catch2WithMain
 

@@ -3,11 +3,11 @@
 #include "net.h"
 #include "tcp_session.h"
 
-#include <sg/export/common.h>
+#include <sg/export/net.h>
 
 namespace sg::net {
 
-class SG_COMMON_EXPORT tcp_client {
+class SG_NET_EXPORT tcp_client {
   public:
     tcp_client();
     explicit tcp_client(std::shared_ptr<asio_io_pool> context);

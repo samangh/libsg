@@ -85,6 +85,7 @@ endif()
 ##
 
 add_subdirectory(common)
+add_subdirectory(net)
 
 if(LIBSG_IMGUI)
   add_subdirectory(imgui)

@@ -2,9 +2,9 @@
 #include <catch2/catch_test_macros.hpp>
 #include <sg/jthread.h>
 #include <sg/random.h>
-#include <sg/tcp_client.h>
-#include <sg/tcp_native.h>
-#include <sg/tcp_server.h>
+#include <sg/net/tcp_client.h>
+#include <sg/net/tcp_native.h>
+#include <sg/net/tcp_server.h>
 
 using namespace sg::net;
 

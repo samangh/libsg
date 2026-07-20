@@ -1,8 +1,8 @@
 #pragma once
-#include <sg/export/common.h>
+#include <sg/export/net.h>
 
-#include "callback.h"
-#include "jthread.h"
+#include "sg/callback.h"
+#include "sg/jthread.h"
 
 #include <boost/asio/io_context.hpp>
 
@@ -47,7 +47,7 @@ namespace sg::net {
  *
  * @see boost::asio::io_context
  */
-class SG_COMMON_EXPORT asio_io_pool {
+class SG_NET_EXPORT asio_io_pool {
     struct Private{ explicit Private() = default; };
 
   public:

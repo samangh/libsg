@@ -1,5 +1,5 @@
-#include "sg/tcp_session.h"
-#include "sg/tcp_native.h"
+#include "sg/net/tcp_session.h"
+#include "sg/net/tcp_native.h"
 #include "sg/debug.h"
 
 #include <boost/asio/as_tuple.hpp>

@@ -1,9 +1,10 @@
 #pragma once
 
-#include "buffer.h"
-#include "callback.h"
 #include "net.h"
 #include "tcp_native.h"
+
+#include "sg/buffer.h"
+#include "sg/callback.h"
 
 #include <boost/asio/any_io_executor.hpp>
 #include <boost/asio/awaitable.hpp>
@@ -15,7 +16,7 @@
 
 namespace sg::net {
 
-class SG_COMMON_EXPORT tcp_session : public std::enable_shared_from_this<tcp_session> {
+class SG_NET_EXPORT tcp_session : public std::enable_shared_from_this<tcp_session> {
     struct private_tag { explicit private_tag() = default; };
 
   public:

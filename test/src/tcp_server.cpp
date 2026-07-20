@@ -1,11 +1,12 @@
 #include <catch2/catch_test_macros.hpp>
 #include <catch2/generators/catch_generators.hpp>
 
-#include "sg/tcp_client.h"
-#include "sg/tcp_client_sync.h"
+#include "sg/net/tcp_client.h"
+#include "sg/net/tcp_client_sync.h"
+#include "sg/net/tcp_server.h"
+
 #include "sg/jthread.h"
 #include "sg/random.h"
-#include "sg/tcp_server.h"
 
 #include <boost/asio.hpp>
 #include <fmt/format.h>

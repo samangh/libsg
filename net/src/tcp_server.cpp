@@ -1,6 +1,7 @@
-#include "sg/tcp_server.h"
+#include "sg/net/tcp_server.h"
+#include "sg/net/tcp_native.h"
+
 #include "sg/debug.h"
-#include "sg/tcp_native.h"
 
 #include <boost/asio/co_spawn.hpp>
 #include <boost/asio/detached.hpp>

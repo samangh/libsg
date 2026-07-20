@@ -1,17 +1,17 @@
 #pragma once
 
 #include "asio_io_pool.h"
-#include "buffer.h"
-#include "debug.h"
 #include "net.h"
 #include "tcp_session.h"
+#include <sg/buffer.h>
+#include <sg/debug.h>
 
 #include <boost/asio/ip/tcp.hpp>
-#include <sg/export/common.h>
+#include <sg/export/net.h>
 
 namespace sg::net {
 
-class SG_COMMON_EXPORT tcp_client_sync {
+class SG_NET_EXPORT tcp_client_sync {
   public:
     tcp_client_sync();
     virtual ~tcp_client_sync();

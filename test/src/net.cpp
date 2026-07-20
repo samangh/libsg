@@ -1,5 +1,5 @@
 #include <catch2/catch_test_macros.hpp>
-#include <sg/net.h>
+#include <sg/net/net.h>
 
 #include <ranges>
 

@@ -1,6 +1,6 @@
 #include <catch2/catch_test_macros.hpp>
 
-#include "sg/asio_io_pool.h"
+#include "sg/net/asio_io_pool.h"
 
 #include <boost/asio/post.hpp>
 #include <thread>

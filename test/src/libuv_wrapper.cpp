@@ -1,6 +1,6 @@
 #include <catch2/catch_test_macros.hpp>
 
-#include <sg/libuv_wrapper.h>
+#include <sg/net/libuv_wrapper.h>
 
 TEST_CASE("SG::common libuv_wrapper: check callbacks are called") {
 

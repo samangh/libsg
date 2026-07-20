@@ -1,8 +1,8 @@
 #pragma once
 
-#include <sg/export/common.h>
+#include <sg/export/net.h>
 
-#include "exceptions.h"
+#include <sg/exceptions.h>
 
 #include <array>
 #include <cstdint>
@@ -71,7 +71,7 @@ struct keepalive_t {
  * @brief returns vector of all system interfaces
  * @return vector of all system interfaces
  */
-SG_COMMON_EXPORT std::vector<sg::net::interface_details> interfaces();
+SG_NET_EXPORT std::vector<sg::net::interface_details> interfaces();
 
 /**
  *
@@ -79,6 +79,6 @@ SG_COMMON_EXPORT std::vector<sg::net::interface_details> interfaces();
  * @param hostname
  * @return
  */
-SG_COMMON_EXPORT std::vector<std::string> resolve(const std::string& hostname);
+SG_NET_EXPORT std::vector<std::string> resolve(const std::string& hostname);
 
 }  // namespace sg::net

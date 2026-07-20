@@ -1,7 +1,7 @@
-#include "sg/tcp_client_sync.h"
+#include "sg/net/tcp_client_sync.h"
+#include "sg/net/tcp_native.h"
 
 #include "sg/string.h"
-#include "sg/tcp_native.h"
 
 #include <boost/asio.hpp>
 

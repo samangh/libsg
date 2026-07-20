@@ -1,7 +1,7 @@
 #include <catch2/catch_test_macros.hpp>
 
-#include <sg/tcp_client_sync.h>
-#include <sg/tcp_server.h>
+#include <sg/net/tcp_client_sync.h>
+#include <sg/net/tcp_server.h>
 
 using namespace sg::net;
 

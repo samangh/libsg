@@ -42,18 +42,10 @@ setup_library(
     src/cpu.cpp
     src/file_writer.cpp
     src/gettimeofday.cpp
-    src/net.cpp
     src/worker.cpp
     src/progress.cpp
     src/version.cpp
-    src/libuv_wrapper.cpp
     src/crc.cpp
-    src/tcp_session.cpp
-    src/tcp_server.cpp
-    src/asio_io_pool.cpp
-    src/tcp_client.cpp
-    src/tcp_client_sync.cpp
-    src/tcp_native.cpp
     src/uuid.cpp
     src/file.cpp
     src/process.cpp
@@ -68,13 +60,12 @@ setup_library(
   INCLUDE_PRIVATE
   LINK_INTERFACE
   LINK_PUBLIC
-    libuv::libuv
     fmt::fmt
     Boost::boost
-    $<$<OR:$<BOOL:${MSYS2}>,$<BOOL:${WIN32}>>:Mswsock> # Needed for some Boost ASIO functions, can move to LINK_PRIVATE when tcp_server implementation is moved outside headers
     $<$<BOOL:${LINUX}>:pfs>
     $<$<BOOL:${LIBSG_STACKTRACE}>:Boost::${SG_BOOST_STACKTRACE_COMP}>
   LINK_PRIVATE
+    libuv::libuv
     Threads::Threads
     $<$<BOOL:${WIN32}>:Winmm>
     $<$<BOOL:${WIN32}>:Kernel32.lib> #For sg::process functions
@@ -83,7 +74,6 @@ setup_library(
   COMPILE_OPTIONS_PUBLIC
     $<$<AND:$<OR:$<CXX_COMPILER_ID:Clang>,$<CXX_COMPILER_ID:AppleClang>>,$<STREQUAL:${STANDARD_LIBRARY},c++>>:-fexperimental-library> # for std::jthread with libc++
   COMPILE_OPTIONS_PRIVATE
-      $<$<NOT:$<CXX_COMPILER_ID:MSVC>>:-fno-strict-aliasing> # recommended by LibUV, otherwise libuv is not safe with optimisations
   COMPILE_FEATURES_INTERFACE
   COMPILE_FEATURES_PUBLIC
     cxx_std_20
