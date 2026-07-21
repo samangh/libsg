@@ -29,9 +29,9 @@ setup_library(
   LINK_PUBLIC
     sg::common
     Boost::boost
+    $<$<OR:$<BOOL:${MSYS2}>,$<BOOL:${WIN32}>>:Mswsock Ws2_32> # Needed for Boost ASIO, must be public becaue we use ASIO in public headers
   LINK_PRIVATE
     libuv::libuv
-    $<$<OR:$<BOOL:${MSYS2}>,$<BOOL:${WIN32}>>:Mswsock> # Needed for some Boost ASIO functions, can move to LINK_PRIVATE when tcp_server implementation is moved outside headers
   COMPILE_OPTIONS_INTERFACE
   COMPILE_OPTIONS_PUBLIC
   COMPILE_OPTIONS_PRIVATE
