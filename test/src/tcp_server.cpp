@@ -565,6 +565,32 @@ TEST_CASE("tcp_server: check destructor works if start(...) not started", "[sg::
     { tcp_server l; }
 }
 
+TEST_CASE("tcp_server: check the same server can be restarted after stop", "[sg::net::tcp_server]") {
+    using namespace sg::net;
+
+    end_point ep("127.0.0.1", PORT);
+
+    tcp_server::CallBacks cb;
+    cb.OnSessionDataAvailable = [](tcp_server& l, tcp_server::session_id_t id,
+                                   const std::byte* data, size_t length) {
+        l.session(id)->write(data, length);
+    };
+
+    tcp_server l;
+
+    for (auto round = 0; round < 3; ++round) {
+        l.start({ep}, cb);
+
+        tcp_client_sync client;
+        client.connect(ep);
+        client.write(fmt::format("round{}\n", round));
+        REQUIRE(client.read_until("\n") == fmt::format("round{}\n", round));
+
+        l.stop_async();
+        l.future_get_once();
+    }
+}
+
 #if !defined(__APPLE__)
 TEST_CASE("tcp_server: you can't listen to same port twice", "[sg::net::tcp_server]") {
     using namespace sg::net;

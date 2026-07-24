@@ -66,6 +66,9 @@ void tcp_server::start(std::vector<end_point> endpoints, CallBacks callbacks, op
         m_options = options;
         m_callbacks = std::move(callbacks);
 
+        // must do this before the m_context is cleared (acceptor destructor will use the context)
+        m_acceptors.clear();
+
         auto stoppedTask = std::bind(&tcp_server::on_io_pool_stopped, this, std::placeholders::_1);
         m_context = asio_io_pool::create(options.no_threads, false, stoppedTask);
 
@@ -73,7 +76,6 @@ void tcp_server::start(std::vector<end_point> endpoints, CallBacks callbacks, op
 
         m_endpoints = endpoints;
         m_last_id = 0;
-        m_acceptors.clear();
 
         m_promise_started_listening = std::promise<void>();
 
