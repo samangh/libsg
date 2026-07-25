@@ -104,8 +104,6 @@ class SG_NET_EXPORT tcp_server {
 
     boost::asio::awaitable<void> listener(std::shared_ptr<boost::asio::ip::tcp::acceptor> acceptor);
 
-    /* Performs the throwing part of start-up (open/bind/listen) while the io context is not yet
-     * running, so that a failure leaves no listener coroutine live to unwind. */
     void bind_acceptors();
     void on_io_pool_stopped(asio_io_pool&);
 

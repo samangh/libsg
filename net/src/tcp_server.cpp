@@ -102,7 +102,7 @@ void tcp_server::start(std::vector<end_point> endpoints, CallBacks callbacks, op
         auto stoppedTask = std::bind(&tcp_server::on_io_pool_stopped, this, std::placeholders::_1);
         m_context = asio_io_pool::create(options.no_threads, false, stoppedTask);
 
-        /* clear acceptors from last run, then bind the new ones */
+        /* start listening sockets, this is the part likely yo throw */
         bind_acceptors();
 
         /* Each acceptor was bound to its own strand in bind_acceptors(); co_spawn the listener
