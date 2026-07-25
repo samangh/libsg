@@ -88,13 +88,11 @@ class SG_NET_EXPORT tcp_server {
     std::atomic<size_t> m_last_id{0};
 
     std::vector<end_point> m_endpoints;
-    std::promise<void> m_promise_started_listening;
     std::shared_ptr<sg::net::asio_io_pool> m_context;
 
     //m_acceptors are kept for use by set_keepalive/set_timeout
     std::vector<std::shared_ptr<boost::asio::ip::tcp::acceptor>> m_acceptors;
     std::atomic<size_t> m_acceptors_running_count{0};
-    std::atomic<bool> m_acceptors_stopped{false};
 
     CallBacks m_callbacks;
 
@@ -106,7 +104,9 @@ class SG_NET_EXPORT tcp_server {
 
     boost::asio::awaitable<void> listener(std::shared_ptr<boost::asio::ip::tcp::acceptor> acceptor);
 
-    void start_listening();
+    /* Performs the throwing part of start-up (open/bind/listen) while the io context is not yet
+     * running, so that a failure leaves no listener coroutine live to unwind. */
+    void bind_acceptors();
     void on_io_pool_stopped(asio_io_pool&);
 
     void inform_user_of_data(session_id_t id, const std::byte* data, size_t size);

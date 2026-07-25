@@ -26,24 +26,47 @@ void tcp_server::stop_async() {
         return;
 
     m_stopping_thread = std::jthread([this]() {
-        /* Socket operations should be run on the io_context, as they are not thread safe.*/
+        /* Socket operations should be run on the io_context, as they are not thread safe.
+         *
+         * If the context is not running we must close directly instead. That happens when we
+         * are unwinding a start() that failed before the context came up. */
+        const bool context_running = m_context && m_context->is_running();
         for (const auto& acceptor : m_acceptors) {
-            boost::asio::post(acceptor->get_executor(), [acceptor]() {
+            if (context_running)
+                boost::asio::post(acceptor->get_executor(), [acceptor]() {
+                    try {
+                        acceptor->close();
+                    } catch (...) {}
+                });
+            else
                 try {
                     acceptor->close();
                 } catch (...) {}
-            });
         }
 
-        /* wait until every listener coroutine has exited (the last one to unwind sets this flag).*/
-        m_acceptors_stopped.wait(false, std::memory_order::acquire);
+        /* Wait until every listener coroutine has exited.
+         *
+         * Only wait while the context can still make progress. A context that
+         * is gone, or that has been prematurely stopped, never resumes a
+         * listener suspended in async_accept -- its queued handlers are simply
+         * dropped -- so that listener never reaches the decrement at the end of
+         * listener(). A start() that failed inside m_context->run() leaves
+         * exactly that state. */
+        if (m_context && m_context->is_running()) {
+            for (size_t n; (n = m_acceptors_running_count.load(std::memory_order::acquire)) != 0; )
+                m_acceptors_running_count.wait(n, std::memory_order::acquire);
+        } else {
+            // if we are skipping this, set to zero to tidy up
+            m_acceptors_running_count.store(0, std::memory_order::release);
+        }
+
         disconnect_all();
 
         /* wait until all clients disconnected and all callbacks called, etc */
         for (size_t n; (n = m_active_sessions.load(std::memory_order::acquire)) != 0; )
             m_active_sessions.wait(n, std::memory_order::acquire);
 
-        if (m_context->is_running()) {
+        if (m_context && m_context->is_running()) {
             m_context->stop_async();
             m_context->wait_for_stop();
         }
@@ -59,29 +82,59 @@ void tcp_server::start(std::vector<end_point> endpoints, CallBacks callbacks, op
 
     if (m_running.exchange(true))
         SG_THROW(std::runtime_error, "tcp_server is already running");
-
     m_running.notify_all();
+
+    // if these are not zero, something has gone wrong in stopping our last run!
+    assert(m_active_sessions == 0);
+    assert(m_acceptors_running_count == 0);
 
     try {
         m_options = options;
         m_callbacks = std::move(callbacks);
+        m_stop_in_operation.store(false);
+        m_last_id = 0;
+        m_endpoints = endpoints;
 
-        // must do this before the m_context is cleared (acceptor destructor will use the context)
+        /* clear acceptors before re-setting context, just in case their destructors need a valid
+         * context */
         m_acceptors.clear();
 
         auto stoppedTask = std::bind(&tcp_server::on_io_pool_stopped, this, std::placeholders::_1);
         m_context = asio_io_pool::create(options.no_threads, false, stoppedTask);
 
-        m_stop_in_operation.store(false);
+        /* clear acceptors from last run, then bind the new ones */
+        bind_acceptors();
 
-        m_endpoints = endpoints;
-        m_last_id = 0;
+        /* Each acceptor was bound to its own strand in bind_acceptors(); co_spawn the listener
+         * onto that same strand so every operation on the acceptor stays serialised.
+         *
+         * None of these coroutines can execute yet -- they only start once the context is run,
+         * at the end of this function. That ordering is what keeps start-up recoverable: an
+         * exception anywhere above leaves bound sockets and queued coroutines, but nothing live. */
+        for (const auto& a : m_acceptors)
+            boost::asio::co_spawn(a->get_executor(), listener(a), boost::asio::detached);
+        m_acceptors_running_count.store(m_acceptors.size(), std::memory_order::release);
 
-        m_promise_started_listening = std::promise<void>();
+        /* invoke this before the context starts processing accepts, so that OnStartedListening()
+         * always precedes OnDataAvailable() */
+        if (m_callbacks.OnStartedListening)
+            m_callbacks.OnStartedListening.invoke(*this);
 
-        start_listening();
         m_context->run();
     } catch (...) {
+        /* Nothing is left running once the pool is gone: either we never reached run(), so the
+         * queued coroutines never executed, or run() itself failed -- and it stops the context
+         * and joins its workers before rethrowing. Destroying the pool destroys the io_context
+         * and with it those coroutine frames.
+         *
+         * clear acceptors before re-setting context, just in case their destructors need a valid
+         * context */
+        m_acceptors.clear();
+        m_context.reset();
+
+        /* needed in case m_context->run() throws */
+        m_acceptors_running_count.store(0);
+
         m_running.store(false);
         m_running.notify_all();
         throw;
@@ -138,9 +191,6 @@ tcp_server::ptr tcp_server::session(session_id_t id) {
 
 boost::asio::awaitable<void>
 tcp_server::listener(std::shared_ptr<boost::asio::ip::tcp::acceptor> acceptor) {
-    ++m_acceptors_running_count;
-    m_acceptors_stopped.store(false, std::memory_order::release);
-
     try {
         while (!m_stop_in_operation.load(std::memory_order::acquire)) {
             auto id = m_last_id++;
@@ -200,13 +250,11 @@ tcp_server::listener(std::shared_ptr<boost::asio::ip::tcp::acceptor> acceptor) {
         stop_async();
     }
 
-    if (--m_acceptors_running_count==0) {
-        m_acceptors_stopped.store(true);
-        m_acceptors_stopped.notify_all();
-    }
+    m_acceptors_running_count.fetch_sub(1, std::memory_order::acq_rel);
+    m_acceptors_running_count.notify_all();
 }
 
-void tcp_server::start_listening() {
+void tcp_server::bind_acceptors() {
     for (const auto& e : m_endpoints) {
         boost::asio::ip::tcp::endpoint ep(boost::asio::ip::make_address(e.ip), e.port);
 
@@ -230,12 +278,8 @@ void tcp_server::start_listening() {
         a->bind(ep);
         a->listen();
 
-        boost::asio::co_spawn(strand, listener(a), boost::asio::detached);
         m_acceptors.push_back(a);
     }
-
-    if (m_callbacks.OnStartedListening)
-        m_callbacks.OnStartedListening.invoke(*this);
 }
 
 void tcp_server::on_io_pool_stopped(asio_io_pool&) {
