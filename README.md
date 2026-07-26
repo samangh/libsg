@@ -182,11 +182,15 @@ int main() {
             s.write(id, data, size);
         };
 
-    tcp_server server;
-    server.start({{"127.0.0.1", 55555}}, cb);
-    server.future_get_once(); // wait until stopped
+    // launch() returns a server that is already listening; destroying it stops it
+    auto server = tcp_server::launch({{"127.0.0.1", 55555}}, cb);
+    server->wait_until_stopped();
 }
 ```
+
+There is no start/stop/start lifecycle: a server is either running or being torn down. To restart,
+drop the object and launch a new one. Any callback may call `server->stop_async()`, which returns
+immediately.
 
 Add connection lifecycle callbacks the same way:
 

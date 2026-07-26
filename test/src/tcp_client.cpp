@@ -27,10 +27,9 @@ TEST_CASE("tcp_client: check connect", "[sg::net::tcp_client]") {
             srv.write(sess, echo.c_str(), echo.size());
         };
 
-    sg::net::tcp_server server;
     tcp_server::CallBacks callbacks;
     callbacks.OnSessionDataAvailable = on_data;
-    server.start({ep}, callbacks);
+    auto server = tcp_server::launch({ep}, callbacks);
 
     /* client: collect echo response */
     tcp_session::Callbacks::OnDataAvailable onClientdata = [&](tcp_session&, const std::byte* dat, size_t size) {
@@ -54,12 +53,11 @@ TEST_CASE("tcp_client: check connect", "[sg::net::tcp_client]") {
 TEST_CASE("tcp_client: check disconnect()", "[sg::net::tcp_client]") {
     std::binary_semaphore can_stop{0};
 
-    tcp_server server;
     tcp_server::CallBacks callbacks;
     callbacks.OnDisconnected = [&](tcp_server&, tcp_server::session_id_t,
                                    std::exception_ptr) { can_stop.release(); };
 
-    server.start({ep}, callbacks);
+    auto server = tcp_server::launch({ep}, callbacks);
 
     auto client  = tcp_client();
     client.connect(ep, nullptr, nullptr);
@@ -95,8 +93,7 @@ TEST_CASE("tcp_client: check multiple reconnections", "[sg::net::tcp_client]") {
     callbacks.OnDisconnected = [&](tcp_server&, tcp_server::session_id_t,
                                    std::exception_ptr) { ++disconnections; };
 
-    tcp_server server;
-    server.start({ep}, callbacks);
+    auto server = tcp_server::launch({ep}, callbacks);
 
     tcp_session::options_t options;
 
@@ -128,8 +125,8 @@ TEST_CASE("tcp_client: check multiple reconnections", "[sg::net::tcp_client]") {
     while (connections.load() < expected && std::chrono::steady_clock::now() < deadline)
         std::this_thread::sleep_for(std::chrono::milliseconds(1));
 
-    server.stop_async();
-    server.future_get_once();
+    server->stop_async();
+    server->wait_until_stopped();
 
     REQUIRE(connections == expected);
 
@@ -200,8 +197,7 @@ TEST_CASE("tcp_client: set recv_buffer_size via options", "[sg::net::tcp_client]
     tcp_session::options_t options;
     options.recv_buffer_size = 16384;
 
-    tcp_server server;
-    server.start({ep}, tcp_server::CallBacks{});
+    auto server = tcp_server::launch({ep}, tcp_server::CallBacks{});
 
     auto client = tcp_client();
     client.connect(ep, nullptr, nullptr, options);
@@ -216,8 +212,7 @@ TEST_CASE("tcp_client: set send_buffer_size via options", "[sg::net::tcp_client]
     tcp_session::options_t options;
     options.send_buffer_size = 16384;
 
-    tcp_server server;
-    server.start({ep}, tcp_server::CallBacks{});
+    auto server = tcp_server::launch({ep}, tcp_server::CallBacks{});
 
     auto client = tcp_client();
     client.connect(ep, nullptr, nullptr, options);
@@ -238,12 +233,11 @@ TEST_CASE("tcp_client: client disconnects when destructed (with shared asio_io_p
     pool->run();
 
     // server
-    tcp_server server;
     tcp_server::CallBacks cbs;
     cbs.OnDisconnected = [&](tcp_server&, tcp_server::session_id_t, std::exception_ptr) {
         serverDisconnSem.release();
     };
-    server.start({ep}, cbs);
+    auto server = tcp_server::launch({ep}, cbs);
 
     // client
     {

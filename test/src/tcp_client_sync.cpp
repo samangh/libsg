@@ -15,8 +15,7 @@ TEST_CASE("tcp_client_sync: unused client can be destructed", "[sg::net::tcp_cli
 TEST_CASE("tcp_client_sync: check destructor works after disconnect", "[sg::net::tcp_client_sync]") {
     tcp_client_sync client;
     {
-        tcp_server server;
-        server.start({ep}, tcp_server::CallBacks());
+        auto server = tcp_server::launch({ep}, tcp_server::CallBacks());
         client.connect(ep);
     }
 }
@@ -25,7 +24,6 @@ TEST_CASE("tcp_client_sync: check connect/disconn", "[sg::net::tcp_client_sync]"
     std::binary_semaphore connected{0};
     std::binary_semaphore disconn{0};
 
-    tcp_server server;
     tcp_server::session_created_cb_t onConn= [&](tcp_server&, tcp_server::session_id_t) {
         connected.release();
     };
@@ -37,7 +35,7 @@ TEST_CASE("tcp_client_sync: check connect/disconn", "[sg::net::tcp_client_sync]"
     tcp_server::CallBacks cb;
     cb.OnSessionCreated = onConn;
     cb.OnDisconnected=Disconn;
-    server.start({ep}, cb);
+    auto server = tcp_server::launch({ep}, cb);
 
     tcp_client_sync client;
 
@@ -53,7 +51,6 @@ TEST_CASE("tcp_client_sync: check connect/disconn", "[sg::net::tcp_client_sync]"
 TEST_CASE("tcp_client_sync: check disconnection on destructor", "[sg::net::tcp_client_sync]") {
     std::binary_semaphore disconn{0};
 
-    tcp_server server;
     tcp_server::session_disconnected_cb_t Disconn = [&](tcp_server&, tcp_server::session_id_t,
                                                         std::exception_ptr) {
         disconn.release();
@@ -61,7 +58,7 @@ TEST_CASE("tcp_client_sync: check disconnection on destructor", "[sg::net::tcp_c
 
     tcp_server::CallBacks cb;
     cb.OnDisconnected = Disconn;
-    server.start({ep}, cb);
+    auto server = tcp_server::launch({ep}, cb);
 
     {
         tcp_client_sync client;
@@ -73,14 +70,13 @@ TEST_CASE("tcp_client_sync: check disconnection on destructor", "[sg::net::tcp_c
 TEST_CASE("tcp_client_sync: check read_until()", "[sg::net::tcp_client_sync]") {
     std::binary_semaphore disconn{0};
 
-    tcp_server server;
-    tcp_server::session_created_cb_t onConn= [&](tcp_server&, tcp_server::session_id_t id) {
-        server.write(id, "\nHELLO1\nHELLO2\nHELLO3\n");
+    tcp_server::session_created_cb_t onConn= [](tcp_server& s, tcp_server::session_id_t id) {
+        s.write(id, "\nHELLO1\nHELLO2\nHELLO3\n");
     };
 
     tcp_server::CallBacks cb;
     cb.OnSessionCreated = onConn;
-    server.start({ep}, cb);
+    auto server = tcp_server::launch({ep}, cb);
 
     tcp_client_sync client;
     client.connect(ep);
@@ -93,14 +89,13 @@ TEST_CASE("tcp_client_sync: check read_until()", "[sg::net::tcp_client_sync]") {
 TEST_CASE("tcp_client_sync: check read_some()", "[sg::net::tcp_client_sync]") {
     std::binary_semaphore disconn{0};
 
-    tcp_server server;
-    tcp_server::session_created_cb_t onConn= [&](tcp_server&, tcp_server::session_id_t id) {
-        server.write(id, "\n1234567890");
+    tcp_server::session_created_cb_t onConn= [](tcp_server& s, tcp_server::session_id_t id) {
+        s.write(id, "\n1234567890");
     };
 
     tcp_server::CallBacks cb;
     cb.OnSessionCreated = onConn;
-    server.start({ep}, cb);
+    auto server = tcp_server::launch({ep}, cb);
 
     tcp_client_sync client;
     client.connect(ep);
@@ -114,15 +109,14 @@ TEST_CASE("tcp_client_sync: check read_some()", "[sg::net::tcp_client_sync]") {
 TEST_CASE("tcp_client_sync: check write()", "[sg::net::tcp_client_sync]") {
     std::binary_semaphore dataReceived{0};
 
-    tcp_server server;
-    tcp_server::session_data_available_cb_t onData = [&](tcp_server&, tcp_server::session_id_t id,
-                                                         const std::byte* data, size_t size) {
-        server.write(id, data, size);
+    tcp_server::session_data_available_cb_t onData = [](tcp_server& s, tcp_server::session_id_t id,
+                                                        const std::byte* data, size_t size) {
+        s.write(id, data, size);
     };
 
     tcp_server::CallBacks cb;
     cb.OnSessionDataAvailable = onData;
-    server.start({ep}, cb);
+    auto server = tcp_server::launch({ep}, cb);
 
     tcp_client_sync client;
     client.connect(ep);
@@ -140,8 +134,7 @@ TEST_CASE("tcp_client_sync: check reading when disconnected throws an error", "[
 TEST_CASE("tcp_client_sync: check timeout()", "[sg::net::tcp_client_sync]") {
     std::binary_semaphore dataReceived{0};
 
-    tcp_server server;
-    server.start({ep}, {});
+    auto server = tcp_server::launch({ep}, {});
 
     tcp_client_sync client;
     client.connect(ep);
