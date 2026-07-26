@@ -22,6 +22,7 @@ tcp_session::tcp_session(private_tag, boost::asio::ip::tcp::socket socket, Callb
                          options_t options)
 : m_socket(std::move(socket)),
   m_strand(boost::asio::make_strand(m_socket.get_executor())),
+  m_resume_event(m_strand, boost::asio::steady_timer::time_point::max()),
   m_options(options),
   m_callbacks(std::move(cb)) {};
 
@@ -136,6 +137,31 @@ void tcp_session::set_keepalive(keepalive_t keepAliveParameters) {
 void tcp_session::set_timeout(unsigned timeoutMSec) {
     run_in_executor([this, timeoutMSec]() { apply_timeout_unsafe(timeoutMSec); });
 }
+
+/* Both dispatch rather than post, so that a pause requested from inside on_data_cb -- which runs on
+ * m_strand -- takes effect inline, before reader() loops round to its next read. */
+void tcp_session::pause_reading() {
+    boost::asio::dispatch(m_strand, [self = shared_from_this()]() {
+        self->m_read_paused.store(true, std::memory_order::release);
+    });
+}
+
+void tcp_session::resume_reading() {
+    boost::asio::dispatch(m_strand, [self = shared_from_this()]() {
+        self->m_read_paused.store(false, std::memory_order::release);
+
+        /* A no-op if the reader is not parked, which is why clearing the flag has to come first:
+         * together they make a wake-up impossible to lose (see reader()). */
+        try {
+            self->m_resume_event.cancel();
+        } catch (...) {}
+    });
+}
+
+bool tcp_session::is_reading_paused() const noexcept {
+    return m_read_paused.load(std::memory_order::acquire);
+}
+
 enum tcp_session::state_t tcp_session::state() const noexcept {
     return m_state.load(std::memory_order::acquire);
 }
@@ -227,6 +253,14 @@ void tcp_session::close_impl() {
         m_socket.close();
     } catch (...) {}
 
+    /* Closing the socket does not disturb a reader parked on the resume event, and nothing else
+     * would ever wake it: it would stay suspended for the lifetime of the io_context, holding the
+     * shared_from_this() in its coroutine frame. Safe to touch here -- we are on m_strand. */
+    m_read_paused.store(false, std::memory_order::release);
+    try {
+        m_resume_event.cancel();
+    } catch (...) {}
+
     std::exception_ptr exPtr;
     {
         std::lock_guard lock(m_exception_mutex);
@@ -254,6 +288,20 @@ boost::asio::awaitable<void> tcp_session::reader() {
 
         auto data = std::make_unique<std::byte[]>(size);
         while (m_socket.is_open()) {
+            /* No wake-up can be lost here. The check and the async_wait initiation happen inside one
+             * strand handler with no suspension point between them, so resume_reading()'s handler
+             * either ran before the check -- in which case the flag is already clear and we do not
+             * wait at all -- or runs after the wait is pending, and its cancel() completes it.
+             *
+             * The error code is discarded and the loop restarted rather than the read being issued
+             * here, so that a close while parked is seen (is_open()) and a stale cancel cannot let a
+             * read through while still paused. */
+            if (m_read_paused.load(std::memory_order::acquire)) {
+                co_await m_resume_event.async_wait(
+                    boost::asio::as_tuple(boost::asio::use_awaitable));
+                continue;
+            }
+
             if (m_options.dont_read) {
                 co_await m_socket.async_wait(boost::asio::ip::tcp::socket::wait_read, boost::asio::use_awaitable);
                 if (m_callbacks.onDataAvailable)

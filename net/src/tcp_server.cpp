@@ -8,30 +8,35 @@
 #include <boost/asio/strand.hpp>
 #include <boost/asio/use_future.hpp>
 
+#include <algorithm>
+#include <limits>
+
 namespace sg::net {
+
+namespace {
+/* Lower bound on the pause threshold, whatever the socket reports. Large enough that any ordinary
+ * message is delivered well inside it, small enough to be irrelevant per session. */
+constexpr size_t min_pause_threshold = 64 * 1024;
+}
 
 tcp_server::tcp_server(private_tag, CallBacks callbacks, options_t options)
     : m_callbacks(std::move(callbacks)), m_options(options) {
 
-    /* Bring the callback pool up before anything can post to it. Guarded (the `true`), so that it
-     * stays alive through the idle stretches between sessions instead of stopping itself the first
-     * time it runs out of work -- see the member's declaration. No stopped-callback: its stop is not
-     * a server event and must not be confused with OnStoppedListening.
-     *
-     * If this throws, the object simply fails to construct and launch() propagates it. */
+    /* Up before anything can post to it. Guarded (the `true`) so it survives idle stretches between
+     * sessions -- see the member's declaration. No stopped-callback: its stop is not a server event
+     * and must not be confused with OnStoppedListening. */
     m_cb_pool = asio_io_pool::create(m_options.no_callback_threads, true, nullptr);
     m_cb_pool->run();
 
-    /* Park the teardown thread now, so that stop_async() never has to create one. */
+    /* Parked now, so stop_async() never has to create a thread. */
     m_teardown_thread = std::jthread([this]() {
-        /* Wait for launch() to finish before touching anything: a stop requested from a callback
-         * during construction must not race bind_and_run()'s use of m_context. */
+        /* A stop requested from a callback during construction must not race bind_and_run()'s use
+         * of m_context. */
         m_launch_done.wait(false, std::memory_order::acquire);
         m_stop_requested.wait(false, std::memory_order::acquire);
 
-        /* Contain everything. An exception escaping this lambda would terminate the process, and
-         * leaving m_stopped unset would hang every wait_until_stopped() -- including the one in
-         * our own destructor. */
+        /* An escaping exception would terminate the process, and leaving m_stopped unset would hang
+         * every wait_until_stopped() -- including our own destructor's. */
         try {
             teardown();
         } catch (...) {
@@ -50,7 +55,7 @@ std::unique_ptr<tcp_server> tcp_server::launch(std::vector<end_point> endpoints,
 
     auto server = std::make_unique<tcp_server>(private_tag{}, std::move(callbacks), options);
 
-    /* Deliberately no try/catch: if this throws the destructor of server cleans up */
+    /* No try/catch: if this throws, ~tcp_server() cleans up. */
     server->bind_and_run(endpoints);
 
     return server;
@@ -60,10 +65,9 @@ tcp_server::~tcp_server() {
     stop_async();
     wait_until_stopped();
 
-    /* teardown() has already done this on its way out. Repeat it unconditionally so that even a
-     * teardown() that threw part-way cannot leave callback threads running on into member
-     * destruction -- they touch m_sessions, m_mutex and m_callbacks, all of which die below.
-     * Both calls are no-ops once the pool has stopped. */
+    /* teardown() already did this; repeated (a no-op once stopped) so that even a teardown() that
+     * threw part-way cannot leave callback threads running into member destruction -- they touch
+     * m_sessions, m_mutex and m_callbacks, all of which die below. */
     m_cb_pool->stop_async();
     m_cb_pool->wait_for_stop();
 }
@@ -80,9 +84,9 @@ void tcp_server::wait_until_stopped() const {
 bool tcp_server::is_stopped() const { return m_stopped.load(std::memory_order::acquire); }
 
 void tcp_server::bind_and_run(const std::vector<end_point>& endpoints) {
-    /* Release the teardown thread when we leave, however we leave. Until then a stop requested by
-     * a user callback below is recorded but not acted on, so it can neither be lost nor race our
-     * own use of m_context. */
+    /* Releases the teardown thread however we leave. Until then a stop requested by a user callback
+     * below is recorded but not acted on, so it can neither be lost nor race our use of
+     * m_context. */
     struct gate_release {
         std::atomic<bool>& flag;
         ~gate_release() {
@@ -94,17 +98,17 @@ void tcp_server::bind_and_run(const std::vector<end_point>& endpoints) {
     auto stoppedTask = std::bind(&tcp_server::on_io_pool_stopped, this, std::placeholders::_1);
     m_context = asio_io_pool::create(m_options.no_io_threads, false, stoppedTask);
 
-    /* Bind first. This is the part that throws (e.g. the address is already in use), and it runs
-     * while the context is idle, so a failure cannot leave a listener executing. */
+    /* Bind first. This is the part that throws (e.g. address in use), and it runs while the context
+     * is idle, so a failure cannot leave a listener executing. */
     for (const auto& e : endpoints) {
         boost::asio::ip::tcp::endpoint ep(boost::asio::ip::make_address(e.ip), e.port);
 
-        /* One strand per acceptor: an acceptor is not thread-safe, so with more than one io worker
-         * an in-flight async_accept and the close() posted by teardown() could otherwise run
-         * concurrently. Routing both through one strand serialises them without a mutex.
+        /* An acceptor is not thread-safe, so with >1 io worker an in-flight async_accept and the
+         * close() posted by teardown() could run concurrently; one strand serialises them without a
+         * mutex.
          *
-         * Note keep-alive and timeout are deliberately not set here: they are inherited on some
-         * platforms (Linux) but not others (Windows), so they are set per-session instead. */
+         * Keep-alive and timeout are deliberately not set here -- they are inherited on Linux but
+         * not Windows, so they are set per-session instead. */
         auto strand = boost::asio::make_strand(m_context->context());
 
         auto a = std::make_shared<boost::asio::ip::tcp::acceptor>(strand);
@@ -117,38 +121,35 @@ void tcp_server::bind_and_run(const std::vector<end_point>& endpoints) {
         m_acceptors.push_back(std::move(a));
     }
 
-    /* Fire this before anything is queued, so that a throwing callback cannot leave orphaned
-     * coroutines behind, and before the context can process an accept, so OnStartedListening
-     * always precedes OnDataAvailable. Note the callback receives *this, so from here the object
-     * is reachable by user code and may have a stop requested on it. */
+    /* Before anything is queued, so a throwing callback cannot orphan coroutines, and before the
+     * context can process an accept, so OnStartedListening always precedes OnDataAvailable. The
+     * callback receives *this, so from here the object is reachable by user code and may have a stop
+     * requested on it. */
     if (m_callbacks.OnStartedListening)
         m_callbacks.OnStartedListening.invoke(*this);
 
-    /* Queue the listeners. None can execute until the context is run below, so up to that point an
-     * exception leaves bound sockets and queued coroutines but nothing live. use_future gives us a
-     * join point for teardown() at no extra cost. */
+    /* None can execute until run() below, so up to that point an exception leaves bound sockets and
+     * queued coroutines but nothing live. use_future gives teardown() a join point for free. */
     for (const auto& a : m_acceptors)
         m_listeners_done.push_back(
             boost::asio::co_spawn(a->get_executor(), listener(a), boost::asio::use_future));
 
-    /* Brings the listeners to life. Nothing below here may throw, or fail to record that the
-     * context is up -- teardown() decides whether the listener futures are joinable or must be
-     * abandoned on exactly this fact. */
+    /* Nothing below here may throw, or fail to record that the context is up -- teardown() decides
+     * whether the listener futures are joinable on exactly this fact. */
     m_context->run();
     m_context_ran.store(true, std::memory_order::release);
 }
 
 void tcp_server::close_acceptors() {
-    /* Socket operations belong on the io_context, as they are not thread-safe, so while the context
-     * is live the close goes through the acceptor's own strand.
+    /* Socket operations are not thread-safe, so while the context is live the close goes through the
+     * acceptor's own strand. When it is not live we must close directly, since a post() would never
+     * execute.
      *
-     * When it is not live we must close directly instead, because a post() would never be executed.
-     * That is safe here, though not quite for the reason "not running" suggests: is_running() also
-     * reads false in the pool's `stopping` state, where the workers have not yet been joined. What
-     * rules out a concurrent touch is narrower -- either the context never ran, so no worker ever
-     * existed, or it drained naturally, and a natural drain means asio's work count reached zero, so
-     * no handler is queued or executing and in particular no listener is still parked in
-     * async_accept. A drain is the only way to get here with a stopped context: the one explicit
+     * That is safe, though not for the reason "not running" suggests -- is_running() also reads
+     * false in the pool's `stopping` state, where workers are not yet joined. What actually rules
+     * out a concurrent touch: either the context never ran, so no worker ever existed, or it drained
+     * naturally, meaning asio's work count reached zero and no listener is still parked in
+     * async_accept. A drain is the only way to get here with a stopped context -- the one explicit
      * stop is in teardown(), after this call. */
     const bool context_running = m_context && m_context->is_running();
 
@@ -169,16 +170,13 @@ void tcp_server::close_acceptors() {
 void tcp_server::teardown() {
     close_acceptors();
 
-    /* Join every listener -- but only if the context was actually brought up.
+    /* Only joinable if the context was brought up. Otherwise (launch() threw before run(), or run()
+     * itself failed) the coroutines sit queued on a context that will never execute them, so their
+     * promises can never be satisfied and get() would block forever. Dropping the futures is safe:
+     * destroying a co_spawn future waits on nothing, and the frames die with the io_context.
      *
-     * Where it was not (a launch() that threw before run(), or run() itself failing) the listener
-     * coroutines sit queued on a context that will never execute them, so their promises can never
-     * be satisfied and get() would block forever. Dropping the futures instead is safe: destroying
-     * a co_spawn future does not wait on anything, and the frames are destroyed along with the
-     * io_context when the object is destroyed.
-     *
-     * m_context_ran is used rather than is_running() because is_running() cannot tell "never came
-     * up" from "came up and has already drained": both report false. */
+     * m_context_ran rather than is_running(), which cannot tell "never came up" from "already
+     * drained". */
     if (m_context_ran.load(std::memory_order::acquire))
         for (auto& f : m_listeners_done)
             try {
@@ -190,33 +188,32 @@ void tcp_server::teardown() {
     for (size_t n; (n = m_active_sessions.load(std::memory_order::acquire)) != 0;)
         m_active_sessions.wait(n, std::memory_order::acquire);
 
-    /* Wait for the pool cycle to finish unconditionally -- deliberately NOT guarded on
-     * is_running(). The pool has no work guard, so once the acceptors are closed and the last
-     * session is gone it drains by itself and is_running() goes false while its monitor thread is
-     * still about to invoke our stopped-callback (and hence OnStoppedListening). Guarding here
-     * would let teardown finish before that callback ran.. */
+    /* Deliberately NOT guarded on is_running(). The pool has no work guard, so once the acceptors
+     * are closed and the last session is gone it drains by itself and is_running() goes false while
+     * its monitor thread is still about to invoke OnStoppedListening. Guarding would let teardown
+     * finish before that callback ran. */
     if (m_context) {
         m_context->stop_async();
         m_context->wait_for_stop();
     }
 
-    /* The close() that close_acceptors() posted is not guaranteed to have run: stopping the
-     * context discards whatever is still queued, and that is exactly what happens when a listener
-     * finished without ever reaching async_accept -- a stop requested before the listeners first
-     * ran. On the ordinary path the close is implicit, because a listener suspended in
-     * async_accept can only complete once it has executed; on this path nothing forces it, and the
-     * socket would stay bound for as long as the object lived. */
+    /* The close() posted by close_acceptors() is not guaranteed to have run: stopping the context
+     * discards whatever is still queued, which is what happens when a listener finished without
+     * ever reaching async_accept (a stop requested before the listeners first ran). On the ordinary
+     * path the close is implicit -- a listener suspended in async_accept can only complete once it
+     * has executed -- but here nothing forces it, and the socket would stay bound for the lifetime
+     * of the object. */
     for (const auto& acceptor : m_acceptors)
         try {
             acceptor->close();
         } catch (...) {}
 
-    /* Last, because the drain above is what makes it safe: m_active_sessions reaching zero means
-     * every session strand has run its final handler, so nothing is still queued here. That matters
-     * because stop_async() discards queued handlers rather than running them -- the work guard means
-     * the pool would otherwise never stop on its own, but it also means a stop is abrupt.
+    /* Last, because the drain above is what makes it safe: stop_async() discards queued handlers
+     * rather than running them (the work guard means the pool would never stop on its own, but also
+     * that its stop is abrupt), and m_active_sessions reaching zero means every session strand has
+     * already run its final handler.
      *
-     * After this, wait_until_stopped() returning implies every session callback has completed. */
+     * So wait_until_stopped() returning implies every session callback has completed. */
     m_cb_pool->stop_async();
     m_cb_pool->wait_for_stop();
 }
@@ -264,26 +261,25 @@ void tcp_server::disconnect_all() {
 
 boost::asio::awaitable<void>
 tcp_server::listener(std::shared_ptr<boost::asio::ip::tcp::acceptor> acceptor) {
-    /* m_stop_requested is set once and never cleared, so unlike sg::net::tcp_server there is no
-     * restart that could reset it underneath a running listener. */
+    /* m_stop_requested is set once and never cleared, so no restart can reset it underneath a
+     * running listener. */
     try {
         while (!m_stop_requested.load(std::memory_order::acquire)) {
             auto id = m_last_id++;
 
-            /* One strand per session, on the callback pool. This is what makes a session's
-             * callbacks sequential without serialising the whole server: the strand is copied into
+            /* Sequences a session's callbacks without serialising the whole server. Copied into
              * each of that session's callback lambdas, so it lives exactly as long as the session
-             * and no server-side map is needed to find it again. */
+             * and needs no server-side map. */
             const callback_strand_t cb_strand = boost::asio::make_strand(m_cb_pool->context());
 
-            /* Built before the accept and kept in its own variable rather than passed inline: the
-             * order in which call arguments are evaluated is unspecified, and mixing that with a
-             * co_await in the same argument list is not worth reasoning about. */
+            /* In its own variable rather than passed inline: argument evaluation order is
+             * unspecified, and mixing that with a co_await in the same argument list is not worth
+             * reasoning about. */
             auto callbacks = make_session_callbacks(id, cb_strand);
 
-            /* Accept onto the general io_context rather than this acceptor's strand: the new
-             * session must be able to run across all workers. Passing the context explicitly
-             * overrides the default of inheriting the acceptor's (strand) executor. */
+            /* Onto the general io_context rather than this acceptor's strand, so the new session can
+             * run across all workers. Passing it explicitly overrides the default of inheriting the
+             * acceptor's (strand) executor. */
             auto socket =
                 co_await acceptor->async_accept(m_context->context(), boost::asio::use_awaitable);
 
@@ -300,24 +296,21 @@ tcp_server::listener(std::shared_ptr<boost::asio::ip::tcp::acceptor> acceptor) {
                 m_active_sessions.fetch_add(1, std::memory_order::release);
             }
 
-            /* start() may throw if session setup fails (e.g. the peer reset the connection).
-             * Contain it here so that one bad client cannot take the listener down with it. No
-             * manual cleanup is needed: start()'s own failure path fires the session's
-             * on_disconnected callback, which does it. */
+            /* start() throws if session setup fails (e.g. the peer reset the connection); contained
+             * so one bad client cannot take the listener down. No manual cleanup needed --
+             * start()'s failure path fires the session's on_disconnected callback, which does it. */
             try {
                 sess->start();
             } catch (...) {}
         }
     } catch (...) {
-        /* The accept failed. Unless we are already shutting down this endpoint is finished, and
-         * with a single endpoint the server would otherwise become a zombie: still reporting
-         * is_stopped() == false but accepting nothing, with wait_until_stopped() blocking forever.
-         * So treat it the way sg::net::tcp_server does and take the whole server down.
+        /* The accept failed, so unless we are already shutting down this endpoint is finished. With
+         * a single endpoint the server would otherwise become a zombie: is_stopped() == false but
+         * accepting nothing, and wait_until_stopped() blocking forever. Rethrow so the error also
+         * reaches teardown() through our future.
          *
-         * Rethrow so that the error also reaches teardown() through our future.
-         *
-         * note: closing the acceptor makes the pending accept fail with operation_aborted, so the
-         * normal shutdown path arrives here too -- stop_async() is already set and idempotent. */
+         * Note the normal shutdown path arrives here too, since closing the acceptor fails the
+         * pending accept with operation_aborted -- stop_async() is already set and idempotent. */
         stop_async();
         throw;
     }
@@ -336,32 +329,110 @@ void tcp_server::inform_user_of_data(session_id_t id, const std::byte* data, siz
 tcp_session::Callbacks tcp_server::make_session_callbacks(session_id_t id,
                                                           const callback_strand_t& strand) {
     /* dont_read sessions read the socket inside OnSessionDataAvailable, and a native handle may only
-     * be touched on the session's io strand, so for them that callback cannot be moved off the io
-     * threads. OnSessionCreated has to stay with it: deferring only one of the pair would let data
-     * be reported before the session itself was. */
+     * be touched on the session's io strand, so that callback cannot move off the io threads.
+     * OnSessionCreated must stay with it -- deferring one of the pair would let data be reported
+     * before the session was. */
     const bool defer = !m_options.session_options.dont_read;
 
     tcp_session::Callbacks cb;
 
     if (defer) {
+        /* Shared because its two ends run on different threads: bytes are added by the producer on
+         * the session's io strand and released by the consumer on `strand`. Held by the lambdas, so
+         * it lives exactly as long as the session.
+         *
+         * `limit` is the high-water mark at which the session is paused; 0 means "not resolved yet",
+         * max() means "never pause". Written once, from the io strand. */
+        struct flow_control {
+            std::atomic<size_t> queued{0};
+            std::atomic<size_t> limit{0};
+        };
+        auto flow = std::make_shared<flow_control>();
+
         cb.onConnected = [this, id, strand](tcp_session&) { on_session_created(id, strand); };
 
-        cb.onDataAvailable = [this, id, strand](tcp_session&, const std::byte* data, size_t size) {
-            /* Copy before returning. `data` belongs to the reader coroutine, which reuses the same
-             * buffer for every read, so by the time a posted handler ran the bytes would already
-             * have been overwritten. This copy is the price of getting the callback off the io
-             * thread; it is also what lets the public callback signature stay unchanged.
-             *
-             * A zero-length read is not something async_read_some reports -- it surfaces as eof --
-             * but guard it rather than calling make_shared_c_buffer(0), which would turn a null
-             * malloc(0) into bad_alloc. Nothing is lost by dropping an empty notification. */
+        cb.onDataAvailable = [this, id, strand,
+                              flow](tcp_session& sess, const std::byte* data, size_t size) {
+            /* async_read_some never reports a zero-length read (it surfaces as eof), but guard it
+             * rather than call make_shared_c_buffer(0), which would turn a null malloc(0) into
+             * bad_alloc. Nothing is lost by dropping an empty notification. */
             if (size == 0)
                 return;
+
+            /* Resolved from the socket rather than options_t, which is not the authority:
+             * recv_buffer_size of 0 means "leave the OS default alone". Asking is legal in this one
+             * place -- reader() calls us on the session's io strand, the only context where the
+             * native handle may be touched -- and start() has applied the option by now, so the
+             * answer reflects it (doubled on Linux, which is the kernel's business).
+             *
+             * Floored, because what the socket reports is not a useful mark on its own. Delivery is
+             * asynchronous, so the queue is non-empty for as long as a callback is in flight; a mark
+             * below one message therefore throttles a consumer that is keeping up perfectly, as soon
+             * as a message spans more than one read. Platforms disagree about how small they will go
+             * -- Linux clamps SO_RCVBUF to a couple of KiB, Windows honours a request of 1 byte
+             * literally, which makes every read one byte and every mark one byte. */
+            if (flow->limit.load(std::memory_order::acquire) == 0) {
+                auto limit = std::numeric_limits<size_t>::max();
+                try {
+                    if (const int sz = native::get_recv_buffer_size(sess.native_handle()); sz > 0)
+                        limit = std::max(static_cast<size_t>(sz), min_pause_threshold);
+                } catch (...) {
+                    /* a query we cannot trust must not throttle anyone */
+                }
+                flow->limit.store(limit, std::memory_order::release);
+            }
 
             auto buffer = sg::make_shared_c_buffer<std::byte>(size);
             std::memcpy(buffer.get(), data, size);
 
-            boost::asio::post(strand, [this, id, buffer]() {
+            /* Must precede the post, or the handler could subtract before we have added. */
+            const size_t queued = flow->queued.fetch_add(size, std::memory_order::acq_rel) + size;
+
+            /* Back-pressure: once this much is queued undelivered, stop reading the socket. The
+             * kernel buffer then fills, the window shuts and the peer is slowed rather than dropped.
+             * The read that crossed the mark is still delivered, so the bound is the mark plus one
+             * read.
+             *
+             * Ordered before the post for a second reason beyond the one above: pausing runs inline
+             * (we are on the session's io strand, which is where pause_reading() dispatches to), so
+             * it is in place before any consumer can subtract these bytes, and therefore before any
+             * resume that subtraction triggers. A pause can never outlive the backlog that caused
+             * it. */
+            if (queued >= flow->limit.load(std::memory_order::acquire))
+                sess.pause_reading();
+
+            boost::asio::post(strand, [this, id, buffer, flow,
+                                       weak_sess = sess.weak_from_this()]() {
+                /* Releases however we leave, so a throwing user callback cannot strand the bytes and
+                 * leave the peer throttled for someone else's bug. */
+                struct release {
+                    flow_control& flow;
+                    const std::weak_ptr<tcp_session>& sess;
+                    size_t bytes;
+                    ~release() {
+                        /* Resumed at half the pause mark: resuming at the mark itself would pause
+                         * and resume once per message. Only the subtraction that crosses the mark
+                         * sends it -- later ones would be no-ops, and with an unresolved limit
+                         * (max(), so max()/2 is never reached from above) none is sent at all.
+                         *
+                         * Every pause is answered, because a paused session produces nothing: the
+                         * backlog can only shrink, so some subtraction must cross the mark, and that
+                         * subtraction is for bytes counted before the pause and so cannot run ahead
+                         * of it. */
+                        const size_t low = flow.limit.load(std::memory_order::acquire) / 2;
+                        const size_t before = flow.queued.fetch_sub(bytes, std::memory_order::acq_rel);
+
+                        if (before <= low || before - bytes > low)
+                            return;
+
+                        /* noexcept: we are a destructor, and dispatching allocates. */
+                        try {
+                            if (auto s = sess.lock())
+                                s->resume_reading();
+                        } catch (...) {}
+                    }
+                } releaser{*flow, weak_sess, buffer.size()};
+
                 try {
                     inform_user_of_data(id, buffer.get(), buffer.size());
                 } catch (...) {
@@ -380,8 +451,8 @@ tcp_session::Callbacks tcp_server::make_session_callbacks(session_id_t id,
         };
     }
 
-    /* Deferred for every session, dont_read or not. It runs the user's OnDisconnected and then
-     * erases the session, and neither belongs on the session's own io strand -- we are called from
+    /* Deferred for every session, dont_read or not: it runs the user's OnDisconnected and then
+     * erases the session, and neither belongs on the session's io strand -- we are called from
      * inside that session's close handler. */
     cb.onDisconnected = [this, id, strand](tcp_session&, std::exception_ptr ex) {
         on_session_stopped(id, ex, strand);
@@ -391,8 +462,8 @@ tcp_session::Callbacks tcp_server::make_session_callbacks(session_id_t id,
 }
 
 void tcp_server::fail_session(session_id_t id) noexcept {
-    /* .at() throws if the session has already been erased, and stop_async() is a no-op on a session
-     * that has already stopped, so both outcomes are fine. */
+    /* .at() throws if the session is already erased, and stop_async() is a no-op on one already
+     * stopped, so both outcomes are fine. */
     try {
         disconnect(id);
     } catch (...) {}
@@ -404,9 +475,9 @@ void tcp_server::on_session_created(session_id_t id, const callback_strand_t& st
             if (m_callbacks.OnSessionCreated)
                 m_callbacks.OnSessionCreated.invoke(*this, id);
         } catch (...) {
-            /* Keeps the contract that a throwing OnSessionCreated costs the session. It used to
-             * hold for free: the callback ran inside tcp_session::start(), so the throw unwound
-             * into the session's own failure path and closed it. */
+            /* Keeps the contract that a throwing OnSessionCreated costs the session. This used to
+             * hold for free, when the callback ran inside tcp_session::start() and the throw
+             * unwound into the session's own failure path. */
             fail_session(id);
         }
     });
@@ -414,17 +485,17 @@ void tcp_server::on_session_created(session_id_t id, const callback_strand_t& st
 
 void tcp_server::on_session_stopped(session_id_t id, std::exception_ptr ex,
                                     const callback_strand_t& strand) {
-    /* We are called from tcp_session::close_impl(), i.e. on that session's io strand. Posting to the
-     * callback strand gets the user's OnDisconnected off the io threads, and -- because it is the
-     * last thing posted for this session -- puts the erase after every data callback, so that
-     * session(id) is still valid inside them.
+    /* Called from tcp_session::close_impl(), i.e. on that session's io strand. Posting to the
+     * callback strand gets OnDisconnected off the io threads and -- being the last thing posted for
+     * this session -- puts the erase after every data callback, so session(id) is still valid
+     * inside them.
      *
-     * The decrement is the final statement, so m_active_sessions reaching zero means every callback
-     * on every session strand has finished. teardown() relies on exactly that.
+     * The decrement is last, so m_active_sessions reaching zero means every callback on every
+     * session strand has finished. teardown() relies on exactly that.
      *
-     * Note the erase cannot run the session's destructor here: close_impl() is invoked through a
-     * lambda holding a shared_from_this() (tcp_session::close()), so ours is not the last reference.
-     * Whichever of the two drops last destroys the session, by which point it has stopped. */
+     * The erase cannot run the session's destructor: close_impl() is invoked through a lambda
+     * holding a shared_from_this(), so ours is not the last reference. Whichever drops last
+     * destroys the session, by which point it has stopped. */
     boost::asio::post(strand, [this, id, ex]() {
         try {
             if (m_callbacks.OnDisconnected)

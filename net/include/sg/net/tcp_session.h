@@ -10,6 +10,7 @@
 #include <boost/asio/awaitable.hpp>
 #include <boost/asio/io_context.hpp>
 #include <boost/asio/ip/tcp.hpp>
+#include <boost/asio/steady_timer.hpp>
 #include <boost/asio/strand.hpp>
 #include <boost/asio/use_future.hpp>
 #include <memory>
@@ -77,6 +78,17 @@ class SG_NET_EXPORT tcp_session : public std::enable_shared_from_this<tcp_sessio
     void set_keepalive(keepalive_t);
     void set_timeout(unsigned timeoutMSec);
 
+    /** Stops issuing reads after the one in flight, without occupying an I/O thread. The kernel
+     *  receive buffer then fills, the advertised window shuts and the peer is throttled -- real
+     *  back-pressure, as opposed to dropping the connection.
+     *
+     *  Callable from any thread, including from inside OnDataAvailable (where it takes effect before
+     *  the next read is issued). Both are idempotent, and both are no-ops on a session that has
+     *  closed. */
+    void pause_reading();
+    void resume_reading();
+    [[nodiscard]] bool is_reading_paused() const noexcept;
+
     /** note: native sockets should ONLY be handled in the I/O thread ((as native handles are not
      *  thread). Use @c get_executor or @c run_in_executor to achieve this. */
     [[nodiscard]] native::socket_t native_handle();
@@ -98,6 +110,16 @@ class SG_NET_EXPORT tcp_session : public std::enable_shared_from_this<tcp_sessio
      * (which all touch m_socket) must not run concurrently. Routing all three through this strand
      * serialises them. It does NOT serialise the underlying I/O. */
     boost::asio::strand<boost::asio::ip::tcp::socket::executor_type> m_strand;
+
+    /* The suspension point that makes pausing possible: reader() cannot simply not return, since
+     * returning is what makes it read again and blocking would cost an I/O thread. It parks on this
+     * timer instead, which is set to expire at time_point::max() and so only ever completes through
+     * cancel() -- the standard asio "async event".
+     *
+     * Written only on m_strand (so the flag and the wait cannot interleave -- see reader()), read
+     * from anywhere, hence atomic. */
+    boost::asio::steady_timer m_resume_event;
+    std::atomic<bool> m_read_paused{false};
 
     options_t m_options;
     Callbacks m_callbacks;

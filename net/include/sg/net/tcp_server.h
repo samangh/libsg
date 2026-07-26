@@ -26,63 +26,60 @@ namespace sg::net {
 
 /** A callback-driven TCP server.
  *
- *  launch() returns a server that is already listening, and destroying it stops it. There is
- *  deliberately no start()/stop()/start() lifecycle: a server object is either running or being
- *  torn down. To restart, drop the object and launch a new one.
+ *  launch() returns a server that is already listening; destroying it stops it. There is no
+ *  start()/stop()/start() lifecycle -- to restart, drop the object and launch a new one. Hence the
+ *  stop flag is set once and never cleared, and a stop can never race a start.
  *
- *  That shape is what keeps the implementation tractable. While a server is being built nothing
- *  else can reach it -- the caller does not have the pointer yet -- so a stop can never race a
- *  start, and no member can carry stale state over from a previous run because there is no previous
- *  run. In particular the stop flag is set once and never cleared.
+ *  Callback threads:
  *
- *  notes:
+ *      OnStartedListening       the caller's thread, before launch() returns
+ *      OnStoppedListening       the io pool's monitor thread
+ *      OnSessionCreated         \
+ *      OnSessionDataAvailable    > the callback pool, on that session's strand
+ *      OnDisconnected           /
  *
- *   - we store sessions as shared_ptr, so that when they user acquires them through the
- *     `sessions()` or `session(..)` function, they can be sure about the lifetime of the object
- *     (i.e. the returned session will exist and not get destructed whilst they have the
- *     shared_ptr)
+ *  Notes:
  *
- *   - which thread each callback runs on:
+ *   - sessions are handed out as shared_ptr so a caller holding one cannot have it destroyed
+ *     underneath them.
  *
- *       OnStartedListening       the thread that called launch(), from inside launch()
- *       OnStoppedListening       the io pool's monitor thread (neither an io worker nor the
- *                                callback pool)
- *       OnSessionCreated         the callback pool, on that session's callback strand
- *       OnSessionDataAvailable   the callback pool, on that session's callback strand
- *       OnDisconnected           the callback pool, on that session's callback strand
+ *   - a session's three callbacks share one strand, so they are never concurrent and arrive in
+ *     event order. Sessions run concurrently only if options_t::no_callback_threads > 1. Since no
+ *     session callback occupies an io thread, all may block -- including on
+ *     tcp_session::wait_until_stopped(), set_keepalive() and set_timeout(), which need io threads to
+ *     progress.
  *
- *     So OnStartedListening is the one callback that does run on the caller's thread, and it fires
- *     before launch() returns.
- *
- *   - no session callback runs on an io thread. Each session owns a strand on the callback pool and
- *     all three of its callbacks are posted to it, so for one session they are never concurrent and
- *     always arrive in the order the events happened: OnSessionCreated, then any
- *     OnSessionDataAvailable, then OnDisconnected. Different sessions run concurrently only if
- *     options_t::no_callback_threads is raised above 1.
- *
- *     Because a session callback cannot occupy an io thread, it is free to block -- including on
- *     tcp_session::wait_until_stopped(), set_keepalive() or set_timeout(), which all need the io
- *     threads to make progress.
- *
- *     The exception is tcp_session::options_t::dont_read. There the user reads the socket inside
+ *     Except under tcp_session::options_t::dont_read: the user reads the socket inside
  *     OnSessionDataAvailable, and a native handle may only be touched on the session's io strand, so
- *     for such sessions OnSessionCreated and OnSessionDataAvailable are still invoked synchronously
- *     on an io thread and must not block. OnDisconnected is posted as usual.
+ *     it and OnSessionCreated are invoked synchronously on an io thread and must not block.
+ *     OnDisconnected is posted as usual.
  *
- *   - a session callback that throws drops that session, so the user still gets an OnDisconnected
- *     for it. The exception must not be allowed to escape -- it would unwind out of a callback-pool
- *     worker and terminate the process -- so unlike previously it does not reach that
- *     OnDisconnected's exception_ptr, which reports only errors seen on the session's own io path.
+ *   - a throwing session callback drops that session (the user still gets an OnDisconnected), but
+ *     the exception is swallowed rather than forwarded: letting it escape a callback-pool worker
+ *     would terminate the process. OnDisconnected's exception_ptr reports only session io errors.
  *
- *   - there is NO back-pressure on OnSessionDataAvailable, and none can be added from the callback
- *     side. The reader hands each read to a copy-and-post and immediately reissues
- *     async_read_some, so it never waits for the consumer: a peer that outruns the callback grows
- *     that session's queue without bound, until make_shared_c_buffer throws bad_alloc inside the
- *     reader and the session dies carrying it -- assuming the process has not hit OOM first.
+ *   - OnSessionDataAvailable applies back-pressure. Delivery is asynchronous -- the reader copies and
+ *     posts -- so a peer can outrun its consumer; once the threshold's worth of bytes is queued
+ *     undelivered the session stops reading its socket (tcp_session::pause_reading()), which fills the
+ *     kernel receive buffer, shuts the advertised window and slows the peer. Reading resumes once the
+ *     backlog is back under half the threshold. Raise recv_buffer_size to tolerate more bursting
+ *     before the peer feels it.
  *
- *   - any callback may call stop_async(), but none may call wait_until_stopped(): that would wait
- *     for the teardown it is itself part of. OnStartedListening deadlocks for a second reason --
- *     teardown cannot begin until launch() has returned.
+ *     The read that crossed the threshold is still delivered, so the queue is bounded by the
+ *     threshold plus one read.
+ *
+ *     The threshold is what the socket reports as its receive buffer, subject to a floor of 64 KiB.
+ *     The floor matters: the queue stays non-empty while a callback is in flight, so a threshold below
+ *     one message would throttle a consumer that is keeping up as soon as a message spanned two
+ *     reads. Platforms differ here -- Linux clamps SO_RCVBUF to a couple of KiB, Windows honours a
+ *     request of 1 byte literally.
+ *
+ *     Note what this costs: a consumer that never returns stalls its peer indefinitely instead of
+ *     losing its connection. Nothing times a paused session out.
+ *
+ *   - any callback may call stop_async(); none may call wait_until_stopped(), which would wait on
+ *     the teardown it is part of (and for OnStartedListening, teardown cannot even begin until
+ *     launch() returns).
  */
 class SG_NET_EXPORT tcp_server {
     struct private_tag {
@@ -125,8 +122,8 @@ class SG_NET_EXPORT tcp_server {
     /** Binds and starts listening on every endpoint.
      *
      *  Throws std::invalid_argument if @p endpoints is empty, or the underlying socket error if an
-     *  endpoint cannot be bound; either way nothing is left running. By the time this returns
-     *  OnStartedListening has fired and no connection can yet have been accepted. */
+     *  endpoint cannot be bound; either way nothing is left running. On return OnStartedListening
+     *  has fired and no connection can yet have been accepted. */
     [[nodiscard]] static std::unique_ptr<tcp_server> launch(std::vector<end_point> endpoints,
                                                             CallBacks callbacks,
                                                             options_t options = options_t());
@@ -134,7 +131,7 @@ class SG_NET_EXPORT tcp_server {
     tcp_server(private_tag, CallBacks callbacks, options_t options);
     ~tcp_server();
 
-    /* Listener coroutines and the teardown thread capture `this`, so the object cannot move. */
+    /* Listener coroutines and the teardown thread capture `this`. */
     tcp_server(const tcp_server&) = delete;
     tcp_server& operator=(const tcp_server&) = delete;
     tcp_server(tcp_server&&) = delete;
@@ -147,8 +144,7 @@ class SG_NET_EXPORT tcp_server {
     /** Blocks until the server has fully stopped. Must not be called from a callback. */
     void wait_until_stopped() const;
 
-    /** True once teardown is complete. Note this is still false between a stop_async() and the end
-     *  of that teardown. */
+    /** True once teardown is complete -- still false between stop_async() and the end of teardown. */
     [[nodiscard]] bool is_stopped() const;
 
     [[nodiscard]] size_t clients_count() const;
@@ -163,8 +159,7 @@ class SG_NET_EXPORT tcp_server {
     void disconnect_all();
 
   private:
-    /* The strand a session's callbacks are serialised on. Lives on m_cb_pool, not m_context, so a
-     * callback never occupies an io thread. */
+    /* Lives on m_cb_pool, not m_context, so a callback never occupies an io thread. */
     using callback_strand_t = boost::asio::strand<boost::asio::io_context::executor_type>;
 
     /* Declaration order below is load-bearing, because members are destroyed in reverse: every asio
@@ -176,31 +171,35 @@ class SG_NET_EXPORT tcp_server {
     std::atomic<size_t> m_active_sessions{0};
     std::atomic<size_t> m_last_id{0};
 
-    std::shared_ptr<sg::net::asio_io_pool> m_context;
-
-    /* Serves the session callbacks. Built and run by the constructor, so it is live for the whole
-     * lifetime, and stopped by teardown() once the last session is gone.
+    /* Serves the session callbacks. Run by the constructor, stopped by teardown() once the last
+     * session is gone.
      *
-     * It MUST be created with a work guard. A guardless pool stops itself the moment it runs out of
-     * work, which for a callback pool is simply "no session is doing anything"; every later post
-     * would then be dropped and teardown()'s wait for m_active_sessions would never finish. The io
-     * pool gets away without a guard only because a listener is always parked in async_accept.
+     * MUST have a work guard: a guardless pool stops itself the moment it runs out of work, which
+     * for a callback pool just means "no session is doing anything". Every later post would then be
+     * dropped and teardown()'s wait for m_active_sessions never finish. The io pool gets away
+     * without a guard only because a listener is always parked in async_accept.
      *
-     * Declared before m_sessions so that it is destroyed *after* them: a session's callbacks hold a
-     * callback_strand_t, and destroying a strand needs its io_context alive. Its threads also touch
-     * m_sessions, m_mutex and m_callbacks, so it must additionally be *stopped* before member
-     * destruction begins -- teardown() does that, and the destructor repeats it unconditionally. */
+     * FIRST of the two pools, so it is destroyed LAST. A session's callbacks hold a
+     * callback_strand_t, and destroying a strand touches its io_context, so this pool has to outlive
+     * every session. That is not only the sessions in m_sessions: ~asio_io_pool() runs the
+     * io_context's shutdown, which destroys the handlers still queued on it, and one of those is the
+     * reader's coroutine frame holding the last shared_ptr to a session. So the session dies inside
+     * ~m_context, and m_cb_pool must still be alive at that point.
+     *
+     * Its threads also touch m_sessions, m_mutex and m_callbacks, so it must additionally be
+     * *stopped* before member destruction begins -- teardown() does that, and the destructor repeats
+     * it unconditionally. */
     std::shared_ptr<sg::net::asio_io_pool> m_cb_pool;
 
-    /* After m_context, so that both are destroyed before it: an acceptor holds a strand referring
-     * to the context, and a tcp_session holds a socket on it.
+    std::shared_ptr<sg::net::asio_io_pool> m_context;
+
+    /* After m_context, so both are destroyed before it: an acceptor holds a strand referring to the
+     * context, and a tcp_session holds a socket on it.
      *
-     * m_acceptors is kept for the whole run because teardown() has to reach the acceptors from
-     * outside the listener coroutines: closing one is the only way to break a listener parked in
-     * async_accept, and once the pool has stopped teardown closes them directly through this
-     * vector. Hence shared_ptr rather than sole ownership -- the vector, the listener's coroutine
-     * frame and the close() posted by close_acceptors() each have to keep an acceptor alive, and
-     * their lifetimes do not nest. */
+     * Kept for the whole run because teardown() must reach the acceptors from outside the listener
+     * coroutines -- closing one is the only way to break a listener parked in async_accept. Hence
+     * shared_ptr: this vector, the listener's coroutine frame and the close() posted by
+     * close_acceptors() each keep an acceptor alive, and their lifetimes do not nest. */
     std::vector<std::shared_ptr<boost::asio::ip::tcp::acceptor>> m_acceptors;
     mutable std::shared_mutex m_mutex;
     std::map<session_id_t, ptr> m_sessions;
@@ -208,26 +207,24 @@ class SG_NET_EXPORT tcp_server {
     /* One future per listener coroutine -- the join point for teardown(). */
     std::vector<std::future<void>> m_listeners_done;
 
-    /* The single stop flag. Set once, never cleared: listeners poll it to decide whether to keep
-     * accepting, and the teardown thread waits on it. */
+    /* Set once, never cleared: listeners poll it, the teardown thread waits on it. */
     std::atomic<bool> m_stop_requested{false};
     std::atomic<bool> m_stopped{false};
 
-    /* Gates the teardown thread until the object is fully built. A user callback fired from
-     * bind_and_run() (OnStartedListening) can request a stop while launch() is still running; the
-     * request must be honoured, but must not be acted on until launch() has stopped touching
-     * m_context and m_acceptors. Released by bind_and_run() on every exit path. */
+    /* Gates the teardown thread until the object is fully built: OnStartedListening can request a
+     * stop while launch() is still running, and that must be honoured but not acted on until
+     * launch() has stopped touching m_context and m_acceptors. Released by bind_and_run() on every
+     * exit path. */
     std::atomic<bool> m_launch_done{false};
 
-    /* Set once bind_and_run() has successfully run the io context, and never cleared. teardown()
-     * needs to distinguish "the context never came up" from "the context came up and has already
-     * drained" -- asio_io_pool::is_running() reports false for both -- because only in the former
-     * case are the listener futures unsatisfiable. */
+    /* Set once bind_and_run() has run the io context. teardown() must distinguish "never came up"
+     * from "came up and already drained" -- is_running() reports false for both -- because only in
+     * the former are the listener futures unsatisfiable. */
     std::atomic<bool> m_context_ran{false};
 
-    /* Created by the constructor and parked until a stop is requested. Existing for the whole
-     * lifetime means stop_async() only has to set a flag: there is no thread to create, hence no
-     * race between two callers of stop_async() and nothing for the destructor to assign. */
+    /* Parked from construction until a stop is requested, so stop_async() only has to set a flag:
+     * no thread to create, hence no race between two callers and nothing for the destructor to
+     * assign. */
     std::jthread m_teardown_thread;
 
     void bind_and_run(const std::vector<end_point>& endpoints);
@@ -241,18 +238,16 @@ class SG_NET_EXPORT tcp_server {
     void on_io_pool_stopped(asio_io_pool&);
     void inform_user_of_data(session_id_t id, const std::byte* data, size_t size);
 
-    /* Drops a session whose callback threw. Never throws, and is a no-op if the session has already
-     * gone. */
+    /* Drops a session whose callback threw. No-op if the session has already gone. */
     void fail_session(session_id_t id) noexcept;
 
-    /* Both take the session's callback strand rather than looking it up, because the strand is
-     * captured by the session's own callback lambdas -- there is no server-side map to consult. */
+    /* Both take the strand rather than looking it up: it is captured by the session's own callback
+     * lambdas, so there is no server-side map to consult. */
     void on_session_created(session_id_t id, const callback_strand_t& strand);
     void on_session_stopped(session_id_t id, std::exception_ptr ex,
                             const callback_strand_t& strand);
 
-    /* Builds the three tcp_session callbacks for a new session: they copy any incoming data and
-     * post the user's callbacks onto @p strand. */
+    /* Callbacks that copy incoming data and post the user's callbacks onto @p strand. */
     tcp_session::Callbacks make_session_callbacks(session_id_t id,
                                                  const callback_strand_t& strand);
 };

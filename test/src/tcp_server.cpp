@@ -3,6 +3,7 @@
 
 #include "sg/net/tcp_client.h"
 #include "sg/net/tcp_client_sync.h"
+#include "sg/net/tcp_native.h"
 #include "sg/net/tcp_server.h"
 
 #include "sg/jthread.h"
@@ -15,6 +16,7 @@
 #include <chrono>
 #include <cstdio>
 #include <cstdlib>
+#include <future>
 #include <mutex>
 #include <random>
 #include <semaphore>
@@ -1319,6 +1321,174 @@ TEST_CASE("tcp_server: a session's callbacks arrive in order", "[sg::net::tcp_se
         payload += events[i].substr(5);
     }
     REQUIRE(payload == expected);
+}
+
+TEST_CASE("tcp_server: a peer that outruns its consumer is throttled, not dropped",
+          "[sg::net::tcp_server]") {
+    /* Comfortably above the 64 KiB floor the server puts under the pause threshold, so that the
+     * threshold is the size the socket reports and this test can size its flood off that. Asking for
+     * less would land under the floor, where the reported size is no longer the threshold. */
+    tcp_server::options_t opts;
+    opts.session_options.recv_buffer_size = 256 * 1024;
+
+    std::binary_semaphore created{0};
+    std::binary_semaphore done{0};
+    size_t threshold = 0;
+    std::atomic<size_t> received{0};
+    std::atomic_int pauses_seen{0};
+
+    tcp_server::CallBacks cb;
+    cb.OnSessionCreated = [&](tcp_server& srv, tcp_server::session_id_t id) {
+        threshold = static_cast<size_t>(
+            sg::net::native::get_recv_buffer_size(srv.session(id)->native_handle()));
+        created.release();
+    };
+    cb.OnSessionDataAvailable = [&](tcp_server& srv, tcp_server::session_id_t id, const std::byte*,
+                                    size_t length) {
+        /* a consumer slower than the network, so the backlog can only grow */
+        std::this_thread::sleep_for(std::chrono::milliseconds(20));
+        received += length;
+
+        /* Observed from inside the callback rather than polled from the test thread: our own bytes
+         * are only released once we return, so if the backlog crossed the mark the session is still
+         * paused as we look. */
+        if (srv.session(id)->is_reading_paused())
+            ++pauses_seen;
+    };
+    cb.OnDisconnected = [&](tcp_server&, tcp_server::session_id_t, std::exception_ptr) {
+        done.release();
+    };
+
+    end_point ep("127.0.0.1", PORT2 + 15);
+    auto s = tcp_server::launch({ep}, cb, opts);
+
+    /* tcp_client rather than tcp_client_sync: writes are queued on the session, so flooding cannot
+     * block this thread once the peer's window shuts. */
+    tcp_client client;
+    client.connect(ep, nullptr, nullptr);
+
+    /* Size the flood off what the socket actually reports rather than off recv_buffer_size, because
+     * that is what the pause threshold is: platforms are free to round the request (Linux doubles it,
+     * and every platform clamps to its own maximum), and a fixed flood smaller than the result would
+     * leave the backlog unable to reach the mark at all -- nothing would ever be throttled and the
+     * test would prove nothing. */
+    REQUIRE(created.try_acquire_for(std::chrono::seconds(10)));
+
+    /* the semaphore orders the write of `threshold` against this read */
+    REQUIRE(threshold > 0);
+
+    std::string chunk(16 * 1024, 'x');
+    const size_t chunks = 2 * (threshold / chunk.size() + 1);
+    for (size_t i = 0; i < chunks; ++i)
+        client.session().write(chunk);
+
+    /* Flushes the queued writes and then closes, which is what ends the session. A throttled peer
+     * only delays delivery, so by then the server must have every byte -- that, rather than any
+     * exception, is what says it was slowed instead of shed. */
+    client.disconnect();
+
+    REQUIRE(done.try_acquire_for(std::chrono::seconds(30)));
+
+    /* the semaphore orders the writes below against these reads */
+    REQUIRE(received == chunks * chunk.size());
+    REQUIRE(pauses_seen > 0);
+}
+
+TEST_CASE("tcp_server: a session paused for back-pressure still shuts down",
+          "[sg::net::tcp_server]") {
+    /* A paused reader is suspended on an event no socket operation touches, so unless closing the
+     * session cancels it the reader never wakes: teardown would finish but the session would live on
+     * inside the io context, and its coroutine frame with it. */
+    tcp_server::options_t opts;
+    opts.session_options.recv_buffer_size = 256 * 1024;
+
+    std::binary_semaphore created{0};
+    std::binary_semaphore gate{0};
+    std::atomic_bool first{true};
+    std::atomic_bool gate_timed_out{false};
+    tcp_server::session_id_t session_id = 0;
+
+    tcp_server::CallBacks cb;
+    cb.OnSessionCreated = [&](tcp_server&, tcp_server::session_id_t id) {
+        session_id = id;
+        created.release();
+    };
+    cb.OnSessionDataAvailable = [&](tcp_server&, tcp_server::session_id_t, const std::byte*,
+                                    size_t) {
+        /* Holds the whole backlog: nothing is released while we are here, so the pause below is not a
+         * race -- once the flood exceeds the mark the session stays paused until we return.
+         *
+         * The outcome is recorded rather than asserted, because a Catch2 assertion off the main
+         * thread is itself a data race. */
+        if (first.exchange(false) && !gate.try_acquire_for(std::chrono::seconds(30)))
+            gate_timed_out = true;
+    };
+
+    end_point ep("127.0.0.1", PORT2 + 17);
+    auto s = tcp_server::launch({ep}, cb, opts);
+
+    tcp_client client;
+    client.connect(ep, nullptr, nullptr);
+
+    REQUIRE(created.try_acquire_for(std::chrono::seconds(10)));
+
+    const auto threshold = static_cast<size_t>(
+        sg::net::native::get_recv_buffer_size(s->session(session_id)->native_handle()));
+    REQUIRE(threshold > 0);
+
+    std::string chunk(16 * 1024, 'x');
+    for (size_t i = 0, chunks = 4 * (threshold / chunk.size() + 1); i < chunks; ++i)
+        client.session().write(chunk);
+
+    /* the pause is the state under test, so wait for it rather than assume it */
+    auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(10);
+    while (!s->session(session_id)->is_reading_paused() &&
+           std::chrono::steady_clock::now() < deadline)
+        std::this_thread::sleep_for(std::chrono::milliseconds(1));
+    REQUIRE(s->session(session_id)->is_reading_paused());
+
+    /* Requested while paused, and only then is the consumer let go, so the close has to be what
+     * wakes the reader. */
+    s->stop_async();
+    gate.release();
+
+    auto stopped = std::async(std::launch::async, [&] { s->wait_until_stopped(); });
+    REQUIRE(stopped.wait_for(std::chrono::seconds(30)) == std::future_status::ready);
+    REQUIRE_FALSE(gate_timed_out);
+}
+
+TEST_CASE("tcp_server: a consumer that keeps up is never throttled, however small the buffer",
+          "[sg::net::tcp_server]") {
+    /* The smallest buffer the OS will give us. The mark's 64 KiB floor is what keeps strict
+     * request/response off the back-pressure path entirely, however low this is -- without it a
+     * message spanning two reads could pause a consumer that is perfectly up to date. */
+    tcp_server::options_t opts;
+    opts.session_options.recv_buffer_size = 1;
+
+    std::atomic_int pauses_seen{0};
+
+    tcp_server::CallBacks cb;
+    cb.OnSessionDataAvailable = [&](tcp_server& srv, tcp_server::session_id_t id,
+                                    const std::byte* data, size_t length) {
+        if (srv.session(id)->is_reading_paused())
+            ++pauses_seen;
+        srv.session(id)->write(data, length);
+    };
+
+    end_point ep("127.0.0.1", PORT2 + 16);
+    auto s = tcp_server::launch({ep}, cb, opts);
+
+    {
+        tcp_client_sync client;
+        client.connect(ep);
+        for (int i = 0; i < 20; ++i) {
+            auto msg = fmt::format("ping{}\n", i);
+            client.write(msg);
+            REQUIRE(client.read_until("\n") == msg);
+        }
+    }
+
+    REQUIRE(pauses_seen == 0);
 }
 
 TEST_CASE("tcp_server: dont_read sessions still report data", "[sg::net::tcp_server]") {
