@@ -6,6 +6,9 @@
 #include <sg/net/tcp_native.h>
 #include <sg/net/tcp_server.h>
 
+#include <chrono>
+#include <thread>
+
 using namespace sg::net;
 
 // port 55555 can't be used on macOS!
@@ -111,11 +114,28 @@ TEST_CASE("tcp_client: check multiple reconnections", "[sg::net::tcp_client]") {
         }
      }
 
+    const int expected = noClients * noConnectiosnPerClient;
+
+    /* connect() returns once the TCP handshake is complete, which can be before the server has
+     * accepted the connection -- it may still be sitting in the listen backlog. stop_async()
+     * closes the acceptor and discards whatever has not been accepted, so stopping the instant
+     * the last connect() returns can lose the tail of the run (this test used to fail roughly
+     * once in thirty with a count one short).
+     *
+     * So wait for the server to report every connection before stopping. The wait is bounded, so
+     * a genuine regression still fails the REQUIRE below rather than hanging. */
+    const auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(10);
+    while (connections.load() < expected && std::chrono::steady_clock::now() < deadline)
+        std::this_thread::sleep_for(std::chrono::milliseconds(1));
+
     server.stop_async();
     server.future_get_once();
 
-    REQUIRE(connections == noClients * noConnectiosnPerClient);
-    REQUIRE(disconnections == noClients * noConnectiosnPerClient);
+    REQUIRE(connections == expected);
+
+    /* no separate wait needed for this one: future_get_once() does not return until every session
+     * has finished and its OnDisconnected callback has run. */
+    REQUIRE(disconnections == expected);
 }
 
 TEST_CASE("tcp_client: check multiple disconnects are OK", "[sg::net::tcp_client]") {
