@@ -15,6 +15,7 @@
 #include <chrono>
 #include <cstdio>
 #include <cstdlib>
+#include <mutex>
 #include <random>
 #include <semaphore>
 #include <string>
@@ -798,7 +799,7 @@ TEST_CASE("tcp_server: echo works across a range of options_t::no_threads", "[sg
     };
 
     tcp_server::options_t opts;
-    opts.no_threads = no_threads;
+    opts.no_io_threads = no_threads;
 
     auto l = tcp_server::launch({ep}, cb, opts);
 
@@ -862,7 +863,7 @@ TEST_CASE("tcp_server: multi-threaded stress (strands + teardown under load)",
         };
 
         tcp_server::options_t opts;
-        opts.no_threads = kThreads;
+        opts.no_io_threads = kThreads;
 
         auto server = tcp_server::launch({ep}, cb, opts);
 
@@ -1182,7 +1183,7 @@ TEST_CASE("tcp_server: works across a range of no_threads",
           "[sg::net::tcp_server]") {
     for (size_t threads : {size_t{1}, size_t{2}, size_t{4}}) {
         tcp_server::options_t opts;
-        opts.no_threads = threads;
+        opts.no_io_threads = threads;
 
         tcp_server::CallBacks cb;
         cb.OnSessionDataAvailable = [](tcp_server& s, tcp_server::session_id_t id, const std::byte* data,
@@ -1196,4 +1197,162 @@ TEST_CASE("tcp_server: works across a range of no_threads",
         client.write("ping\n");
         REQUIRE(client.read_until("\n") == "ping\n");
     }
+}
+
+// ---------------------------------------------------------------------------
+// Session callbacks run on the callback pool, one strand per session.
+// ---------------------------------------------------------------------------
+
+TEST_CASE("tcp_server: a blocking session callback does not stall the io threads",
+          "[sg::net::tcp_server]") {
+    /* One io thread, so that a session callback occupying it would make the server deaf -- which is
+     * exactly what used to happen. Several callback threads, so that the second connection is not
+     * merely queued behind the first session's blocked callback on a single-threaded pool. */
+    tcp_server::options_t opts;
+    opts.no_io_threads = 1;
+    opts.no_callback_threads = 4;
+
+    std::binary_semaphore parked{0};  // released once a data callback is inside the block
+    std::binary_semaphore release{0}; // released to let it out again
+    std::binary_semaphore second{0};  // released when a later session is reported
+
+    std::atomic_bool blocked_once{false};
+    std::atomic_int created{0};
+
+    tcp_server::CallBacks cb;
+    cb.OnSessionCreated = [&](tcp_server&, tcp_server::session_id_t) {
+        if (++created == 2)
+            second.release();
+    };
+    cb.OnSessionDataAvailable = [&](tcp_server&, tcp_server::session_id_t, const std::byte*,
+                                    size_t) {
+        /* only ever block on the first notification: a second one would wait on a semaphore that is
+         * never released again and hang teardown */
+        if (!blocked_once.exchange(true)) {
+            parked.release();
+            release.acquire();
+        }
+    };
+
+    end_point ep("127.0.0.1", PORT2 + 12);
+    auto s = tcp_server::launch({ep}, cb, opts);
+
+    /* Declared AFTER the server, so it is destroyed BEFORE it: the server's destructor waits for
+     * every session callback to finish, so the parked one has to be let out first or teardown
+     * deadlocks. Being a destructor, it also covers a failing REQUIRE below, which aborts by
+     * throwing. */
+    struct unpark {
+        std::binary_semaphore& sem;
+        ~unpark() { sem.release(); }
+    } unparker{release};
+
+    tcp_client_sync first;
+    first.connect(ep);
+    first.write("x\n");
+
+    REQUIRE(parked.try_acquire_for(std::chrono::seconds(5)));
+
+    /* the single io thread must still be free to accept and report a new connection */
+    tcp_client_sync later;
+    later.connect(ep);
+    REQUIRE(second.try_acquire_for(std::chrono::seconds(5)));
+}
+
+TEST_CASE("tcp_server: a session's callbacks arrive in order", "[sg::net::tcp_server]") {
+    tcp_server::options_t opts;
+    opts.no_io_threads = 4;
+    opts.no_callback_threads = 4;
+
+    constexpr int messages = 200;
+
+    std::mutex mutex;
+    std::vector<std::string> events;
+    std::binary_semaphore done{0};
+
+    tcp_server::CallBacks cb;
+    cb.OnSessionCreated = [&](tcp_server&, tcp_server::session_id_t) {
+        std::lock_guard lock(mutex);
+        events.emplace_back("created");
+    };
+    cb.OnSessionDataAvailable = [&](tcp_server&, tcp_server::session_id_t, const std::byte* data,
+                                    size_t length) {
+        std::lock_guard lock(mutex);
+        events.emplace_back("data:" +
+                            std::string(reinterpret_cast<const char*>(data), length));
+    };
+    cb.OnDisconnected = [&](tcp_server&, tcp_server::session_id_t, std::exception_ptr) {
+        {
+            std::lock_guard lock(mutex);
+            events.emplace_back("disconnected");
+        }
+        done.release();
+    };
+
+    end_point ep("127.0.0.1", PORT2 + 13);
+    auto s = tcp_server::launch({ep}, cb, opts);
+
+    std::string expected;
+    {
+        tcp_client_sync client;
+        client.connect(ep);
+        for (int i = 0; i < messages; ++i) {
+            auto msg = fmt::format("{},", i);
+            client.write(msg);
+            expected += msg;
+        }
+    } // client goes away, so the session disconnects
+
+    REQUIRE(done.try_acquire_for(std::chrono::seconds(10)));
+
+    std::lock_guard lock(mutex);
+    REQUIRE(events.size() >= 3);
+
+    /* OnSessionCreated is posted before the reader can produce anything, and OnDisconnected after
+     * the reader has finished, so on one strand they must bracket the data */
+    REQUIRE(events.front() == "created");
+    REQUIRE(events.back() == "disconnected");
+
+    /* and the payload must arrive whole and in order, however the reads happened to split it */
+    std::string payload;
+    for (size_t i = 1; i + 1 < events.size(); ++i) {
+        REQUIRE(events[i].starts_with("data:"));
+        payload += events[i].substr(5);
+    }
+    REQUIRE(payload == expected);
+}
+
+TEST_CASE("tcp_server: dont_read sessions still report data", "[sg::net::tcp_server]") {
+    /* dont_read cannot be moved off the io threads -- the user reads the native handle, which may
+     * only be touched on the session's io strand -- so it keeps the old synchronous contract:
+     * the callback is told there is data, and is handed no buffer. */
+    tcp_server::options_t opts;
+    opts.session_options.dont_read = true;
+
+    std::binary_semaphore notified{0};
+    std::atomic_bool fired{false};
+    std::atomic_bool handed_no_buffer{false};
+
+    tcp_server::CallBacks cb;
+    cb.OnSessionDataAvailable = [&](tcp_server& srv, tcp_server::session_id_t id,
+                                    const std::byte* data, size_t length) {
+        if (fired.exchange(true))
+            return;
+
+        handed_no_buffer = (data == nullptr && length == 0);
+
+        /* we are deliberately not draining the socket, so the readiness notification would
+         * otherwise repeat forever; drop the session to end it */
+        srv.disconnect(id);
+        notified.release();
+    };
+
+    end_point ep("127.0.0.1", PORT2 + 14);
+    auto s = tcp_server::launch({ep}, cb, opts);
+
+    tcp_client_sync client;
+    client.connect(ep);
+    client.write("hello");
+
+    REQUIRE(notified.try_acquire_for(std::chrono::seconds(5)));
+    REQUIRE(handed_no_buffer);
 }
