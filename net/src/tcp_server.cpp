@@ -13,6 +13,15 @@ namespace sg::net {
 tcp_server::tcp_server(private_tag, CallBacks callbacks, options_t options)
     : m_callbacks(std::move(callbacks)), m_options(options) {
 
+    /* Bring the callback pool up before anything can post to it. Guarded (the `true`), so that it
+     * stays alive through the idle stretches between sessions instead of stopping itself the first
+     * time it runs out of work -- see the member's declaration. No stopped-callback: its stop is not
+     * a server event and must not be confused with OnStoppedListening.
+     *
+     * If this throws, the object simply fails to construct and launch() propagates it. */
+    m_cb_pool = asio_io_pool::create(m_options.no_callback_threads, true, nullptr);
+    m_cb_pool->run();
+
     /* Park the teardown thread now, so that stop_async() never has to create one. */
     m_teardown_thread = std::jthread([this]() {
         /* Wait for launch() to finish before touching anything: a stop requested from a callback
@@ -47,12 +56,16 @@ std::unique_ptr<tcp_server> tcp_server::launch(std::vector<end_point> endpoints,
     return server;
 }
 
-tcp_server::~tcp_server() noexcept(false) {
+tcp_server::~tcp_server() {
     stop_async();
     wait_until_stopped();
 
-    /* the session callbacks run here, so they must be drained after teardown() has finished */
-    m_pool.wait_for_tasks();
+    /* teardown() has already done this on its way out. Repeat it unconditionally so that even a
+     * teardown() that threw part-way cannot leave callback threads running on into member
+     * destruction -- they touch m_sessions, m_mutex and m_callbacks, all of which die below.
+     * Both calls are no-ops once the pool has stopped. */
+    m_cb_pool->stop_async();
+    m_cb_pool->wait_for_stop();
 }
 
 void tcp_server::stop_async() {
@@ -79,7 +92,7 @@ void tcp_server::bind_and_run(const std::vector<end_point>& endpoints) {
     } release{m_launch_done};
 
     auto stoppedTask = std::bind(&tcp_server::on_io_pool_stopped, this, std::placeholders::_1);
-    m_context = asio_io_pool::create(m_options.no_threads, false, stoppedTask);
+    m_context = asio_io_pool::create(m_options.no_io_threads, false, stoppedTask);
 
     /* Bind first. This is the part that throws (e.g. the address is already in use), and it runs
      * while the context is idle, so a failure cannot leave a listener executing. */
@@ -126,9 +139,17 @@ void tcp_server::bind_and_run(const std::vector<end_point>& endpoints) {
 }
 
 void tcp_server::close_acceptors() {
-    /* Socket operations belong on the io_context, as they are not thread-safe. If the context is
-     * not running nothing can be executing on the acceptor's strand, so closing directly is both
-     * safe and necessary -- a post() would never be executed. */
+    /* Socket operations belong on the io_context, as they are not thread-safe, so while the context
+     * is live the close goes through the acceptor's own strand.
+     *
+     * When it is not live we must close directly instead, because a post() would never be executed.
+     * That is safe here, though not quite for the reason "not running" suggests: is_running() also
+     * reads false in the pool's `stopping` state, where the workers have not yet been joined. What
+     * rules out a concurrent touch is narrower -- either the context never ran, so no worker ever
+     * existed, or it drained naturally, and a natural drain means asio's work count reached zero, so
+     * no handler is queued or executing and in particular no listener is still parked in
+     * async_accept. A drain is the only way to get here with a stopped context: the one explicit
+     * stop is in teardown(), after this call. */
     const bool context_running = m_context && m_context->is_running();
 
     for (const auto& acceptor : m_acceptors) {
@@ -189,6 +210,15 @@ void tcp_server::teardown() {
         try {
             acceptor->close();
         } catch (...) {}
+
+    /* Last, because the drain above is what makes it safe: m_active_sessions reaching zero means
+     * every session strand has run its final handler, so nothing is still queued here. That matters
+     * because stop_async() discards queued handlers rather than running them -- the work guard means
+     * the pool would otherwise never stop on its own, but it also means a stop is abrupt.
+     *
+     * After this, wait_until_stopped() returning implies every session callback has completed. */
+    m_cb_pool->stop_async();
+    m_cb_pool->wait_for_stop();
 }
 
 size_t tcp_server::clients_count() const {
@@ -240,28 +270,25 @@ tcp_server::listener(std::shared_ptr<boost::asio::ip::tcp::acceptor> acceptor) {
         while (!m_stop_requested.load(std::memory_order::acquire)) {
             auto id = m_last_id++;
 
-            auto onSessionDisconnected = [this, id](tcp_session&, std::exception_ptr ex) {
-                on_session_stopped(id, ex);
-            };
+            /* One strand per session, on the callback pool. This is what makes a session's
+             * callbacks sequential without serialising the whole server: the strand is copied into
+             * each of that session's callback lambdas, so it lives exactly as long as the session
+             * and no server-side map is needed to find it again. */
+            const callback_strand_t cb_strand = boost::asio::make_strand(m_cb_pool->context());
 
-            auto onData = [this, id](tcp_session&, const std::byte* data, size_t size) {
-                inform_user_of_data(id, data, size);
-            };
-
-            tcp_session::Callbacks::OnConnected onConn = [this, id](tcp_session&) {
-                if (m_callbacks.OnSessionCreated)
-                    m_callbacks.OnSessionCreated.invoke(*this, id);
-            };
+            /* Built before the accept and kept in its own variable rather than passed inline: the
+             * order in which call arguments are evaluated is unspecified, and mixing that with a
+             * co_await in the same argument list is not worth reasoning about. */
+            auto callbacks = make_session_callbacks(id, cb_strand);
 
             /* Accept onto the general io_context rather than this acceptor's strand: the new
              * session must be able to run across all workers. Passing the context explicitly
              * overrides the default of inheriting the acceptor's (strand) executor. */
-            auto sess = tcp_session::create(
-                co_await acceptor->async_accept(m_context->context(), boost::asio::use_awaitable),
-                tcp_session::Callbacks{.onConnected = onConn,
-                                       .onDisconnected = onSessionDisconnected,
-                                       .onDataAvailable = onData},
-                m_options.session_options);
+            auto socket =
+                co_await acceptor->async_accept(m_context->context(), boost::asio::use_awaitable);
+
+            auto sess = tcp_session::create(std::move(socket), std::move(callbacks),
+                                            m_options.session_options);
 
             /* the accept may have returned because we are shutting down */
             if (m_stop_requested.load(std::memory_order::acquire))
@@ -306,17 +333,103 @@ void tcp_server::inform_user_of_data(session_id_t id, const std::byte* data, siz
         m_callbacks.OnSessionDataAvailable.invoke(*this, id, data, size);
 }
 
-void tcp_server::on_session_stopped(session_id_t id, std::exception_ptr ex) {
-    /* This has to happen on another thread to escape the following deadlock:
+tcp_session::Callbacks tcp_server::make_session_callbacks(session_id_t id,
+                                                          const callback_strand_t& strand) {
+    /* dont_read sessions read the socket inside OnSessionDataAvailable, and a native handle may only
+     * be touched on the session's io strand, so for them that callback cannot be moved off the io
+     * threads. OnSessionCreated has to stay with it: deferring only one of the pair would let data
+     * be reported before the session itself was. */
+    const bool defer = !m_options.session_options.dont_read;
+
+    tcp_session::Callbacks cb;
+
+    if (defer) {
+        cb.onConnected = [this, id, strand](tcp_session&) { on_session_created(id, strand); };
+
+        cb.onDataAvailable = [this, id, strand](tcp_session&, const std::byte* data, size_t size) {
+            /* Copy before returning. `data` belongs to the reader coroutine, which reuses the same
+             * buffer for every read, so by the time a posted handler ran the bytes would already
+             * have been overwritten. This copy is the price of getting the callback off the io
+             * thread; it is also what lets the public callback signature stay unchanged.
+             *
+             * A zero-length read is not something async_read_some reports -- it surfaces as eof --
+             * but guard it rather than calling make_shared_c_buffer(0), which would turn a null
+             * malloc(0) into bad_alloc. Nothing is lost by dropping an empty notification. */
+            if (size == 0)
+                return;
+
+            auto buffer = sg::make_shared_c_buffer<std::byte>(size);
+            std::memcpy(buffer.get(), data, size);
+
+            boost::asio::post(strand, [this, id, buffer]() {
+                try {
+                    inform_user_of_data(id, buffer.get(), buffer.size());
+                } catch (...) {
+                    fail_session(id);
+                }
+            });
+        };
+    } else {
+        cb.onConnected = [this, id](tcp_session&) {
+            if (m_callbacks.OnSessionCreated)
+                m_callbacks.OnSessionCreated.invoke(*this, id);
+        };
+
+        cb.onDataAvailable = [this, id](tcp_session&, const std::byte* data, size_t size) {
+            inform_user_of_data(id, data, size);
+        };
+    }
+
+    /* Deferred for every session, dont_read or not. It runs the user's OnDisconnected and then
+     * erases the session, and neither belongs on the session's own io strand -- we are called from
+     * inside that session's close handler. */
+    cb.onDisconnected = [this, id, strand](tcp_session&, std::exception_ptr ex) {
+        on_session_stopped(id, ex, strand);
+    };
+
+    return cb;
+}
+
+void tcp_server::fail_session(session_id_t id) noexcept {
+    /* .at() throws if the session has already been erased, and stop_async() is a no-op on a session
+     * that has already stopped, so both outcomes are fine. */
+    try {
+        disconnect(id);
+    } catch (...) {}
+}
+
+void tcp_server::on_session_created(session_id_t id, const callback_strand_t& strand) {
+    boost::asio::post(strand, [this, id]() {
+        try {
+            if (m_callbacks.OnSessionCreated)
+                m_callbacks.OnSessionCreated.invoke(*this, id);
+        } catch (...) {
+            /* Keeps the contract that a throwing OnSessionCreated costs the session. It used to
+             * hold for free: the callback ran inside tcp_session::start(), so the throw unwound
+             * into the session's own failure path and closed it. */
+            fail_session(id);
+        }
+    });
+}
+
+void tcp_server::on_session_stopped(session_id_t id, std::exception_ptr ex,
+                                    const callback_strand_t& strand) {
+    /* We are called from tcp_session::close_impl(), i.e. on that session's io strand. Posting to the
+     * callback strand gets the user's OnDisconnected off the io threads, and -- because it is the
+     * last thing posted for this session -- puts the erase after every data callback, so that
+     * session(id) is still valid inside them.
      *
-     *   1) the client disconnects, so this is called via the session's on_disconnection callback
-     *   2) we erase the session, which runs the session's destructor
-     *   3) that destructor waits for the session to end, which cannot happen while the
-     *      on_disconnection callback is still running
-     */
-    m_pool.enqueue_detach([this, id, ex]() {
-        if (m_callbacks.OnDisconnected)
-            m_callbacks.OnDisconnected.invoke(*this, id, ex);
+     * The decrement is the final statement, so m_active_sessions reaching zero means every callback
+     * on every session strand has finished. teardown() relies on exactly that.
+     *
+     * Note the erase cannot run the session's destructor here: close_impl() is invoked through a
+     * lambda holding a shared_from_this() (tcp_session::close()), so ours is not the last reference.
+     * Whichever of the two drops last destroys the session, by which point it has stopped. */
+    boost::asio::post(strand, [this, id, ex]() {
+        try {
+            if (m_callbacks.OnDisconnected)
+                m_callbacks.OnDisconnected.invoke(*this, id, ex);
+        } catch (...) {}
 
         {
             std::unique_lock lock(m_mutex);
