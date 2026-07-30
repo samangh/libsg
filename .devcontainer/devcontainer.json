@@ -1,0 +1,26 @@
+{
+  "name": "libsg",
+  "build": {
+    "dockerfile": "Dockerfile",
+    "args": {
+      "UID": "1000",
+      "GID": "1000"
+    }
+  },
+  "workspaceFolder": "/workspace",
+  "workspaceMount": "source=${localWorkspaceFolder},target=/workspace,type=bind",
+  "remoteUser": "dev",
+
+  // SYS_PTRACE + an unconfined seccomp profile are what the sanitizer builds
+  // need: TSan calls personality(ADDR_NO_RANDOMIZE), which the default docker
+  // seccomp profile blocks.
+  "runArgs": [
+    "--cap-add=SYS_PTRACE",
+    "--security-opt",
+    "seccomp=unconfined"
+  ],
+
+  "mounts": [
+    "source=libsg-claude-config,target=/home/dev/.claude,type=volume",
+  ],
+}
