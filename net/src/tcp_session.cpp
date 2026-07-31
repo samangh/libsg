@@ -22,8 +22,62 @@ tcp_session::tcp_session(private_tag, boost::asio::ip::tcp::socket socket, Callb
                          options_t options)
 : m_socket(std::move(socket)),
   m_strand(boost::asio::make_strand(m_socket.get_executor())),
+  m_io_work(m_socket.get_executor()),
   m_options(options),
-  m_callbacks(std::move(cb)) {};
+  m_callbacks(std::move(cb)),
+  m_read_gate(m_strand) {
+    /* The gate never expires on its own: the only things that complete a wait on it are
+     * release_read_gate()'s cancel() and the destruction of the io_context. */
+    m_read_gate.expires_at(boost::asio::steady_timer::time_point::max());
+};
+
+tcp_session::read_lease::~read_lease() { release(); }
+
+tcp_session::read_lease& tcp_session::read_lease::operator=(read_lease&& other) noexcept {
+    if (this != &other) {
+        release();
+        m_session = std::move(other.m_session);
+    }
+    return *this;
+}
+
+void tcp_session::read_lease::release() noexcept {
+    auto session = std::move(m_session);
+    if (!session)
+        return;
+
+    /* Publish the latch first. It is what the reader tests, so a reader that has not parked yet is
+     * already free to continue and the wake-up below is pure nudge. */
+    session->m_read_released.store(true, std::memory_order::release);
+
+    /* Once the session has stopped there is nothing left to wake: close_impl() released the gate on
+     * its way out, and reader() will not park again on a closed socket. Bail out before touching the
+     * strand, because a lease dropped this late may well have outlived the io_context the strand
+     * belongs to -- holding a lease keeps the *session* alive, not the pool it runs on.
+     *
+     * This is why reader() must never park while the socket is closed: it would be parking on a gate
+     * that this branch has already given up on opening. */
+    if (session->m_state.load(std::memory_order::acquire) == state_t::stopped)
+        return;
+
+    /* The timer is not thread-safe, so the cancel has to happen on the session's strand:
+     * dispatch(), not post(), so that a callback which simply returns -- and is therefore already
+     * on that strand -- runs it inline and the reader never suspends at all.
+     *
+     * The handler holds a weak_ptr, deliberately never a strong one, and this function drops its
+     * own strong reference the moment it returns. There is nothing left for it to keep alive: the
+     * session is still running (we checked), so m_io_work is still held and the io_context cannot
+     * stop before this dispatch has run -- and if the reader has already gone, waking it is moot. */
+    try {
+        boost::asio::dispatch(session->m_strand, [weak = std::weak_ptr<tcp_session>(session)]() {
+            if (auto s = weak.lock())
+                s->m_read_gate.cancel();
+        });
+    } catch (...) {
+        /* dispatch() only fails on allocation failure. The latch is already set, so a reader that
+         * has not parked continues regardless; one that has parked waits until close(). */
+    }
+}
 
 /* you can be sure that by the time this is called all the callbacks are done:
  *
@@ -227,6 +281,12 @@ void tcp_session::close_impl() {
         m_socket.close();
     } catch (...) {}
 
+    /* A reader parked on the gate has to be woken here, exactly as the close above wakes one
+     * parked in async_read_some. Without this, a lease that is never released -- or one held by a
+     * handler that is discarded rather than run -- would strand the reader coroutine, and with it
+     * the shared_ptr it holds to us, for as long as the io_context lives. */
+    release_read_gate();
+
     std::exception_ptr exPtr;
     {
         std::lock_guard lock(m_exception_mutex);
@@ -235,6 +295,18 @@ void tcp_session::close_impl() {
 
     if (m_callbacks.onDisconnected)
         m_callbacks.onDisconnected.invoke(*this, exPtr);
+
+    /* Nothing more will be posted to m_strand on our behalf from here: write() refuses a session
+     * that is not running, close() is a no-op once we have been through it, and a lease released
+     * from now on returns without touching the strand. So the io_context is free to stop, and it
+     * must be -- a tcp_server's pool has no work guard of its own and this is what lets it drain.
+     *
+     * Whatever is already queued on the strand (the read the close above cancelled, a reader woken
+     * off the gate) keeps the context up on its own account until it has run.
+     *
+     * Before the state store, so that a wait_until_stopped() returning cannot be racing us for the
+     * io_context we are about to let go of. */
+    m_io_work.reset();
 
     m_state.store(state_t::stopped, std::memory_order::release);
     m_state.notify_all();
@@ -250,21 +322,53 @@ boost::asio::awaitable<void> tcp_session::reader() {
     try {
         boost::asio::socket_base::receive_buffer_size option;
         m_socket.get_option(option);
-        int size = option.value();
+        auto size = option.value();
 
-        auto data = std::make_unique<std::byte[]>(size);
+        m_read_buffer = sg::unique_buffer(new std::byte[size], size);
+
         while (m_socket.is_open()) {
-            if (m_options.dont_read) {
-                co_await m_socket.async_wait(boost::asio::ip::tcp::socket::wait_read, boost::asio::use_awaitable);
-                if (m_callbacks.onDataAvailable)
-                    m_callbacks.onDataAvailable.invoke(*this, nullptr, 0);
-            }
+            const std::byte* payload = nullptr;
+            std::size_t payloadSize = 0;
+
+            if (m_options.dont_read)
+                co_await m_socket.async_wait(boost::asio::ip::tcp::socket::wait_read,
+                                             boost::asio::use_awaitable);
             else {
-                std::size_t n = co_await m_socket.async_read_some(boost::asio::buffer(data.get(), size),
-                                                              boost::asio::use_awaitable);
-                if (m_callbacks.onDataAvailable)
-                    m_callbacks.onDataAvailable.invoke(*this, data.get(), n);
+                payloadSize = co_await m_socket.async_read_some(
+                    boost::asio::buffer(m_read_buffer.get(), m_read_buffer.size()),
+                    boost::asio::use_awaitable);
+                payload = m_read_buffer.get();
             }
+
+            /* close_impl() may have run while that read was in flight, and a read can genuinely
+             * complete *with data* in that window: closing the socket cancels a pending operation,
+             * not one the reactor has already satisfied. Since close_impl() runs on this strand
+             * too, a closed socket here means it has already finished -- OnDisconnected has fired
+             * and the gate has been released -- so reporting the read now would deliver data after
+             * the disconnection, and parking on the gate below would park us for good, because
+             * releasing a lease is a no-op once the session has stopped. Drop the read instead. */
+            if (!m_socket.is_open())
+                break;
+
+            if (!m_callbacks.onDataAvailable)
+                continue;
+
+            /* Hand out a lease and park until it is dropped. This is what lets us pass the
+             * reader's own buffer to a callback that may outlive its own return, and what stops
+             * us reading ahead of a consumer that cannot keep up.
+             *
+             * The common case -- a callback that returns without moving the lease -- releases the
+             * gate inline, so m_read_released is already true here and we never suspend. */
+            m_read_released.store(false, std::memory_order::release);
+            m_callbacks.onDataAvailable.invoke(*this, payload, payloadSize,
+                                               read_lease(shared_from_this()));
+
+            /* The socket is re-tested on every pass so that no lease can hold us past close_impl():
+             * it runs on this strand, so if the socket is still open its release_read_gate() is
+             * still to come and is guaranteed to wake us. */
+            while (!m_read_released.load(std::memory_order::acquire) && m_socket.is_open())
+                co_await m_read_gate.async_wait(
+                    boost::asio::as_tuple(boost::asio::use_awaitable));
         }
     } catch (...) {
         /* if clean closing, do not throw error
@@ -281,6 +385,11 @@ boost::asio::awaitable<void> tcp_session::reader() {
     }
 
     close();
+}
+
+void tcp_session::release_read_gate() {
+    m_read_released.store(true, std::memory_order::release);
+    m_read_gate.cancel();
 }
 
 boost::asio::awaitable<void> tcp_session::writer() {

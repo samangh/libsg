@@ -212,9 +212,10 @@ void tcp_server::teardown() {
         } catch (...) {}
 
     /* Last, because the drain above is what makes it safe: m_active_sessions reaching zero means
-     * every session strand has run its final handler, so nothing is still queued here. That matters
-     * because stop_async() discards queued handlers rather than running them -- the work guard means
-     * the pool would otherwise never stop on its own, but it also means a stop is abrupt.
+     * every liveness token is gone, so no session callback, no reader/writer coroutine and no
+     * read_lease is left anywhere. That matters because stop_async() discards queued handlers
+     * rather than running them -- the work guard means the pool would otherwise never stop on its
+     * own, but it also means a stop is abrupt.
      *
      * After this, wait_until_stopped() returning implies every session callback has completed. */
     m_cb_pool->stop_async();
@@ -276,28 +277,40 @@ tcp_server::listener(std::shared_ptr<boost::asio::ip::tcp::acceptor> acceptor) {
              * and no server-side map is needed to find it again. */
             const callback_strand_t cb_strand = boost::asio::make_strand(m_cb_pool->context());
 
-            /* Built before the accept and kept in its own variable rather than passed inline: the
-             * order in which call arguments are evaluated is unspecified, and mixing that with a
-             * co_await in the same argument list is not worth reasoning about. */
-            auto callbacks = make_session_callbacks(id, cb_strand);
-
             /* Accept onto the general io_context rather than this acceptor's strand: the new
              * session must be able to run across all workers. Passing the context explicitly
              * overrides the default of inheriting the acceptor's (strand) executor. */
             auto socket =
                 co_await acceptor->async_accept(m_context->context(), boost::asio::use_awaitable);
 
-            auto sess = tcp_session::create(std::move(socket), std::move(callbacks),
-                                            m_options.session_options);
-
             /* the accept may have returned because we are shutting down */
             if (m_stop_requested.load(std::memory_order::acquire))
                 break;
 
+            /* The session's liveness token. Everything that can still reach the server on this
+             * session's behalf takes a copy; the last copy to die decrements the count. See
+             * m_active_sessions.
+             *
+             * Created after the stop check so that an accept that only returned because we are
+             * shutting down does not have to be unwound, and outside make_session_callbacks() so
+             * that the increment is paired with the deleter at a single, obvious point. */
+            m_active_sessions.fetch_add(1, std::memory_order::release);
+            auto session_token = std::shared_ptr<void>(nullptr, [this](void*) {
+                if (m_active_sessions.fetch_sub(1, std::memory_order::acq_rel) == 1)
+                    m_active_sessions.notify_all();
+            });
+
+            /* Kept in its own variable rather than passed inline: the order in which call
+             * arguments are evaluated is unspecified, and mixing that with the co_await above in
+             * one argument list is not worth reasoning about. */
+            auto callbacks = make_session_callbacks(id, cb_strand, session_token);
+
+            auto sess = tcp_session::create(std::move(socket), std::move(callbacks),
+                                            m_options.session_options);
+
             {
                 std::unique_lock lock(m_mutex);
                 m_sessions.emplace(id, sess);
-                m_active_sessions.fetch_add(1, std::memory_order::release);
             }
 
             /* start() may throw if session setup fails (e.g. the peer reset the connection).
@@ -334,7 +347,8 @@ void tcp_server::inform_user_of_data(session_id_t id, const std::byte* data, siz
 }
 
 tcp_session::Callbacks tcp_server::make_session_callbacks(session_id_t id,
-                                                          const callback_strand_t& strand) {
+                                                          const callback_strand_t& strand,
+                                                          std::shared_ptr<void> token) {
     /* dont_read sessions read the socket inside OnSessionDataAvailable, and a native handle may only
      * be touched on the session's io strand, so for them that callback cannot be moved off the io
      * threads. OnSessionCreated has to stay with it: deferring only one of the pair would let data
@@ -344,38 +358,48 @@ tcp_session::Callbacks tcp_server::make_session_callbacks(session_id_t id,
     tcp_session::Callbacks cb;
 
     if (defer) {
-        cb.onConnected = [this, id, strand](tcp_session&) { on_session_created(id, strand); };
+        cb.onConnected = [this, id, strand, token](tcp_session&) {
+            on_session_created(id, strand, token);
+        };
 
-        cb.onDataAvailable = [this, id, strand](tcp_session&, const std::byte* data, size_t size) {
-            /* Copy before returning. `data` belongs to the reader coroutine, which reuses the same
-             * buffer for every read, so by the time a posted handler ran the bytes would already
-             * have been overwritten. This copy is the price of getting the callback off the io
-             * thread; it is also what lets the public callback signature stay unchanged.
+        cb.onDataAvailable = [this, id, strand, token](tcp_session&, const std::byte* data,
+                                                       size_t size,
+                                                       tcp_session::read_lease lease) {
+            /* `data` points into the session's receive buffer and is handed straight to the user
+             * -- no copy. The lease is what makes that sound: while it is alive the session issues
+             * no further read, so nothing overwrites those bytes, and the session (which owns the
+             * buffer) cannot be destroyed.
              *
              * A zero-length read is not something async_read_some reports -- it surfaces as eof --
-             * but guard it rather than calling make_shared_c_buffer(0), which would turn a null
-             * malloc(0) into bad_alloc. Nothing is lost by dropping an empty notification. */
+             * but guard it anyway. Dropping the lease here is the whole notification.
+             *
+             * Note the lease is released by the handler's *destruction*, not by its execution. A
+             * handler that is discarded rather than run -- which is what happens to whatever is
+             * still queued when the callback pool stops -- therefore resumes the reader just the
+             * same, instead of stranding it. */
             if (size == 0)
                 return;
 
-            auto buffer = sg::make_shared_c_buffer<std::byte>(size);
-            std::memcpy(buffer.get(), data, size);
-
-            boost::asio::post(strand, [this, id, buffer]() {
-                try {
-                    inform_user_of_data(id, buffer.get(), buffer.size());
-                } catch (...) {
-                    fail_session(id);
-                }
-            });
+            boost::asio::post(strand,
+                              [this, id, data, size, token, lease = std::move(lease)]() {
+                                  try {
+                                      inform_user_of_data(id, data, size);
+                                  } catch (...) {
+                                      fail_session(id);
+                                  }
+                              });
         };
     } else {
-        cb.onConnected = [this, id](tcp_session&) {
+        cb.onConnected = [this, id, token](tcp_session&) {
             if (m_callbacks.OnSessionCreated)
                 m_callbacks.OnSessionCreated.invoke(*this, id);
         };
 
-        cb.onDataAvailable = [this, id](tcp_session&, const std::byte* data, size_t size) {
+        /* Runs on the session's io strand, as it must: the user reads the native handle from here.
+         * The lease is dropped on return, which -- because we are already on that strand -- lets
+         * the reader continue without ever suspending. */
+        cb.onDataAvailable = [this, id, token](tcp_session&, const std::byte* data, size_t size,
+                                               tcp_session::read_lease) {
             inform_user_of_data(id, data, size);
         };
     }
@@ -383,8 +407,8 @@ tcp_session::Callbacks tcp_server::make_session_callbacks(session_id_t id,
     /* Deferred for every session, dont_read or not. It runs the user's OnDisconnected and then
      * erases the session, and neither belongs on the session's own io strand -- we are called from
      * inside that session's close handler. */
-    cb.onDisconnected = [this, id, strand](tcp_session&, std::exception_ptr ex) {
-        on_session_stopped(id, ex, strand);
+    cb.onDisconnected = [this, id, strand, token](tcp_session&, std::exception_ptr ex) {
+        on_session_stopped(id, ex, strand, token);
     };
 
     return cb;
@@ -398,8 +422,9 @@ void tcp_server::fail_session(session_id_t id) noexcept {
     } catch (...) {}
 }
 
-void tcp_server::on_session_created(session_id_t id, const callback_strand_t& strand) {
-    boost::asio::post(strand, [this, id]() {
+void tcp_server::on_session_created(session_id_t id, const callback_strand_t& strand,
+                                    std::shared_ptr<void> token) {
+    boost::asio::post(strand, [this, id, token = std::move(token)]() {
         try {
             if (m_callbacks.OnSessionCreated)
                 m_callbacks.OnSessionCreated.invoke(*this, id);
@@ -413,31 +438,29 @@ void tcp_server::on_session_created(session_id_t id, const callback_strand_t& st
 }
 
 void tcp_server::on_session_stopped(session_id_t id, std::exception_ptr ex,
-                                    const callback_strand_t& strand) {
+                                    const callback_strand_t& strand, std::shared_ptr<void> token) {
     /* We are called from tcp_session::close_impl(), i.e. on that session's io strand. Posting to the
      * callback strand gets the user's OnDisconnected off the io threads, and -- because it is the
      * last thing posted for this session -- puts the erase after every data callback, so that
      * session(id) is still valid inside them.
      *
-     * The decrement is the final statement, so m_active_sessions reaching zero means every callback
-     * on every session strand has finished. teardown() relies on exactly that.
+     * There is deliberately no decrement here. Erasing the session drops one holder of the liveness
+     * token, and this handler drops another when it is destroyed, but the reader and writer
+     * coroutine frames (and any outstanding read_lease) hold the session too -- and none of them is
+     * finished merely because OnDisconnected has run. m_active_sessions falls to zero only once
+     * every one of those is gone, which is the guarantee teardown() needs.
      *
      * Note the erase cannot run the session's destructor here: close_impl() is invoked through a
      * lambda holding a shared_from_this() (tcp_session::close()), so ours is not the last reference.
      * Whichever of the two drops last destroys the session, by which point it has stopped. */
-    boost::asio::post(strand, [this, id, ex]() {
+    boost::asio::post(strand, [this, id, ex, token = std::move(token)]() {
         try {
             if (m_callbacks.OnDisconnected)
                 m_callbacks.OnDisconnected.invoke(*this, id, ex);
         } catch (...) {}
 
-        {
-            std::unique_lock lock(m_mutex);
-            m_sessions.erase(id);
-        }
-
-        if (m_active_sessions.fetch_sub(1, std::memory_order::acq_rel) == 1)
-            m_active_sessions.notify_all();
+        std::unique_lock lock(m_mutex);
+        m_sessions.erase(id);
     });
 }
 

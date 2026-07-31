@@ -62,7 +62,8 @@ namespace sg::net {
  *
  *     Because a session callback cannot occupy an io thread, it is free to block -- including on
  *     tcp_session::wait_until_stopped(), set_keepalive() or set_timeout(), which all need the io
- *     threads to make progress.
+ *     threads to make progress. What it does hold up is that session's own reading (see the
+ *     back-pressure note below) and, for as long as it blocks, this server's teardown.
  *
  *     The exception is tcp_session::options_t::dont_read. There the user reads the socket inside
  *     OnSessionDataAvailable, and a native handle may only be touched on the session's io strand, so
@@ -74,11 +75,15 @@ namespace sg::net {
  *     worker and terminate the process -- so unlike previously it does not reach that
  *     OnDisconnected's exception_ptr, which reports only errors seen on the session's own io path.
  *
- *   - there is NO back-pressure on OnSessionDataAvailable, and none can be added from the callback
- *     side. The reader hands each read to a copy-and-post and immediately reissues
- *     async_read_some, so it never waits for the consumer: a peer that outruns the callback grows
- *     that session's queue without bound, until make_shared_c_buffer throws bad_alloc inside the
- *     reader and the session dies carrying it -- assuming the process has not hit OOM first.
+ *   - OnSessionDataAvailable applies back-pressure. A session reads no further while its callback is
+ *     outstanding, so a peer that outruns the consumer is throttled by TCP itself rather than
+ *     growing an unbounded queue of pending callbacks in this process. It also means the buffer
+ *     handed to the callback is the reader's own -- there is no copy -- so it is valid for the
+ *     duration of the call and no longer: a callback that needs the bytes afterwards must copy them.
+ *
+ *     The cost is that a callback which never returns stops that session reading and, because the
+ *     session then never finishes, blocks teardown() as well. See tcp_session::read_lease, which is
+ *     what holds the read paused; this server drops it when the callback returns.
  *
  *   - any callback may call stop_async(), but none may call wait_until_stopped(): that would wait
  *     for the teardown it is itself part of. OnStartedListening deadlocks for a second reason --
@@ -173,6 +178,17 @@ class SG_NET_EXPORT tcp_server {
     CallBacks m_callbacks;
     options_t m_options;
 
+    /* Counts sessions that can still reach us, not sessions that are connected. Each one is held
+     * up by a std::shared_ptr<void> liveness token created in listener(); the count is decremented
+     * by that token's deleter.
+     *
+     * The token is copied into everything that can still touch m_sessions, m_mutex, m_callbacks or
+     * either strand: the session's own callback lambdas (and so, transitively, the session, the
+     * reader/writer coroutine frames that hold it, and any outstanding read_lease), and every
+     * handler posted to the callback strand. A plain counter incremented on accept and decremented
+     * in the OnDisconnected handler would not do -- it is decremented on the callback strand and so
+     * says nothing about whether the session's coroutines are gone, which is exactly what
+     * teardown() has to know before it may stop either pool. */
     std::atomic<size_t> m_active_sessions{0};
     std::atomic<size_t> m_last_id{0};
 
@@ -246,15 +262,17 @@ class SG_NET_EXPORT tcp_server {
     void fail_session(session_id_t id) noexcept;
 
     /* Both take the session's callback strand rather than looking it up, because the strand is
-     * captured by the session's own callback lambdas -- there is no server-side map to consult. */
-    void on_session_created(session_id_t id, const callback_strand_t& strand);
+     * captured by the session's own callback lambdas -- there is no server-side map to consult.
+     * @p token is the session's liveness token; see m_active_sessions. */
+    void on_session_created(session_id_t id, const callback_strand_t& strand,
+                            std::shared_ptr<void> token);
     void on_session_stopped(session_id_t id, std::exception_ptr ex,
-                            const callback_strand_t& strand);
+                            const callback_strand_t& strand, std::shared_ptr<void> token);
 
-    /* Builds the three tcp_session callbacks for a new session: they copy any incoming data and
-     * post the user's callbacks onto @p strand. */
-    tcp_session::Callbacks make_session_callbacks(session_id_t id,
-                                                 const callback_strand_t& strand);
+    /* Builds the three tcp_session callbacks for a new session: they post the user's callbacks
+     * onto @p strand, and hold @p token for as long as they can still run. */
+    tcp_session::Callbacks make_session_callbacks(session_id_t id, const callback_strand_t& strand,
+                                                  std::shared_ptr<void> token);
 };
 
 }

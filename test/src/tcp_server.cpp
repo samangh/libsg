@@ -701,7 +701,7 @@ TEST_CASE("tcp_server: proxy simulation", "[sg::net::tcp_server]") {
 
     {
         tcp_session::Callbacks::OnDataAvailable onDataAvailable =
-            [&](tcp_session&, const std::byte* data, size_t length) {
+            [&](tcp_session&, const std::byte* data, size_t length, tcp_session::read_lease) {
                 /* this connection is made before proxy_server is launched; previously that meant
                  * an empty session list, now it means there is no server to ask yet */
                 if (!proxy_server)
@@ -1355,4 +1355,119 @@ TEST_CASE("tcp_server: dont_read sessions still report data", "[sg::net::tcp_ser
 
     REQUIRE(notified.try_acquire_for(std::chrono::seconds(5)));
     REQUIRE(handed_no_buffer);
+}
+
+TEST_CASE("tcp_session: a held read_lease pauses reads", "[sg::net::tcp_session]") {
+    end_point ep("127.0.0.1", PORT2 + 15);
+
+    std::mutex mutex;
+    std::string received;
+    std::atomic_int deliveries{0};
+
+    /* Park the first delivery by keeping its lease; the session must issue no further read until
+     * it is dropped. */
+    std::mutex leaseMutex;
+    tcp_session::read_lease parked;
+    std::binary_semaphore parkedSet{0};
+
+    tcp_session::Callbacks::OnDataAvailable onData = [&](tcp_session&, const std::byte* data,
+                                                        size_t size,
+                                                        tcp_session::read_lease lease) {
+        {
+            std::lock_guard lock(mutex);
+            received.append(reinterpret_cast<const char*>(data), size);
+        }
+
+        if (deliveries.fetch_add(1) == 0) {
+            std::lock_guard lock(leaseMutex);
+            parked = std::move(lease);
+            parkedSet.release();
+        }
+    };
+
+    tcp_server::CallBacks serverCb;
+    auto server = tcp_server::launch({ep}, serverCb);
+
+    tcp_client client;
+    client.connect(ep, onData, nullptr);
+
+    const auto send_from_server = [&](std::string_view msg) {
+        for (int i = 0; i < 200 && server->clients_count() == 0; ++i)
+            std::this_thread::sleep_for(std::chrono::milliseconds(5));
+        for (const auto& id : server->sessions() | std::views::keys) server->write(id, msg);
+    };
+
+    send_from_server("AAA");
+    REQUIRE(parkedSet.try_acquire_for(std::chrono::seconds(5)));
+
+    send_from_server("BBB");
+    std::this_thread::sleep_for(std::chrono::milliseconds(300));
+
+    /* Still one delivery: the reader is parked, so "BBB" is sitting unread in the socket. */
+    REQUIRE(deliveries.load() == 1);
+    {
+        std::lock_guard lock(mutex);
+        REQUIRE(received == "AAA");
+    }
+
+    {
+        std::lock_guard lock(leaseMutex);
+        parked.release();
+    }
+
+    for (int i = 0; i < 200; ++i) {
+        {
+            std::lock_guard lock(mutex);
+            if (received == "AAABBB")
+                break;
+        }
+        std::this_thread::sleep_for(std::chrono::milliseconds(5));
+    }
+    {
+        std::lock_guard lock(mutex);
+        REQUIRE(received == "AAABBB");
+    }
+}
+
+TEST_CASE("tcp_session: disconnecting releases a held read_lease", "[sg::net::tcp_session]") {
+    end_point ep("127.0.0.1", PORT2 + 16);
+
+    std::mutex leaseMutex;
+    tcp_session::read_lease parked;
+    std::binary_semaphore parkedSet{0};
+
+    tcp_session::Callbacks::OnDataAvailable onData = [&](tcp_session&, const std::byte*, size_t,
+                                                        tcp_session::read_lease lease) {
+        std::lock_guard lock(leaseMutex);
+        if (!parked) {
+            parked = std::move(lease);
+            parkedSet.release();
+        }
+    };
+
+    tcp_server::CallBacks serverCb;
+    auto server = tcp_server::launch({ep}, serverCb);
+
+    tcp_client client;
+    client.connect(ep, onData, nullptr);
+
+    for (int i = 0; i < 200 && server->clients_count() == 0; ++i)
+        std::this_thread::sleep_for(std::chrono::milliseconds(5));
+    for (const auto& id : server->sessions() | std::views::keys) server->write(id, "hello");
+
+    REQUIRE(parkedSet.try_acquire_for(std::chrono::seconds(5)));
+
+    /* close() releases the gate itself, so neither of these may wait on the still-held lease. */
+    client.disconnect();
+    REQUIRE_FALSE(client.is_connected());
+
+    /* And releasing it afterwards is a no-op rather than a use of the stopped session's strand. */
+    {
+        std::lock_guard lock(leaseMutex);
+        parked.release();
+    }
+
+    server->stop_async();
+    server->wait_until_stopped();
+    REQUIRE(server->is_stopped());
 }

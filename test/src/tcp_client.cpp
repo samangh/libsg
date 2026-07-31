@@ -32,7 +32,9 @@ TEST_CASE("tcp_client: check connect", "[sg::net::tcp_client]") {
     auto server = tcp_server::launch({ep}, callbacks);
 
     /* client: collect echo response */
-    tcp_session::Callbacks::OnDataAvailable onClientdata = [&](tcp_session&, const std::byte* dat, size_t size) {
+    tcp_session::Callbacks::OnDataAvailable onClientdata = [&](tcp_session&, const std::byte* dat,
+                                                               size_t size,
+                                                               tcp_session::read_lease) {
         result = std::string((char*)dat, size);
         can_stop.release();
     };
