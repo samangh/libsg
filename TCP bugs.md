@@ -17,37 +17,37 @@ found; **By inspection** = not reproduced (no repro attempted, or the sandbox ca
 
 ## Summary
 
-| # | Severity | Status | Area | Issue |
-|---|---|---|---|---|
-| [1](#1) | Critical | Confirmed | `tcp_session` | Throwing `onDisconnected` → `std::terminate`, or a session wedged in `stopping` forever |
-| [2](#2) | Critical | Confirmed | `tcp_server` | Throwing user `OnDisconnected` leaks the session and makes the server unstoppable |
-| [3](#3) | High | Confirmed | `tcp_server` | `future_get_once()` dereferences a null `m_context` |
-| [4](#4) | High | Confirmed | `tcp_server` | A single transient `accept()` error permanently kills the listener |
-| [5](#5) | High | Confirmed | `tcp_session` | `dont_read` busy-spins at EOF and never detects the disconnect |
-| [6](#6) | High | Confirmed | `tcp_session` | Teardown and `set_keepalive`/`set_timeout` block forever if the io pool is not running |
-| [7](#7) | Medium | Confirmed | `tcp_session` | `start()` on a stopped session is accepted → second `onDisconnected` |
-| [8](#8) | Medium | Confirmed | `tcp_client_sync` | `m_read_leftover` survives disconnect → stale data on the next connection |
-| [9](#9) | Medium | Confirmed | `tcp_client_sync` | Delimiter straddling a read boundary → spurious timeout |
-| [10](#10) | Medium | Confirmed | `tcp_client_sync` | `read_some(n)` blocks until exactly `n` bytes arrive |
-| [11](#11) | Medium | Confirmed | `tcp_session`/`tcp_client` | `timeout_msec == 0` is a zero deadline, not "disabled" |
-| [12](#12) | Medium | Confirmed | `tcp_session` | A clean `stop_async()` is delayed by, and reported as, a write timeout |
-| [13](#13) | Medium | Confirmed | `net.h` | `end_point()` leaves `.port` uninitialised |
-| [14](#14) | Low | Confirmed | `tcp_session`/`tcp_server` | `options_t` is not an aggregate → designated initialisers don't compile |
-| [15](#15) | Low | Confirmed | `tcp_client` | `disconnect()` error message names `connect()` |
-| [16](#16) | Medium | By inspection | `tcp_client` | Not thread-safe against its own callbacks |
-| [17](#17) | Medium | By inspection | `tcp_server` | Unsynchronised access to `m_acceptors` / `m_context` from the stopping thread |
-| [18](#18) | Medium | By inspection | `tcp_session` | The io-thread guard only knows about *this* session's strand |
-| [19](#19) | Low | By inspection | `tcp_server` | Destructor does not join the stopping thread before `m_pool` is destroyed |
-| [20](#20) | Low | By inspection | various | Assorted API/semantic sharp edges |
-| [21](#21) | Low | Latent | `tcp_client_sync` | `npos` arithmetic in `read_until()` can silently corrupt data |
-| [22](#22) | Low | Latent | `tcp_client_sync` | `~tcp_client_sync()` calls a function that can throw |
-| [23](#23) | Low | Latent | `tcp_session` | `writer()` records exceptions unconditionally / mis-maps `operation_aborted` |
+| # | Severity | Status | Area | Issue | GitHub |
+|---|---|---|---|---|---|
+| [1](#1) | Critical | Confirmed | `tcp_session` | Throwing `onDisconnected` → `std::terminate`, or a session wedged in `stopping` forever | [#6](https://github.com/samangh/libsg/issues/6) |
+| [2](#2) | Critical | Confirmed | `tcp_server` | Throwing user `OnDisconnected` leaks the session and makes the server unstoppable | [#7](https://github.com/samangh/libsg/issues/7) |
+| [3](#3) | High | Confirmed | `tcp_server` | `future_get_once()` dereferences a null `m_context` | [#8](https://github.com/samangh/libsg/issues/8) |
+| [4](#4) | High | Confirmed | `tcp_server` | A single transient `accept()` error permanently kills the listener | [#9](https://github.com/samangh/libsg/issues/9) |
+| [5](#5) | High | Confirmed | `tcp_session` | `dont_read` busy-spins at EOF and never detects the disconnect | [#10](https://github.com/samangh/libsg/issues/10) |
+| [6](#6) | High | Confirmed | `tcp_session` | Teardown and `set_keepalive`/`set_timeout` block forever if the io pool is not running | [#11](https://github.com/samangh/libsg/issues/11) |
+| [7](#7) | Medium | Confirmed | `tcp_session` | `start()` on a stopped session is accepted → second `onDisconnected` | [#12](https://github.com/samangh/libsg/issues/12) |
+| [8](#8) | Medium | Confirmed | `tcp_client_sync` | `m_read_leftover` survives disconnect → stale data on the next connection | [#13](https://github.com/samangh/libsg/issues/13) |
+| [9](#9) | Medium | Confirmed | `tcp_client_sync` | Delimiter straddling a read boundary → spurious timeout | [#14](https://github.com/samangh/libsg/issues/14) |
+| [10](#10) | Medium | Confirmed | `tcp_client_sync` | `read_some(n)` blocks until exactly `n` bytes arrive | [#15](https://github.com/samangh/libsg/issues/15) |
+| [11](#11) | Medium | Confirmed | `tcp_session`/`tcp_client` | `timeout_msec == 0` is a zero deadline, not "disabled" | [#16](https://github.com/samangh/libsg/issues/16) |
+| [12](#12) | Medium | Confirmed | `tcp_session` | A clean `stop_async()` is delayed by, and reported as, a write timeout | [#17](https://github.com/samangh/libsg/issues/17) |
+| [13](#13) | Medium | Confirmed | `net.h` | `end_point()` leaves `.port` uninitialised | [#18](https://github.com/samangh/libsg/issues/18) |
+| [14](#14) | Low | Confirmed | `tcp_session`/`tcp_server` | `options_t` is not an aggregate → designated initialisers don't compile | [#19](https://github.com/samangh/libsg/issues/19) |
+| [15](#15) | Low | Confirmed | `tcp_client` | `disconnect()` error message names `connect()` | [#20](https://github.com/samangh/libsg/issues/20) |
+| [16](#16) | Medium | By inspection | `tcp_client` | Not thread-safe against its own callbacks | [#21](https://github.com/samangh/libsg/issues/21) |
+| [17](#17) | Medium | By inspection | `tcp_server` | Unsynchronised access to `m_acceptors` / `m_context` from the stopping thread | [#22](https://github.com/samangh/libsg/issues/22) |
+| [18](#18) | Medium | By inspection | `tcp_session` | The io-thread guard only knows about *this* session's strand | [#23](https://github.com/samangh/libsg/issues/23) |
+| [19](#19) | Low | By inspection | `tcp_server` | Destructor does not join the stopping thread before `m_pool` is destroyed | [#24](https://github.com/samangh/libsg/issues/24) |
+| [20](#20) | Low | By inspection | various | Assorted API/semantic sharp edges | [#25](https://github.com/samangh/libsg/issues/25) |
+| [21](#21) | Low | Latent | `tcp_client_sync` | `npos` arithmetic in `read_until()` can silently corrupt data | [#26](https://github.com/samangh/libsg/issues/26) |
+| [22](#22) | Low | Latent | `tcp_client_sync` | `~tcp_client_sync()` calls a function that can throw | [#27](https://github.com/samangh/libsg/issues/27) |
+| [23](#23) | Low | Latent | `tcp_session` | `writer()` records exceptions unconditionally / mis-maps `operation_aborted` | [#28](https://github.com/samangh/libsg/issues/28) |
 
 ---
 
 ## Confirmed
 
-### <a name="1"></a>1. A throwing `onDisconnected` callback either terminates the process or wedges the session — Critical
+### <a name="1"></a>1. A throwing `onDisconnected` callback either terminates the process or wedges the session — Critical ([#6](https://github.com/samangh/libsg/issues/6))
 
 `net/src/tcp_session.cpp:218-241`. `close_impl()` invokes the user callback at `:236`
 and only *afterwards* stores the terminal state and wakes waiters (`:239-240`):
@@ -94,7 +94,7 @@ scope-exit guard so it happens on every path.
 
 ---
 
-### <a name="2"></a>2. A throwing server `OnDisconnected` leaks the session and makes the server unstoppable — Critical
+### <a name="2"></a>2. A throwing server `OnDisconnected` leaks the session and makes the server unstoppable — Critical ([#7](https://github.com/samangh/libsg/issues/7))
 
 `net/src/tcp_server.cpp:296-315`. One lambda does three things in order: invoke the user
 callback, erase the session, decrement the counter.
@@ -131,7 +131,7 @@ Note there is a commented-out test for callback-exception handling at
 
 ---
 
-### <a name="3"></a>3. `tcp_server::future_get_once()` dereferences a null `m_context` — High
+### <a name="3"></a>3. `tcp_server::future_get_once()` dereferences a null `m_context` — High ([#8](https://github.com/samangh/libsg/issues/8))
 
 `net/src/tcp_server.cpp:144-147`:
 
@@ -152,7 +152,7 @@ Evidence: `future_get_once` scenario → **SIGSEGV (exit=139)**.
 
 ---
 
-### <a name="4"></a>4. One transient `accept()` error permanently kills the listener — High
+### <a name="4"></a>4. One transient `accept()` error permanently kills the listener — High ([#9](https://github.com/samangh/libsg/issues/9))
 
 `net/src/tcp_server.cpp:244-251`. The listener's catch-all calls `stop_async()`, so a
 per-connection, recoverable failure tears down every acceptor and every session:
@@ -184,7 +184,7 @@ and only stop on errors that are fatal to the acceptor (`operation_aborted`, `EB
 
 ---
 
-### <a name="5"></a>5. `dont_read` busy-spins at EOF and never detects the disconnect — High
+### <a name="5"></a>5. `dont_read` busy-spins at EOF and never detects the disconnect — High ([#10](https://github.com/samangh/libsg/issues/10))
 
 `net/src/tcp_session.cpp:256-261`:
 
@@ -220,7 +220,7 @@ callback to report how many bytes it consumed) and close the session.
 
 ---
 
-### <a name="6"></a>6. Teardown and socket-option setters block forever if the io pool is not running — High
+### <a name="6"></a>6. Teardown and socket-option setters block forever if the io pool is not running — High ([#11](https://github.com/samangh/libsg/issues/11))
 
 Two entry points, one root cause: work is handed to `m_strand` and then waited on
 synchronously, with no timeout and no liveness check.
@@ -255,7 +255,7 @@ without error and silently never sent.
 
 ---
 
-### <a name="7"></a>7. `start()` on a stopped session is accepted, and fires `onDisconnected` twice — Medium
+### <a name="7"></a>7. `start()` on a stopped session is accepted, and fires `onDisconnected` twice — Medium ([#12](https://github.com/samangh/libsg/issues/12))
 
 `net/src/tcp_session.cpp:38-40`. The CAS only requires `stopped`, which is also the
 *terminal* state, so a dead session can be restarted. It then applies socket options to a
@@ -277,7 +277,7 @@ been stopped.
 
 ---
 
-### <a name="8"></a>8. `tcp_client_sync`: buffered data survives disconnect/reconnect — Medium
+### <a name="8"></a>8. `tcp_client_sync`: buffered data survives disconnect/reconnect — Medium ([#13](https://github.com/samangh/libsg/issues/13))
 
 `net/src/tcp_client_sync.cpp:78-108`. Neither `connect()` nor `disconnect()` clears
 `m_read_leftover`, so bytes left over from a previous socket are returned as the first
@@ -297,7 +297,7 @@ sending `FRESH\r\n`):
 
 ---
 
-### <a name="9"></a>9. `tcp_client_sync::read_until()`: a delimiter straddling a read boundary is missed — Medium
+### <a name="9"></a>9. `tcp_client_sync::read_until()`: a delimiter straddling a read boundary is missed — Medium ([#14](https://github.com/samangh/libsg/issues/14))
 
 `net/src/tcp_client_sync.cpp:27-40`. `async_read_until` is given a *fresh* buffer, not
 `m_read_leftover + new data`, so it only searches the newly-read bytes. If the leftover
@@ -319,7 +319,7 @@ Evidence (leftover `"b\r"` from a previous call, server then sends exactly `"\n"
 
 ---
 
-### <a name="10"></a>10. `read_some(n)` blocks until exactly `n` bytes arrive — Medium
+### <a name="10"></a>10. `read_some(n)` blocks until exactly `n` bytes arrive — Medium ([#15](https://github.com/samangh/libsg/issues/15))
 
 `net/src/tcp_client_sync.cpp:51-76`. `async_read` with a capped dynamic buffer uses
 `transfer_all`, so it waits for the full `n`. The name promises `read_some` semantics
@@ -340,7 +340,7 @@ Related: on a short read, `m_read_leftover.substr(size)` at `:72` throws
 
 ---
 
-### <a name="11"></a>11. `timeout_msec == 0` means "zero deadline", not "no timeout" — Medium
+### <a name="11"></a>11. `timeout_msec == 0` means "zero deadline", not "no timeout" — Medium ([#16](https://github.com/samangh/libsg/issues/16))
 
 `tcp_session.cpp:316-319` and `tcp_client.cpp:71-74` pass `timeout_msec` straight to
 `boost::asio::cancel_after`. `0` is therefore a deadline of *now*: any operation that
@@ -362,7 +362,7 @@ than safe.)
 
 ---
 
-### <a name="12"></a>12. A clean `stop_async()` is delayed by, and reported as, a write timeout — Medium
+### <a name="12"></a>12. A clean `stop_async()` is delayed by, and reported as, a write timeout — Medium ([#17](https://github.com/samangh/libsg/issues/17))
 
 When a write is in flight, `stop_async()` sees `m_write_scheduled == true` and delegates the
 close to `writer()` (`tcp_session.cpp:150-174`). The writer must first finish or time out
@@ -381,7 +381,7 @@ its deadline, and report the shutdown as clean.
 
 ---
 
-### <a name="13"></a>13. `end_point()` leaves `.port` uninitialised — Medium (UB)
+### <a name="13"></a>13. `end_point()` leaves `.port` uninitialised — Medium (UB) ([#18](https://github.com/samangh/libsg/issues/18))
 
 `net/include/sg/net/net.h:55-61`:
 
@@ -404,7 +404,7 @@ Evidence: after dirtying the stack, `default-constructed end_point.port = 43947`
 
 ---
 
-### <a name="14"></a>14. `options_t` is not an aggregate — designated initialisers don't compile — Low
+### <a name="14"></a>14. `options_t` is not an aggregate — designated initialisers don't compile — Low ([#19](https://github.com/samangh/libsg/issues/19))
 
 The clang-36032 workaround (`tcp_session.h:25`, `tcp_server.h:51`) adds a user-provided
 default constructor, which makes the struct a non-aggregate. So the natural call site
@@ -420,7 +420,7 @@ the currently supported compilers.
 
 ---
 
-### <a name="15"></a>15. `tcp_client::disconnect()` reports the wrong function name — Low
+### <a name="15"></a>15. `tcp_client::disconnect()` reports the wrong function name — Low ([#20](https://github.com/samangh/libsg/issues/20))
 
 `net/src/tcp_client.cpp:107-110` — copy-paste from `connect()`:
 
@@ -433,14 +433,14 @@ I/O thread (e.g. from a callback)"
 
 ## By inspection (not reproduced)
 
-### <a name="16"></a>16. `tcp_client` is not thread-safe against its own callbacks — Medium
+### <a name="16"></a>16. `tcp_client` is not thread-safe against its own callbacks — Medium ([#21](https://github.com/samangh/libsg/issues/21))
 
 `m_session` is a plain `shared_ptr` read by `is_connected()`, `session()` and
 `disconnect()` and written by `connect()` (`tcp_client.cpp:87`, `:97`) with no
 synchronisation, while callbacks run on the io thread. `session()` also returns a raw
 `tcp_session&` that dangles as soon as a later `connect()` reassigns `m_session`.
 
-### <a name="17"></a>17. `tcp_server`: unsynchronised access from the stopping thread — Medium
+### <a name="17"></a>17. `tcp_server`: unsynchronised access from the stopping thread — Medium ([#22](https://github.com/samangh/libsg/issues/22))
 
 `stop_async()`'s thread reads the `m_context` `shared_ptr` (`tcp_server.cpp:33`, `:55`,
 `:69`) and iterates `m_acceptors` (`:34`) with no lock, while `start()` writes both
@@ -448,7 +448,7 @@ synchronisation, while callbacks run on the io thread. `session()` also returns 
 `start()`'s `m_stop_in_operation.store(false)` (`:94`) can also clobber a concurrent stop
 request. Confirming this properly needs a TSAN build of `sg_net` + `sg_common`.
 
-### <a name="18"></a>18. The io-thread guard only knows about *this* session's strand — Medium
+### <a name="18"></a>18. The io-thread guard only knows about *this* session's strand — Medium ([#23](https://github.com/samangh/libsg/issues/23))
 
 `running_in_io_thread()` (`tcp_session.cpp:146`) checks
 `m_strand.running_in_this_thread()`. Calling `wait_until_stopped()` — or
@@ -461,7 +461,7 @@ deadlocks. The same reasoning applies to `start()`'s failure path
 (`tcp_session.cpp:74-75`), which calls `wait_until_stopped()` from
 `tcp_server::listener()` — i.e. from an io thread — with `no_threads` defaulting to **1**.
 
-### <a name="19"></a>19. `~tcp_server` does not join the stopping thread before `m_pool` dies — Low
+### <a name="19"></a>19. `~tcp_server` does not join the stopping thread before `m_pool` dies — Low ([#24](https://github.com/samangh/libsg/issues/24))
 
 `tcp_server.cpp:14-21` only stops and waits when `m_context && m_context->is_running()`,
 and never joins `m_stopping_thread` explicitly. Because `m_stopping_thread` is declared
@@ -471,7 +471,7 @@ the destruction of `m_running`. 300 start/`stop_async`/destroy race cycles did *
 crash, so treat this as hardening rather than a live defect — but joining the thread at the
 top of the destructor body is the correct shape.
 
-### <a name="20"></a>20. Assorted sharp edges — Low
+### <a name="20"></a>20. Assorted sharp edges — Low ([#25](https://github.com/samangh/libsg/issues/25))
 
 * `tcp_server::write()/session()/disconnect()` throw an undocumented `std::out_of_range`
   (`m_sessions.at`), and the id is inherently racy: one valid at the start of
@@ -507,7 +507,7 @@ top of the destructor body is the correct shape.
 
 ## Latent (real in code, no reachable trigger found)
 
-### <a name="21"></a>21. `npos` arithmetic in `read_until()` can silently corrupt data
+### <a name="21"></a>21. `npos` arithmetic in `read_until()` can silently corrupt data ([#26](https://github.com/samangh/libsg/issues/26))
 
 `net/src/tcp_client_sync.cpp:43-47`:
 
@@ -525,7 +525,7 @@ Not currently reachable single-threaded: the only `close()` is inside `run()`, w
 throws, so `read_until()` never proceeds past it. Still worth fixing defensively — the
 comment's premise is only true on the success path.
 
-### <a name="22"></a>22. `~tcp_client_sync()` calls a function that can throw
+### <a name="22"></a>22. `~tcp_client_sync()` calls a function that can throw ([#27](https://github.com/samangh/libsg/issues/27))
 
 `net/src/tcp_client_sync.cpp:19` — `~tcp_client_sync() { disconnect(); }`, and
 `disconnect()` → `run()` can throw `exceptions::net::time_out` (`:159`), rethrow a handler
@@ -536,7 +536,7 @@ Not reproduced: after a timeout, `run()` has already closed the socket, so `disc
 is a no-op (verified: `is_connected() == 0`, destructor completed cleanly). Wrap the body in
 `try/catch` anyway.
 
-### <a name="23"></a>23. `writer()` records exceptions unconditionally and mis-maps `operation_aborted`
+### <a name="23"></a>23. `writer()` records exceptions unconditionally and mis-maps `operation_aborted` ([#28](https://github.com/samangh/libsg/issues/28))
 
 `net/src/tcp_session.cpp:323-338`. Two inconsistencies with `reader()`/`start()`:
 
