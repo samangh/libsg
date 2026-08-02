@@ -9,6 +9,8 @@
 #include <boost/asio/write.hpp>
 #include <boost/asio/co_spawn.hpp>
 
+#include <iostream>
+
 namespace sg::net {
 
 std::shared_ptr<tcp_session> tcp_session::create(boost::asio::ip::tcp::socket socket,
@@ -233,8 +235,15 @@ void tcp_session::close_impl() {
         exPtr =  m_exception;
     }
 
-    if (m_callbacks.onDisconnected)
-        m_callbacks.onDisconnected.invoke(*this, exPtr);
+    try {
+        if (m_callbacks.onDisconnected)
+            m_callbacks.onDisconnected.invoke(*this, exPtr);
+    } catch (const std::exception& ex) {
+        std::cerr << "tcp_session: onDisconnected() callback exception caught: " << ex.what()
+                  << std::endl;
+    } catch (...) {
+        std::cerr << "tcp_session: onDisconnected() callback exception caught" <<  std::endl;
+    }
 
     m_state.store(state_t::stopped, std::memory_order::release);
     m_state.notify_all();
