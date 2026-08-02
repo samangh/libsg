@@ -5,12 +5,11 @@ ARG DEBIAN_FRONTEND=noninteractive
 RUN apt-get update
 RUN apt-get install -y --no-install-recommends \
       build-essential clang llvm lld gdb cmake pkg-config \
-      binutils git ca-certificates curl \
+      binutils git ca-certificates curl gh \
       libboost1.88-all-dev libfmt-dev libuv1-dev libzstd-dev \
-      libsdl2-dev libgl-dev libglu1-mesa-dev \
-      doxygen graphviz \
-      sudo less procps ripgrep ccache
-RUN rm -rf /var/lib/apt/lists/*
+      doxygen graphviz gh \
+      sudo less procps ripgrep
+# RUN rm -rf /var/lib/apt/lists/*
 
 # A non-root user is not optional: `claude --dangerously-skip-permissions`
 # refuses to run as root. UID/GID default to 1000 so that files created in the

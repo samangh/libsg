@@ -49,5 +49,6 @@ exec docker run --rm "${TTY_ARGS[@]}" \
     --volume libsg-claude-config:/home/dev/.claude \
     --cap-add=SYS_PTRACE \
     --security-opt seccomp=unconfined \
+    --env GH_TOKEN="${GH_TOKEN_CLAUDE}" \
     "$IMAGE" \
     "${CMD[@]}"
