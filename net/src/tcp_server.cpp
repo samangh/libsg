@@ -7,7 +7,9 @@
 #include <boost/asio/detached.hpp>
 #include <boost/asio/redirect_error.hpp>
 #include <boost/asio/strand.hpp>
+
 #include <atomic>
+#include <iostream>
 
 namespace sg::net {
 
@@ -305,8 +307,16 @@ void tcp_server::on_session_stopped(session_id_t id, std::exception_ptr ex) {
      *      on_disconnection callback is running
      */
     m_pool.enqueue_detach([this, id, ex]() {
-        if (m_callbacks.OnDisconnected)
-            m_callbacks.OnDisconnected.invoke(*this, id, ex);
+        try {
+            if (m_callbacks.OnDisconnected)
+                m_callbacks.OnDisconnected.invoke(*this, id, ex);
+        } catch (const std::exception& callbackEx) {
+            std::cerr << "tcp_server: onDisconnected() callback exception caught: "
+                      << callbackEx.what() << std::endl;
+        } catch (...) {
+            std::cerr << "tcp_server: onDisconnected() callback exception caught" << std::endl;
+        };
+
 
         {
             std::unique_lock lock(m_mutex);

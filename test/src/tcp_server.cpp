@@ -1,6 +1,8 @@
 #include <catch2/catch_test_macros.hpp>
 #include <catch2/generators/catch_generators.hpp>
 
+#include "scoped_guard.h"
+
 #include "sg/net/tcp_client.h"
 #include "sg/net/tcp_client_sync.h"
 #include "sg/net/tcp_server.h"
@@ -15,7 +17,9 @@
 #include <chrono>
 #include <cstdio>
 #include <cstdlib>
+#include <memory>
 #include <random>
+#include <stdexcept>
 #include <semaphore>
 #include <string>
 #include <thread>
@@ -23,6 +27,7 @@
 
 using namespace sg::net;
 static port_t PORT = 4444; // 55555 can't be used on macOS!
+
 
 TEST_CASE("tcp_server: check bad endpoint throws exception during start()", "[sg::net::tcp_server]") {
     end_point ep;
@@ -830,6 +835,208 @@ TEST_CASE("tcp_server: echo works across a range of options_t::no_threads", "[sg
 TEST_CASE("tcp_server: check future_get_once() on not-running server","[sg::net::tcp_server]") {
     tcp_server s;
     s.future_get_once();
+}
+
+TEST_CASE("tcp_server: throwing OnDisconnected releases the session (peer disconnects)",
+          "[sg::net::tcp_server]") {
+    scoped_deadline watchdog(
+        "DEADLOCK: throwing OnDisconnected did not release the session (peer disconnects)");
+
+    end_point ep("127.0.0.1", PORT);
+
+    std::binary_semaphore disconnected{0};
+    tcp_server::CallBacks cb;
+    cb.OnDisconnected = [&](tcp_server&, tcp_server::session_id_t, std::exception_ptr) {
+        disconnected.release();
+        throw std::runtime_error("boom (this is expected, ignore)");
+    };
+
+    tcp_server l;
+    l.start({ep}, cb);
+
+    {
+        tcp_client client;
+        client.connect(ep, nullptr, nullptr);
+        client.disconnect();
+    }
+
+    disconnected.acquire();
+
+    /* stop_async() waits for the active-session count to drop to zero, and that
+     * decrement is what the escaping exception used to skip */
+    l.stop_async();
+    l.future_get_once();
+
+    REQUIRE(l.is_stopped());
+    REQUIRE(l.clients_count() == 0);
+}
+
+TEST_CASE("tcp_server: throwing OnDisconnected releases the session (server disconnects)",
+          "[sg::net::tcp_server]") {
+    scoped_deadline watchdog(
+        "DEADLOCK: throwing OnDisconnected did not release the session (server disconnects)");
+
+    end_point ep("127.0.0.1", PORT);
+
+    std::binary_semaphore disconnected{0};
+    tcp_server::CallBacks cb;
+    cb.OnSessionDataAvailable = [](tcp_server& s, tcp_server::session_id_t id, const std::byte*,
+                                   size_t) { s.disconnect(id); };
+    cb.OnDisconnected = [&](tcp_server&, tcp_server::session_id_t, std::exception_ptr) {
+        disconnected.release();
+        throw std::runtime_error("boom (this is expected, ignore)");
+    };
+
+    tcp_server l;
+    l.start({ep}, cb);
+
+    tcp_client_sync client;
+    client.connect(ep);
+    client.write("hello\n");
+
+    disconnected.acquire();
+
+    l.stop_async();
+    l.future_get_once();
+
+    REQUIRE(l.is_stopped());
+    REQUIRE(l.clients_count() == 0);
+}
+
+TEST_CASE("tcp_server: OnDisconnected throwing a non-std exception releases the session",
+          "[sg::net::tcp_server]") {
+    scoped_deadline watchdog(
+        "DEADLOCK: OnDisconnected throwing a non-std exception did not release the session");
+
+    end_point ep("127.0.0.1", PORT);
+
+    std::binary_semaphore disconnected{0};
+    tcp_server::CallBacks cb;
+    cb.OnDisconnected = [&](tcp_server&, tcp_server::session_id_t, std::exception_ptr) {
+        disconnected.release();
+        throw 42; // not derived from std::exception
+    };
+
+    tcp_server l;
+    l.start({ep}, cb);
+
+    {
+        tcp_client client;
+        client.connect(ep, nullptr, nullptr);
+        client.disconnect();
+    }
+
+    disconnected.acquire();
+
+    l.stop_async();
+    l.future_get_once();
+
+    REQUIRE(l.is_stopped());
+    REQUIRE(l.clients_count() == 0);
+}
+
+TEST_CASE("tcp_server: throwing OnDisconnected does not stall stop_async()",
+          "[sg::net::tcp_server]") {
+    scoped_deadline watchdog("DEADLOCK: stop_async() stalled on a throwing OnDisconnected");
+
+    constexpr int count = 5;
+    end_point ep("127.0.0.1", PORT);
+
+    std::counting_semaphore<count> connected{0};
+    std::atomic_int disconnections{0};
+
+    tcp_server::CallBacks cb;
+    cb.OnSessionCreated = [&](tcp_server&, tcp_server::session_id_t) { connected.release(); };
+    cb.OnDisconnected   = [&](tcp_server&, tcp_server::session_id_t, std::exception_ptr) {
+        ++disconnections;
+        throw std::runtime_error("boom (this is expected, ignore)");
+    };
+
+    tcp_server l;
+    l.start({ep}, cb);
+
+    /* hold every connection open, so that all sessions are torn down by
+     * stop_async() itself */
+    std::vector<std::unique_ptr<tcp_client_sync>> clients;
+    for (auto i = 0; i < count; ++i) {
+        auto client = std::make_unique<tcp_client_sync>();
+        client->connect(ep);
+        clients.push_back(std::move(client));
+        connected.acquire();
+    }
+
+    l.stop_async();
+    l.future_get_once();
+
+    REQUIRE(l.is_stopped());
+    REQUIRE(l.clients_count() == 0);
+    REQUIRE(disconnections == count);
+}
+
+TEST_CASE("tcp_server: throwing OnDisconnected does not hang the destructor",
+          "[sg::net::tcp_server]") {
+    scoped_deadline watchdog("DEADLOCK: ~tcp_server() hung on a throwing OnDisconnected");
+
+    end_point ep("127.0.0.1", PORT);
+
+    std::binary_semaphore connected{0};
+    std::atomic_int disconnections{0};
+
+    tcp_server::CallBacks cb;
+    cb.OnSessionCreated = [&](tcp_server&, tcp_server::session_id_t) { connected.release(); };
+    cb.OnDisconnected   = [&](tcp_server&, tcp_server::session_id_t, std::exception_ptr) {
+        ++disconnections;
+        throw std::runtime_error("boom (this is expected, ignore)");
+    };
+
+    /* the client outlives the server, so the session is still live when the
+     * server is destructed */
+    tcp_client_sync client;
+    {
+        tcp_server l;
+        l.start({ep}, cb);
+
+        client.connect(ep);
+        connected.acquire();
+    }
+
+    REQUIRE(disconnections == 1);
+}
+
+TEST_CASE("tcp_server: can be restarted after a throwing OnDisconnected",
+          "[sg::net::tcp_server]") {
+    scoped_deadline watchdog("DEADLOCK: restart after a throwing OnDisconnected did not complete");
+
+    end_point ep("127.0.0.1", PORT);
+
+    std::binary_semaphore disconnected{0};
+    tcp_server::CallBacks cb;
+    cb.OnDisconnected = [&](tcp_server&, tcp_server::session_id_t, std::exception_ptr) {
+        disconnected.release();
+        throw std::runtime_error("boom (this is expected, ignore)");
+    };
+
+    tcp_server l;
+
+    /* a leaked session or a stale active-session count would break the next
+     * start(), which requires both to have been reset */
+    for (auto round = 0; round < 3; ++round) {
+        l.start({ep}, cb);
+
+        {
+            tcp_client client;
+            client.connect(ep, nullptr, nullptr);
+            client.disconnect();
+        }
+
+        disconnected.acquire();
+
+        l.stop_async();
+        l.future_get_once();
+
+        REQUIRE(l.is_stopped());
+        REQUIRE(l.clients_count() == 0);
+    }
 }
 
 // ---------------------------------------------------------------------------
