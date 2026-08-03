@@ -826,6 +826,12 @@ TEST_CASE("tcp_server: echo works across a range of options_t::no_threads", "[sg
     l.future_get_once();
 }
 
+
+TEST_CASE("tcp_server: check future_get_once() on not-running server","[sg::net::tcp_server]") {
+    tcp_server s;
+    s.future_get_once();
+}
+
 // ---------------------------------------------------------------------------
 // Run this ideally under ThreadSanitizer,:
 //
@@ -975,3 +981,4 @@ TEST_CASE("tcp_server: multi-threaded stress (strands + teardown under load)",
     // Make sure the run actually exercised the server (e.g. connects succeeded).
     REQUIRE(total_roundtrips.load() > 0);
 }
+

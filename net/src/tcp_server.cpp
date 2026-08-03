@@ -141,7 +141,10 @@ void tcp_server::start(std::vector<end_point> endpoints, CallBacks callbacks, op
     }
 }
 
-void tcp_server::future_get_once() noexcept(false) {
+void tcp_server::future_get_once() const noexcept(false) {
+    if (!m_context)
+        return;
+
     m_context->wait_for_stop();
     m_running.wait(true);
 }

@@ -65,7 +65,7 @@ class SG_NET_EXPORT tcp_server {
                options_t options = options_t());
 
     void stop_async();
-    void future_get_once();
+    void future_get_once() const;
     bool is_stopped() const;
 
     size_t clients_count() const;
