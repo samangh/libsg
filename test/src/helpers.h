@@ -6,7 +6,6 @@
 #include <thread>
 #include <iostream>
 
-namespace {
 class scoped_deadline {
 public:
     explicit scoped_deadline(std::string msg,
@@ -36,5 +35,3 @@ private:
     std::atomic<bool> m_done{false};
     std::thread m_thread;
 };
-
-} // namespace
