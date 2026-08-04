@@ -161,6 +161,8 @@ TEST_CASE("tcp_session: dont_read detects the peer disconnecting", "[sg::net::tc
     server.stop_async();
     server.future_get_once();
 
+    client.session().wait_until_stopped();
+
     REQUIRE(disconnections == 1);
     REQUIRE(dataCbCalled == false);
     REQUIRE(exceptionReported);
