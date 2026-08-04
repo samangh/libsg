@@ -22,7 +22,27 @@ class SG_NET_EXPORT tcp_client_sync {
     [[nodiscard]] bool is_connected() const;
 
     [[nodiscard]] std::string read_until(std::string_view delimiter);
+
+    /**
+     * @brief Reads whatever data is available, up to @p size bytes.
+     *
+     * @throws sg::exceptions::net::time_out if no data arrives before the timeout expires,
+     *         sg::exceptions::net on other networking errors.
+     * @param size maximum number of bytes to return
+     */
     [[nodiscard]] std::string read_some(size_t size);
+
+    /**
+     * @brief Reads exactly @p size bytes.
+     *
+     * Blocks until all @p size bytes are available. Any bytes that did arrive are buffered and
+     * returned by a later read, even if this call throws.
+     *
+     * @throws sg::exceptions::net::time_out if the bytes don't all arrive before the timeout
+     *         expires, sg::exceptions::net on other networking errors.
+     * @param size number of bytes to return
+     */
+    [[nodiscard]] std::string read(size_t size);
 
     void write(const std::byte* data, size_t length);
     void write(const shared_c_buffer<std::byte>& msg);

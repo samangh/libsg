@@ -5,6 +5,8 @@
 
 #include <boost/asio.hpp>
 
+#include <algorithm>
+
 namespace {
 void throw_error_if_not_timedout(const boost::system::error_code& result_error) {
     if (result_error && result_error != boost::asio::error::operation_aborted)
@@ -52,25 +54,58 @@ std::string tcp_client_sync::read_some(size_t size) {
     if (!is_connected())
         SG_THROW(std::runtime_error, "client not connected");
 
-    std::string toReturn;
+    if (size == 0)
+        return {};
 
-    if (m_read_leftover.length() >= size) {
-        toReturn = m_read_leftover.substr(0, size);
-        m_read_leftover  = m_read_leftover.substr(size);
-    } else {
+    /* only go to the socket if we have nothing buffered, as we are allowed to return less than
+     * the requested amount */
+    if (m_read_leftover.empty() ) {
+        std::string result;
+        boost::asio::async_read(m_socket, boost::asio::dynamic_buffer(result, size),
+                                boost::asio::transfer_at_least(1),
+                                [&](const boost::system::error_code& result_error, std::size_t) {
+                                    throw_error_if_not_timedout(result_error);
+                                });
+
+        // will throw if timeout expires
+        run(std::chrono::milliseconds{m_options.timeout_msec});
+
+        m_read_leftover += result;
+    }
+
+    auto count = std::min(size, m_read_leftover.length());
+
+    std::string toReturn = m_read_leftover.substr(0, count);
+    m_read_leftover      = m_read_leftover.substr(count);
+
+    return toReturn;
+}
+std::string tcp_client_sync::read(size_t size) {
+    if (!is_connected())
+        SG_THROW(std::runtime_error, "client not connected");
+
+    if (m_read_leftover.length() < size) {
         std::string result;
         boost::asio::async_read(
             m_socket, boost::asio::dynamic_buffer(result, size - m_read_leftover.length()),
             [&](const boost::system::error_code& result_error, std::size_t) {
                 throw_error_if_not_timedout(result_error);
             });
+
+        // will throw if timeout expires
         run(std::chrono::milliseconds{m_options.timeout_msec});
 
+        // keep hold of what did arrive, so that it can be returned by a later read
         m_read_leftover += result;
 
-        toReturn = m_read_leftover.substr(0, size);
-        m_read_leftover  = m_read_leftover.substr(size);
+        /* the read can still finish short if it was cancelled, in which case the above is all we
+         * are going to get */
+        if (m_read_leftover.length() < size)
+            SG_THROW(exceptions::net::time_out);
     }
+
+    std::string toReturn = m_read_leftover.substr(0, size);
+    m_read_leftover      = m_read_leftover.substr(size);
 
     return toReturn;
 }

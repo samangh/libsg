@@ -113,6 +113,51 @@ TEST_CASE("tcp_client_sync: check read_some()", "[sg::net::tcp_client_sync]") {
     REQUIRE(client.read_some(4) == "7890");
 }
 
+TEST_CASE("tcp_client_sync: check read_some() returns short reads", "[sg::net::tcp_client_sync]") {
+    tcp_server server;
+    tcp_server::CallBacks cb;
+    cb.OnSessionCreated = [&](tcp_server& s, tcp_server::session_id_t id) { s.write(id, "123"); };
+    server.start({ep}, cb);
+
+    tcp_client_sync client;
+    client.connect(ep);
+    client.set_timeout(500);
+
+    /* only 3 bytes are ever sent, read_some() must return those rather than wait for 10 */
+    REQUIRE(client.read_some(10) == "123");
+}
+
+TEST_CASE("tcp_client_sync: check read()", "[sg::net::tcp_client_sync]") {
+    tcp_server server;
+    tcp_server::CallBacks cb;
+    cb.OnSessionCreated = [&](tcp_server& s, tcp_server::session_id_t id) {
+        s.write(id, "\n1234567890");
+    };
+    server.start({ep}, cb);
+
+    tcp_client_sync client;
+    client.connect(ep);
+    REQUIRE(client.read_until("\n") == "\n");
+    REQUIRE(client.read(1) == "1");
+    REQUIRE(client.read(2) == "23");
+    REQUIRE(client.read(3) == "456");
+    REQUIRE(client.read(4) == "7890");
+}
+
+TEST_CASE("tcp_client_sync: check read() times out on a short read", "[sg::net::tcp_client_sync]") {
+    tcp_server server;
+    tcp_server::CallBacks cb;
+    cb.OnSessionCreated = [&](tcp_server& s, tcp_server::session_id_t id) { s.write(id, "123"); };
+    server.start({ep}, cb);
+
+    tcp_client_sync client;
+    client.connect(ep);
+    client.set_timeout(500);
+
+    /* only 3 of the 10 bytes are ever sent */
+    REQUIRE_THROWS_AS(client.read(10), sg::exceptions::net::time_out);
+}
+
 TEST_CASE("tcp_client_sync: check write()", "[sg::net::tcp_client_sync]") {
     std::binary_semaphore dataReceived{0};
 
@@ -186,6 +231,7 @@ TEST_CASE("tcp_client_sync: check reading when disconnected throws an error", "[
     tcp_client_sync client;
     REQUIRE_THROWS(client.read_until("\n"));
     REQUIRE_THROWS(client.read_some(10));
+    REQUIRE_THROWS(client.read(10));
     REQUIRE_THROWS(client.write("ss"));
 }
 
