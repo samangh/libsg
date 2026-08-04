@@ -3,6 +3,8 @@
 #include <sg/net/tcp_client_sync.h>
 #include <sg/net/tcp_server.h>
 
+#include <atomic>
+
 using namespace sg::net;
 
 // port 55555 can't be used on macOS!
@@ -128,6 +130,56 @@ TEST_CASE("tcp_client_sync: check write()", "[sg::net::tcp_client_sync]") {
     client.connect(ep);
     client.write("1234567890\n");
     REQUIRE(client.read_until("\n")=="1234567890\n");
+}
+
+TEST_CASE("tcp_client_sync: buffered data does not survive a reconnect",
+          "[sg::net::tcp_client_sync]") {
+    std::atomic_int connections{0};
+
+    tcp_server server;
+    tcp_server::CallBacks cb;
+    cb.OnSessionCreated = [&](tcp_server& s, tcp_server::session_id_t id) {
+        if (++connections == 1)
+            s.write(id, "a\r\nSTALE\r\n");
+        else
+            s.write(id, "FRESH\r\n");
+    };
+    server.start({ep}, cb);
+
+    tcp_client_sync client;
+
+    /* leaves "STALE\r\n" buffered in the client */
+    client.connect(ep);
+    REQUIRE(client.read_until("\r\n") == "a\r\n");
+    client.disconnect();
+
+    client.connect(ep);
+    REQUIRE(client.read_until("\r\n") == "FRESH\r\n");
+}
+
+TEST_CASE("tcp_client_sync: buffered data does not survive a reconnect, read_some()",
+          "[sg::net::tcp_client_sync]") {
+    std::atomic_int connections{0};
+
+    tcp_server server;
+    tcp_server::CallBacks cb;
+    cb.OnSessionCreated = [&](tcp_server& s, tcp_server::session_id_t id) {
+        if (++connections == 1)
+            s.write(id, "a\r\nSTALE");
+        else
+            s.write(id, "FRESH");
+    };
+    server.start({ep}, cb);
+
+    tcp_client_sync client;
+
+    /* leaves "STALE" buffered in the client */
+    client.connect(ep);
+    REQUIRE(client.read_until("\r\n") == "a\r\n");
+    client.disconnect();
+
+    client.connect(ep);
+    REQUIRE(client.read_some(5) == "FRESH");
 }
 
 TEST_CASE("tcp_client_sync: check reading when disconnected throws an error", "[sg::net::tcp_client_sync]") {

@@ -79,6 +79,9 @@ void tcp_client_sync::connect(const end_point& endpoint, tcp_session::options_t 
     if (is_connected())
         SG_THROW(std::runtime_error, "client already connected");
 
+    // Clear left over bytes from previous session
+    m_read_leftover.clear();
+
     m_options = options;
 
     boost::asio::ip::tcp::resolver resolver(m_context);
