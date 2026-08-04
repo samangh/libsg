@@ -10,6 +10,7 @@
 #include <boost/asio/co_spawn.hpp>
 
 #include <iostream>
+#include <stdexcept>
 
 namespace sg::net {
 
@@ -25,7 +26,11 @@ tcp_session::tcp_session(private_tag, boost::asio::ip::tcp::socket socket, Callb
 : m_socket(std::move(socket)),
   m_strand(boost::asio::make_strand(m_socket.get_executor())),
   m_options(options),
-  m_callbacks(std::move(cb)) {};
+  m_callbacks(std::move(cb)) {
+    if (m_options.dont_read && !m_callbacks.onDataAvailable)
+        SG_THROW(std::invalid_argument, "tcp_session: options_t::dont_read requires an "
+                                        "OnDataAvailable callback to read the socket");
+};
 
 /* you can be sure that by the time this is called all the callbacks are done:
  *
@@ -264,9 +269,23 @@ boost::asio::awaitable<void> tcp_session::reader() {
         auto data = std::make_unique<std::byte[]>(size);
         while (m_socket.is_open()) {
             if (m_options.dont_read) {
-                co_await m_socket.async_wait(boost::asio::ip::tcp::socket::wait_read, boost::asio::use_awaitable);
-                if (m_callbacks.onDataAvailable)
-                    m_callbacks.onDataAvailable.invoke(*this, nullptr, 0);
+                /* m_socket.is_open() only on checks whether *we* have closed our end. If the peer
+                 * has disconnected, m_socket.is_open() will remain true.
+                 *
+                 * Normally, what happens is that we run async_read_some(..), which then throws
+                 * boost::asio::error::eof exception and causes us to eventually call close().
+                 *
+                 * A one-byte MSG_PEEK receive waits for readability. It leaves the byte in the
+                 * kernel buffer for the callback to read, and throws boost::asio::error::eof if
+                 * peer has closed, exactly as the async_read_some() in the normal path below does.
+                 */
+                std::byte peeked;
+                co_await m_socket.async_receive(boost::asio::buffer(&peeked, 1),
+                                                boost::asio::socket_base::message_peek,
+                                                boost::asio::use_awaitable);
+
+                // m_socket.available() could be used to get number of bytes available
+                m_callbacks.onDataAvailable.invoke(*this, nullptr, 0);
             }
             else {
                 std::size_t n = co_await m_socket.async_read_some(boost::asio::buffer(data.get(), size),

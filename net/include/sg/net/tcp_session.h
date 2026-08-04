@@ -28,7 +28,8 @@ class SG_NET_EXPORT tcp_session : public std::enable_shared_from_this<tcp_sessio
          * but the data won't have been read from the socket. You'll have to manually read it from
          * the native handle.
          *
-         * This is useful if you want to pass the native handle to another library for reading,etc.*/
+         * This is useful if you want to pass the native handle to another library for reading,
+         * etc.*/
         bool dont_read {false};
 
         keepalive_t keepalive{};
