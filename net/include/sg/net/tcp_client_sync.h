@@ -60,7 +60,9 @@ class SG_NET_EXPORT tcp_client_sync {
     /* needed because the asio::read_until can read past the delimiter! */
     std::string m_read_leftover{};
 
-    void run(std::chrono::steady_clock::duration timeout);
+    /* Runs the io_context until the pending operation completes, or `timeout_msec` elapses
+     * (0 = wait indefinitely). Throws exceptions::net::time_out if the timeout expires. */
+    void run(unsigned timeout_msec);
 };
 
 }

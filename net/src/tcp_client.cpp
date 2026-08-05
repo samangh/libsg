@@ -68,10 +68,15 @@ void tcp_client::connect(const end_point& endpoint, tcp_session::Callbacks::OnDa
         [&]() -> boost::asio::awaitable<void> {
             /* cancel_after cancels the connect once the timeout elapses; as_tuple delivers
              * the error code as a value */
-            auto result = co_await boost::asio::async_connect(
-                socket, endpoints,
-                boost::asio::cancel_after(std::chrono::milliseconds(options.timeout_msec),
-                                          boost::asio::as_tuple(boost::asio::use_awaitable)));
+            auto result =
+                options.connection_timeout_msec
+                    ? co_await boost::asio::async_connect(
+                          socket, endpoints,
+                          boost::asio::cancel_after(
+                              std::chrono::milliseconds(options.connection_timeout_msec),
+                              boost::asio::as_tuple(boost::asio::use_awaitable)))
+                    : co_await boost::asio::async_connect(
+                          socket, endpoints, boost::asio::as_tuple(boost::asio::use_awaitable));
 
             if (auto ec = std::get<0>(result); ec) {
                 if (ec == boost::asio::error::timed_out ||

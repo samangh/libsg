@@ -190,7 +190,7 @@ TEST_CASE("tcp_client: test that connect(...) will timeout", "[sg::net::tcp_clie
     auto client = tcp_client();
 
     tcp_session::options_t options;
-    options.timeout_msec=1000;
+    options.connection_timeout_msec=500;
     REQUIRE_THROWS(client.connect(end_point("87.5.66.1", 53), nullptr, nullptr, options));
 }
 

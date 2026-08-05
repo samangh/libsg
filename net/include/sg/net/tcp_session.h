@@ -33,9 +33,18 @@ class SG_NET_EXPORT tcp_session : public std::enable_shared_from_this<tcp_sessio
         bool dont_read {false};
 
         keepalive_t keepalive{};
-        unsigned timeout_msec{5000};
-        int recv_buffer_size{0}; // 0 = use default OS value
-        int send_buffer_size{0}; // 0 = use default OS value
+        unsigned timeout_msec{5000}; // 0 = don't timeout
+
+        /* Time out on connection attempt.
+         *
+         * Each OS has a global maximum connection timeout. The actual time out will be the shorter
+         * of `connection_timeout_msec` and the OS global default.
+         *
+         *   - `tcp_syn_retries` on Linux, which by dfault is ~180 seconds
+         *   - `MaxSynRetransmissions` on Windows, which by default is ~21 seconds */
+        unsigned connection_timeout_msec{10000}; // 0 = let OS do connection timeout
+        int recv_buffer_size{0};                 // 0 = use default OS value
+        int send_buffer_size{0};                 // 0 = use default OS value
     };
 
     struct Callbacks {

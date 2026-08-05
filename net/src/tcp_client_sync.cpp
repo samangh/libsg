@@ -35,7 +35,7 @@ std::string tcp_client_sync::read_until(std::string_view delimiter) {
             });
 
         // will throw if timeout expires
-        run(std::chrono::milliseconds{m_options.timeout_msec});
+        run(m_options.timeout_msec);
 
         // add to what was leftover from previous read
         m_read_leftover += result;
@@ -68,7 +68,7 @@ std::string tcp_client_sync::read_some(size_t size) {
                                 });
 
         // will throw if timeout expires
-        run(std::chrono::milliseconds{m_options.timeout_msec});
+        run(m_options.timeout_msec);
 
         m_read_leftover += result;
     }
@@ -93,7 +93,7 @@ std::string tcp_client_sync::read(size_t size) {
             });
 
         // will throw if timeout expires
-        run(std::chrono::milliseconds{m_options.timeout_msec});
+        run(m_options.timeout_msec);
 
         // keep hold of what did arrive, so that it can be returned by a later read
         m_read_leftover += result;
@@ -127,7 +127,8 @@ void tcp_client_sync::connect(const end_point& endpoint, tcp_session::options_t 
             throw_error_if_not_timedout(result_error);
         });
 
-    run(std::chrono::milliseconds{m_options.timeout_msec});
+    run(m_options.connection_timeout_msec);
+
     set_keepalive(options.keepalive);
     set_timeout(options.timeout_msec);
 }
@@ -141,7 +142,7 @@ void tcp_client_sync::disconnect() {
         // need to close, even if the above command failed
         m_socket.close();
 
-        run(std::chrono::milliseconds{m_options.timeout_msec});
+        run(m_options.timeout_msec);
     }
 }
 void tcp_client_sync::write(const std::byte* data, size_t length) {
@@ -152,7 +153,7 @@ void tcp_client_sync::write(const std::byte* data, size_t length) {
                              [&](const boost::system::error_code& result_error, std::size_t) {
                                  throw_error_if_not_timedout(result_error);
                              });
-    run(std::chrono::milliseconds{m_options.timeout_msec});
+    run(m_options.timeout_msec);
 }
 void tcp_client_sync::write(std::string_view data) {
     write(reinterpret_cast<const std::byte*>(data.data()), data.length());
@@ -165,7 +166,7 @@ void tcp_client_sync::set_timeout(unsigned timeoutMSec) {
     m_options.timeout_msec = timeoutMSec;
     sg::net::native::set_timeout(m_socket.native_handle(), timeoutMSec);
 }
-void tcp_client_sync::run(std::chrono::steady_clock::duration timeout) {
+void tcp_client_sync::run(unsigned timeout_msec) {
     /* inspired by
      * https://www.boost.org/doc/libs/latest/doc/html/boost_asio/example/cpp11/timeouts/blocking_tcp_client.cpp*/
 
@@ -178,7 +179,10 @@ void tcp_client_sync::run(std::chrono::steady_clock::duration timeout) {
         // the pending asynchronous operation is a composed operation, the deadline
         // applies to the entire operation, rather than individual operations on
         // the socket.
-        m_context.run_for(timeout);
+        if (timeout_msec == 0)
+            m_context.run();
+        else
+            m_context.run_for(std::chrono::milliseconds{timeout_msec});
     } catch (...) {
         m_socket.close();
         m_context.run();
