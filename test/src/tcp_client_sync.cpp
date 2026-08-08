@@ -1,9 +1,9 @@
-#include <catch2/catch_test_macros.hpp>
-
-#include <sg/net/tcp_client_sync.h>
-#include <sg/net/tcp_server.h>
+#include "helpers.h"
 
 #include <atomic>
+#include <catch2/catch_test_macros.hpp>
+#include <sg/net/tcp_client_sync.h>
+#include <sg/net/tcp_server.h>
 
 using namespace sg::net;
 
@@ -93,11 +93,9 @@ TEST_CASE("tcp_client_sync: check read_until()", "[sg::net::tcp_client_sync]") {
 }
 
 TEST_CASE("tcp_client_sync: check read_some()", "[sg::net::tcp_client_sync]") {
-    std::binary_semaphore disconn{0};
-
     tcp_server server;
     tcp_server::session_created_cb_t onConn= [&](tcp_server&, tcp_server::session_id_t id) {
-        server.write(id, "\n1234567890");
+        server.write(id, "1234567890");
     };
 
     tcp_server::CallBacks cb;
@@ -106,11 +104,16 @@ TEST_CASE("tcp_client_sync: check read_some()", "[sg::net::tcp_client_sync]") {
 
     tcp_client_sync client;
     client.connect(ep);
-    REQUIRE(client.read_until("\n") == "\n");
-    REQUIRE(client.read_some(1) == "1");
-    REQUIRE(client.read_some(2) == "23");
-    REQUIRE(client.read_some(3) == "456");
-    REQUIRE(client.read_some(4) == "7890");
+
+    // throw error if this takes longer than 1 second
+    scoped_deadline timeout("read_some failed", std::chrono::seconds(1));
+
+    std::string result;
+    while (true) {
+        result += client.read_some();
+        if (result == "1234567890")
+            break;
+    };
 }
 
 TEST_CASE("tcp_client_sync: check read_some() returns short reads", "[sg::net::tcp_client_sync]") {
@@ -124,7 +127,7 @@ TEST_CASE("tcp_client_sync: check read_some() returns short reads", "[sg::net::t
     client.set_timeout(500);
 
     /* only 3 bytes are ever sent, read_some() must return those rather than wait for 10 */
-    REQUIRE(client.read_some(10) == "123");
+    REQUIRE(client.read_some() == "123");
 }
 
 TEST_CASE("tcp_client_sync: check read()", "[sg::net::tcp_client_sync]") {
@@ -156,6 +159,10 @@ TEST_CASE("tcp_client_sync: check read() times out on a short read", "[sg::net::
 
     /* only 3 of the 10 bytes are ever sent */
     REQUIRE_THROWS_AS(client.read(10), sg::exceptions::net::time_out);
+
+    /* the bytes that did arrive must be buffered, and the connection must still be usable */
+    REQUIRE(client.is_connected());
+    REQUIRE(client.read(3) == "123");
 }
 
 TEST_CASE("tcp_client_sync: check write()", "[sg::net::tcp_client_sync]") {
@@ -224,13 +231,13 @@ TEST_CASE("tcp_client_sync: buffered data does not survive a reconnect, read_som
     client.disconnect();
 
     client.connect(ep);
-    REQUIRE(client.read_some(5) == "FRESH");
+    REQUIRE(client.read(5) == "FRESH");
 }
 
 TEST_CASE("tcp_client_sync: check reading when disconnected throws an error", "[sg::net::tcp_client_sync]") {
     tcp_client_sync client;
     REQUIRE_THROWS(client.read_until("\n"));
-    REQUIRE_THROWS(client.read_some(10));
+    REQUIRE_THROWS(client.read_some());
     REQUIRE_THROWS(client.read(10));
     REQUIRE_THROWS(client.write("ss"));
 }

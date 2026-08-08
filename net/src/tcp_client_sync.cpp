@@ -6,13 +6,59 @@
 #include <boost/asio.hpp>
 
 #include <algorithm>
+#include <optional>
+#include <tuple>
 
 namespace {
-void throw_error_if_not_timedout(const boost::system::error_code& result_error) {
-    if (result_error && result_error != boost::asio::error::operation_aborted)
-        SG_THROW(sg::exceptions::net::other, result_error.message());
-};
+
+/* Runs an asynchronous operation to completion, applying `timeout_msec` to the operation as a
+ * whole (0 = don't timeout). The operation is cancelled if the timeout expires, in which case
+ * `boost::asio::error::operation_aborted` is reported.
+ *
+ * `start` must initiate the operation with the completion token it is handed. `Results` are the
+ * arguments the operation completes with, after its error code.
+ *
+ * Returns the operation's results as a tuple, starting with its error code. The results are
+ * meaningful even if the operation failed or timed out, so that the caller can hold on to
+ * whatever data did arrive. */
+template <typename... Results, typename StartOp>
+auto run_with_timeout(boost::asio::io_context& context, unsigned timeout_msec, StartOp start) {
+    // If we ever have to use Results... that are not default constructable, you can wrap this in an
+    // optional
+    std::tuple<boost::system::error_code, Results...> result;
+
+    /* completion handler to be passed to each call */
+    auto handler = [&result](boost::system::error_code ec, Results... results) {
+        result = {ec, std::move(results)...};
+    };
+
+    /* the io_context is left in the "stopped" state by the previous operation */
+    context.restart();
+
+    if (timeout_msec == 0)
+        start(handler);
+    else
+        start(boost::asio::cancel_after(std::chrono::milliseconds(timeout_msec), handler));
+
+    /* returns once the operation has completed, so `handler` has run by the time this does */
+    context.run();
+
+    return result;
 }
+
+bool is_timeout(const boost::system::error_code& ec) {
+    /* boost::asio::error::timed_out might be raised by the operation itself,
+     * boost::asio::error::operation_aborted will be raised by cancel_after */
+    return ec == boost::asio::error::timed_out || ec == boost::asio::error::operation_aborted;
+}
+
+[[noreturn]] void throw_net_error(const boost::system::error_code& ec) {
+    if (is_timeout(ec))
+        SG_THROW(sg::exceptions::net::time_out);
+    SG_THROW(sg::exceptions::net::other, ec.message());
+}
+
+} // namespace
 
 namespace sg::net {
 
@@ -20,94 +66,85 @@ tcp_client_sync::tcp_client_sync()
     : m_socket(boost::asio::ip::tcp::socket(m_context)) {}
 tcp_client_sync::~tcp_client_sync() { disconnect(); };
 
-bool tcp_client_sync::is_connected() const { return (m_socket.is_open()); }
+bool tcp_client_sync::is_connected() const { return m_socket.is_open(); }
+void tcp_client_sync::throw_on_read_error(const boost::system::error_code& ec) {
+    if (!ec)
+        return;
+
+    /* the connection is kept on a timeout: the bytes that did arrive are still buffered, and are
+     * returned by a later read */
+    if (!is_timeout(ec))
+        disconnect();
+
+    throw_net_error(ec);
+}
+
 std::string tcp_client_sync::read_until(std::string_view delimiter) {
     if (!is_connected())
         SG_THROW(std::runtime_error, "client not connected");
 
-    /*if previous read does not have delimiter, do new  read */
-    if (auto existingPost = m_read_leftover.find(delimiter); existingPost == std::string::npos) {
-        std::string result;
-        boost::asio::async_read_until(
-            m_socket, boost::asio::dynamic_buffer(result), delimiter,
-            [&](const boost::system::error_code& result_error, std::size_t) {
-                throw_error_if_not_timedout(result_error);
-            });
+    /* reads straight into m_read_buffer, so that data that arrived before a timeout, as well as
+     * data read past the delimiter, stays buffered for a later read */
+    const auto [ec, n] =
+        run_with_timeout<size_t>(m_context, m_options.timeout_msec, [&](auto token) {
+                boost::asio::async_read_until(
+                m_socket, boost::asio::dynamic_buffer(m_read_buffer), delimiter, token);
+        });
 
-        // will throw if timeout expires
-        run(m_options.timeout_msec);
+    throw_on_read_error(ec);
 
-        // add to what was leftover from previous read
-        m_read_leftover += result;
-    }
+    /* n is the number of bytes up to, and including, the delimiter */
+    std::string result = m_read_buffer.substr(0, n);
+    m_read_buffer.erase(0, n);
 
-    // find position of string to return/keep
-    // .find() will always find deliemeter as .async_read_until() was used
-    auto pos = m_read_leftover.find(delimiter) + delimiter.length();
-
-    std::string toReturn = m_read_leftover.substr(0, pos);
-    m_read_leftover      = m_read_leftover.substr(pos);
-
-    return toReturn;
+    return result;
 }
-std::string tcp_client_sync::read_some(size_t size) {
+
+std::string tcp_client_sync::read_some() {
     if (!is_connected())
         SG_THROW(std::runtime_error, "client not connected");
 
-    if (size == 0)
-        return {};
-
     /* only go to the socket if we have nothing buffered, as we are allowed to return less than
-     * the requested amount */
-    if (m_read_leftover.empty() ) {
-        std::string result;
-        boost::asio::async_read(m_socket, boost::asio::dynamic_buffer(result, size),
-                                boost::asio::transfer_at_least(1),
-                                [&](const boost::system::error_code& result_error, std::size_t) {
-                                    throw_error_if_not_timedout(result_error);
-                                });
+     * what the socket has available */
+    if (m_read_buffer.empty()) {
+        const auto [ec, n] =
+            run_with_timeout<size_t>(m_context, m_options.timeout_msec, [&](auto token) {
+                m_socket.async_read_some(boost::asio::buffer(m_read_some_buf), token);
+            });
 
-        // will throw if timeout expires
-        run(m_options.timeout_msec);
+        /* keep hold of whatever did arrive, even if the operation reported an error */
+        m_read_buffer.append(&m_read_some_buf[0], n);
 
-        m_read_leftover += result;
+        /* only report the error if we have nothing to return, otherwise it will be reported by
+         * the next read */
+        if (m_read_buffer.empty())
+            throw_on_read_error(ec);
     }
 
-    auto count = std::min(size, m_read_leftover.length());
-
-    std::string toReturn = m_read_leftover.substr(0, count);
-    m_read_leftover      = m_read_leftover.substr(count);
-
-    return toReturn;
+    std::string result;
+    result.swap(m_read_buffer);
+    return result;
 }
+
 std::string tcp_client_sync::read(size_t size) {
     if (!is_connected())
         SG_THROW(std::runtime_error, "client not connected");
 
-    if (m_read_leftover.length() < size) {
-        std::string result;
-        boost::asio::async_read(
-            m_socket, boost::asio::dynamic_buffer(result, size - m_read_leftover.length()),
-            [&](const boost::system::error_code& result_error, std::size_t) {
-                throw_error_if_not_timedout(result_error);
+    if (m_read_buffer.size() < size) {
+        /* reads straight into m_read_buffer, so a short read keeps the bytes that did arrive
+         * buffered for a later read */
+        const auto [ec, n] =
+            run_with_timeout<size_t>(m_context, m_options.timeout_msec, [&](auto token) {
+                boost::asio::async_read(
+                    m_socket, boost::asio::dynamic_buffer(m_read_buffer, size), token);
             });
 
-        // will throw if timeout expires
-        run(m_options.timeout_msec);
-
-        // keep hold of what did arrive, so that it can be returned by a later read
-        m_read_leftover += result;
-
-        /* the read can still finish short if it was cancelled, in which case the above is all we
-         * are going to get */
-        if (m_read_leftover.length() < size)
-            SG_THROW(exceptions::net::time_out);
+        throw_on_read_error(ec);
     }
 
-    std::string toReturn = m_read_leftover.substr(0, size);
-    m_read_leftover      = m_read_leftover.substr(size);
-
-    return toReturn;
+    std::string result = m_read_buffer.substr(0, size);
+    m_read_buffer.erase(0, size);
+    return result;
 }
 
 void tcp_client_sync::connect(const end_point& endpoint, tcp_session::options_t options) {
@@ -115,19 +152,19 @@ void tcp_client_sync::connect(const end_point& endpoint, tcp_session::options_t 
         SG_THROW(std::runtime_error, "client already connected");
 
     // Clear left over bytes from previous session
-    m_read_leftover.clear();
+    m_read_buffer.clear();
 
     m_options = options;
 
     boost::asio::ip::tcp::resolver resolver(m_context);
     auto endpoints = resolver.resolve(endpoint.ip, std::to_string(endpoint.port));
-    boost::asio::async_connect(
-        m_socket, endpoints,
-        [&](const boost::system::error_code& result_error, const boost::asio::ip::tcp::endpoint&) {
-            throw_error_if_not_timedout(result_error);
-        });
 
-    run(m_options.connection_timeout_msec);
+    const auto [ec, _] = run_with_timeout<boost::asio::ip::tcp::endpoint>(
+        m_context, m_options.connection_timeout_msec,
+        [&](auto token) { boost::asio::async_connect(m_socket, endpoints, token); });
+
+    if (ec)
+        throw_net_error(ec);
 
     set_keepalive(options.keepalive);
     set_timeout(options.timeout_msec);
@@ -141,19 +178,23 @@ void tcp_client_sync::disconnect() {
 
         // need to close, even if the above command failed
         m_socket.close();
-
-        run(m_options.timeout_msec);
     }
 }
 void tcp_client_sync::write(const std::byte* data, size_t length) {
     if (!is_connected())
         SG_THROW(std::runtime_error, "client not connected");
 
-    boost::asio::async_write(m_socket, boost::asio::buffer(data, length),
-                             [&](const boost::system::error_code& result_error, std::size_t) {
-                                 throw_error_if_not_timedout(result_error);
-                             });
-    run(m_options.timeout_msec);
+    const auto ec =
+        std::get<0>(run_with_timeout<size_t>(m_context, m_options.timeout_msec, [&](auto token) {
+            boost::asio::async_write(m_socket, boost::asio::buffer(data, length), token);
+        }));
+
+    if (ec) {
+        /* unlike a read, there is nothing to hold on to: a partial write leaves the stream out of
+         * sync, so the connection can't be reused */
+        disconnect();
+        throw_net_error(ec);
+    }
 }
 void tcp_client_sync::write(std::string_view data) {
     write(reinterpret_cast<const std::byte*>(data.data()), data.length());
@@ -165,41 +206,6 @@ void tcp_client_sync::set_keepalive(keepalive_t keepAlivePa) {
 void tcp_client_sync::set_timeout(unsigned timeoutMSec) {
     m_options.timeout_msec = timeoutMSec;
     sg::net::native::set_timeout(m_socket.native_handle(), timeoutMSec);
-}
-void tcp_client_sync::run(unsigned timeout_msec) {
-    /* inspired by
-     * https://www.boost.org/doc/libs/latest/doc/html/boost_asio/example/cpp11/timeouts/blocking_tcp_client.cpp*/
-
-    // Restart the io_context, as it may have been left in the "stopped" state
-    // by a previous operation.
-    m_context.restart();
-
-    try {
-        // Block until the asynchronous operation has completed, or timed out. If
-        // the pending asynchronous operation is a composed operation, the deadline
-        // applies to the entire operation, rather than individual operations on
-        // the socket.
-        if (timeout_msec == 0)
-            m_context.run();
-        else
-            m_context.run_for(std::chrono::milliseconds{timeout_msec});
-    } catch (...) {
-        m_socket.close();
-        m_context.run();
-        throw;
-    }
-
-    // If the asynchronous operation completed successfully then the io_context
-    // would have been stopped due to running out of work. If it was not
-    // stopped, then the io_context::run_for call must have timed out.
-    //
-    // If there was another problem, it would have thrown an exception (see above) and so we
-    // wouldn't be here
-    if (!m_context.stopped()) {
-        m_socket.close();
-        m_context.run();
-        SG_THROW(exceptions::net::time_out);
-    }
 }
 
 void tcp_client_sync::write(const shared_c_buffer<std::byte>& msg) { write(msg.get(), msg.size()); }
