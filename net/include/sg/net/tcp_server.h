@@ -12,7 +12,11 @@
 #include <boost/asio/awaitable.hpp>
 #include <boost/asio/io_context.hpp>
 #include <boost/asio/ip/tcp.hpp>
+#include <boost/asio/steady_timer.hpp>
+
+#include <exception>
 #include <map>
+#include <mutex>
 
 #include <thread_pool/thread_pool.h>
 
@@ -33,7 +37,20 @@ class SG_NET_EXPORT tcp_server {
     typedef std::shared_ptr<tcp_session> ptr;
 
     CREATE_CALLBACK(started_listening_cb_t, void(tcp_server&))
-    CREATE_CALLBACK(stopped_listening_cb_t, void(tcp_server&))
+    /** Fired once the server has stopped listening. The exception_ptr holds the error that
+     *  stopped it, or is null if it stopped cleanly (i.e. through stop_async()). */
+    CREATE_CALLBACK(stopped_listening_cb_t, void(tcp_server&, std::exception_ptr))
+    /** Fired when a socket accept() fails in a way that is recoverable, and the listener will
+     *  retry. For example, if the process is out of file descriptors.
+     *
+     *  Fires on the first such failure, and then keeps firing for as long as the condition
+     *  lasts -- but at most a couple of times a second, however fast the accepts fail.
+     *
+     *  Only a known set of conditions counts as recoverable. Everything else -- including an
+     *  error the listener does not recognise -- is treated as fatal to the acceptor: it does not
+     *  come through here, it stops the server, and it is reported by OnStoppedListening() /
+     *  last_error() instead. */
+    CREATE_CALLBACK(accept_error_cb_t, void(tcp_server&, std::exception_ptr))
     CREATE_CALLBACK(session_created_cb_t, void(tcp_server&, session_id_t))
     CREATE_CALLBACK(session_data_available_cb_t, void(tcp_server&, session_id_t, const std::byte*, size_t))
     CREATE_CALLBACK(session_disconnected_cb_t, void(tcp_server&, session_id_t, std::exception_ptr))
@@ -41,6 +58,7 @@ class SG_NET_EXPORT tcp_server {
     struct CallBacks {
         started_listening_cb_t OnStartedListening;
         stopped_listening_cb_t OnStoppedListening;
+        accept_error_cb_t OnAcceptError;
         session_created_cb_t OnSessionCreated;
         session_data_available_cb_t OnSessionDataAvailable;
         session_disconnected_cb_t OnDisconnected;
@@ -68,6 +86,13 @@ class SG_NET_EXPORT tcp_server {
     void future_get_once() const;
     bool is_stopped() const;
 
+    /** @brief The error that stopped the listener, or @c nullptr if it stopped cleanly.
+     *
+     * Set before OnStoppedListening() fires and cleared by the next start(), so it is valid to
+     * query from inside that callback and at any point afterwards until the server is restarted.
+     */
+    [[nodiscard]] std::exception_ptr last_error() const;
+
     size_t clients_count() const;
     ptr session(session_id_t id);
     std::map<session_id_t, ptr> sessions() const;
@@ -92,9 +117,15 @@ class SG_NET_EXPORT tcp_server {
 
     //m_acceptors are kept for use by set_keepalive/set_timeout
     std::vector<std::shared_ptr<boost::asio::ip::tcp::acceptor>> m_acceptors;
+    /* One retry timer per acceptor, in the same order as m_acceptors and sharing that acceptor's
+     * strand. Used by listener() to back off after a transient accept() failure. */
+    std::vector<std::shared_ptr<boost::asio::steady_timer>> m_accept_retry_timers;
     std::atomic<size_t> m_acceptors_running_count{0};
 
     CallBacks m_callbacks;
+
+    mutable std::mutex m_error_mutex;
+    std::exception_ptr m_last_error;
 
     std::atomic<bool> m_stop_in_operation;
     std::jthread m_stopping_thread;
@@ -102,10 +133,15 @@ class SG_NET_EXPORT tcp_server {
     dp::thread_pool<> m_pool{1};
     options_t m_options;
 
-    boost::asio::awaitable<void> listener(std::shared_ptr<boost::asio::ip::tcp::acceptor> acceptor);
+    boost::asio::awaitable<void> listener(std::shared_ptr<boost::asio::ip::tcp::acceptor> acceptor,
+                                          std::shared_ptr<boost::asio::steady_timer> retry_timer);
 
     void bind_acceptors();
     void on_io_pool_stopped(asio_io_pool&);
+
+    /* Records the reason the listener is stopping. First writer wins: a fatal error on one
+     * acceptor stops the others, and their resulting errors must not mask the original cause. */
+    void record_error(std::exception_ptr ex);
 
     void inform_user_of_data(session_id_t id, const std::byte* data, size_t size);
     void on_session_stopped(session_id_t id,  std::exception_ptr ex);

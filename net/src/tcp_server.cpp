@@ -8,8 +8,91 @@
 #include <boost/asio/redirect_error.hpp>
 #include <boost/asio/strand.hpp>
 
+#include <algorithm>
 #include <atomic>
+#include <cerrno>
+#include <chrono>
 #include <iostream>
+
+namespace {
+
+/* Errors from accept() that describe the state of the process, or of the one connection being
+ * accepted, and not that of the listening socket. The listener recovers from these by backing off
+ * and accepting again; anything NOT named here is taken to be fatal to the acceptor and stops the
+ * server.
+ *
+ * Linux passes network errors already pending on the *new* connection back out of accept(2), which
+ * the man page is explicit should be retried like EAGAIN rather than treated as a fault of the
+ * listening socket -- so the whole of that set is here too.
+ */
+bool is_transient_accept_error(const boost::system::error_code& ec) {
+    return
+        /* the process is out of some resource; retrying works once the pressure lifts */
+        ec == boost::asio::error::no_descriptors ||                 // EMFILE
+        ec == boost::system::errc::too_many_files_open_in_system || // ENFILE
+        ec == boost::asio::error::no_buffer_space ||                // ENOBUFS
+        ec == boost::asio::error::no_memory ||                      // ENOMEM
+        ec == boost::system::errc::no_stream_resources ||           // ENOSR
+        ec == boost::asio::error::interrupted ||                    // EINTR
+        ec == boost::asio::error::try_again ||                      // EAGAIN
+        ec == boost::asio::error::would_block ||                    // EWOULDBLOCK
+
+        /* this one client went away between the SYN and the accept() */
+        ec == boost::asio::error::connection_aborted || // ECONNABORTED
+        ec == boost::asio::error::connection_reset ||   // ECONNRESET
+        ec == boost::asio::error::timed_out ||          // ETIMEDOUT
+
+        /* Network errors of the new connection, which Linux reports through accept(). Per
+         * accept(2): "the application should detect the network errors defined for the protocol
+         * after accept() and treat them like EAGAIN by retrying".
+         *
+         * EOPNOTSUPP is in that set, and also means "this socket is not SOCK_STREAM" -- which
+         * would be fatal. It is treated as transient because bind_acceptors() only ever builds
+         * tcp::acceptors, so the fatal reading cannot arise here. */
+        ec == boost::asio::error::network_down ||           // ENETDOWN
+        ec == boost::asio::error::network_unreachable ||    // ENETUNREACH
+        ec == boost::asio::error::network_reset ||          // ENETRESET
+        ec == boost::asio::error::host_unreachable ||       // EHOSTUNREACH
+        ec == boost::asio::error::no_protocol_option ||     // ENOPROTOOPT
+        ec == boost::asio::error::operation_not_supported || // EOPNOTSUPP
+        ec == boost::system::errc::protocol_error ||        // EPROTO
+
+        /* Windows reports a blocking call already in progress; harmless to retry, and it cannot
+         * arise from a plain errno on POSIX */
+        ec == boost::asio::error::in_progress || // WSAEINPROGRESS
+
+        /* EHOSTDOWN and ENONET have no name in boost::system::errc, so they are matched on the
+         * raw errno. POSIX only: on Windows an asio socket error is a WSA code in the system
+         * category, and a bare errno value compared against it would be matching in the wrong
+         * namespace -- a small errno constant can collide with an unrelated Win32 error. Neither
+         * is a documented accept() error there in any case. */
+#if !defined(_WIN32)
+    #ifdef EHOSTDOWN
+        ec == boost::system::error_code(EHOSTDOWN, boost::system::system_category()) ||
+    #endif
+    #ifdef ENONET
+        ec == boost::system::error_code(ENONET, boost::system::system_category()) ||
+    #endif
+#endif
+        false;
+}
+
+constexpr auto accept_retry_min = std::chrono::milliseconds(1);
+constexpr auto accept_retry_max = std::chrono::milliseconds(500);
+
+template<typename FuncT, typename... Args>
+void run_callback(const std::string& name, FuncT func, Args&&... args) {
+    try {
+        func.invoke(std::forward<Args>(args)...);
+    } catch (const std::exception& callbackEx) {
+        std::cerr << "tcp_server: " << name << " callback exception: " << callbackEx.what()
+                  << std::endl;
+    } catch (...) {
+        std::cerr << "tcp_server: " << name << " callback exception" << std::endl;
+    }
+}
+
+} // namespace
 
 namespace sg::net {
 
@@ -33,17 +116,28 @@ void tcp_server::stop_async() {
          * If the context is not running we must close directly instead. That happens when we
          * are unwinding a start() that failed before the context came up. */
         const bool context_running = m_context && m_context->is_running();
-        for (const auto& acceptor : m_acceptors) {
-            if (context_running)
-                boost::asio::post(acceptor->get_executor(), [acceptor]() {
-                    try {
-                        acceptor->close();
-                    } catch (...) {}
-                });
-            else
+        for (size_t i = 0; i < m_acceptors.size(); ++i) {
+            /* bind_acceptors() publishes an acceptor and its retry timer together, so the two
+             * vectors always have the same size and ordering */
+            const auto& acceptor = m_acceptors[i];
+            const auto& timer = m_accept_retry_timers[i];
+
+            /* Cancelling the retry timer as well as closing the acceptor: closing an acceptor
+             * does not disturb a timer, so a listener backing off after a transient accept()
+             * failure would otherwise hold up the wait below for the length of its backoff. */
+            auto close = [acceptor, timer]() {
                 try {
                     acceptor->close();
                 } catch (...) {}
+                try {
+                    timer->cancel();
+                } catch (...) {}
+            };
+
+            if (context_running)
+                boost::asio::post(acceptor->get_executor(), close);
+            else
+                close();
         }
 
         /* Wait until every listener coroutine has exited.
@@ -97,9 +191,15 @@ void tcp_server::start(std::vector<end_point> endpoints, CallBacks callbacks, op
         m_last_id = 0;
         m_endpoints = endpoints;
 
+        {
+            std::lock_guard lock(m_error_mutex);
+            m_last_error = nullptr;
+        }
+
         /* clear acceptors before re-setting context, just in case their destructors need a valid
          * context */
         m_acceptors.clear();
+        m_accept_retry_timers.clear();
 
         auto stoppedTask = std::bind(&tcp_server::on_io_pool_stopped, this, std::placeholders::_1);
         m_context = asio_io_pool::create(options.no_threads, false, stoppedTask);
@@ -113,8 +213,10 @@ void tcp_server::start(std::vector<end_point> endpoints, CallBacks callbacks, op
          * None of these coroutines can execute yet -- they only start once the context is run,
          * at the end of this function. That ordering is what keeps start-up recoverable: an
          * exception anywhere above leaves bound sockets and queued coroutines, but nothing live. */
-        for (const auto& a : m_acceptors)
-            boost::asio::co_spawn(a->get_executor(), listener(a), boost::asio::detached);
+        for (size_t i = 0; i < m_acceptors.size(); ++i)
+            boost::asio::co_spawn(m_acceptors[i]->get_executor(),
+                                  listener(m_acceptors[i], m_accept_retry_timers[i]),
+                                  boost::asio::detached);
         m_acceptors_running_count.store(m_acceptors.size(), std::memory_order::release);
 
         /* invoke this before the context starts processing accepts, so that OnStartedListening()
@@ -132,6 +234,7 @@ void tcp_server::start(std::vector<end_point> endpoints, CallBacks callbacks, op
          * clear acceptors before re-setting context, just in case their destructors need a valid
          * context */
         m_acceptors.clear();
+        m_accept_retry_timers.clear();
         m_context.reset();
 
         /* needed in case m_context->run() throws */
@@ -195,63 +298,109 @@ tcp_server::ptr tcp_server::session(session_id_t id) {
 }
 
 boost::asio::awaitable<void>
-tcp_server::listener(std::shared_ptr<boost::asio::ip::tcp::acceptor> acceptor) {
+tcp_server::listener(std::shared_ptr<boost::asio::ip::tcp::acceptor> acceptor,
+                     std::shared_ptr<boost::asio::steady_timer> retry_timer) {
     try {
+        auto backoff = accept_retry_min;
+
         while (!m_stop_in_operation.load(std::memory_order::acquire)) {
-            auto id = m_last_id++;
-
-            auto onSessionDisconnected = [this, id](tcp_session&, std::exception_ptr ex) {
-                on_session_stopped(id, ex);
-            };
-
-            auto onData = [this, id](tcp_session&, const std::byte* data, size_t size) {
-                inform_user_of_data(id, data, size);
-            };
-
-            tcp_session::Callbacks::OnConnected onConn = [this, id](tcp_session&) {
-                if (m_callbacks.OnSessionCreated)
-                    m_callbacks.OnSessionCreated.invoke(*this, id);
-            };
-
             /* Accept onto the general io_context, not this acceptor's strand: the new
              * session must run across all workers. Passing the io_context explicitly
-             * overrides the default of inheriting the acceptor's (strand) executor. */
-            auto sess = tcp_session::create(
-                co_await acceptor->async_accept(m_context->context(), boost::asio::use_awaitable),
-                tcp_session::Callbacks {
-                    .onConnected = onConn,
-                    .onDisconnected = onSessionDisconnected,
-                    .onDataAvailable = onData
-                },
-                m_options.session_options);
+             * overrides the default of inheriting the acceptor's (strand) executor.
+             *
+             * The error is taken as an error_code rather than as an exception, so that a
+             * per-connection failure can be told apart from one that is fatal to the acceptor. */
+            boost::system::error_code ec;
+            auto socket = co_await acceptor->async_accept(
+                m_context->context(), boost::asio::redirect_error(boost::asio::use_awaitable, ec));
 
-            /* check that the m_async did not return because stop_async was called */
-            if (!m_stop_in_operation.load(std::memory_order::acquire)) {
-                {
-                    std::unique_lock lock(m_mutex);
-                    m_sessions.emplace(id, sess);
-                    m_active_sessions.fetch_add(1, std::memory_order::release);
+            if (ec) {
+                if (!is_transient_accept_error(ec)) {
+                    /* operation_aborted is how a listener is woken from async_accept by the
+                     * close() that stop_async() posts; it is the normal way out, not a failure */
+                    if (ec != boost::asio::error::operation_aborted)
+                        record_error(std::make_exception_ptr(boost::system::system_error(ec)));
+
+                    stop_async();
+                    break;
                 }
 
-                /* start() may throw if session setup fails (e.g. the peer reset
-                 * the connection). Contain it here so that a single bad client
-                 * cannot tear down the whole listener via the outer catch.
-                 *
-                 * No manual cleanup is needed: start()'s own failure path has
-                 * already fired the session's on_disconnected callback, which
-                 * cleans things up. */
-                try {
-                  sess->start();
-                } catch (...) {
+                /* A stop already under way is not an accept failure worth reporting */
+                if (m_stop_in_operation.load(std::memory_order::acquire))
+                    continue;
+
+                if (backoff == accept_retry_min || backoff >= accept_retry_max) {
+                    if (m_callbacks.OnAcceptError)
+                        run_callback("OnAcceptError()", m_callbacks.OnAcceptError, *this,
+                                     std::make_exception_ptr(boost::system::system_error(ec)));
+                    else
+                        std::cerr << "tcp_server: " << boost::system::system_error(ec).what()
+                                  << std::endl;
                 }
+
+                retry_timer->expires_after(backoff);
+                co_await retry_timer->async_wait(
+                    boost::asio::redirect_error(boost::asio::use_awaitable, ec));
+
+                backoff = std::min(backoff * 2, accept_retry_max);
+                continue;
+            }
+
+            backoff = accept_retry_min;
+
+            /* Everything below is per-connection: a throw out of tcp_session::create(), or a
+             * bad_alloc from m_sessions.emplace(), must cost us this one connection and not the
+             * whole listener. The accepted socket is closed by its own destructor as the stack
+             * unwinds. */
+            try {
+                auto id = m_last_id++;
+
+                auto onSessionDisconnected = [this, id](tcp_session&, std::exception_ptr ex) {
+                    on_session_stopped(id, ex);
+                };
+
+                auto onData = [this, id](tcp_session&, const std::byte* data, size_t size) {
+                    inform_user_of_data(id, data, size);
+                };
+
+                tcp_session::Callbacks::OnConnected onConn = [this, id](tcp_session&) {
+                    if (m_callbacks.OnSessionCreated)
+                        m_callbacks.OnSessionCreated.invoke(*this, id);
+                };
+
+                auto sess = tcp_session::create(
+                    std::move(socket),
+                    tcp_session::Callbacks {
+                        .onConnected = onConn,
+                        .onDisconnected = onSessionDisconnected,
+                        .onDataAvailable = onData
+                    },
+                    m_options.session_options);
+
+                /* check that the accept did not return because stop_async was called */
+                if (!m_stop_in_operation.load(std::memory_order::acquire)) {
+                    {
+                        std::unique_lock lock(m_mutex);
+                        m_sessions.emplace(id, sess);
+                        m_active_sessions.fetch_add(1, std::memory_order::release);
+                    }
+
+                    /* start() may throw if session setup fails (e.g. the peer reset
+                     * the connection).
+                     *
+                     * No manual cleanup is needed: start()'s own failure path has
+                     * already fired the session's on_disconnected callback, which
+                     * cleans things up. */
+                    sess->start();
+                }
+            } catch (...) {
             }
         }
     } catch (...) {
-        // note: if you catch (const boost::system::system_error& err), then this is the error that
-        // you get when the socket is closed err.code() == boost::asio::error::operation_aborted
-
-        // capture error?
-        //TODO: save and pass exception as exception_ptr to stopped callback
+        /* A backstop only: the loop above turns accept and timer failures into error codes, so
+         * nothing is expected to reach here. It stays because a detached coroutine that lets an
+         * exception escape calls std::terminate(). */
+        record_error(std::current_exception());
         stop_async();
     }
 
@@ -283,13 +432,35 @@ void tcp_server::bind_acceptors() {
         a->bind(ep);
         a->listen();
 
+        /* The listener's backoff timer goes on the same strand as its acceptor, so that the
+         * timer and the acceptor are serialised against each other without a mutex.
+         *
+         * Published before its acceptor, and only once nothing above can throw, so that every
+         * acceptor is guaranteed a timer at its own index even if a push_back throws. */
+        auto t = std::make_shared<boost::asio::steady_timer>(strand);
+
+        m_accept_retry_timers.push_back(t);
         m_acceptors.push_back(a);
     }
 }
 
 void tcp_server::on_io_pool_stopped(asio_io_pool&) {
     if (m_callbacks.OnStoppedListening)
-        m_callbacks.OnStoppedListening.invoke(*this);
+        m_callbacks.OnStoppedListening.invoke(*this, last_error());
+}
+
+void tcp_server::record_error(std::exception_ptr ex) {
+    if (!ex)
+        return;
+
+    std::lock_guard lock(m_error_mutex);
+    if (!m_last_error)
+        m_last_error = ex;
+}
+
+std::exception_ptr tcp_server::last_error() const {
+    std::lock_guard lock(m_error_mutex);
+    return m_last_error;
 }
 
 
@@ -307,16 +478,8 @@ void tcp_server::on_session_stopped(session_id_t id, std::exception_ptr ex) {
      *      on_disconnection callback is running
      */
     m_pool.enqueue_detach([this, id, ex]() {
-        try {
-            if (m_callbacks.OnDisconnected)
-                m_callbacks.OnDisconnected.invoke(*this, id, ex);
-        } catch (const std::exception& callbackEx) {
-            std::cerr << "tcp_server: onDisconnected() callback exception caught: "
-                      << callbackEx.what() << std::endl;
-        } catch (...) {
-            std::cerr << "tcp_server: onDisconnected() callback exception caught" << std::endl;
-        };
-
+        if (m_callbacks.OnDisconnected)
+            run_callback("OnDisconnected", m_callbacks.OnDisconnected, *this, id, ex);
 
         {
             std::unique_lock lock(m_mutex);

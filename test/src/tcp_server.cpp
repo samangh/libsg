@@ -53,8 +53,13 @@ TEST_CASE("tcp_server: check start/stop callback", "[sg::net::tcp_server]") {
 
     using namespace sg::net;
 
+    std::atomic_bool stopped_with_error{false};
+
     tcp_server::started_listening_cb_t onStart = [&](tcp_server&) { start_sem.release(); };
-    tcp_server::stopped_listening_cb_t onStop  = [&](tcp_server&) { stop_count++; };
+    tcp_server::stopped_listening_cb_t onStop  = [&](tcp_server&, std::exception_ptr ex) {
+        stopped_with_error.store(ex != nullptr);
+        stop_count++;
+    };
 
     tcp_server::session_disconnected_cb_t onDisconn =
         [&](tcp_server&, tcp_server::session_id_t, std::exception_ptr) { stop_count++; };
@@ -74,6 +79,8 @@ TEST_CASE("tcp_server: check start/stop callback", "[sg::net::tcp_server]") {
     l.stop_async();
     l.future_get_once();
     REQUIRE(stop_count == 1);
+    REQUIRE_FALSE(stopped_with_error.load());
+    REQUIRE(l.last_error() == nullptr);
 }
 
 struct tcp_server_test0 {
@@ -84,7 +91,8 @@ struct tcp_server_test0 {
     void start() {
         end_point ep("127.0.0.1", PORT);
         auto onstart = std::bind(&tcp_server_test0::on_start, this, std::placeholders::_1);
-        auto onstop  = std::bind(&tcp_server_test0::on_stop, this, std::placeholders::_1);
+        auto onstop =
+            std::bind(&tcp_server_test0::on_stop, this, std::placeholders::_1, std::placeholders::_2);
 
         tcp_server::CallBacks cb;
         cb.OnStartedListening = onstart;
@@ -92,7 +100,7 @@ struct tcp_server_test0 {
         l.start({ep}, cb);
     }
     void on_start(tcp_server&) { start_sem.release(); }
-    void on_stop(tcp_server&) { stop_count++; }
+    void on_stop(tcp_server&, std::exception_ptr) { stop_count++; }
     void on_disconn(tcp_server&, tcp_server::session_id_t, std::exception_ptr) {
         stop_count++;
     }
@@ -291,7 +299,7 @@ TEST_CASE("tcp_server started_listening_cb_t exception handling", "[sg::net::tcp
 // TEST_CASE("tcp_server stopped_listening_cb_t cb exception handling", "[sg::net::tcp_server]") {
 //     using namespace sg::net;
 //
-//     tcp_server::stopped_listening_cb_t onStop = [](tcp_server&) {
+//     tcp_server::stopped_listening_cb_t onStop = [](tcp_server&, std::exception_ptr) {
 //         throw std::runtime_error("bad error!");
 //     };
 //
@@ -526,7 +534,9 @@ TEST_CASE("tcp_server: check stop_async() drops all connections", "[sg::net::tcp
     tcp_server::session_created_cb_t onConn = [&](tcp_server&, tcp_server::session_id_t) {
         sem.release();
     };
-    tcp_server::stopped_listening_cb_t onStop = [&](tcp_server&) { stop_count++; };
+    tcp_server::stopped_listening_cb_t onStop = [&](tcp_server&, std::exception_ptr) {
+        stop_count++;
+    };
 
     end_point ep("0.0.0.0", PORT);
     std::jthread th;
@@ -1189,3 +1199,35 @@ TEST_CASE("tcp_server: multi-threaded stress (strands + teardown under load)",
     REQUIRE(total_roundtrips.load() > 0);
 }
 
+TEST_CASE("tcp_server: check a server listening on several endpoints", "[sg::net::tcp_server]") {
+    scoped_deadline watchdog("DEADLOCK: multi-endpoint stop_async() stalled");
+
+    using namespace sg::net;
+
+    end_point ep1("127.0.0.1", PORT);
+    end_point ep2("127.0.0.1", static_cast<port_t>(PORT + 1));
+
+    tcp_server::CallBacks cb;
+    cb.OnSessionDataAvailable = [](tcp_server& l, tcp_server::session_id_t id,
+                                   const std::byte* data, size_t length) {
+        l.session(id)->write(data, length);
+    };
+
+    tcp_server l;
+    l.start({ep1, ep2}, cb);
+
+    /* each endpoint gets an acceptor of its own, and each acceptor a listener and a backoff
+     * timer of its own; all of them must serve traffic, and all of them must stop */
+    for (const auto& ep : {ep1, ep2}) {
+        tcp_client_sync client;
+        client.connect(ep);
+        client.write("hello\n");
+        REQUIRE(client.read_until("\n") == "hello\n");
+    }
+
+    l.stop_async();
+    l.future_get_once();
+
+    REQUIRE(l.is_stopped());
+    REQUIRE(l.last_error() == nullptr);
+}

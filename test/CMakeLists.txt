@@ -33,6 +33,7 @@ setup_executable(
     src/data/channel_rolling.cpp
     src/bounds.cpp
     src/tcp_server.cpp
+    src/tcp_server_transient_accept_failure.cpp
     src/asio_io_pool.cpp
     src/state_machine.cpp
     src/locale.cpp
