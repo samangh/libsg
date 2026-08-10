@@ -57,7 +57,7 @@ struct end_point{
     end_point(std::string ip,  port_t port): ip(std::move(ip)), port(port) {}
 
     std::string ip;
-    port_t port;
+    port_t port{};
 };
 
 struct keepalive_t {
