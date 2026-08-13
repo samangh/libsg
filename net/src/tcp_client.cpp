@@ -89,7 +89,7 @@ void tcp_client::connect(const end_point& endpoint, tcp_session::Callbacks::OnDa
 
     fut.get();
 
-    m_session = tcp_session::create(std::move(socket),
+    m_session = tcp_session::create(m_context->context(), std::move(socket),
                                     tcp_session::Callbacks{.onConnected     = nullptr,
                                                            .onDisconnected  = onDisconnect,
                                                            .onDataAvailable = onReadCb},

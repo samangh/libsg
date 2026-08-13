@@ -64,11 +64,13 @@ class SG_NET_EXPORT tcp_session : public std::enable_shared_from_this<tcp_sessio
 
     enum class state_t {running, stop_requested, stopping, stopped };
 
-    static std::shared_ptr<tcp_session> create(boost::asio::ip::tcp::socket socket,
+    static std::shared_ptr<tcp_session> create(boost::asio::io_context& context,
+                                               boost::asio::ip::tcp::socket socket,
                                                Callbacks callbacks,
                                                options_t options);
 
-    tcp_session(private_tag, boost::asio::ip::tcp::socket socket, Callbacks cb, options_t options);
+    tcp_session(private_tag, boost::asio::io_context& context,
+                boost::asio::ip::tcp::socket socket, Callbacks cb, options_t options);
     ~tcp_session();
 
     void start();
@@ -96,6 +98,12 @@ class SG_NET_EXPORT tcp_session : public std::enable_shared_from_this<tcp_sessio
 
     /** runs the passed function in the all the I/O operations runs on */
     [[nodiscard]] auto run_in_executor(std::invocable<> auto func) {
+        /* he if is needed — being on the strand doesn't mean the context is running.
+         * io_context::stop() sets the stopped flag immediately, but a worker already executing a
+         * handler runs to completion.*/
+        if (!running_in_io_thread())
+            throw_if_io_context_stopped();
+
         auto fut = boost::asio::dispatch(m_strand, boost::asio::use_future(func));
         return fut.get();
     }
@@ -108,6 +116,14 @@ class SG_NET_EXPORT tcp_session : public std::enable_shared_from_this<tcp_sessio
      * (which all touch m_socket) must not run concurrently. Routing all three through this strand
      * serialises them. It does NOT serialise the underlying I/O. */
     boost::asio::strand<boost::asio::ip::tcp::socket::executor_type> m_strand;
+
+    /* The io_context that m_strand runs on. A stopped io_context runs no handlers, so anything
+     * handed to m_strand while it is stopped never happens; the calls that would otherwise wait
+     * for it check stopped() to avoid blocking forever.
+     *
+     * Note that a context that has not been run yet is not stopped: work handed to it now is
+     * processed once it is run (see asio_io_pool::run()). */
+    boost::asio::io_context& m_io_context;
 
     options_t m_options;
     Callbacks m_callbacks;
@@ -126,6 +142,8 @@ class SG_NET_EXPORT tcp_session : public std::enable_shared_from_this<tcp_sessio
 
     void close();
     void close_impl();
+
+    void throw_if_io_context_stopped() const;
 
     /* Raw socket-option work. NOT thread-safe with respect to other socket access — callers must
      * either be running on m_strand or be in a phase where no other thread can touch m_socket

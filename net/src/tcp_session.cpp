@@ -14,17 +14,19 @@
 
 namespace sg::net {
 
-std::shared_ptr<tcp_session> tcp_session::create(boost::asio::ip::tcp::socket socket,
+std::shared_ptr<tcp_session> tcp_session::create(boost::asio::io_context& context,
+                                                 boost::asio::ip::tcp::socket socket,
                                                  Callbacks callbacks, options_t options) {
 
-    return std::make_shared<tcp_session>(private_tag{}, std::move(socket), std::move(callbacks),
-                                         options);
+    return std::make_shared<tcp_session>(private_tag{}, context, std::move(socket),
+                                         std::move(callbacks), options);
 }
 
-tcp_session::tcp_session(private_tag, boost::asio::ip::tcp::socket socket, Callbacks cb,
-                         options_t options)
+tcp_session::tcp_session(private_tag, boost::asio::io_context& context,
+                         boost::asio::ip::tcp::socket socket, Callbacks cb, options_t options)
 : m_socket(std::move(socket)),
   m_strand(boost::asio::make_strand(m_socket.get_executor())),
+  m_io_context(context),
   m_options(options),
   m_callbacks(std::move(cb)) {
     if (m_options.dont_read && !m_callbacks.onDataAvailable)
@@ -147,6 +149,11 @@ enum tcp_session::state_t tcp_session::state() const noexcept {
     return m_state.load(std::memory_order::acquire);
 }
 
+void tcp_session::throw_if_io_context_stopped() const {
+    if (m_io_context.stopped())
+        SG_THROW(std::runtime_error, "the I/O context that this tcp_session runs on has stopped, "
+                                     "so the requested work can never run");
+}
 native::socket_t tcp_session::native_handle() { return m_socket.native_handle(); }
 boost::asio::any_io_executor tcp_session::get_executor() const {return m_strand;}
 
@@ -168,8 +175,9 @@ void tcp_session::stop_async() {
                                              std::memory_order::acquire))
             return;
 
-        // if a writer is running, it will close connection due to state_stop_requested
-        shouldClose= !m_write_scheduled;
+        /* if a writer is scheduled, it will close connection due to
+		 * state_stop_requested (as long as context is running) */
+        shouldClose = !m_write_scheduled || m_io_context.stopped();
     }
 
     /* We make sure that that the close() is called when the lock is not held. This is because if
@@ -213,10 +221,23 @@ void tcp_session::close() {
                                            std::memory_order::acq_rel,
                                            std::memory_order::acquire))
         {
-            // Socket operations must be serialised with the reader/writer, so run close_impl()
-            // on the session strand (same strand the reader and writer run on).
-
-            boost::asio::dispatch(m_strand, [self = shared_from_this()] { self->close_impl(); });
+            /* Socket operations must be serialised with the reader/writer, so run close_impl()
+             * on the session strand (same strand the reader and writer run on).
+             *
+             * Unless the io_context has stopped, in which case nothing dispatched to the strand
+             * ever runs: the session would sit in `stopping` for good and wait_until_stopped()
+             * would block forever. Close on this thread instead -- a stopped context runs no
+             * reader/writer handlers, so there is nothing left to serialise against. This mirrors
+             * what tcp_server::stop_async() does when its context is down.
+             *
+             * Note that this is about a *stopped* context, not a destroyed one: a session whose
+             * io_context has been destroyed holds a dangling socket, and nothing here could make
+             * that safe. */
+            if (m_io_context.stopped())
+                close_impl();
+            else
+                boost::asio::dispatch(m_strand,
+                                      [self = shared_from_this()] { self->close_impl(); });
             return;
         }
     }
