@@ -341,23 +341,32 @@ boost::asio::awaitable<void> tcp_session::writer() {
 
             // SO_SNDTIMEO only applies for blocking calls, not async. Use cancel_after to enforce
             // the timeout.
-            auto result = co_await boost::asio::async_write(
-                m_socket, buffersAsio,
-                boost::asio::cancel_after(std::chrono::milliseconds(timeoutMSec),
-                                          boost::asio::as_tuple(boost::asio::use_awaitable)));
+            if (timeoutMSec) {
+                auto result = co_await boost::asio::async_write(
+                    m_socket, buffersAsio,
+                    boost::asio::cancel_after(std::chrono::milliseconds(timeoutMSec),
+                                              boost::asio::as_tuple(boost::asio::use_awaitable)));
 
-            // boost::asio::error::timed_out might be raised by async_write
-            // boost::asio::error::operation_aborted will be raised by cancel_after
-            if (auto ec = std::get<0>(result); ec) {
-                if (ec == boost::asio::error::timed_out ||
-                    ec == boost::asio::error::operation_aborted)
-                    SG_THROW(exceptions::net::time_out);
-                throw boost::system::system_error(ec);
+
+                // Only check for error if we are meant to be running, as normal close can also raise the
+                // operation_aborted error
+                if (auto ec = std::get<0>(result); ec) {
+                    if (m_state.load(std::memory_order::acquire) == state_t::running)
+                        if (ec == boost::asio::error::timed_out ||
+                            ec == boost::asio::error::operation_aborted)
+                            SG_THROW(exceptions::net::time_out);
+                    throw boost::system::system_error(ec);
+                }
             }
+            else
+                co_await boost::asio::async_write(m_socket, buffersAsio,
+                                                  boost::asio::use_awaitable);
+
         }
     } catch (...) {
         // We should end up here during graceful shutdown, as the writer waits until all messages
         // are written
+        if (m_state.load(std::memory_order::acquire) == state_t::running)
         {
             std::lock_guard lock(m_exception_mutex);
             if (!m_exception)
