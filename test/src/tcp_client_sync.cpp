@@ -92,6 +92,53 @@ TEST_CASE("tcp_client_sync: check read_until()", "[sg::net::tcp_client_sync]") {
     REQUIRE(client.read_until("\n") == "HELLO3\n");
 }
 
+TEST_CASE("tcp_client_sync: check read_until() keeps partial data on a timeout",
+          "[sg::net::tcp_client_sync]") {
+    tcp_server server;
+    tcp_server::CallBacks cb;
+    cb.OnSessionCreated = [&](tcp_server& s, tcp_server::session_id_t id) { s.write(id, "123"); };
+    server.start({ep}, cb);
+
+    tcp_client_sync client;
+    client.connect(ep);
+    client.set_timeout(500);
+
+    /* the delimiter never arrives */
+    REQUIRE_THROWS_AS(client.read_until("\n"), sg::exceptions::net::time_out);
+
+    /* the bytes that did arrive must be buffered as-is, and the connection must still be usable */
+    REQUIRE(client.is_connected());
+    REQUIRE(client.read(3) == "123");
+}
+
+TEST_CASE("tcp_client_sync: check read_until() resumes correctly after a timeout",
+          "[sg::net::tcp_client_sync]") {
+    std::atomic<tcp_server::session_id_t> session_id{0};
+    std::binary_semaphore connected{0};
+
+    tcp_server server;
+    tcp_server::CallBacks cb;
+    cb.OnSessionCreated = [&](tcp_server& s, tcp_server::session_id_t id) {
+        session_id = id;
+        s.write(id, "12");
+        connected.release();
+    };
+    server.start({ep}, cb);
+
+    tcp_client_sync client;
+    client.connect(ep);
+    client.set_timeout(500);
+    connected.acquire();
+
+    /* only part of the line has been sent, so this must time out */
+    REQUIRE_THROWS_AS(client.read_until("\n"), sg::exceptions::net::time_out);
+
+    /* once the rest of the line arrives the whole line must be returned: a timed out read must
+     * not consume, or misalign, what it already buffered */
+    server.write(session_id, "34\n");
+    REQUIRE(client.read_until("\n") == "1234\n");
+}
+
 TEST_CASE("tcp_client_sync: check read_some()", "[sg::net::tcp_client_sync]") {
     tcp_server server;
     tcp_server::session_created_cb_t onConn= [&](tcp_server&, tcp_server::session_id_t id) {
