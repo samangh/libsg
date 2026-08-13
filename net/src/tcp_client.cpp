@@ -112,7 +112,7 @@ bool tcp_client::is_connected() const {
 void tcp_client::disconnect() {
     if (m_session && m_session->running_in_io_thread())
         SG_THROW(std::logic_error,
-                 "tcp_client::connect() must not be called from the I/O thread (e.g. from a callback)");
+                 "tcp_client::disconnect() must not be called from the I/O thread (e.g. from a callback)");
 
     if (is_connected()) {
         m_session->stop_async();
