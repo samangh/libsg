@@ -41,7 +41,7 @@ std::shared_ptr<asio_io_pool> asio_io_pool::create(size_t noWorkers, bool enable
 bool asio_io_pool::run() {
     /* re-entry from inside the stopped-callback would deadlock (run() waits for
      * the cycle to finish, which is finalised by the callback thread itself). */
-    if (m_cb_thread_id.load(std::memory_order_acquire) == std::this_thread::get_id())
+    if (in_stopped_callback())
         SG_THROW(std::logic_error,
                  "asio_io_pool::run() must not be called from the stopped callback");
 
@@ -114,6 +114,9 @@ const boost::asio::io_context& asio_io_pool::context() const {
 }
 
 bool asio_io_pool::running_in_pool_thread() const {
+    if (in_stopped_callback())
+        return true;
+
     /* io_context::get_executor() is not const-qualified in Boost.Asio, but it doesn't mutate the
      * context, so the const_cast is safe */
     auto& context = const_cast<boost::asio::io_context&>(m_context);
@@ -152,11 +155,15 @@ void asio_io_pool::wait_for_stop() const {
     /* re-entry from inside the stopped-callback would wait for our own thread to
      * publish completion — return instead; the stop completes once the callback
      * returns. */
-    if (m_cb_thread_id.load(std::memory_order_acquire) == std::this_thread::get_id())
+    if (in_stopped_callback())
         return;
 
     while (m_cycle_active.load(std::memory_order_acquire))
         m_cycle_active.wait(true, std::memory_order_acquire);
+}
+
+bool asio_io_pool::in_stopped_callback() const {
+    return m_cb_thread_id.load(std::memory_order_acquire) == std::this_thread::get_id();
 }
 
 bool asio_io_pool::has_guard() const {

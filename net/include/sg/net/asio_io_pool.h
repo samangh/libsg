@@ -194,6 +194,7 @@ class SG_NET_EXPORT asio_io_pool {
     /// @copydoc context()
     [[nodiscard]] const boost::asio::io_context& context() const;
 
+    /** Returns @c true if the calling thread is owned by the pool. */
     [[nodiscard]] bool running_in_pool_thread() const;
 
     /**
@@ -230,6 +231,8 @@ private:
     /// @ref run() and @ref wait_for_stop() to detect re-entry from the
     /// callback and avoid self-deadlock.
     std::atomic<std::thread::id> m_cb_thread_id{};
+
+    [[nodiscard]] bool in_stopped_callback() const;
 
     /// Worker threads driving @ref m_context. Joined by @ref m_cb_thread, not
     /// by the pool itself.
