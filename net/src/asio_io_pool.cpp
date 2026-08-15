@@ -120,7 +120,7 @@ bool asio_io_pool::running_in_pool_thread() const {
     /* io_context::get_executor() is not const-qualified in Boost.Asio, but it doesn't mutate the
      * context, so the const_cast is safe */
     auto& context = const_cast<boost::asio::io_context&>(m_context);
-    return is_running() && context.get_executor().running_in_this_thread();
+    return context.get_executor().running_in_this_thread();
 }
 
 bool asio_io_pool::is_running() const {

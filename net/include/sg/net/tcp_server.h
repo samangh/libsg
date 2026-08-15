@@ -86,6 +86,9 @@ class SG_NET_EXPORT tcp_server {
     void future_get_once() const;
     bool is_stopped() const;
 
+    /** True if the calling thread is one this server runs its callbacks on.  */
+    [[nodiscard]] bool running_in_callback_thread() const;
+
     /** @brief The error that stopped the listener, or @c nullptr if it stopped cleanly.
      *
      * Set before OnStoppedListening() fires and cleared by the next start(), so it is valid to
@@ -128,10 +131,12 @@ class SG_NET_EXPORT tcp_server {
     std::exception_ptr m_last_error;
 
     std::atomic<bool> m_stop_in_operation;
-    std::jthread m_stopping_thread;
 
     dp::thread_pool<> m_pool{1};
     options_t m_options;
+
+    std::atomic<std::thread::id> m_callback_thread_id{};
+    std::jthread m_stopping_thread; // declared last so it's joined first
 
     boost::asio::awaitable<void> listener(std::shared_ptr<boost::asio::ip::tcp::acceptor> acceptor,
                                           std::shared_ptr<boost::asio::steady_timer> retry_timer);

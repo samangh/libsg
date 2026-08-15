@@ -1231,3 +1231,66 @@ TEST_CASE("tcp_server: check a server listening on several endpoints", "[sg::net
     REQUIRE(l.is_stopped());
     REQUIRE(l.last_error() == nullptr);
 }
+
+TEST_CASE("tcp_server: callback threads are recognised, and waiting from one throws",
+          "[sg::net::tcp_server]") {
+    scoped_deadline watchdog("DEADLOCK: future_get_once() from a callback did not return");
+
+    using namespace sg::net;
+
+    /* Every callback below runs on a thread the shutdown sequence has to wait for: the I/O
+     * workers, the pool thread behind OnDisconnected, and the io_pool's stopped-callback
+     * thread. Waiting for that shutdown from inside one can never complete, so it must be
+     * reported rather than hung. ~tcp_server has the same restriction, but can only terminate
+     * on breach, so it is the predicate that is pinned here. */
+    std::atomic_int created_flag{-1}, data_flag{-1}, disconnected_flag{-1}, stopped_flag{-1};
+    std::atomic_int threw{0};
+    std::binary_semaphore stopped_sem{0};
+
+    tcp_server::CallBacks cb;
+    cb.OnSessionCreated = [&](tcp_server& l, tcp_server::session_id_t) {
+        created_flag.store(l.running_in_callback_thread() ? 1 : 0);
+        try {
+            l.future_get_once();
+        } catch (const std::logic_error&) {
+            ++threw;
+        }
+    };
+    cb.OnSessionDataAvailable = [&](tcp_server& l, tcp_server::session_id_t id,
+                                    const std::byte* data, size_t length) {
+        data_flag.store(l.running_in_callback_thread() ? 1 : 0);
+        l.session(id)->write(data, length);
+    };
+    cb.OnDisconnected = [&](tcp_server& l, tcp_server::session_id_t, std::exception_ptr) {
+        disconnected_flag.store(l.running_in_callback_thread() ? 1 : 0);
+    };
+    cb.OnStoppedListening = [&](tcp_server& l, std::exception_ptr) {
+        stopped_flag.store(l.running_in_callback_thread() ? 1 : 0);
+        stopped_sem.release();
+    };
+
+    tcp_server l;
+    l.start({end_point("127.0.0.1", PORT)}, cb);
+
+    /* the caller's own thread is not a callback thread */
+    REQUIRE_FALSE(l.running_in_callback_thread());
+
+    {
+        tcp_client_sync client;
+        client.connect(end_point("127.0.0.1", PORT));
+        client.write("hello\n");
+        REQUIRE(client.read_until("\n") == "hello\n");
+    }
+
+    l.stop_async();
+    l.future_get_once();          // legitimate: not on a callback thread
+    stopped_sem.acquire();
+
+    REQUIRE(created_flag.load() == 1);
+    REQUIRE(data_flag.load() == 1);
+    REQUIRE(disconnected_flag.load() == 1);
+    REQUIRE(stopped_flag.load() == 1);
+    REQUIRE(threw.load() == 1);   // future_get_once() from a callback throws, never hangs
+
+    REQUIRE(l.is_stopped());
+}

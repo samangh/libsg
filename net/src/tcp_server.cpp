@@ -14,6 +14,12 @@
 #include <chrono>
 #include <iostream>
 
+/* Notes:
+ *
+ *   - m_context->is_running() will return false as soon as a stop request is made, it'll
+ *     return false event if there are still handlers running
+ */
+
 namespace {
 
 /* Errors from accept() that describe the state of the process, or of the one connection being
@@ -97,12 +103,15 @@ void run_callback(const std::string& name, FuncT func, Args&&... args) {
 namespace sg::net {
 
 tcp_server::~tcp_server() noexcept(false) {
-    if (m_context && m_context->is_running()) {
-        stop_async();
-        m_context->wait_for_stop();
+    if (running_in_callback_thread()) {
+        std::cerr << "tcp_server: ~tcp_server() called from one of the server's own threads"
+                  << std::endl;
+        std::terminate();
     }
 
-    m_pool.wait_for_tasks();
+    stop_async();
+    if (m_stopping_thread.joinable())
+        m_stopping_thread.join();
 }
 
 void tcp_server::stop_async() {
@@ -162,7 +171,11 @@ void tcp_server::stop_async() {
         for (size_t n; (n = m_active_sessions.load(std::memory_order::acquire)) != 0; )
             m_active_sessions.wait(n, std::memory_order::acquire);
 
-        if (m_context && m_context->is_running()) {
+        /* The last decrement above happens inside a pool task, so that task may still be
+         * running (and running a OnDisconnected callback). */
+        m_pool.wait_for_tasks();
+
+        if (m_context) {
             m_context->stop_async();
             m_context->wait_for_stop();
         }
@@ -247,6 +260,13 @@ void tcp_server::start(std::vector<end_point> endpoints, CallBacks callbacks, op
 }
 
 void tcp_server::future_get_once() const noexcept(false) {
+    /* Same deadlock as in ~tcp_server, but recoverable here: nothing is being destroyed, so
+     * the caller can be told rather than hung. Mirrors tcp_session::wait_until_stopped(). */
+    if (running_in_callback_thread())
+        SG_THROW(std::logic_error,
+                 "tcp_server::future_get_once() must not be called from a server callback: it "
+                 "would wait for the thread it is running on. Use is_stopped() instead.");
+
     if (!m_context)
         return;
 
@@ -256,6 +276,15 @@ void tcp_server::future_get_once() const noexcept(false) {
 
 bool tcp_server::is_stopped() const {
     return !m_running.load(std::memory_order::acquire);
+}
+
+bool tcp_server::running_in_callback_thread() const {
+    /* the m_pool worker, while it is running OnDisconnected */
+    if (m_callback_thread_id.load(std::memory_order::acquire) == std::this_thread::get_id())
+        return true;
+
+    /* the I/O workers, and the pool's own stopped-callback thread */
+    return m_context && m_context->running_in_pool_thread();
 }
 
 size_t tcp_server::clients_count() const {
@@ -478,8 +507,14 @@ void tcp_server::on_session_stopped(session_id_t id, std::exception_ptr ex) {
      *      on_disconnection callback is running
      */
     m_pool.enqueue_detach([this, id, ex]() {
+        /* Publish this worker's identity for the length of the user callback, so that
+         * running_in_callback_thread() can recognise a wait issued from inside it. m_pool has a
+         * single worker, so these two stores cannot interleave with another task's.
+         * run_callback() does not propagate, so the clear is always reached. */
+        m_callback_thread_id.store(std::this_thread::get_id(), std::memory_order::release);
         if (m_callbacks.OnDisconnected)
             run_callback("OnDisconnected", m_callbacks.OnDisconnected, *this, id, ex);
+        m_callback_thread_id.store(std::thread::id{}, std::memory_order::release);
 
         {
             std::unique_lock lock(m_mutex);
