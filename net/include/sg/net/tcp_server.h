@@ -18,8 +18,6 @@
 #include <map>
 #include <mutex>
 
-#include <thread_pool/thread_pool.h>
-
 namespace sg::net {
 
 
@@ -132,10 +130,8 @@ class SG_NET_EXPORT tcp_server {
 
     std::atomic<bool> m_stop_in_operation;
 
-    dp::thread_pool<> m_pool{1};
     options_t m_options;
 
-    std::atomic<std::thread::id> m_callback_thread_id{};
     std::jthread m_stopping_thread; // declared last so it's joined first
 
     boost::asio::awaitable<void> listener(std::shared_ptr<boost::asio::ip::tcp::acceptor> acceptor,

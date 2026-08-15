@@ -171,10 +171,6 @@ void tcp_server::stop_async() {
         for (size_t n; (n = m_active_sessions.load(std::memory_order::acquire)) != 0; )
             m_active_sessions.wait(n, std::memory_order::acquire);
 
-        /* The last decrement above happens inside a pool task, so that task may still be
-         * running (and running a OnDisconnected callback). */
-        m_pool.wait_for_tasks();
-
         if (m_context) {
             m_context->stop_async();
             m_context->wait_for_stop();
@@ -279,11 +275,9 @@ bool tcp_server::is_stopped() const {
 }
 
 bool tcp_server::running_in_callback_thread() const {
-    /* the m_pool worker, while it is running OnDisconnected */
-    if (m_callback_thread_id.load(std::memory_order::acquire) == std::this_thread::get_id())
-        return true;
-
-    /* the I/O workers, and the pool's own stopped-callback thread */
+    /* Every server callback now runs on a thread m_context owns: the I/O workers run
+     * OnSessionCreated / OnSessionDataAvailable / OnAcceptError and, through the session strand,
+     * OnDisconnected; the stopped-callback thread runs OnStoppedListening. */
     return m_context && m_context->running_in_pool_thread();
 }
 
@@ -312,13 +306,22 @@ void tcp_server::write(session_id_t id, sg::shared_c_buffer<std::byte> buffer) {
 }
 
 void tcp_server::disconnect(session_id_t id) {
-    std::shared_lock lock(m_mutex);
-    m_sessions.at(id)->stop_async();
+    ptr sess;
+    {
+        std::shared_lock lock(m_mutex);
+        sess = m_sessions.at(id);
+    }
+    sess->stop_async();
 }
 
 void tcp_server::disconnect_all() {
-    std::shared_lock lock(m_mutex);
-    for (auto& [_, sess] : m_sessions) sess->stop_async();
+    std::vector<ptr> sessions;
+    {
+        std::shared_lock lock(m_mutex);
+        sessions.reserve(m_sessions.size());
+        for (auto& sess : m_sessions | std::views::values) sessions.push_back(sess);
+    }
+    for (auto& sess : sessions) sess->stop_async();
 }
 
 tcp_server::ptr tcp_server::session(session_id_t id) {
@@ -499,29 +502,19 @@ void tcp_server::inform_user_of_data(session_id_t id, const std::byte* data, siz
 }
 
 void tcp_server::on_session_stopped(session_id_t id, std::exception_ptr ex) {
-    /* This needs to be on a separate thread-loop, to get out of the following deadlock:
-     *
-     *   1) client disconnects so the function gets called (via the on_disconnection callback)
-     *   2) this function removes the session, which calls the destructor of the session
-     *   3) the destructor waits for the session to end, but that can't happen because the
-     *      on_disconnection callback is running
-     */
-    m_pool.enqueue_detach([this, id, ex]() {
-        /* Publish this worker's identity for the length of the user callback, so that
-         * running_in_callback_thread() can recognise a wait issued from inside it. m_pool has a
-         * single worker, so these two stores cannot interleave with another task's.
-         * run_callback() does not propagate, so the clear is always reached. */
-        m_callback_thread_id.store(std::this_thread::get_id(), std::memory_order::release);
-        if (m_callbacks.OnDisconnected)
-            run_callback("OnDisconnected", m_callbacks.OnDisconnected, *this, id, ex);
-        m_callback_thread_id.store(std::thread::id{}, std::memory_order::release);
-
-        {
-            std::unique_lock lock(m_mutex);
-            m_sessions.erase(id);
+    // decrement, whatever happens
+    struct release_session {
+        tcp_server* server;
+        ~release_session() {
+            if (server->m_active_sessions.fetch_sub(1, std::memory_order::acq_rel) == 1)
+                server->m_active_sessions.notify_all();
         }
-        if (m_active_sessions.fetch_sub(1, std::memory_order::acq_rel) == 1)
-            m_active_sessions.notify_all();
-    });
+    } release{this};
+
+    if (m_callbacks.OnDisconnected)
+        run_callback("OnDisconnected", m_callbacks.OnDisconnected, *this, id, ex);
+
+    std::unique_lock lock(m_mutex);
+    m_sessions.erase(id);
 }
 }
