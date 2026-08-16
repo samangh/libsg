@@ -19,6 +19,8 @@ class SG_NET_EXPORT tcp_client {
                  tcp_session::options_t options={});
     [[nodiscard]] bool is_connected() const;
     void disconnect();
+    /** @warning the returned reference is invalidated by the next connect(), which destroys the
+     *  previous session. Do not hold on to it across one. */
     tcp_session& session();
   private:
     // m_session declared after m_context so that m_session is destructed first
