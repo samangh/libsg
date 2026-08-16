@@ -124,14 +124,14 @@ class SG_NET_EXPORT tcp_server {
     std::atomic<size_t> m_acceptors_running_count{0};
 
     CallBacks m_callbacks;
+    options_t m_options;
 
     mutable std::mutex m_error_mutex;
     std::exception_ptr m_last_error;
 
-    std::atomic<bool> m_stop_in_operation;
-
-    options_t m_options;
-
+    /* Serialises start()/stop_async() */
+    std::mutex m_mutex_start_stop;
+    std::atomic<bool> m_stop_in_operation = true;
     std::jthread m_stopping_thread; // declared last so it's joined first
 
     boost::asio::awaitable<void> listener(std::shared_ptr<boost::asio::ip::tcp::acceptor> acceptor,

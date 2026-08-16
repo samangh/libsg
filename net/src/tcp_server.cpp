@@ -115,6 +115,8 @@ tcp_server::~tcp_server() noexcept(false) {
 }
 
 void tcp_server::stop_async() {
+    std::lock_guard lock(m_mutex_start_stop);
+
     /* if stop thread not started, start */
     if (m_stop_in_operation.exchange(true))
         return;
@@ -192,6 +194,9 @@ void tcp_server::start(std::vector<end_point> endpoints, CallBacks callbacks, op
     // if these are not zero, something has gone wrong in stopping our last run!
     assert(m_active_sessions == 0);
     assert(m_acceptors_running_count == 0);
+
+    // Make sure start()/stop_async() can't be called simultaneously
+    std::lock_guard lock(m_mutex_start_stop);
 
     try {
         m_options = options;
