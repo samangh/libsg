@@ -64,11 +64,13 @@ class SG_NET_EXPORT tcp_session : public std::enable_shared_from_this<tcp_sessio
 
     enum class state_t {running, stop_requested, stopping, stopped };
 
-    static std::shared_ptr<tcp_session> create(boost::asio::ip::tcp::socket socket,
+    static std::shared_ptr<tcp_session> create(boost::asio::io_context& context,
+                                               boost::asio::ip::tcp::socket socket,
                                                Callbacks callbacks,
                                                options_t options);
 
-    tcp_session(private_tag, boost::asio::ip::tcp::socket socket, Callbacks cb, options_t options);
+    tcp_session(private_tag, boost::asio::io_context& context, boost::asio::ip::tcp::socket socket,
+                Callbacks cb, options_t options);
     ~tcp_session();
 
     void start();
@@ -108,6 +110,8 @@ class SG_NET_EXPORT tcp_session : public std::enable_shared_from_this<tcp_sessio
      * (which all touch m_socket) must not run concurrently. Routing all three through this strand
      * serialises them. It does NOT serialise the underlying I/O. */
     boost::asio::strand<boost::asio::ip::tcp::socket::executor_type> m_strand;
+
+    boost::asio::io_context::executor_type m_io_executor;
 
     options_t m_options;
     Callbacks m_callbacks;

@@ -1,12 +1,16 @@
 #include <catch2/catch_test_macros.hpp>
 
+#include "helpers.h"
+
 #include <sg/net/tcp_client.h>
 #include <sg/net/tcp_server.h>
 
 #include <atomic>
+#include <chrono>
 #include <ctime>
 #include <memory>
 #include <mutex>
+#include <semaphore>
 #include <stdexcept>
 #include <string>
 
@@ -211,4 +215,59 @@ TEST_CASE("tcp_session: throwing onDisconnected, close driven by callback on cli
     session.wait_until_stopped();
     REQUIRE(disconnections == 1);
     REQUIRE_FALSE(session.is_connected());
+}
+
+TEST_CASE("tcp_session: running_in_io_thread() sees sibling sessions on the same pool",
+          "[sg::net::tcp_session]") {
+    scoped_deadline watchdog("DEADLOCK: blocking call on a sibling session sharing one pool",
+                             std::chrono::seconds(10));
+
+    /* echo server, so that client a's OnDataAvailable fires on demand */
+    tcp_server::CallBacks serverCbs;
+    serverCbs.OnSessionDataAvailable = [](tcp_server& s, tcp_server::session_id_t id,
+                                          const std::byte* data, size_t size) {
+        s.session(id)->write(data, size);
+    };
+
+    tcp_server server;
+    server.start({ep}, serverCbs);
+
+    /* one worker, shared by both clients: a's callback occupies the pool's only thread */
+    auto pool = asio_io_pool::create(1, true, nullptr);
+    pool->run();
+
+    tcp_client a(pool);
+    tcp_client b(pool);
+
+    std::atomic<bool> ownStrand{false};
+    std::atomic<bool> siblingSession{false};
+    std::atomic<bool> disconnectRefused{false};
+    std::binary_semaphore done{0};
+
+    b.connect(ep, nullptr, nullptr);
+
+    a.connect(
+        ep,
+        [&](tcp_session& sess, const std::byte*, size_t) {
+            ownStrand      = sess.running_in_io_thread();
+            siblingSession = b.session().running_in_io_thread();
+
+            /* b's teardown has to run on the very worker we are occupying, so waiting for it here
+             * must be refused rather than attempted */
+            try {
+                b.disconnect();
+            } catch (const std::logic_error&) {
+                disconnectRefused = true;
+            }
+
+            done.release();
+        },
+        nullptr);
+
+    a.session().write("ping");
+    done.acquire();
+
+    REQUIRE(ownStrand);       // our own strand: true before and after the widening
+    REQUIRE(siblingSession);  // the sibling's strand: only true once the guard is pool-wide
+    REQUIRE(disconnectRefused);
 }

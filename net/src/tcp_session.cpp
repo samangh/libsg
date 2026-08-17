@@ -14,19 +14,24 @@
 
 namespace sg::net {
 
-std::shared_ptr<tcp_session> tcp_session::create(boost::asio::ip::tcp::socket socket,
+std::shared_ptr<tcp_session> tcp_session::create(boost::asio::io_context& context,
+                                                 boost::asio::ip::tcp::socket socket,
                                                  Callbacks callbacks, options_t options) {
 
-    return std::make_shared<tcp_session>(private_tag{}, std::move(socket), std::move(callbacks),
-                                         options);
+    return std::make_shared<tcp_session>(private_tag{}, context, std::move(socket),
+                                         std::move(callbacks), options);
 }
 
-tcp_session::tcp_session(private_tag, boost::asio::ip::tcp::socket socket, Callbacks cb,
-                         options_t options)
+tcp_session::tcp_session(private_tag, boost::asio::io_context& context,
+                         boost::asio::ip::tcp::socket socket, Callbacks cb, options_t options)
 : m_socket(std::move(socket)),
   m_strand(boost::asio::make_strand(m_socket.get_executor())),
+  m_io_executor(context.get_executor()),
   m_options(options),
   m_callbacks(std::move(cb)) {
+    // the caller must hand us the context the socket was created on
+    assert(m_socket.get_executor() == boost::asio::any_io_executor(m_io_executor));
+
     if (m_options.dont_read && !m_callbacks.onDataAvailable)
         SG_THROW(std::invalid_argument, "tcp_session: options_t::dont_read requires an "
                                         "OnDataAvailable callback to read the socket");
@@ -79,7 +84,12 @@ void tcp_session::start() {
         }
 
         stop_async();
-        wait_until_stopped();
+
+        /* Never block a pool worker: tcp_server::listener() calls start() on one. stop_async() has
+         * already made the teardown unstoppable, and close() holds a shared_ptr to us, so the
+         * session still reaches `stopped` on its own. */
+        if (!running_in_io_thread())
+            wait_until_stopped();
 
         throw;
     }
@@ -151,7 +161,7 @@ native::socket_t tcp_session::native_handle() { return m_socket.native_handle();
 boost::asio::any_io_executor tcp_session::get_executor() const {return m_strand;}
 
 bool tcp_session::running_in_io_thread() const {
-    return m_strand.running_in_this_thread();
+    return m_io_executor.running_in_this_thread();
 }
 
 void tcp_session::stop_async() {

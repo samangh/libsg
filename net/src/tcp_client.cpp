@@ -21,7 +21,7 @@ tcp_client::~tcp_client() {
     /* to prevent deadlock in cast somehow a callback from the session is calling this destructor,
      * don't wait for session to stop from the session IO thread! */
     if (m_session) {
-        if (m_session->running_in_io_thread())
+        if (m_context && m_context->running_in_pool_thread())
             m_session->stop_async();
         else
             disconnect();
@@ -33,7 +33,7 @@ void tcp_client::connect(const end_point& endpoint, tcp_session::Callbacks::OnDa
                          tcp_session::options_t options) {
     /* The user might call connect() from the OnDisconnected callback, but that's a bad idea as it
      * can cause a deadlock */
-    if (m_session && m_session->running_in_io_thread())
+    if (m_context && m_context->running_in_pool_thread())
         SG_THROW(std::logic_error,
                  "tcp_client::connect() must not be called from the I/O thread (e.g. from a callback)");
 
@@ -89,7 +89,7 @@ void tcp_client::connect(const end_point& endpoint, tcp_session::Callbacks::OnDa
 
     fut.get();
 
-    m_session = tcp_session::create(std::move(socket),
+    m_session = tcp_session::create(m_context->context(), std::move(socket),
                                     tcp_session::Callbacks{.onConnected     = nullptr,
                                                            .onDisconnected  = onDisconnect,
                                                            .onDataAvailable = onReadCb},
@@ -110,7 +110,7 @@ bool tcp_client::is_connected() const {
     return false;
 }
 void tcp_client::disconnect() {
-    if (m_session && m_session->running_in_io_thread())
+    if (m_context && m_context->running_in_pool_thread())
         SG_THROW(std::logic_error,
                  "tcp_client::disconnect() must not be called from the I/O thread (e.g. from a callback)");
 

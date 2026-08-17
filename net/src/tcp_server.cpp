@@ -406,6 +406,7 @@ tcp_server::listener(std::shared_ptr<boost::asio::ip::tcp::acceptor> acceptor,
                 };
 
                 auto sess = tcp_session::create(
+                    m_context->context(),
                     std::move(socket),
                     tcp_session::Callbacks {
                         .onConnected = onConn,
