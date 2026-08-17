@@ -21,9 +21,6 @@ class SG_NET_EXPORT tcp_session : public std::enable_shared_from_this<tcp_sessio
 
   public:
     struct options_t {
-        // needed to get around clang bug https://github.com/llvm/llvm-project/issues/36032
-        options_t() {};
-
         /* if set to true, the `on_data_available_cb_t` will be called when there is data available,
          * but the data won't have been read from the socket. You'll have to manually read it from
          * the native handle.

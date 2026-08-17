@@ -28,6 +28,9 @@ class SG_NET_EXPORT tcp_server {
      *     `sessions()` or `session(..)` function, they can be sure about the lifetime of the object
      *     (i.e. the returned session will exist and not get destructed whilst they have the
      *     shared_ptr)
+     *
+     *   - the start() has two overloads rather than taking `options_t options = options_t()`. This
+     *     is needed because options_t is defined in tcp_server.
      */
 
   public:
@@ -63,10 +66,6 @@ class SG_NET_EXPORT tcp_server {
     };
 
     struct options_t {
-        // work around bug https://github.com/llvm/llvm-project/issues/36032
-        options_t() {};
-
-        // server-specific options
         bool reuse_address{LIBSG_NET_REUSEADDR_DEFAULT};
         bool exclusive_address_use{LIBSG_NET_EXCLUSIVEADDRUSE_DEFAULT}; // Only used in Windows
         size_t no_threads{1};
@@ -77,8 +76,8 @@ class SG_NET_EXPORT tcp_server {
 
     ~tcp_server() noexcept(false);
 
-    void start(std::vector<end_point> endpoints, CallBacks callbacks,
-               options_t options = options_t());
+    void start(std::vector<end_point> endpoints, CallBacks callbacks, options_t options);
+    void start(std::vector<end_point> endpoints, CallBacks callbacks);
 
     void stop_async();
     void future_get_once() const;

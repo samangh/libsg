@@ -183,6 +183,10 @@ void tcp_server::stop_async() {
     });
 }
 
+void tcp_server::start(std::vector<end_point> endpoints, CallBacks callbacks) {
+    start(std::move(endpoints), std::move(callbacks), options_t{});
+}
+
 void tcp_server::start(std::vector<end_point> endpoints, CallBacks callbacks, options_t options) {
     if (endpoints.empty())
         SG_THROW(std::invalid_argument, "tcp_server requires at least one endpoint to listen on");

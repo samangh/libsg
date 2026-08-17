@@ -23,6 +23,7 @@
 #include <semaphore>
 #include <string>
 #include <thread>
+#include <type_traits>
 #include <vector>
 
 using namespace sg::net;
@@ -1293,4 +1294,23 @@ TEST_CASE("tcp_server: callback threads are recognised, and waiting from one thr
     REQUIRE(threw.load() == 1);   // future_get_once() from a callback throws, never hangs
 
     REQUIRE(l.is_stopped());
+}
+
+TEST_CASE("tcp_server/tcp_session: options_t accepts designated initialisers",
+          "[sg::net::tcp_server]") {
+    /* Both options_t structs must stay aggregates. These are compile-time guarantees as much as
+     * runtime ones: if either regains a constructor -- e.g. the old clang-36032 workaround is
+     * reinstated -- the designated initialisers below stop compiling. */
+    static_assert(std::is_aggregate_v<tcp_server::options_t>);
+    static_assert(std::is_aggregate_v<tcp_session::options_t>);
+
+    end_point ep("127.0.0.1", PORT);
+
+    tcp_server server;
+    server.start({ep}, {}, {.no_threads = 2});
+
+    tcp_client client;
+    client.connect(ep, nullptr, nullptr, {.timeout_msec = 500});
+
+    REQUIRE(client.is_connected());
 }
