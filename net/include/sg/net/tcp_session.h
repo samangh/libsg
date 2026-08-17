@@ -71,7 +71,21 @@ class SG_NET_EXPORT tcp_session : public std::enable_shared_from_this<tcp_sessio
     ~tcp_session();
 
     void start();
+
+    /** Requests a graceful stop and returns immediately.
+     *
+     *  Queued writes are drained first, so if a write is in flight this does not complete until
+     *  that write finishes or hits @c options_t::timeout_msec. Use @c stop_async_force() if you
+     *  would rather drop the pending data than wait. */
     void stop_async();
+
+    /** As @c stop_async(), but closes the socket at once instead of draining.
+     *
+     *  Any queued or in-flight write is abandoned, so data already passed to @c write() may not
+     *  reach the peer. The disconnection is still reported as clean. Safe to call after
+     *  @c stop_async() to escalate a graceful stop that is taking too long. */
+    void stop_async_force();
+
     void wait_until_stopped() const;
     [[nodiscard]] bool is_connected() const noexcept;
     [[nodiscard]] state_t state() const noexcept;

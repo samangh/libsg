@@ -5,6 +5,8 @@
 #include <sg/net/tcp_client.h>
 #include <sg/net/tcp_server.h>
 
+#include <boost/asio.hpp>
+
 #include <atomic>
 #include <chrono>
 #include <ctime>
@@ -270,4 +272,54 @@ TEST_CASE("tcp_session: running_in_io_thread() sees sibling sessions on the same
     REQUIRE(ownStrand);       // our own strand: true before and after the widening
     REQUIRE(siblingSession);  // the sibling's strand: only true once the guard is pool-wide
     REQUIRE(disconnectRefused);
+}
+
+TEST_CASE("tcp_session: stop_async_force() does not wait for an in-flight write",
+          "[sg::net::tcp_session]") {
+    constexpr unsigned timeout_msec = 2000;
+    scoped_deadline watchdog("stop_async_force() blocked on an in-flight write",
+                             std::chrono::seconds(20));
+
+    /* A deaf peer: accepts the connection and never reads from it. The small receive buffer is set
+     * on the acceptor so the accepted socket inherits it, which keeps the amount we have to write
+     * before the peer's window closes small. */
+    end_point peer_ep("127.0.0.1", 4455);
+    boost::asio::io_context peer_ctx;
+    boost::asio::ip::tcp::acceptor acceptor(
+        peer_ctx, {boost::asio::ip::make_address(peer_ep.ip), peer_ep.port});
+    acceptor.set_option(boost::asio::socket_base::receive_buffer_size(2048));
+    boost::asio::ip::tcp::socket peer(peer_ctx);
+
+    std::exception_ptr disconnect_ex;
+    tcp_session::Callbacks::OnDisconnected onDisc = [&](tcp_session&, std::exception_ptr ex) {
+        disconnect_ex = ex;
+    };
+
+    tcp_client client;
+    {
+        std::jthread accepting([&] { acceptor.accept(peer); });
+        client.connect(peer_ep, nullptr, onDisc,
+                       {.timeout_msec = timeout_msec, .send_buffer_size = 4096});
+    }
+
+    /* Far more than the send buffer plus the peer's receive window, so async_write cannot
+     * complete and writer() is left parked on it. */
+    client.session().write(std::string(8u << 20, 'x'));
+    std::this_thread::sleep_for(std::chrono::milliseconds(100));
+
+    const auto start = std::chrono::steady_clock::now();
+    client.session().stop_async_force();
+    client.session().wait_until_stopped();
+    const auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(
+        std::chrono::steady_clock::now() - start);
+
+    /* stop_async() would have waited out timeout_msec here; the generous bound keeps this from
+     * being a timing-sensitive test while still failing loudly if the write is drained. */
+    CAPTURE(elapsed.count());
+    REQUIRE(elapsed < std::chrono::milliseconds(timeout_msec / 4));
+
+    // abandoning the write is not an error: the disconnection is still reported as clean
+    REQUIRE(disconnect_ex == nullptr);
+
+    peer.close();
 }

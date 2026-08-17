@@ -190,6 +190,10 @@ void tcp_session::stop_async() {
         close();
 }
 
+void tcp_session::stop_async_force() {
+    close();
+}
+
 void tcp_session::wait_until_stopped() const {
     /* all session handlers (callbacks, reader/writer, close_impl) run on m_strand, so waiting
      * here from inside a strand handler would block close_impl from ever running */
