@@ -93,9 +93,15 @@ include(${catch2_SOURCE_DIR}/extras/Catch.cmake)
 # Note:
 #  - this only sets the correct environment var when using "ctest"
 #  - we also enable all hidden tests
+#
+# --allow-running-no-tests:
+#   catch_discover_tests() gives every test case a ctest test of its own, running it with
+#   a filter that selects just that case. A case that ends in SKIP() is therefore a whole
+#   Catch2 run in which every test was skipped, and Catch2 treats that as an error (exit
+#   code 4) unless this flag is given
 catch_discover_tests(sg_test
   TEST_SPEC "*"
-  EXTRA_ARGS "--skip-benchmarks"
+  EXTRA_ARGS "--skip-benchmarks" "--allow-running-no-tests"
   PROPERTIES
     TEST_EXECUTOR ${CMAKE_COMMAND} -E env "TSAN_OPTIONS=suppressions=${CMAKE_CURRENT_SOURCE_DIR}/tsan.supp")
 
