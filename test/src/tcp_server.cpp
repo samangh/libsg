@@ -17,6 +17,7 @@
 #include <chrono>
 #include <cstdio>
 #include <cstdlib>
+#include <limits>
 #include <memory>
 #include <random>
 #include <stdexcept>
@@ -1313,4 +1314,52 @@ TEST_CASE("tcp_server/tcp_session: options_t accepts designated initialisers",
     client.connect(ep, nullptr, nullptr, {.timeout_msec = 500});
 
     REQUIRE(client.is_connected());
+}
+
+TEST_CASE("tcp_server: a session that fails setup before onConnected is never registered",
+          "[sg::net::tcp_server]") {
+    /* tcp_session pairs its connected and disconnected callbacks: a session that dies before
+     * onConnected() gets no onDisconnected(), and so never reaches on_session_stopped(). The
+     * server must therefore not have registered it -- registering around start() instead left
+     * such a session in m_sessions with m_active_sessions above zero, and stop() then waited on
+     * it for ever. */
+    scoped_deadline watchdog(
+        "DEADLOCK: a session that failed setup was left registered and stop() never completed");
+
+    end_point ep("127.0.0.1", PORT);
+
+    std::atomic_int created{0};
+    std::atomic_int disconnected{0};
+    tcp_server::CallBacks cb;
+    cb.OnSessionCreated = [&](tcp_server&, tcp_server::session_id_t) { ++created; };
+    cb.OnDisconnected = [&](tcp_server&, tcp_server::session_id_t, std::exception_ptr) {
+        ++disconnected;
+    };
+
+    /* set_keepalive() rejects an idle time above INT_MAX, so session setup is guaranteed to fail
+     * before start() reaches onConnected() -- the same shape as a peer that resets between
+     * accept() and the socket options being applied, but deterministic */
+    tcp_server::options_t options;
+    options.session_options.keepalive.idle_seconds = std::numeric_limits<unsigned>::max();
+
+    tcp_server server;
+    server.start({ep}, cb, options);
+
+    {
+        boost::asio::io_context context;
+        boost::asio::ip::tcp::socket socket(context);
+        socket.connect(
+            boost::asio::ip::tcp::endpoint(boost::asio::ip::make_address(ep.ip), ep.port));
+
+        /* the session is torn down asynchronously, so give the server time to get it wrong */
+        std::this_thread::sleep_for(std::chrono::milliseconds(200));
+
+        REQUIRE(created == 0);
+        REQUIRE(disconnected == 0);
+        REQUIRE(server.clients_count() == 0);
+    }
+
+    // hangs if the failed session is still counted in m_active_sessions
+    server.stop_async();
+    server.future_get_once();
 }

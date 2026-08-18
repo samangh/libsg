@@ -126,6 +126,7 @@ class SG_NET_EXPORT tcp_session : public std::enable_shared_from_this<tcp_sessio
 
     options_t m_options;
     Callbacks m_callbacks;
+    std::atomic<bool> m_disconnection_callback_owed{false};
 
     end_point m_local_endpoint {};
     end_point m_remote_endpoint {};

@@ -404,7 +404,13 @@ tcp_server::listener(std::shared_ptr<boost::asio::ip::tcp::acceptor> acceptor,
                     inform_user_of_data(id, data, size);
                 };
 
-                tcp_session::Callbacks::OnConnected onConn = [this, id](tcp_session&) {
+                tcp_session::Callbacks::OnConnected onConn = [this, id](tcp_session& sess) {
+                    m_active_sessions.fetch_add(1, std::memory_order::release);
+                    {
+                        std::unique_lock lock(m_mutex);
+                        m_sessions.emplace(id, sess.shared_from_this());
+                    }
+
                     if (m_callbacks.OnSessionCreated)
                         m_callbacks.OnSessionCreated.invoke(*this, id);
                 };
@@ -421,18 +427,12 @@ tcp_server::listener(std::shared_ptr<boost::asio::ip::tcp::acceptor> acceptor,
 
                 /* check that the accept did not return because stop_async was called */
                 if (!m_stop_in_operation.load(std::memory_order::acquire)) {
-                    {
-                        std::unique_lock lock(m_mutex);
-                        m_sessions.emplace(id, sess);
-                        m_active_sessions.fetch_add(1, std::memory_order::release);
-                    }
-
                     /* start() may throw if session setup fails (e.g. the peer reset
                      * the connection).
                      *
-                     * No manual cleanup is needed: start()'s own failure path has
-                     * already fired the session's on_disconnected callback, which
-                     * cleans things up. */
+                     * No manual cleanup is needed either way: a failure before onConnected()
+                     * leaves the session unregistered, and one after it fires the session's
+                     * on_disconnected callback, which cleans things up. */
                     sess->start();
                 }
             } catch (...) {

@@ -70,6 +70,9 @@ void tcp_session::start() {
         if (m_options.send_buffer_size)
             sg::net::native::set_send_buffer_size(m_socket.native_handle(), m_options.send_buffer_size);
 
+        /* mark that we reached the onConnected() callback location, so that the onDisconnected() gets
+         * called later if needed */
+        m_disconnection_callback_owed.store(true, std::memory_order::release);
         if (m_callbacks.onConnected)
             m_callbacks.onConnected.invoke(*this);
 
@@ -255,8 +258,9 @@ void tcp_session::close_impl() {
     }
 
     try {
-        if (m_callbacks.onDisconnected)
-            m_callbacks.onDisconnected.invoke(*this, exPtr);
+        if (m_disconnection_callback_owed.load(std::memory_order::acquire))
+            if (m_callbacks.onDisconnected)
+                m_callbacks.onDisconnected.invoke(*this, exPtr);
     } catch (const std::exception& ex) {
         std::cerr << "tcp_session: onDisconnected() callback exception caught: " << ex.what()
                   << std::endl;
