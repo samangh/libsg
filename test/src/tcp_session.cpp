@@ -323,3 +323,32 @@ TEST_CASE("tcp_session: stop_async_force() does not wait for an in-flight write"
 
     peer.close();
 }
+
+TEST_CASE("tcp_session: start() can only be called once", "[sg::net::tcp_session]") {
+    tcp_server server;
+    server.start({ep}, {});
+
+    std::atomic_int disconnections{0};
+    tcp_session::Callbacks::OnDisconnected onDisconnected = [&](tcp_session&, std::exception_ptr) {
+        ++disconnections;
+    };
+
+    tcp_client client;
+    client.connect(ep, nullptr, onDisconnected);
+
+    /* while the session is still running */
+    REQUIRE_THROWS_AS(client.session().start(), std::logic_error);
+    REQUIRE(client.session().state() == tcp_session::state_t::running);
+    REQUIRE(client.is_connected());
+    REQUIRE(disconnections == 0);
+
+    client.disconnect();
+    REQUIRE(disconnections == 1);
+
+    /* and once it has stopped -- the case the state machine cannot catch on its own. The guard is
+     * checked before start() looks at any state, so it holds however the session came to stop. */
+    REQUIRE_THROWS_AS(client.session().start(), std::logic_error);
+    REQUIRE(client.session().state() == tcp_session::state_t::stopped);
+    REQUIRE(disconnections == 1);
+}
+

@@ -136,6 +136,7 @@ class SG_NET_EXPORT tcp_session : public std::enable_shared_from_this<tcp_sessio
     std::vector<sg::shared_c_buffer<std::byte>> m_write_msgs{};
 
     std::atomic<state_t> m_state{state_t::stopped};
+    std::atomic_flag m_start_called{};
 
     std::mutex m_exception_mutex;
     std::exception_ptr m_exception;

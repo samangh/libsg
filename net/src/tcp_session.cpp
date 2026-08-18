@@ -47,6 +47,10 @@ tcp_session::~tcp_session() {
 }
 
 void tcp_session::start() {
+    if (m_start_called.test_and_set(std::memory_order::acq_rel))
+        SG_THROW(std::logic_error,
+                 "tcp_session::start() has already been called; a session cannot be restarted");
+
     if (auto expectedState = state_t::stopped; !m_state.compare_exchange_strong(
             expectedState, state_t::running, std::memory_order::acq_rel, std::memory_order::acquire))
         SG_THROW(std::runtime_error, "tcp_session is already running");
