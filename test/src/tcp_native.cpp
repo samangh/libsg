@@ -100,3 +100,58 @@ TEST_CASE("sg::net::native: re-enabling keepalive uses the timings from the same
     REQUIRE(get_opt(handle, IPPROTO_TCP, TCP_KEEPINTVL) == 11);
     REQUIRE(get_opt(handle, IPPROTO_TCP, TCP_KEEPCNT) == 2);
 }
+
+/* The kernel clamps buffer requests to its own minimum and to a system-wide maximum, so only
+ * sizes comfortably inside that range round-trip exactly. */
+static constexpr int buffer_sizes[] = {16384, 65536};
+
+TEST_CASE("sg::net::native: buffer size getters round-trip with the setters",
+          "[sg::net::native]") {
+    /* On Linux the kernel stores twice what setsockopt() is given and getsockopt() reports the
+     * doubled figure, so a getter that returned it raw could never agree with its own setter. */
+    boost::asio::io_context context;
+    boost::asio::ip::tcp::socket socket(context);
+    socket.open(boost::asio::ip::tcp::v4());
+    const auto handle = socket.native_handle();
+
+    for (const int size : buffer_sizes) {
+        CAPTURE(size);
+
+        native::set_recv_buffer_size(handle, size);
+        REQUIRE(native::get_recv_buffer_size(handle) == size);
+
+        native::set_send_buffer_size(handle, size);
+        REQUIRE(native::get_send_buffer_size(handle) == size);
+    }
+}
+
+TEST_CASE("sg::net::native: buffer size getters agree with Boost for the same socket",
+          "[sg::net::native]") {
+    /* tcp_session::reader() sizes its read buffer from Boost's view of SO_RCVBUF, so the two must
+     * describe the same socket the same way -- this is the disagreement that motivated the fix. */
+    boost::asio::io_context context;
+    boost::asio::ip::tcp::socket socket(context);
+    socket.open(boost::asio::ip::tcp::v4());
+    const auto handle = socket.native_handle();
+
+    boost::asio::socket_base::receive_buffer_size recvOption;
+    boost::asio::socket_base::send_buffer_size sendOption;
+
+    // whatever the platform defaults are, before anything has been set
+    socket.get_option(recvOption);
+    socket.get_option(sendOption);
+    REQUIRE(native::get_recv_buffer_size(handle) == recvOption.value());
+    REQUIRE(native::get_send_buffer_size(handle) == sendOption.value());
+
+    for (const int size : buffer_sizes) {
+        CAPTURE(size);
+
+        native::set_recv_buffer_size(handle, size);
+        socket.get_option(recvOption);
+        REQUIRE(native::get_recv_buffer_size(handle) == recvOption.value());
+
+        native::set_send_buffer_size(handle, size);
+        socket.get_option(sendOption);
+        REQUIRE(native::get_send_buffer_size(handle) == sendOption.value());
+    }
+}

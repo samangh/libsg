@@ -22,6 +22,25 @@
     #define TCP_KEEPIDLE TCP_KEEPALIVE
 #endif
 
+namespace {
+
+/* Linux stores twice what setsockopt(SO_RCVBUF/SO_SNDBUF) is given -- the extra half is kernel
+ * bookkeeping rather than payload -- and getsockopt reports that doubled figure. Halving it makes
+ * the getter report the application-visible size, which is both the value the setter was handed
+ * and the figure Boost reports for the same socket: boost/asio/detail/impl/socket_ops.ipp does the
+ * identical /2, and tcp_session::reader() already sizes its read buffer from that view.
+ *
+ * macOS and Windows do not double. */
+int application_visible_buffer_size(int raw) {
+#if defined(__linux__)
+    return raw / 2;
+#else
+    return raw;
+#endif
+}
+
+} // namespace
+
 namespace sg::net::native {
 
 void set_keepalive(socket_t nativeHandle, keepalive_t keepAlive) {
@@ -106,7 +125,7 @@ int get_recv_buffer_size(socket_t nativeHandle) {
     THROW_ON_ERRORNO_SOCKET(getsockopt(nativeHandle, SOL_SOCKET, SO_RCVBUF,
                                        (char*)&size, &len));
 
-    return size;
+    return application_visible_buffer_size(size);
 }
 
 int get_send_buffer_size(socket_t nativeHandle) {
@@ -118,7 +137,7 @@ int get_send_buffer_size(socket_t nativeHandle) {
 #endif
     THROW_ON_ERRORNO_SOCKET(getsockopt(nativeHandle, SOL_SOCKET, SO_SNDBUF, (char*)&size, &len));
 
-    return size;
+    return application_visible_buffer_size(size);
 }
 
 } // namespace sg::net::native

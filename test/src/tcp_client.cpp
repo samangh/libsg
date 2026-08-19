@@ -206,8 +206,10 @@ TEST_CASE("tcp_client: set recv_buffer_size via options", "[sg::net::tcp_client]
     auto client = tcp_client();
     client.connect(ep, nullptr, nullptr, options);
 
+    /* exact, not >=: the getter reports the application-visible size, so it matches what was
+     * asked for unless the kernel clamped it -- and 16384 is inside every sane kernel's range */
     auto actual = sg::net::native::get_recv_buffer_size(client.session().native_handle());
-    REQUIRE(actual >= 16384);
+    REQUIRE(actual == 16384);
 }
 
 TEST_CASE("tcp_client: set send_buffer_size via options", "[sg::net::tcp_client]") {
@@ -223,7 +225,7 @@ TEST_CASE("tcp_client: set send_buffer_size via options", "[sg::net::tcp_client]
     client.connect(ep, nullptr, nullptr, options);
 
     auto actual = sg::net::native::get_send_buffer_size(client.session().native_handle());
-    REQUIRE(actual >= 16384);
+    REQUIRE(actual == 16384);
 }
 
 TEST_CASE("tcp_client: client disconnects when destructed (with shared asio_io_pool)",
