@@ -1363,3 +1363,111 @@ TEST_CASE("tcp_server: a session that fails setup before onConnected is never re
     server.stop_async();
     server.future_get_once();
 }
+
+TEST_CASE("tcp_server: local_endpoints() reports the port the OS chose", "[sg::net::tcp_server]") {
+    /* binding port 0 lets the OS pick; without local_endpoints() there is no way to find out
+     * which port that was, so an ephemeral listener cannot be connected to */
+    std::atomic<port_t> portSeenWhileStarting{0};
+
+    tcp_server::CallBacks cb;
+    cb.OnStartedListening = [&](tcp_server& srv) {
+        const auto eps = srv.local_endpoints();
+        if (eps.size() == 1)
+            portSeenWhileStarting = eps.front().port;
+    };
+
+    tcp_server server;
+    REQUIRE(server.local_endpoints().empty()); // nothing bound yet
+
+    server.start({end_point("127.0.0.1", 0)}, cb);
+
+    const auto endpoints = server.local_endpoints();
+    REQUIRE(endpoints.size() == 1);
+    REQUIRE(endpoints.front().ip == "127.0.0.1");
+    REQUIRE(endpoints.front().port != 0);
+
+    // already usable from inside OnStartedListening()
+    REQUIRE(portSeenWhileStarting.load() == endpoints.front().port);
+
+    // and the reported port is the one actually listening
+    tcp_client client;
+    client.connect(endpoints.front(), nullptr, nullptr);
+    REQUIRE(client.is_connected());
+    client.disconnect();
+}
+
+TEST_CASE("tcp_server: local_endpoints() keeps the order given to start()",
+          "[sg::net::tcp_server]") {
+    const auto fixed = static_cast<port_t>(PORT + 7);
+
+    tcp_server server;
+    server.start({end_point("127.0.0.1", fixed), end_point("127.0.0.1", 0)}, {});
+
+    const auto endpoints = server.local_endpoints();
+    REQUIRE(endpoints.size() == 2);
+    REQUIRE(endpoints[0].port == fixed);
+    REQUIRE(endpoints[1].port != 0);
+    REQUIRE(endpoints[1].port != fixed);
+}
+
+TEST_CASE("tcp_server: local_endpoints() is re-resolved by a restart", "[sg::net::tcp_server]") {
+    tcp_server server;
+
+    server.start({end_point("127.0.0.1", 0)}, {});
+    const auto first = server.local_endpoints();
+    REQUIRE(first.size() == 1);
+    REQUIRE(first.front().port != 0);
+
+    server.stop_async();
+    server.future_get_once();
+
+    server.start({end_point("127.0.0.1", 0)}, {});
+    const auto second = server.local_endpoints();
+    REQUIRE(second.size() == 1);
+    REQUIRE(second.front().port != 0);
+
+    /* whatever the OS picked the second time, what is reported must describe this run: connecting
+     * to it has to reach the running server */
+    tcp_client client;
+    client.connect(second.front(), nullptr, nullptr);
+    REQUIRE(client.is_connected());
+    client.disconnect();
+}
+
+TEST_CASE("tcp_server: local_endpoints() is safe to read while start() is running",
+          "[sg::net::tcp_server]") {
+    /* m_running is set at the top of start(), well before bind_acceptors() writes the endpoints,
+     * so "wait until it reports running, then ask where it is listening" reads the vector while
+     * start() is still filling it in. Unsynchronised, that is a read of a std::vector<std::string>
+     * mid-reassignment: this test segfaults within a few cycles if the guard on m_local_endpoints
+     * is removed. */
+    scoped_deadline watchdog("DEADLOCK: local_endpoints() contended with start()");
+
+    std::atomic<bool> stop{false};
+    std::atomic<size_t> reads{0};
+    std::atomic<size_t> checksum{0};
+
+    tcp_server server;
+
+    std::thread reader([&] {
+        while (!stop.load(std::memory_order::relaxed)) {
+            if (!server.is_stopped()) {
+                for (const auto& endpoint : server.local_endpoints())
+                    checksum += endpoint.ip.size() + endpoint.port; // touch the string data
+                ++reads;
+            }
+        }
+    });
+
+    for (int i = 0; i < 300; ++i) {
+        server.start({end_point("127.0.0.1", 0)}, {});
+        server.stop_async();
+        server.future_get_once();
+    }
+
+    stop = true;
+    reader.join();
+
+    CAPTURE(reads.load());
+    SUCCEED("survived 300 start/stop cycles under a concurrent reader");
+}

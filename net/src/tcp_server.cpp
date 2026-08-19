@@ -218,6 +218,12 @@ void tcp_server::start(std::vector<end_point> endpoints, CallBacks callbacks, op
          * context */
         m_acceptors.clear();
         m_accept_retry_timers.clear();
+        {
+            /* cleared here rather than in bind_acceptors(), so that a start() that fails before
+             * binding does not leave the previous run's endpoints on show */
+            std::unique_lock lock(m_mutex);
+            m_local_endpoints.clear();
+        }
 
         auto stoppedTask = std::bind(&tcp_server::on_io_pool_stopped, this, std::placeholders::_1);
         m_context = asio_io_pool::create(options.no_threads, false, stoppedTask);
@@ -281,6 +287,11 @@ void tcp_server::future_get_once() const noexcept(false) {
 
 bool tcp_server::is_stopped() const {
     return !m_running.load(std::memory_order::acquire);
+}
+
+std::vector<end_point> tcp_server::local_endpoints() const {
+    std::shared_lock lock(m_mutex);
+    return m_local_endpoints;
 }
 
 bool tcp_server::running_in_callback_thread() const {
@@ -451,6 +462,8 @@ tcp_server::listener(std::shared_ptr<boost::asio::ip::tcp::acceptor> acceptor,
 }
 
 void tcp_server::bind_acceptors() {
+    std::vector<end_point> bound;
+
     for (const auto& e : m_endpoints) {
         boost::asio::ip::tcp::endpoint ep(boost::asio::ip::make_address(e.ip), e.port);
 
@@ -481,9 +494,18 @@ void tcp_server::bind_acceptors() {
          * acceptor is guaranteed a timer at its own index even if a push_back throws. */
         auto t = std::make_shared<boost::asio::steady_timer>(strand);
 
+        /* Read before anything is published, so a throw here cannot leave the vectors out of step.
+         * This is the only point at which the bound port is knowable without touching the acceptor
+         * again (which requires strands, etc.) */
+        const auto local = a->local_endpoint();
+
         m_accept_retry_timers.push_back(t);
         m_acceptors.push_back(a);
+        bound.emplace_back(local.address().to_string(), local.port());
     }
+
+    std::unique_lock lock(m_mutex);
+    m_local_endpoints = std::move(bound);
 }
 
 void tcp_server::on_io_pool_stopped(asio_io_pool&) {

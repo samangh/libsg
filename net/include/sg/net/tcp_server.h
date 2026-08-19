@@ -83,6 +83,12 @@ class SG_NET_EXPORT tcp_server {
     void future_get_once() const;
     bool is_stopped() const;
 
+    /** returns being listened on, in the order they were given to @c start().
+     *
+     * Valid from inside @c OnStartedListening() onwards. If an endport with port 0 was assigned,
+     * the actual port number chosen by the OS will be reported. */
+    [[nodiscard]] std::vector<end_point> local_endpoints() const;
+
     /** True if the calling thread is one this server runs its callbacks on.  */
     [[nodiscard]] bool running_in_callback_thread() const;
 
@@ -113,6 +119,10 @@ class SG_NET_EXPORT tcp_server {
     std::atomic<size_t> m_last_id{0};
 
     std::vector<end_point> m_endpoints;
+
+    /* What the acceptors actually bound to. This is not m_endpoints if a port of 0 was asked for */
+    std::vector<end_point> m_local_endpoints;
+
     std::shared_ptr<sg::net::asio_io_pool> m_context;
 
     //m_acceptors are kept for use by set_keepalive/set_timeout
