@@ -309,9 +309,27 @@ std::map<tcp_server::session_id_t, tcp_server::ptr> tcp_server::sessions() const
     std::shared_lock lock(m_mutex);
     return m_sessions;
 }
-void tcp_server::write(session_id_t id, std::string_view data) {
+/* The single lookup point for the id-taking public functions. A session that has stopped is erased
+ * by on_session_stopped(), so an id the caller obtained earlier can name a session that is no
+ * longer there -- and, held only as a number, it says nothing about that. Callers that need to act
+ * on a session across several steps should take the shared_ptr from session() or sessions() and
+ * work through that instead.
+ *
+ * Returns by value, so the lock is not held while the caller uses the session: a session callback
+ * running on the strand may re-enter the server, and the write/disconnect below can run the
+ * teardown inline. */
+tcp_server::ptr tcp_server::find_session(session_id_t id) const {
     std::shared_lock lock(m_mutex);
-    m_sessions.at(id)->write(data);
+
+    const auto it = m_sessions.find(id);
+    if (it == m_sessions.end())
+        SG_THROW(exceptions::net::session_not_found, "no session with id " + std::to_string(id));
+
+    return it->second;
+}
+
+void tcp_server::write(session_id_t id, std::string_view data) {
+    find_session(id)->write(data);
 }
 
 void tcp_server::write(session_id_t id, const void* data, size_t size) {
@@ -321,17 +339,11 @@ void tcp_server::write(session_id_t id, const void* data, size_t size) {
 }
 
 void tcp_server::write(session_id_t id, sg::shared_c_buffer<std::byte> buffer) {
-    std::shared_lock lock(m_mutex);
-    m_sessions.at(id)->write(buffer);
+    find_session(id)->write(buffer);
 }
 
 void tcp_server::disconnect(session_id_t id) {
-    ptr sess;
-    {
-        std::shared_lock lock(m_mutex);
-        sess = m_sessions.at(id);
-    }
-    sess->stop_async();
+    find_session(id)->stop_async();
 }
 
 void tcp_server::disconnect_all() {
@@ -345,8 +357,7 @@ void tcp_server::disconnect_all() {
 }
 
 tcp_server::ptr tcp_server::session(session_id_t id) {
-    std::shared_lock lock(m_mutex);
-    return m_sessions.at(id);
+    return find_session(id);
 }
 
 boost::asio::awaitable<void>

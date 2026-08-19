@@ -100,13 +100,27 @@ class SG_NET_EXPORT tcp_server {
     [[nodiscard]] std::exception_ptr last_error() const;
 
     size_t clients_count() const;
+
+    /** @brief Looks a session up by id.
+     *
+     * @throws sg::exceptions::net::session_not_found if no session has that id.
+     *
+     * A session is erased once it has stopped, so an id kept from an earlier call can name a
+     * session that has since gone -- a peer can disconnect at any time. Inside that session's own
+     * OnSessionDataAvailable the id is stable, because the data callback and the session's
+     * teardown share its strand; anywhere else, be ready for this to throw. To act on a session
+     * over several steps, hold the returned @c shared_ptr rather than re-looking up the id. */
     ptr session(session_id_t id);
     std::map<session_id_t, ptr> sessions() const;
 
+    /** @throws sg::exceptions::net::session_not_found if no session has that id; see session(). */
     void write(session_id_t id, std::string_view data);
+    /** @throws sg::exceptions::net::session_not_found if no session has that id; see session(). */
     void write(session_id_t id, const void* data, size_t size);
+    /** @throws sg::exceptions::net::session_not_found if no session has that id; see session(). */
     void write(session_id_t id, sg::shared_c_buffer<std::byte> buffer);
 
+    /** @throws sg::exceptions::net::session_not_found if no session has that id; see session(). */
     void disconnect(session_id_t id);
     void disconnect_all();
 
@@ -145,6 +159,9 @@ class SG_NET_EXPORT tcp_server {
 
     boost::asio::awaitable<void> listener(std::shared_ptr<boost::asio::ip::tcp::acceptor> acceptor,
                                           std::shared_ptr<boost::asio::steady_timer> retry_timer);
+
+    /* Shared lookup for the id-taking public functions; throws session_not_found. */
+    [[nodiscard]] ptr find_session(session_id_t id) const;
 
     void bind_acceptors();
     void on_io_pool_stopped(asio_io_pool&);

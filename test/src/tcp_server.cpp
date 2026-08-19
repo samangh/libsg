@@ -1471,3 +1471,108 @@ TEST_CASE("tcp_server: local_endpoints() is safe to read while start() is runnin
     CAPTURE(reads.load());
     SUCCEED("survived 300 start/stop cycles under a concurrent reader");
 }
+
+TEST_CASE("tcp_server: an unknown session id throws session_not_found", "[sg::net::tcp_server]") {
+    end_point ep("127.0.0.1", PORT);
+
+    tcp_server server;
+    server.start({ep}, {});
+
+    const tcp_server::session_id_t nonesuch = 12345;
+
+    REQUIRE_THROWS_AS(server.session(nonesuch), sg::exceptions::net::session_not_found);
+    REQUIRE_THROWS_AS(server.write(nonesuch, "hello"), sg::exceptions::net::session_not_found);
+    REQUIRE_THROWS_AS(server.write(nonesuch, "hello", 5), sg::exceptions::net::session_not_found);
+    REQUIRE_THROWS_AS(server.disconnect(nonesuch), sg::exceptions::net::session_not_found);
+
+    // catchable through the library's hierarchy, not just by the exact type
+    REQUIRE_THROWS_AS(server.session(nonesuch), sg::exceptions::net::any);
+    REQUIRE_THROWS_AS(server.session(nonesuch), sg::exceptions::any);
+    REQUIRE_THROWS_AS(server.session(nonesuch), std::exception);
+}
+
+TEST_CASE("tcp_server: an id kept by another thread throws once the peer has gone",
+          "[sg::net::tcp_server]") {
+    /* the ordinary race: nothing serialises a caller on its own thread against a session that
+     * stops, so a remembered id can name a session that has already been erased */
+    end_point ep("127.0.0.1", PORT);
+
+    std::binary_semaphore connected{0};
+    std::atomic<tcp_server::session_id_t> id{0};
+
+    tcp_server::CallBacks cb;
+    cb.OnSessionCreated = [&](tcp_server&, tcp_server::session_id_t sessionId) {
+        id = sessionId;
+        connected.release();
+    };
+
+    tcp_server server;
+    server.start({ep}, cb);
+
+    {
+        tcp_client client;
+        client.connect(ep, nullptr, nullptr);
+        connected.acquire();
+        REQUIRE_NOTHROW(server.session(id));
+    }
+
+    for (int i = 0; i < 200 && server.clients_count() != 0; ++i)
+        std::this_thread::sleep_for(std::chrono::milliseconds(5));
+
+    REQUIRE_THROWS_AS(server.write(id, "hello"), sg::exceptions::net::session_not_found);
+}
+
+TEST_CASE("tcp_server: a session cannot be erased while its own data callback runs",
+          "[sg::net::tcp_server]") {
+    /* The data callback and the session's teardown both run on that session's strand, so a
+     * disconnect requested from any other thread queues behind the callback rather than running
+     * alongside it. The id is therefore stable for the whole of OnSessionDataAvailable. */
+    scoped_deadline watchdog("DEADLOCK: data callback contended with a concurrent disconnect");
+
+    end_point ep("127.0.0.1", PORT);
+
+    std::binary_semaphore inCallback{0};
+    std::binary_semaphore mayFinish{0};
+    std::binary_semaphore callbackDone{0};
+    std::atomic<bool> resolvedThroughout{true};
+    std::atomic<size_t> countDuringCallback{0};
+
+    tcp_server::CallBacks cb;
+    cb.OnSessionDataAvailable = [&](tcp_server& srv, tcp_server::session_id_t id, const std::byte*,
+                                    size_t) {
+        inCallback.release();
+        mayFinish.acquire(); // held open while another thread asks for a disconnect
+
+        countDuringCallback = srv.clients_count();
+        try {
+            (void)srv.session(id);
+        } catch (...) {
+            resolvedThroughout = false;
+        }
+
+        /* the readings above must be published before the test inspects them: joining the
+         * disconnecting thread only proves the teardown was requested, not that this callback
+         * has run to completion */
+        callbackDone.release();
+    };
+
+    tcp_server server;
+    server.start({ep}, cb);
+
+    tcp_client client;
+    client.connect(ep, nullptr, nullptr);
+    client.session().write("poke");
+
+    inCallback.acquire();
+
+    // another thread requests the teardown while the callback is still on the stack
+    std::thread disconnector([&] { server.disconnect_all(); });
+    std::this_thread::sleep_for(std::chrono::milliseconds(100));
+
+    mayFinish.release();
+    callbackDone.acquire();
+    disconnector.join();
+
+    REQUIRE(resolvedThroughout);
+    REQUIRE(countDuringCallback == 1);
+}
