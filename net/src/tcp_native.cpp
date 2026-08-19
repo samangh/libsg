@@ -17,6 +17,11 @@
     #include <sys/socket.h>
 #endif
 
+/* Apple calls the idle time TCP_KEEPALIVE; everywhere else it is TCP_KEEPIDLE */
+#ifndef TCP_KEEPIDLE
+    #define TCP_KEEPIDLE TCP_KEEPALIVE
+#endif
+
 namespace sg::net::native {
 
 void set_keepalive(socket_t nativeHandle, keepalive_t keepAlive) {
@@ -44,23 +49,12 @@ void set_keepalive(socket_t nativeHandle, keepalive_t keepAlive) {
         count > (std::numeric_limits<int>::max)())
         throw std::invalid_argument("keepalive parameters are out of range");
 
-    int keepAliveInt = enableKeepAlive;
-    THROW_ON_ERRORNO_SOCKET(setsockopt(nativeHandle, SOL_SOCKET, SO_KEEPALIVE, (const char*)&keepAliveInt,
-               sizeof(keepAliveInt)));
+    THROW_ON_ERRORNO_SOCKET(setsockopt(nativeHandle, IPPROTO_TCP, TCP_KEEPIDLE, (const char*)&idleSec, sizeof(idleSec)));
+    THROW_ON_ERRORNO_SOCKET(setsockopt(nativeHandle, IPPROTO_TCP, TCP_KEEPINTVL, (const char*)&intervalSec, sizeof(intervalSec)));
+    THROW_ON_ERRORNO_SOCKET(setsockopt(nativeHandle, IPPROTO_TCP, TCP_KEEPCNT, (const char*)&count, sizeof(count)));
 
-    if (enableKeepAlive) {
-#if defined(__APPLE__)
-        // Apple only allow setting idle time, cast others to void to prevent compiler warning about
-        // unused variables
-        (void)intervalSec;
-        (void)count;
-        THROW_ON_ERRORNO_SOCKET(setsockopt(nativeHandle, IPPROTO_TCP, TCP_KEEPALIVE, &idleSec, sizeof(idleSec)));
-#else
-        THROW_ON_ERRORNO_SOCKET(setsockopt(nativeHandle, IPPROTO_TCP, TCP_KEEPIDLE, (const char*)&idleSec, sizeof(idleSec)));
-        THROW_ON_ERRORNO_SOCKET(setsockopt(nativeHandle, IPPROTO_TCP, TCP_KEEPINTVL, (const char*)&intervalSec, sizeof(intervalSec)));
-        THROW_ON_ERRORNO_SOCKET(setsockopt(nativeHandle, IPPROTO_TCP, TCP_KEEPCNT, (const char*)&count, sizeof(count)));
-#endif
-    }
+    int keepAliveInt = enableKeepAlive;
+    THROW_ON_ERRORNO_SOCKET(setsockopt(nativeHandle, SOL_SOCKET, SO_KEEPALIVE, (const char*)&keepAliveInt, sizeof(keepAliveInt)));
 }
 
 void set_timeout(socket_t nativeHandle, unsigned timeoutMSec) {
@@ -78,8 +72,8 @@ void set_timeout(socket_t nativeHandle, unsigned timeoutMSec) {
     THROW_ON_ERRORNO_SOCKET(setsockopt(nativeHandle, SOL_SOCKET, SO_SNDTIMEO, &tv, sizeof(tv)));
 #endif
 }
-void set_reuse_address(socket_t nativeHandle, bool enbaled) {
-    int enableInt = enbaled;
+void set_reuse_address(socket_t nativeHandle, bool enabled) {
+    int enableInt = enabled;
     THROW_ON_ERRORNO_SOCKET(setsockopt(nativeHandle, SOL_SOCKET, SO_REUSEADDR,
                                        (const char*)&enableInt, sizeof(enableInt)));
 }

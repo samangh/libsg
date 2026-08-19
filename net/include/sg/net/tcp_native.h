@@ -14,14 +14,13 @@ typedef SOCKET socket_t;
 typedef int socket_t;
 #endif
 
-/** Enables/disables TCP keepalive. If the keep-alive set to be disabled then the additional
- * parameters are ignored */
+/** sets TCP socket keepalive parameters */
 void SG_NET_EXPORT set_keepalive(socket_t nativeHandle, keepalive_t keepAlive);
 
 /* sets timeout for BLOCKING read/write operations. Does not apply to async operations */
 void SG_NET_EXPORT set_timeout(socket_t nativeHandle, unsigned timeoutMSec);
 
-void SG_NET_EXPORT set_reuse_address(socket_t nativeHandle, bool enbaled);
+void SG_NET_EXPORT set_reuse_address(socket_t nativeHandle, bool enabled);
 
 /** Sets the SO_EXCLUSIVEADDRUSE option in Windows. Is a no-op in other systems.
  *
