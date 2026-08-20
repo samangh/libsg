@@ -30,6 +30,11 @@
 using namespace sg::net;
 static port_t PORT = 4444; // 55555 can't be used on macOS!
 
+/* ~tcp_server() is noexcept: an unrecoverable teardown terminates rather than propagating, so the
+ * type is usable in containers and anywhere else that requires a non-throwing destructor. */
+static_assert(std::is_nothrow_destructible_v<tcp_server>,
+              "~tcp_server() must not be able to throw");
+
 
 TEST_CASE("tcp_server: check bad endpoint throws exception during start()", "[sg::net::tcp_server]") {
     end_point ep;

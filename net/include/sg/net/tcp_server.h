@@ -74,7 +74,7 @@ class SG_NET_EXPORT tcp_server {
         tcp_session::options_t session_options{};
     };
 
-    ~tcp_server() noexcept(false);
+    ~tcp_server();
 
     void start(std::vector<end_point> endpoints, CallBacks callbacks, options_t options);
     void start(std::vector<end_point> endpoints, CallBacks callbacks);

@@ -102,16 +102,26 @@ void run_callback(const std::string& name, FuncT func, Args&&... args) {
 
 namespace sg::net {
 
-tcp_server::~tcp_server() noexcept(false) {
+tcp_server::~tcp_server() {
     if (running_in_callback_thread()) {
         std::cerr << "tcp_server: ~tcp_server() called from one of the server's own threads"
                   << std::endl;
         std::terminate();
     }
 
-    stop_async();
-    if (m_stopping_thread.joinable())
-        m_stopping_thread.join();
+    try {
+        stop_async();
+        if (m_stopping_thread.joinable())
+            m_stopping_thread.join();
+    } catch (const std::exception& ex) {
+        std::cerr << "tcp_server: ~tcp_server() could not stop the server: " << ex.what()
+                  << "; terminating" << std::endl;
+        std::terminate();
+    } catch (...) {
+        std::cerr << "tcp_server: ~tcp_server() could not stop the server; terminating"
+                  << std::endl;
+        std::terminate();
+    }
 }
 
 void tcp_server::stop_async() {
