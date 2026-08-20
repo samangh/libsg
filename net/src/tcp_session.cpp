@@ -215,7 +215,7 @@ void tcp_session::wait_until_stopped() const {
 }
 
 bool tcp_session::is_connected() const noexcept {
-    return m_state.load(std::memory_order::acquire) != state_t::stopped;
+    return m_state.load(std::memory_order::acquire) == state_t::running;
 }
 
 end_point tcp_session::local_endpoint() const {

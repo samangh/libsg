@@ -114,7 +114,7 @@ void tcp_client::disconnect() {
         SG_THROW(std::logic_error,
                  "tcp_client::disconnect() must not be called from the I/O thread (e.g. from a callback)");
 
-    if (is_connected()) {
+    if (m_session) {
         m_session->stop_async();
         m_session->wait_until_stopped();
     }

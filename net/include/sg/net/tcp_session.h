@@ -87,6 +87,9 @@ class SG_NET_EXPORT tcp_session : public std::enable_shared_from_this<tcp_sessio
     void stop_async_force();
 
     void wait_until_stopped() const;
+
+    /** returns true while the session is running and fully operational, will return false as soon
+     * as a disconnection is requested or in progress.*/
     [[nodiscard]] bool is_connected() const noexcept;
     [[nodiscard]] state_t state() const noexcept;
 

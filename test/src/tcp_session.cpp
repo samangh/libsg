@@ -352,3 +352,68 @@ TEST_CASE("tcp_session: start() can only be called once", "[sg::net::tcp_session
     REQUIRE(disconnections == 1);
 }
 
+
+TEST_CASE("tcp_session: is_connected() is false once a stop has been requested",
+          "[sg::net::tcp_session]") {
+    scoped_deadline watchdog("is_connected()/stop_requested test stalled");
+
+    boost::asio::io_context ctx;
+    boost::asio::ip::tcp::acceptor acceptor(
+        ctx, boost::asio::ip::tcp::endpoint(boost::asio::ip::make_address(ep.ip), ep.port));
+    boost::asio::ip::tcp::socket peer(ctx);
+    std::thread acc([&] { acceptor.accept(peer); });
+
+    tcp_client client;
+    client.connect(ep, nullptr, nullptr, {.timeout_msec = 30000});
+    acc.join();
+
+    REQUIRE(client.session().state() == tcp_session::state_t::running);
+    REQUIRE(client.session().is_connected());
+
+    /* the peer never reads, so this write stays in flight and the graceful stop cannot complete:
+     * the session is parked in stop_requested */
+    for (int i = 0; i < 8; ++i)
+        client.session().write(std::string(64u << 20, 'x'));
+    std::this_thread::sleep_for(std::chrono::milliseconds(200));
+
+    client.session().stop_async();
+    std::this_thread::sleep_for(std::chrono::milliseconds(100));
+
+    REQUIRE(client.session().state() == tcp_session::state_t::stop_requested);
+    REQUIRE_FALSE(client.session().is_connected());
+
+    // and the predicate agrees with what write() actually does in that state
+    REQUIRE_THROWS(client.session().write("more"));
+
+    client.session().stop_async_force();
+    client.session().wait_until_stopped();
+    peer.close();
+}
+
+TEST_CASE("tcp_client: disconnect() waits out a teardown already in progress",
+          "[sg::net::tcp_client]") {
+    scoped_deadline watchdog("disconnect() did not wait for the teardown to finish");
+
+    boost::asio::io_context ctx;
+    boost::asio::ip::tcp::acceptor acceptor(
+        ctx, boost::asio::ip::tcp::endpoint(boost::asio::ip::make_address(ep.ip), ep.port));
+    boost::asio::ip::tcp::socket peer(ctx);
+    std::thread acc([&] { acceptor.accept(peer); });
+
+    tcp_client client;
+    client.connect(ep, nullptr, nullptr, {.timeout_msec = 1000});
+    acc.join();
+
+    for (int i = 0; i < 8; ++i)
+        client.session().write(std::string(64u << 20, 'x'));
+    std::this_thread::sleep_for(std::chrono::milliseconds(200));
+
+    client.session().stop_async();
+    REQUIRE_FALSE(client.session().is_connected()); // already past running
+
+    /* must still block until the session is genuinely stopped */
+    client.disconnect();
+    REQUIRE(client.session().state() == tcp_session::state_t::stopped);
+
+    peer.close();
+}
