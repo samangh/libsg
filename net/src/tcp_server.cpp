@@ -411,6 +411,11 @@ tcp_server::listener(std::shared_ptr<boost::asio::ip::tcp::acceptor> acceptor,
 
             backoff = accept_retry_min;
 
+            /* if a stop is scheduled, don't do anything (socket will closed when it goes out  of
+             * scope) */
+            if (m_stop_in_operation.load(std::memory_order::acquire))
+                continue;
+
             /* Everything below is per-connection: a throw out of tcp_session::create(), or a
              * bad_alloc from m_sessions.emplace(), must cost us this one connection and not the
              * whole listener. The accepted socket is closed by its own destructor as the stack
@@ -447,16 +452,12 @@ tcp_server::listener(std::shared_ptr<boost::asio::ip::tcp::acceptor> acceptor,
                     },
                     m_options.session_options);
 
-                /* check that the accept did not return because stop_async was called */
-                if (!m_stop_in_operation.load(std::memory_order::acquire)) {
-                    /* start() may throw if session setup fails (e.g. the peer reset
-                     * the connection).
-                     *
-                     * No manual cleanup is needed either way: a failure before onConnected()
-                     * leaves the session unregistered, and one after it fires the session's
-                     * on_disconnected callback, which cleans things up. */
-                    sess->start();
-                }
+                /* start() may throw if session setup fails (e.g. the peer reset the connection).
+                 *
+                 * No manual cleanup is needed either way: a failure before onConnected() leaves
+                 * the session unregistered, and one after it fires the session's on_disconnected
+                 * callback, which cleans things up. */
+                sess->start();
             } catch (...) {
             }
         }
