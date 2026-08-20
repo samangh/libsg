@@ -169,16 +169,15 @@ void tcp_client_sync::connect(const end_point& endpoint, tcp_session::options_t 
     set_keepalive(options.keepalive);
     set_timeout(options.timeout_msec);
 }
-void tcp_client_sync::disconnect() {
-    if (m_socket.is_open()) {
-        // in case the client disconnects between the above check and the next command
-        try {
-            m_socket.shutdown(boost::asio::ip::tcp::socket::shutdown_both);
-        } catch (...) {}
+void tcp_client_sync::disconnect() noexcept {
+    if (!m_socket.is_open())
+        return;
 
-        // need to close, even if the above command failed
-        m_socket.close();
-    }
+    /* Both can fail -- the peer may have gone between the check above and here. Use non-throwing
+     * versions so the socket is closed none-theless */
+    boost::system::error_code ec;
+    std::ignore = m_socket.shutdown(boost::asio::ip::tcp::socket::shutdown_both, ec);
+    std::ignore = m_socket.close(ec);
 }
 void tcp_client_sync::write(const std::byte* data, size_t length) {
     if (!is_connected())

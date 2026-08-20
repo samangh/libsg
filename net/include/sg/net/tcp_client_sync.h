@@ -17,7 +17,7 @@ class SG_NET_EXPORT tcp_client_sync {
     virtual ~tcp_client_sync();
 
     void connect(const end_point& endpoint, tcp_session::options_t options = {});
-    void disconnect();
+    void disconnect() noexcept;
 
     [[nodiscard]] bool is_connected() const;
 

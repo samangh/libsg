@@ -1,11 +1,20 @@
 #include "helpers.h"
 
 #include <atomic>
+#include <type_traits>
+#include <utility>
 #include <catch2/catch_test_macros.hpp>
 #include <sg/net/tcp_client_sync.h>
 #include <sg/net/tcp_server.h>
 
 using namespace sg::net;
+
+/* ~tcp_client_sync() calls disconnect(), and a destructor is implicitly noexcept, so anything
+ * escaping disconnect() would be std::terminate. Asserted here rather than left to review */
+static_assert(noexcept(std::declval<tcp_client_sync&>().disconnect()),
+              "tcp_client_sync::disconnect() must be noexcept: the destructor calls it");
+static_assert(std::is_nothrow_destructible_v<tcp_client_sync>,
+              "~tcp_client_sync() must not be able to throw");
 
 // port 55555 can't be used on macOS!
 static end_point ep("127.0.0.1", 4444);
