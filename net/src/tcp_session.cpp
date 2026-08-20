@@ -109,7 +109,7 @@ void tcp_session::write(sg::shared_c_buffer<std::byte> msg) {
 
         if (m_state.load(std::memory_order::acquire) != state_t::running)
             SG_THROW(std::runtime_error,
-                     "attempt to write to tcp_session after a disconnection was requested");
+                     "attempt to write to a non-operational tcp_session");
 
 
         m_write_msgs.push_back(std::move(msg));
