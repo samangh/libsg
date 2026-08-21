@@ -38,7 +38,11 @@ class SG_NET_EXPORT tcp_session : public std::enable_shared_from_this<tcp_sessio
          * of `connection_timeout_msec` and the OS global default.
          *
          *   - `tcp_syn_retries` on Linux, which by dfault is ~180 seconds
-         *   - `MaxSynRetransmissions` on Windows, which by default is ~21 seconds */
+         *   - `MaxSynRetransmissions` on Windows, which by default is ~21 seconds
+         *
+         * Note that the connection timeout does not apply to DNS resolving. The DNS resolve timeout
+         * is set globally by the system/os.
+         */
         unsigned connection_timeout_msec{10000}; // 0 = let OS do connection timeout
         int recv_buffer_size{0};                 // 0 = use default OS value
         int send_buffer_size{0};                 // 0 = use default OS value
