@@ -360,11 +360,16 @@ TEST_CASE("tcp_session: is_connected() is false once a stop has been requested",
     boost::asio::io_context ctx;
     boost::asio::ip::tcp::acceptor acceptor(
         ctx, boost::asio::ip::tcp::endpoint(boost::asio::ip::make_address(ep.ip), ep.port));
+
+    /* the accepted socket inherits this, so the peer's receive window stays tiny and a couple of
+     * MB is already more than both ends can hold */
+    acceptor.set_option(boost::asio::socket_base::receive_buffer_size(4096));
+
     boost::asio::ip::tcp::socket peer(ctx);
     std::thread acc([&] { acceptor.accept(peer); });
 
     tcp_client client;
-    client.connect(ep, nullptr, nullptr, {.timeout_msec = 30000});
+    client.connect(ep, nullptr, nullptr, {.timeout_msec = 30000, .send_buffer_size = 4096});
     acc.join();
 
     REQUIRE(client.session().state() == tcp_session::state_t::running);
@@ -373,7 +378,7 @@ TEST_CASE("tcp_session: is_connected() is false once a stop has been requested",
     /* the peer never reads, so this write stays in flight and the graceful stop cannot complete:
      * the session is parked in stop_requested */
     for (int i = 0; i < 8; ++i)
-        client.session().write(std::string(64u << 20, 'x'));
+        client.session().write(std::string(256u << 10, 'x'));
     std::this_thread::sleep_for(std::chrono::milliseconds(200));
 
     client.session().stop_async();
@@ -397,21 +402,32 @@ TEST_CASE("tcp_client: disconnect() waits out a teardown already in progress",
     boost::asio::io_context ctx;
     boost::asio::ip::tcp::acceptor acceptor(
         ctx, boost::asio::ip::tcp::endpoint(boost::asio::ip::make_address(ep.ip), ep.port));
+
+    /* the accepted socket inherits this, so the peer's receive window stays tiny and a couple of
+     * MB is already more than both ends can hold. Queueing that little is near-instant, which
+     * matters: the writer's timeout starts on the *first* write, so queueing bulk data (say
+     * 8 x 64MB, which a Debug/sanitizer build takes over a second to allocate and copy) races the
+     * timeout and the session is torn down while we are still writing to it */
+    acceptor.set_option(boost::asio::socket_base::receive_buffer_size(4096));
+
     boost::asio::ip::tcp::socket peer(ctx);
     std::thread acc([&] { acceptor.accept(peer); });
 
     tcp_client client;
-    client.connect(ep, nullptr, nullptr, {.timeout_msec = 1000});
+    client.connect(ep, nullptr, nullptr, {.timeout_msec = 1000, .send_buffer_size = 4096});
     acc.join();
 
+    /* the peer never reads, so this write stays in flight and the graceful stop cannot complete */
     for (int i = 0; i < 8; ++i)
-        client.session().write(std::string(64u << 20, 'x'));
-    std::this_thread::sleep_for(std::chrono::milliseconds(200));
+        client.session().write(std::string(256u << 10, 'x'));
+    std::this_thread::sleep_for(std::chrono::milliseconds(100));
 
     client.session().stop_async();
+    REQUIRE(client.session().state() == tcp_session::state_t::stop_requested);
     REQUIRE_FALSE(client.session().is_connected()); // already past running
 
-    /* must still block until the session is genuinely stopped */
+    /* must still block until the session is genuinely stopped, which the in-flight write only
+     * lets happen once it hits timeout_msec */
     client.disconnect();
     REQUIRE(client.session().state() == tcp_session::state_t::stopped);
 
