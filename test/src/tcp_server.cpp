@@ -1581,3 +1581,100 @@ TEST_CASE("tcp_server: a session cannot be erased while its own data callback ru
     REQUIRE(resolvedThroughout);
     REQUIRE(countDuringCallback == 1);
 }
+
+TEST_CASE("tcp_server: ShouldAccept rejects a connection", "[sg::net::tcp_server]") {
+    scoped_deadline watchdog("the rejected connection was never dropped");
+    end_point ep("127.0.0.1", PORT);
+
+    std::atomic_int filtered{0};
+    std::atomic_int created{0};
+    std::atomic_bool peer_is_loopback{false};
+
+    tcp_server::CallBacks cb;
+    cb.ShouldAccept = [&](tcp_server&, const end_point& peer) {
+        peer_is_loopback = (peer.ip == "127.0.0.1");
+        ++filtered;
+        return false;
+    };
+    cb.OnSessionCreated = [&](tcp_server&, tcp_server::session_id_t) { ++created; };
+
+    tcp_server server;
+    server.start({ep}, cb);
+
+    tcp_client client;
+    try {
+        client.connect(ep, nullptr, nullptr);
+    } catch (const std::exception&) {
+        /* the server can hang up before the client has finished setting its session up */
+    }
+
+    while (filtered == 0 || client.is_connected())
+        std::this_thread::sleep_for(std::chrono::milliseconds(1));
+
+    REQUIRE(peer_is_loopback);
+    REQUIRE(filtered == 1);
+    REQUIRE(created == 0);
+    REQUIRE(server.clients_count() == 0);
+}
+
+TEST_CASE("tcp_server: ShouldAccept lets a connection through", "[sg::net::tcp_server]") {
+    scoped_deadline watchdog("the accepted connection never became a session");
+    end_point ep("127.0.0.1", PORT);
+
+    std::binary_semaphore created{0};
+
+    tcp_server::CallBacks cb;
+    cb.ShouldAccept = [](tcp_server&, const end_point&) { return true; };
+    cb.OnSessionCreated = [&](tcp_server&, tcp_server::session_id_t) { created.release(); };
+
+    tcp_server server;
+    server.start({ep}, cb);
+
+    tcp_client client;
+    client.connect(ep, nullptr, nullptr);
+    created.acquire();
+
+    REQUIRE(client.is_connected());
+    REQUIRE(server.clients_count() == 1);
+
+    client.disconnect();
+}
+
+TEST_CASE("tcp_server: a throwing ShouldAccept costs only that connection",
+          "[sg::net::tcp_server]") {
+    scoped_deadline watchdog("the listener did not survive a throwing ShouldAccept");
+    end_point ep("127.0.0.1", PORT);
+
+    std::atomic_int calls{0};
+    std::binary_semaphore created{0};
+
+    tcp_server::CallBacks cb;
+    cb.ShouldAccept = [&](tcp_server&, const end_point&) -> bool {
+        if (++calls == 1)
+            throw std::runtime_error("boom (this is expected, ignore)");
+        return true;
+    };
+    cb.OnSessionCreated = [&](tcp_server&, tcp_server::session_id_t) { created.release(); };
+
+    tcp_server server;
+    server.start({ep}, cb);
+
+    tcp_client rejected;
+    try {
+        rejected.connect(ep, nullptr, nullptr);
+    } catch (const std::exception&) {
+    }
+    while (rejected.is_connected())
+        std::this_thread::sleep_for(std::chrono::milliseconds(1));
+
+    // the listener is still going, and the next connection is unaffected
+    tcp_client accepted;
+    accepted.connect(ep, nullptr, nullptr);
+    created.acquire();
+
+    REQUIRE(calls == 2);
+    REQUIRE(accepted.is_connected());
+    REQUIRE(server.clients_count() == 1);
+
+    accepted.disconnect();
+}

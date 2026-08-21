@@ -52,6 +52,13 @@ class SG_NET_EXPORT tcp_server {
      *  come through here, it stops the server, and it is reported by OnStoppedListening() /
      *  last_error() instead. */
     CREATE_CALLBACK(accept_error_cb_t, void(tcp_server&, std::exception_ptr))
+    /** Consulted for each connection the OS has accepted, before any session exists. Return
+     *  false to drop it: no id is taken, no other callback follows, and the peer sees the
+     *  connection close at once.
+     *
+     *  Runs on the acceptor's I/O thread and holds up the next accept, so keep it quick. A
+     *  filter that throws rejects the connection. */
+    CREATE_CALLBACK(should_accept_cb_t, bool(tcp_server&, end_point))
     CREATE_CALLBACK(session_created_cb_t, void(tcp_server&, session_id_t))
     CREATE_CALLBACK(session_data_available_cb_t, void(tcp_server&, session_id_t, const std::byte*, size_t))
     CREATE_CALLBACK(session_disconnected_cb_t, void(tcp_server&, session_id_t, std::exception_ptr))
@@ -60,6 +67,7 @@ class SG_NET_EXPORT tcp_server {
         started_listening_cb_t OnStartedListening;
         stopped_listening_cb_t OnStoppedListening;
         accept_error_cb_t OnAcceptError;
+        should_accept_cb_t ShouldAccept;
         session_created_cb_t OnSessionCreated;
         session_data_available_cb_t OnSessionDataAvailable;
         session_disconnected_cb_t OnDisconnected;

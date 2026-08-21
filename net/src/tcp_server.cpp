@@ -431,6 +431,16 @@ tcp_server::listener(std::shared_ptr<boost::asio::ip::tcp::acceptor> acceptor,
              * whole listener. The accepted socket is closed by its own destructor as the stack
              * unwinds. */
             try {
+                /* Asked before anything is committed to this connection: no id is taken and no
+                 * session exists yet, and the socket closes as this scope unwinds. A filter that
+                 * throws lands in the catch below, so it costs this connection and nothing more. */
+                if (m_callbacks.ShouldAccept) {
+                    auto peer = socket.remote_endpoint();
+                    if (!m_callbacks.ShouldAccept.invoke(
+                            *this, end_point(peer.address().to_string(), peer.port())))
+                        continue;
+                }
+
                 auto id = m_last_id++;
 
                 auto onSessionDisconnected = [this, id](tcp_session&, std::exception_ptr ex) {
