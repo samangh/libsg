@@ -433,3 +433,99 @@ TEST_CASE("tcp_client: disconnect() waits out a teardown already in progress",
 
     peer.close();
 }
+
+TEST_CASE("tcp_session: pending_bytes() drains to zero", "[sg::net::tcp_session]") {
+    scoped_deadline watchdog("pending_bytes() never drained");
+
+    tcp_server server;
+    server.start({ep}, {});
+
+    tcp_client client;
+    client.connect(ep, nullptr, nullptr);
+
+    auto& session = client.session();
+    REQUIRE(session.pending_bytes() == 0);
+
+    session.write(std::string(1u << 20, 'x'));
+    while (session.pending_bytes() != 0)
+        std::this_thread::sleep_for(std::chrono::milliseconds(1));
+
+    client.disconnect();
+}
+
+TEST_CASE("tcp_session: pending_bytes() counts what the peer has not taken",
+          "[sg::net::tcp_session]") {
+    scoped_deadline watchdog("pending_bytes() test did not finish");
+
+    constexpr size_t size = 8u << 20;
+
+    // a deaf peer, so nothing we write can be handed over in full
+    end_point peer_ep("127.0.0.1", 4456);
+    boost::asio::io_context peer_ctx;
+    boost::asio::ip::tcp::acceptor acceptor(
+        peer_ctx, {boost::asio::ip::make_address(peer_ep.ip), peer_ep.port});
+    acceptor.set_option(boost::asio::socket_base::receive_buffer_size(2048));
+    boost::asio::ip::tcp::socket peer(peer_ctx);
+
+    tcp_client client;
+    {
+        std::jthread accepting([&] { acceptor.accept(peer); });
+        client.connect(peer_ep, nullptr, nullptr, {.timeout_msec = 0, .send_buffer_size = 4096});
+    }
+
+    auto& session = client.session();
+    REQUIRE(session.pending_bytes() == 0);
+
+    session.write(std::string(size, 'x'));
+    REQUIRE(session.pending_bytes() == size);
+
+    // the data is dropped rather than sent, so it stays counted
+    session.stop_async_force();
+    session.wait_until_stopped();
+    REQUIRE(session.pending_bytes() == size);
+
+    peer.close();
+}
+
+TEST_CASE("tcp_session: write() refuses data at the high-water mark", "[sg::net::tcp_session]") {
+    scoped_deadline watchdog("write() never reached the high-water mark");
+
+    constexpr size_t chunk = 64u << 10;
+    constexpr size_t mark = 512u << 10;
+
+    end_point peer_ep("127.0.0.1", 4457);
+    boost::asio::io_context peer_ctx;
+    boost::asio::ip::tcp::acceptor acceptor(
+        peer_ctx, {boost::asio::ip::make_address(peer_ep.ip), peer_ep.port});
+    acceptor.set_option(boost::asio::socket_base::receive_buffer_size(2048));
+    boost::asio::ip::tcp::socket peer(peer_ctx);
+
+    tcp_client client;
+    {
+        std::jthread accepting([&] { acceptor.accept(peer); });
+        client.connect(peer_ep, nullptr, nullptr,
+                       {.timeout_msec = 0,
+                        .send_buffer_size = 4096,
+                        .write_high_water_mark = mark});
+    }
+
+    auto& session = client.session();
+
+    bool refused = false;
+    for (int i = 0; i < 64 && !refused; ++i)
+        try {
+            session.write(std::string(chunk, 'x'));
+        } catch (const sg::exceptions::net::buffer_full&) {
+            refused = true;
+        }
+
+    REQUIRE(refused);
+    REQUIRE(session.pending_bytes() >= mark);
+
+    // a refused write is not fatal to the session
+    REQUIRE(session.is_connected());
+
+    session.stop_async_force();
+    session.wait_until_stopped();
+    peer.close();
+}

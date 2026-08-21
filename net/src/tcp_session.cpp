@@ -9,6 +9,8 @@
 #include <boost/asio/write.hpp>
 #include <boost/asio/co_spawn.hpp>
 
+#include <fmt/format.h>
+
 #include <iostream>
 #include <stdexcept>
 
@@ -111,7 +113,15 @@ void tcp_session::write(sg::shared_c_buffer<std::byte> msg) {
             SG_THROW(std::runtime_error,
                      "attempt to write to a non-operational tcp_session");
 
+        /* Tested before this message is counted, so that a message bigger than the mark is never
+         * unsendable. */
+        if (auto mark = m_options.write_high_water_mark; mark && pending_bytes() >= mark)
+            SG_THROW(exceptions::net::buffer_full,
+                     fmt::format("tcp_session: {} bytes are already pending, at or over the "
+                                 "high-water mark of {} bytes",
+                                 pending_bytes(), mark));
 
+        m_queued_bytes.fetch_add(msg.size(), std::memory_order::relaxed);
         m_write_msgs.push_back(std::move(msg));
         need_spawn = !std::exchange(m_write_scheduled, true);
     }
@@ -160,6 +170,12 @@ void tcp_session::set_keepalive(keepalive_t keepAliveParameters) {
 void tcp_session::set_timeout(unsigned timeoutMSec) {
     run_in_executor([this, timeoutMSec]() { apply_timeout_unsafe(timeoutMSec); });
 }
+
+size_t tcp_session::pending_bytes() const noexcept {
+    return m_queued_bytes.load(std::memory_order::relaxed) +
+           m_writing_bytes.load(std::memory_order::relaxed);
+}
+
 enum tcp_session::state_t tcp_session::state() const noexcept {
     return m_state.load(std::memory_order::acquire);
 }
@@ -345,6 +361,13 @@ boost::asio::awaitable<void> tcp_session::writer() {
                     m_write_scheduled = false;
 
                 timeoutMSec = m_options.timeout_msec;
+
+                /* Update byte count */
+                size_t batch = 0;
+                for (const auto& buff : buffers)
+                    batch += buff.size();
+                m_queued_bytes.fetch_sub(batch, std::memory_order::relaxed);
+                m_writing_bytes.store(batch, std::memory_order::relaxed);
             }
 
             // make sure close() is called outside the m_write_mutex lock, as close() could call

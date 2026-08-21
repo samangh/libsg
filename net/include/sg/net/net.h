@@ -36,6 +36,7 @@ SG_CREATE_EXCEPTION(time_out, "operation timed out");
 SG_CREATE_EXCEPTION(host_not_found, "host not found");
 SG_CREATE_EXCEPTION(network_unreachable, "network unreachable");
 SG_CREATE_EXCEPTION(session_not_found, "no such session");
+SG_CREATE_EXCEPTION(buffer_full, "buffer is full");
 SG_CREATE_EXCEPTION(other, "other error");
 
 } // namespace sg::exceptions

@@ -42,6 +42,11 @@ class SG_NET_EXPORT tcp_session : public std::enable_shared_from_this<tcp_sessio
         unsigned connection_timeout_msec{10000}; // 0 = let OS do connection timeout
         int recv_buffer_size{0};                 // 0 = use default OS value
         int send_buffer_size{0};                 // 0 = use default OS value
+
+        /* Most bytes that may be pending before write() starts refusing data. Tested before the
+         * new message is added, so a message larger than the mark still goes through when nothing
+         * is pending. */
+        size_t write_high_water_mark{0}; // 0 = unlimited
     };
 
     struct Callbacks {
@@ -100,6 +105,13 @@ class SG_NET_EXPORT tcp_session : public std::enable_shared_from_this<tcp_sessio
     void write(std::string_view msg);
     void write(const void* data, size_t size);
 
+    /** Bytes given to @c write() that the socket has not taken yet: those still queued, plus the
+     *  batch currently being written.
+     *
+     *  Bytes a stopped session never managed to write stay counted, so this is non-zero after a
+     *  @c stop_async_force() that dropped data. */
+    [[nodiscard]] size_t pending_bytes() const noexcept;
+
     void set_keepalive(keepalive_t);
     void set_timeout(unsigned timeoutMSec);
 
@@ -137,6 +149,12 @@ class SG_NET_EXPORT tcp_session : public std::enable_shared_from_this<tcp_sessio
     std::mutex m_write_mutex;
     bool m_write_scheduled{false}; //note: need to always lock m_write_mutex
     std::vector<sg::shared_c_buffer<std::byte>> m_write_msgs{};
+
+    /* Bytes in m_write_msgs (written under m_write_mutex) and bytes in the batch writer() is
+     * sending (written by writer() alone). Atomic so that pending_bytes() can read both without
+     * taking the lock. */
+    std::atomic<size_t> m_queued_bytes{0};
+    std::atomic<size_t> m_writing_bytes{0};
 
     std::atomic<state_t> m_state{state_t::stopped};
     std::atomic_flag m_start_called{};
