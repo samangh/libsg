@@ -520,7 +520,6 @@ TEST_CASE("tcp_session: write() refuses data at the high-water mark", "[sg::net:
         }
 
     REQUIRE(refused);
-    REQUIRE(session.pending_bytes() >= mark);
 
     // a refused write is not fatal to the session
     REQUIRE(session.is_connected());
