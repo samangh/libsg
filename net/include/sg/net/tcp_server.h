@@ -64,13 +64,13 @@ class SG_NET_EXPORT tcp_server {
     CREATE_CALLBACK(session_disconnected_cb_t, void(tcp_server&, session_id_t, std::exception_ptr))
 
     struct CallBacks {
-        started_listening_cb_t OnStartedListening;
-        stopped_listening_cb_t OnStoppedListening;
-        accept_error_cb_t OnAcceptError;
-        should_accept_cb_t ShouldAccept;
-        session_created_cb_t OnSessionCreated;
-        session_data_available_cb_t OnSessionDataAvailable;
-        session_disconnected_cb_t OnDisconnected;
+        started_listening_cb_t OnStartedListening{};
+        stopped_listening_cb_t OnStoppedListening{};
+        accept_error_cb_t OnAcceptError{};
+        should_accept_cb_t ShouldAccept{};
+        session_created_cb_t OnSessionCreated{};
+        session_data_available_cb_t OnSessionDataAvailable{};
+        session_disconnected_cb_t OnDisconnected{};
     };
 
     struct options_t {

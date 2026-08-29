@@ -58,9 +58,9 @@ class SG_NET_EXPORT tcp_session : public std::enable_shared_from_this<tcp_sessio
         CREATE_CALLBACK(OnDisconnected, void(tcp_session&, std::exception_ptr))
         CREATE_CALLBACK(OnDataAvailable, void(tcp_session&, const std::byte*, size_t))
 
-        OnConnected onConnected;
-        OnDisconnected onDisconnected;
-        OnDataAvailable onDataAvailable;
+        OnConnected onConnected{};
+        OnDisconnected onDisconnected{};
+        OnDataAvailable onDataAvailable{};
     };
 
     // For legacy
