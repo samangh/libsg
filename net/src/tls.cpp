@@ -9,6 +9,10 @@
 #include <boost/asio/use_awaitable.hpp>
 #include <boost/asio/write.hpp>
 
+#ifdef _WIN32
+    #include <openssl/ssl.h> // for SSL_CTX_load_verify_store()
+#endif
+
 #include <stdexcept>
 
 namespace {
@@ -22,6 +26,21 @@ boost::asio::ssl::context::options baseline_options() {
            boost::asio::ssl::context::no_tlsv1 |            //
            boost::asio::ssl::context::no_tlsv1_1 |          //
            boost::asio::ssl::context::single_dh_use;
+}
+
+/* Points the client's verifier at the operating system's trust store.
+ *
+ * On POSIX that is set_default_verify_paths() -- OpenSSL's configured CA bundle / directory. On
+ * Windows OpenSSL ships no default bundle and does not read the Windows certificate store, so that
+ * call loads nothing and every public certificate fails to verify. Since OpenSSL 3.2 the built-in
+ * "winstore" provider exposes the Windows store as a CA-store URI; load that instead. */
+void load_system_trust_store(boost::asio::ssl::context& context) {
+#ifdef _WIN32
+    if (::SSL_CTX_load_verify_store(context.native_handle(), "org.openssl.winstore://") != 1)
+        SG_THROW(std::runtime_error, "sg::net: could not load the Windows certificate store");
+#else
+    context.set_default_verify_paths();
+#endif
 }
 
 } // namespace
@@ -45,7 +64,7 @@ tls_config tls_client_config(std::string hostname) {
         std::make_shared<boost::asio::ssl::context>(boost::asio::ssl::context::tls_client);
 
     context->set_options(baseline_options());
-    context->set_default_verify_paths();
+    load_system_trust_store(*context);
 
     /* Without this the handshake would succeed against any certificate at all. The name is checked
      * separately, per connection, by tls_transport. */
