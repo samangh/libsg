@@ -448,7 +448,13 @@ tcp_server::listener(std::shared_ptr<boost::asio::ip::tcp::acceptor> acceptor,
                 };
 
                 auto onData = [this, id](tcp_session&, const std::byte* data, size_t size) {
-                    inform_user_of_data(id, data, size);
+                    if (m_callbacks.OnSessionDataAvailable)
+                        m_callbacks.OnSessionDataAvailable.invoke(*this, id, data, size);
+                };
+
+                auto onNegotiated = [this, id](tcp_session&) {
+                    if (m_callbacks.OnSessionNegotiated)
+                        m_callbacks.OnSessionNegotiated.invoke(*this, id);
                 };
 
                 tcp_session::Callbacks::OnConnected onConn = [this, id](tcp_session& sess) {
@@ -468,6 +474,7 @@ tcp_server::listener(std::shared_ptr<boost::asio::ip::tcp::acceptor> acceptor,
                     m_options.make_transport,
                     tcp_session::Callbacks {
                         .onConnected = onConn,
+                        .onNegotiated = onNegotiated,
                         .onDisconnected = onSessionDisconnected,
                         .onDataAvailable = onData
                     },
@@ -558,12 +565,6 @@ void tcp_server::record_error(std::exception_ptr ex) {
 std::exception_ptr tcp_server::last_error() const {
     std::lock_guard lock(m_error_mutex);
     return m_last_error;
-}
-
-
-void tcp_server::inform_user_of_data(session_id_t id, const std::byte* data, size_t size) {
-    if (m_callbacks.OnSessionDataAvailable)
-        m_callbacks.OnSessionDataAvailable.invoke(*this, id, data, size);
 }
 
 void tcp_server::on_session_stopped(session_id_t id, std::exception_ptr ex) {

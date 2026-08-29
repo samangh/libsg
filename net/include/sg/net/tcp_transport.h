@@ -34,7 +34,7 @@ class SG_NET_EXPORT tcp_transport {
      *  A negotiated transport comes up through @ref handshake() and signs off through
      *  @ref shutdown(). Its session stays out of the @c running state, and so refuses writes, until
      *  the handshake lands. */
-    [[nodiscard]] virtual bool is_negotiated() const = 0;
+    [[nodiscard]] virtual bool is_negotiated_transport_type() const = 0;
 
     /** Negotiates with the peer. */
     virtual boost::asio::awaitable<void> handshake() = 0;

@@ -57,16 +57,26 @@ class SG_NET_EXPORT tcp_session : public std::enable_shared_from_this<tcp_sessio
 
     struct Callbacks {
         CREATE_CALLBACK(OnConnected, void(tcp_session&))
+        CREATE_CALLBACK(OnNegotiated, void(tcp_session&))
         CREATE_CALLBACK(OnDisconnected, void(tcp_session&, std::exception_ptr))
         CREATE_CALLBACK(OnDataAvailable, void(tcp_session&, const std::byte*, size_t))
 
         OnConnected onConnected{};
+
+        /** Called once the session is fully up and carrying data: after a negotiated transport
+         *  finishes its handshake, or immediately for a plain one (whose negotiation is a no-op).
+         *  Fires after onConnected and before the first onDataAvailable, with the session in the
+         *  `running` state so it accepts write(). Not called if the handshake fails or a stop races
+         *  it -- onDisconnected carries the reason in that case. */
+        OnNegotiated onNegotiated{};
+
         OnDisconnected onDisconnected{};
         OnDataAvailable onDataAvailable{};
     };
 
     // For legacy
     typedef Callbacks::OnConnected on_connected_cb_t;
+    typedef Callbacks::OnNegotiated on_negotiated_cb_t;
     typedef Callbacks::OnDisconnected on_disconnected_cb_t;
     typedef Callbacks::OnDataAvailable on_data_available_cb_t;
 

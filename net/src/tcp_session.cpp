@@ -49,7 +49,7 @@ tcp_session::tcp_session(private_tag, boost::asio::io_context& context,
         SG_THROW(std::invalid_argument, "tcp_session: options_t::dont_read requires an "
                                         "OnDataAvailable callback to read the socket");
 
-    if (m_options.dont_read && m_transport->is_negotiated())
+    if (m_options.dont_read && m_transport->is_negotiated_transport_type())
         SG_THROW(std::invalid_argument,
                  "tcp_session: options_t::dont_read cannot be combined with a negotiated "
                  "transport; only the transport can decode what is on the socket");
@@ -74,8 +74,8 @@ void tcp_session::start() {
      *
      * For plain transport, start in running immediately. This is because some old clients assume
      * you can write() to the session as soon as OnConnected() is called */
-    const bool negotiated   = m_transport->is_negotiated();
-    const auto initialState = negotiated ? state_t::handshaking : state_t::running;
+    const bool isNegotiatedType   = m_transport->is_negotiated_transport_type();
+    const auto initialState = isNegotiatedType ? state_t::handshaking : state_t::running;
 
     /* start in handshake state (even if the transport does not need it, for teh sake of uniformity */
     if (auto expectedState = state_t::stopped; !m_state.compare_exchange_strong(
@@ -116,7 +116,12 @@ void tcp_session::start() {
         if (m_callbacks.onConnected)
             m_callbacks.onConnected.invoke(*this);
 
-        spawn(negotiated ? &tcp_session::negotiate_and_read : &tcp_session::reader);
+        /* A plain transport has nothing to negotiate and is already `running`, so its negotiation
+         * completes here and now. Otherwise the callback is called from negotiate_and_read() */
+        if (!isNegotiatedType && m_callbacks.onNegotiated)
+            m_callbacks.onNegotiated.invoke(*this);
+
+        spawn(isNegotiatedType ? &tcp_session::negotiate_and_read : &tcp_session::reader);
     } catch (...) {
         /* if clean closing, do not throw error */
         record_error();
@@ -145,6 +150,11 @@ boost::asio::awaitable<void> tcp_session::negotiate_and_read() {
                                              std::memory_order::acq_rel,
                                              std::memory_order::acquire))
             co_return; /* stopped underneath us; close() already owns the teardown */
+
+        // Call this after the previous check (so this callback doesn't get called if the session
+        // has already closed)
+        if (m_callbacks.onNegotiated)
+            m_callbacks.onNegotiated.invoke(*this);
 
         m_state.notify_all();
     } catch (...) {
@@ -310,7 +320,7 @@ bool tcp_session::is_connected() const noexcept {
     return m_state.load(std::memory_order::acquire) == state_t::running;
 }
 
-bool tcp_session::is_negotiated() const noexcept { return m_transport->is_negotiated(); }
+bool tcp_session::is_negotiated() const noexcept { return m_transport->is_negotiated_transport_type(); }
 
 std::exception_ptr tcp_session::last_error() const {
     std::lock_guard lock(m_exception_mutex);

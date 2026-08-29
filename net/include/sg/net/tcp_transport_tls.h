@@ -23,7 +23,7 @@ class SG_NET_EXPORT tls_transport final : public tcp_transport {
      *  guarantees by owning both and destroying the transport first. */
     tls_transport(boost::asio::ip::tcp::socket& socket, tls_config config);
 
-    [[nodiscard]] bool is_negotiated() const override { return true; }
+    [[nodiscard]] bool is_negotiated_transport_type() const override { return true; }
 
     boost::asio::awaitable<void> handshake() override;
     boost::asio::awaitable<void> shutdown() override;

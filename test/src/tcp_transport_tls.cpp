@@ -619,6 +619,52 @@ TEST_CASE("tls: full-duplex traffic survives a multi-threaded pool", "[sg::net::
     server.future_get_once();
 }
 
+TEST_CASE("tls: OnSessionNegotiated fires after the handshake, before data", "[sg::net::tls]") {
+    scoped_deadline dl("tls negotiated callback deadline");
+    cert_files certs;
+
+    std::atomic_int seq{0};
+    std::atomic_int created_at{-1}, negotiated_at{-1}, data_at{-1};
+    std::atomic_int negotiated_count{0};
+    std::atomic_bool connected_in_cb{false};
+    std::binary_semaphore data_seen{0};
+
+    tcp_server server;
+    server.start(
+        {ep},
+        {.OnSessionCreated = [&](tcp_server&, tcp_server::session_id_t) { created_at = seq++; },
+         .OnSessionNegotiated =
+             [&](tcp_server& s, tcp_server::session_id_t id) {
+                 negotiated_at = seq++;
+                 ++negotiated_count;
+                 auto sess = s.session(id); // registered and running by now
+                 connected_in_cb = (sess != nullptr && sess->is_connected());
+             },
+         .OnSessionDataAvailable =
+             [&](tcp_server&, tcp_server::session_id_t, const std::byte*, size_t) {
+                 if (int expected = -1; data_at.compare_exchange_strong(expected, seq++))
+                     data_seen.release();
+             }},
+        {.make_transport = certs.server_factory()});
+
+    tcp_client client;
+    client.connect(ep, nullptr, nullptr, {}, tls_transport_factory(certs.trusting_client()));
+    REQUIRE(client.is_connected());
+
+    client.session().write("ping");
+    data_seen.acquire();
+
+    client.disconnect();
+    server.stop_async();
+    server.future_get_once();
+
+    REQUIRE(negotiated_count.load() == 1);
+    REQUIRE(connected_in_cb.load());
+    REQUIRE(created_at.load() == 0);    // created, then
+    REQUIRE(negotiated_at.load() == 1); // negotiated, then
+    REQUIRE(data_at.load() == 2);       // data
+}
+
 TEST_CASE("tls: dont_read is rejected", "[sg::net::tls]") {
     cert_files certs;
 

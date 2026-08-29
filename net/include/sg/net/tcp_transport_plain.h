@@ -9,7 +9,7 @@ class SG_NET_EXPORT tcp_transport_plain final : public tcp_transport {
   public:
     explicit tcp_transport_plain(boost::asio::ip::tcp::socket& socket) : m_socket(socket) {}
 
-    [[nodiscard]] bool is_negotiated() const override { return false; }
+    [[nodiscard]] bool is_negotiated_transport_type() const override { return false; }
 
     boost::asio::awaitable<void> handshake() override;
     boost::asio::awaitable<void> shutdown() override;

@@ -1678,3 +1678,47 @@ TEST_CASE("tcp_server: a throwing ShouldAccept costs only that connection",
 
     accepted.disconnect();
 }
+
+TEST_CASE("tcp_server: OnSessionNegotiated fires for a plain session, after created and before data",
+          "[sg::net::tcp_server]") {
+    end_point ep("0.0.0.0", PORT);
+
+    std::atomic_int seq{0};
+    std::atomic_int created_at{-1}, negotiated_at{-1}, data_at{-1};
+    std::atomic_int negotiated_count{0};
+    std::atomic_bool connected_in_cb{false};
+    std::binary_semaphore data_seen{0};
+
+    tcp_server::CallBacks cb;
+    cb.OnSessionCreated = [&](tcp_server&, tcp_server::session_id_t) { created_at = seq++; };
+    cb.OnSessionNegotiated = [&](tcp_server& s, tcp_server::session_id_t id) {
+        negotiated_at = seq++;
+        ++negotiated_count;
+        auto sess = s.session(id); // registered and running by now
+        connected_in_cb = (sess != nullptr && sess->is_connected());
+    };
+    cb.OnSessionDataAvailable = [&](tcp_server&, tcp_server::session_id_t, const std::byte*, size_t) {
+        if (int expected = -1; data_at.compare_exchange_strong(expected, seq++))
+            data_seen.release();
+    };
+
+    tcp_server server;
+    server.start({ep}, cb);
+
+    tcp_client client;
+    client.connect(ep, nullptr, nullptr); // plain: no transport factory
+    REQUIRE(client.is_connected());
+
+    client.session().write("ping");
+    data_seen.acquire();
+
+    client.disconnect();
+    server.stop_async();
+    server.future_get_once();
+
+    REQUIRE(negotiated_count.load() == 1);
+    REQUIRE(connected_in_cb.load());
+    REQUIRE(created_at.load() == 0);    // created, then
+    REQUIRE(negotiated_at.load() == 1); // negotiated, then
+    REQUIRE(data_at.load() == 2);       // data
+}

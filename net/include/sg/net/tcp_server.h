@@ -60,6 +60,7 @@ class SG_NET_EXPORT tcp_server {
      *  filter that throws rejects the connection. */
     CREATE_CALLBACK(should_accept_cb_t, bool(tcp_server&, end_point))
     CREATE_CALLBACK(session_created_cb_t, void(tcp_server&, session_id_t))
+    CREATE_CALLBACK(session_negotiated_cb_t, void(tcp_server&, session_id_t))
     CREATE_CALLBACK(session_data_available_cb_t, void(tcp_server&, session_id_t, const std::byte*, size_t))
     CREATE_CALLBACK(session_disconnected_cb_t, void(tcp_server&, session_id_t, std::exception_ptr))
 
@@ -69,6 +70,13 @@ class SG_NET_EXPORT tcp_server {
         accept_error_cb_t OnAcceptError{};
         should_accept_cb_t ShouldAccept{};
         session_created_cb_t OnSessionCreated{};
+
+        /* Fired once a session is fully up and carrying data: after a TLS session's handshake, or
+         * straight after OnSessionCreated for a plain one. Runs on the session's strand. The
+         * session is registered by now, so session(id) resolves inside it. Not fired if the
+         * handshake fails -- OnDisconnected carries the reason. */
+        session_negotiated_cb_t OnSessionNegotiated{};
+
         session_data_available_cb_t OnSessionDataAvailable{};
         session_disconnected_cb_t OnDisconnected{};
     };
@@ -182,7 +190,6 @@ class SG_NET_EXPORT tcp_server {
      * acceptor stops the others, and their resulting errors must not mask the original cause. */
     void record_error(std::exception_ptr ex);
 
-    void inform_user_of_data(session_id_t id, const std::byte* data, size_t size);
     void on_session_stopped(session_id_t id,  std::exception_ptr ex);
 
 };
