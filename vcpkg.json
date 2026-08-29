@@ -9,6 +9,7 @@
     "boost-uuid",
     "fmt",
     "libuv",
+    "openssl",
     "sdl2",
     "zstd"
   ]

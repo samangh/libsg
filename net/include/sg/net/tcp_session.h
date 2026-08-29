@@ -1,10 +1,10 @@
 #pragma once
 
 #include "net.h"
-#include "tcp_native.h"
-
 #include "sg/buffer.h"
 #include "sg/callback.h"
+#include "tcp_native.h"
+#include "tcp_transport.h"
 
 #include <boost/asio/any_io_executor.hpp>
 #include <boost/asio/awaitable.hpp>
@@ -47,10 +47,12 @@ class SG_NET_EXPORT tcp_session : public std::enable_shared_from_this<tcp_sessio
         int recv_buffer_size{0};                 // 0 = use default OS value
         int send_buffer_size{0};                 // 0 = use default OS value
 
-        /* Most bytes that may be pending before write() starts refusing data. Tested before the
-         * new message is added, so a message larger than the mark still goes through when nothing
-         * is pending. */
+        /* Maximum number bytes that may be pending in the write buffer before write() starts
+         * refusing data.
+         *
+         * For TLS connections, this is counted before encryption is applied. */
         size_t write_high_water_mark{0}; // 0 = unlimited
+
     };
 
     struct Callbacks {
@@ -68,15 +70,19 @@ class SG_NET_EXPORT tcp_session : public std::enable_shared_from_this<tcp_sessio
     typedef Callbacks::OnDisconnected on_disconnected_cb_t;
     typedef Callbacks::OnDataAvailable on_data_available_cb_t;
 
-    enum class state_t {running, stop_requested, stopping, stopped };
+    enum class state_t {running, handshaking, stop_requested, stopping, stopped };
 
+    /** @param factory builds the transport that carries the session's bytes, given the session's
+     *         own socket; see sg/net/transport.h. Empty gives plain TCP; TLS is
+     *         tls_transport_factory(). The transport is built here and lives for the session. */
     static std::shared_ptr<tcp_session> create(boost::asio::io_context& context,
                                                boost::asio::ip::tcp::socket socket,
+                                               transport_factory factory,
                                                Callbacks callbacks,
                                                options_t options);
 
     tcp_session(private_tag, boost::asio::io_context& context, boost::asio::ip::tcp::socket socket,
-                Callbacks cb, options_t options);
+                transport_factory factory, Callbacks cb, options_t options);
     ~tcp_session();
 
     void start();
@@ -97,10 +103,29 @@ class SG_NET_EXPORT tcp_session : public std::enable_shared_from_this<tcp_sessio
 
     void wait_until_stopped() const;
 
-    /** returns true while the session is running and fully operational, will return false as soon
-     * as a disconnection is requested or in progress.*/
+    /** Blocks until the session has settled either way: it is up and usable, or it has stopped.
+     *
+     *  Must not be called from a callback. */
+    void wait_until_ready() const;
+
+    /** returns true only while the session is running and can carry data, and false as soon as a
+     * disconnection is requested or in progress.
+     *
+     * A session whose transport is still negotiating is NOT connected: it has been reported through
+     * OnConnected (so callers can find it), but @c write() refuses data until the handshake lands
+     * and it reaches @c running. Use @c state() if you need to tell the phases apart. */
     [[nodiscard]] bool is_connected() const noexcept;
     [[nodiscard]] state_t state() const noexcept;
+
+    /** Whether the transport negotiates before it can carry data (TLS does, plain TCP does not).
+     *  A negotiated session is not usable -- not @c is_connected() -- until its handshake lands. */
+    [[nodiscard]] bool is_negotiated() const noexcept;
+
+    /** @brief The error that stopped the session, or @c nullptr if it stopped cleanly.
+     *
+     * The same exception OnDisconnected is handed. Useful where there is no callback to read it
+     * from -- a blocking caller that wants to know why a TLS handshake was refused, say. */
+    [[nodiscard]] std::exception_ptr last_error() const;
 
     [[nodiscard]] end_point local_endpoint() const;
     [[nodiscard]] end_point remote_endpoint() const;
@@ -136,8 +161,11 @@ class SG_NET_EXPORT tcp_session : public std::enable_shared_from_this<tcp_sessio
   private:
     boost::asio::ip::tcp::socket m_socket;
 
+    /* Carries the bytes over m_socket. Never null. Declared after it so it is destroyed first. */
+    std::unique_ptr<tcp_transport> m_transport;
+
     /* Per-session strand. The socket is not thread-safe, so the reader, writer and close handlers
-     * (which all touch m_socket) must not run concurrently. Routing all three through this strand
+     * (which all touch it) must not run concurrently. Routing all three through this strand
      * serialises them. It does NOT serialise the underlying I/O. */
     boost::asio::strand<boost::asio::ip::tcp::socket::executor_type> m_strand;
 
@@ -163,20 +191,39 @@ class SG_NET_EXPORT tcp_session : public std::enable_shared_from_this<tcp_sessio
     std::atomic<state_t> m_state{state_t::stopped};
     std::atomic_flag m_start_called{};
 
-    std::mutex m_exception_mutex;
+    mutable std::mutex m_exception_mutex;
     std::exception_ptr m_exception;
 
-    void close();
+    /* Records why the session is stopping, if it was still up. First writer wins: the original
+     * cause must not be masked by the errors its own teardown provokes. Call from a catch block. */
+    void record_error();
+
+    /* Runs a member coroutine on the session strand, holding the session alive for its duration. */
+    void spawn(boost::asio::awaitable<void> (tcp_session::*coro)());
+
+    /* Blocks until state() satisfies `done`. `caller` names the public function, for the error
+     * raised when this is called from the I/O pool. */
+    void wait_until(const char* caller, bool (*done)(state_t)) const;
+
+    /* `graceful` lets a negotiated transport sign off with the peer before the socket goes, which
+     * costs a round trip. Only the drain path wants that; an error or a forced stop does not. */
+    void close(bool graceful = false);
     void close_impl();
 
     /* Raw socket-option work. NOT thread-safe with respect to other socket access — callers must
-     * either be running on m_strand or be in a phase where no other thread can touch m_socket
-     * (e.g. start(), before the reader/writer coroutines are spawned). */
+     * either be running on m_strand or be in a phase where no other thread can touch the
+     * socket (e.g. start(), before the reader/writer coroutines are spawned). */
     void apply_keepalive_unsafe(keepalive_t);
     void apply_timeout_unsafe(unsigned timeoutMSec);
 
     boost::asio::awaitable<void> reader();
     boost::asio::awaitable<void> writer();
+
+    /* The whole life of a session whose transport negotiates: handshake, then read. A plaintext
+     * session has nothing to negotiate, so start() spawns reader() directly instead. */
+    boost::asio::awaitable<void> negotiate_and_read();
+    /* Lets the transport sign off with the peer, then hands over to close_impl(). */
+    boost::asio::awaitable<void> close_gracefully();
 };
 
 }

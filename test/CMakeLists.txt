@@ -43,6 +43,7 @@ setup_executable(
     src/tcp_client_sync.cpp
     src/tcp_native.cpp
     src/tcp_session.cpp
+    $<$<BOOL:${LIBSG_TLS}>:src/tls.cpp>
     src/string.cpp
     src/cpu.cpp
     src/rolling_contiguous_buffer.cpp

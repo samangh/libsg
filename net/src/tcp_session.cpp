@@ -2,11 +2,8 @@
 #include "sg/net/tcp_native.h"
 #include "sg/debug.h"
 
-#include <boost/asio/as_tuple.hpp>
-#include <boost/asio/cancel_after.hpp>
 #include <boost/asio/detached.hpp>
 #include <boost/asio/dispatch.hpp>
-#include <boost/asio/write.hpp>
 #include <boost/asio/co_spawn.hpp>
 
 #include <fmt/format.h>
@@ -15,18 +12,32 @@
 #include <stdexcept>
 
 namespace sg::net {
+namespace {
+
+/* The session is still up -- carrying data, or negotiating its way there -- as opposed to already
+ * tearing down. This is the window in which the cause of a teardown is worth recording. */
+constexpr bool is_alive(tcp_session::state_t state) {
+    return state == tcp_session::state_t::running || state == tcp_session::state_t::handshaking;
+}
+
+} // namespace
 
 std::shared_ptr<tcp_session> tcp_session::create(boost::asio::io_context& context,
                                                  boost::asio::ip::tcp::socket socket,
+                                                 transport_factory factory,
                                                  Callbacks callbacks, options_t options) {
 
     return std::make_shared<tcp_session>(private_tag{}, context, std::move(socket),
-                                         std::move(callbacks), options);
+                                         std::move(factory), std::move(callbacks), options);
 }
 
 tcp_session::tcp_session(private_tag, boost::asio::io_context& context,
-                         boost::asio::ip::tcp::socket socket, Callbacks cb, options_t options)
+                         boost::asio::ip::tcp::socket socket,
+                         transport_factory factory, Callbacks cb, options_t options)
 : m_socket(std::move(socket)),
+  /* Built here, now that m_socket is settled into place, so the transport can bind to it for life
+   * rather than being handed it on every call. */
+  m_transport(make_transport(factory, m_socket)),
   m_strand(boost::asio::make_strand(m_socket.get_executor())),
   m_io_executor(context.get_executor()),
   m_options(options),
@@ -37,6 +48,11 @@ tcp_session::tcp_session(private_tag, boost::asio::io_context& context,
     if (m_options.dont_read && !m_callbacks.onDataAvailable)
         SG_THROW(std::invalid_argument, "tcp_session: options_t::dont_read requires an "
                                         "OnDataAvailable callback to read the socket");
+
+    if (m_options.dont_read && m_transport->is_negotiated())
+        SG_THROW(std::invalid_argument,
+                 "tcp_session: options_t::dont_read cannot be combined with a negotiated "
+                 "transport; only the transport can decode what is on the socket");
 };
 
 /* you can be sure that by the time this is called all the callbacks are done:
@@ -53,19 +69,28 @@ void tcp_session::start() {
         SG_THROW(std::logic_error,
                  "tcp_session::start() has already been called; a session cannot be restarted");
 
+    /* A negotiated transport is not usable until it has handshaked, but a plain one can be used
+     * immediately.
+     *
+     * For plain transport, start in running immediately. This is because some old clients assume
+     * you can write() to the session as soon as OnConnected() is called */
+    const bool negotiated   = m_transport->is_negotiated();
+    const auto initialState = negotiated ? state_t::handshaking : state_t::running;
+
+    /* start in handshake state (even if the transport does not need it, for teh sake of uniformity */
     if (auto expectedState = state_t::stopped; !m_state.compare_exchange_strong(
-            expectedState, state_t::running, std::memory_order::acq_rel, std::memory_order::acquire))
+            expectedState, initialState, std::memory_order::acq_rel, std::memory_order::acquire))
         SG_THROW(std::runtime_error, "tcp_session is already running");
 
     try {
         // note: below can throw if the client has disconnected.
         // Safe to call the *_unsafe helpers directly here: the reader/writer coroutines
-        // haven't been spawned yet, so we're the only thread touching m_socket.
+        // haven't been spawned yet, so we're the only thread touching the socket.
         apply_keepalive_unsafe(m_options.keepalive);
         apply_timeout_unsafe(m_options.timeout_msec);
 
         // store local/remote endpoints, so that we don't have to faff about with strands later, as
-        // m_socket access needs to be through a strand due to thread safety
+        // socket access needs to be through a strand due to thread safety
         auto remEP = m_socket.remote_endpoint();
         auto localEP = m_socket.local_endpoint();
         m_remote_endpoint = end_point(remEP.address().to_string(), remEP.port());
@@ -76,21 +101,25 @@ void tcp_session::start() {
         if (m_options.send_buffer_size)
             sg::net::native::set_send_buffer_size(m_socket.native_handle(), m_options.send_buffer_size);
 
-        /* mark that we reached the onConnected() callback location, so that the onDisconnected() gets
-         * called later if needed */
+        /* Reported connected as soon as the raw session is set up, before any negotiation, and on
+         * both paths.
+         *
+         * This is what callers hang their bookkeeping on -- tcp_server registers the session here
+         * -- and an unregistered session is one nothing can find, stop or wait for. Leaving a
+         * negotiating session unregistered meant tcp_server's shutdown drain could not see it and
+         * stopped the io_context underneath it, taking the session with it mid-handshake.
+         *
+         * The debt is taken on at the same moment, so OnConnected and OnDisconnected are always a
+         * pair: a handshake that fails is now reported as a disconnection with that error, rather
+         * than being dropped. Anything counting one against the other stays balanced. */
         m_disconnection_callback_owed.store(true, std::memory_order::release);
         if (m_callbacks.onConnected)
             m_callbacks.onConnected.invoke(*this);
 
-        co_spawn(m_strand, [self = shared_from_this()] { return self->reader(); }, boost::asio::detached);
+        spawn(negotiated ? &tcp_session::negotiate_and_read : &tcp_session::reader);
     } catch (...) {
         /* if clean closing, do not throw error */
-        if (m_state.load(std::memory_order::acquire) == state_t::running)
-        {
-            std::lock_guard lock(m_exception_mutex);
-            if (!m_exception)
-                m_exception = std::current_exception();
-        }
+        record_error();
 
         stop_async();
 
@@ -104,14 +133,45 @@ void tcp_session::start() {
     }
 }
 
+boost::asio::awaitable<void> tcp_session::negotiate_and_read() {
+    try {
+        co_await m_transport->handshake();
+
+        /* Handshake done, so the session is `running` and writable at last. Nothing was buffered
+         * while it negotiated (write() refused it), so there is no writer to start -- just flip the
+         * state. A CAS, not a store: a close() may have landed mid-handshake and must not be undone. */
+        if (auto expected = state_t::handshaking;
+            !m_state.compare_exchange_strong(expected, state_t::running,
+                                             std::memory_order::acq_rel,
+                                             std::memory_order::acquire))
+            co_return; /* stopped underneath us; close() already owns the teardown */
+
+        m_state.notify_all();
+    } catch (...) {
+        record_error();
+        close();
+        co_return;
+    }
+
+    co_await reader();
+}
+
+boost::asio::awaitable<void> tcp_session::close_gracefully() {
+    /* Best effort by contract: shutdown() does not throw, because close_impl() has to run. */
+    co_await m_transport->shutdown();
+
+    close_impl();
+}
+
 void tcp_session::write(sg::shared_c_buffer<std::byte> msg) {
     bool need_spawn = false;
     {
         std::lock_guard lock(m_write_mutex);
 
+        /* Only a `running` session can take data: a still-negotiating one has no transport able to
+         * carry it yet, and everything else is on its way down. */
         if (m_state.load(std::memory_order::acquire) != state_t::running)
-            SG_THROW(std::runtime_error,
-                     "attempt to write to a non-operational tcp_session");
+            SG_THROW(std::runtime_error, "attempt to write to a non-operational tcp_session");
 
         /* Tested before this message is counted, so that a message bigger than the mark is never
          * unsendable. */
@@ -126,9 +186,9 @@ void tcp_session::write(sg::shared_c_buffer<std::byte> msg) {
         need_spawn = !std::exchange(m_write_scheduled, true);
     }
 
-    //co_spawin might be slow, so have it outside the lock
+    //co_spawn might be slow, so have it outside the lock
     if (need_spawn)
-        co_spawn(m_strand, [self = shared_from_this()] { return self->writer(); }, boost::asio::detached);
+        spawn(&tcp_session::writer);
 }
 
 void tcp_session::write(std::string_view msg) {
@@ -157,7 +217,7 @@ void tcp_session::apply_timeout_unsafe(unsigned timeoutMSec) {
     m_options.timeout_msec = timeoutMSec;
 }
 
-/* m_socket is not thread-safe, so any setsockopt() on its native handle must be serialised with
+/* The socket is not thread-safe, so any setsockopt() on its native handle must be serialised with
  * reader()/writer()/close_impl(). Route the work through m_strand via a std::packaged_task so
  * exceptions thrown by are captured and rethrown in the caller's thread.
  *
@@ -198,11 +258,17 @@ void tcp_session::stop_async() {
         auto expected = state_t::running;
         if (!m_state.compare_exchange_strong(expected, state_t::stop_requested,
                                              std::memory_order::acq_rel,
-                                             std::memory_order::acquire))
-            return;
+                                             std::memory_order::acquire)) {
+            /* Still negotiating: no writer and nothing buffered (write() refuses data until it is
+             * up), so nothing to drain -- close now. Any other state is already going down. */
+            if (expected != state_t::handshaking)
+                return;
 
-        // if a writer is running, it will close connection due to state_stop_requested
-        shouldClose= !m_write_scheduled;
+            shouldClose = true;
+        }
+        else
+            // if a writer is running, it will close connection due to state_stop_requested
+            shouldClose = !m_write_scheduled;
     }
 
     /* We make sure that that the close() is called when the lock is not held. This is because if
@@ -210,28 +276,45 @@ void tcp_session::stop_async() {
      * runs inline, and invokes on_disconnected_cb. If that callback accidentally calls write()
      * then you have a deadlock */
     if (shouldClose)
-        close();
+        close(true);
 }
 
 void tcp_session::stop_async_force() {
-    close();
+    /* Closes now if the session is still up, skipping any graceful sign-off. */
+    close(false);
+
+    /* If a graceful stop got to the transition first, the call above was a no-op and
+     * close_gracefully() is parked in the transport's shutdown() (up to shutdown_timeout_msec, or
+     * forever if 0). Close the socket out from under it so the shutdown fails at once and
+     * close_gracefully() falls through to close_impl() -- this escalates rather than waits. On the
+     * strand (the socket is not thread-safe); the double close with close_impl() is harmless. */
+    if (m_state.load(std::memory_order::acquire) == state_t::stopping)
+        boost::asio::dispatch(m_strand, [self = shared_from_this()] {
+            boost::system::error_code ec;
+            self->m_socket.close(ec);
+        });
 }
 
 void tcp_session::wait_until_stopped() const {
-    /* all session handlers (callbacks, reader/writer, close_impl) run on m_strand, so waiting
-     * here from inside a strand handler would block close_impl from ever running */
-    if (running_in_io_thread())
-        SG_THROW(std::logic_error,
-                 "tcp_session::wait_until_stopped() must not be called from a handler running on "
-                 "the I/O pool (e.g. a session callback); use stop_async() instead");
+    wait_until("wait_until_stopped", [](state_t s) { return s == state_t::stopped; });
+}
 
-    state_t val;
-    while ((val = m_state.load(std::memory_order::acquire)) != state_t::stopped)
-        m_state.wait(val, std::memory_order::acquire);
+void tcp_session::wait_until_ready() const {
+    wait_until("wait_until_ready",
+               [](state_t s) { return s == state_t::stopped || s == state_t::running; });
 }
 
 bool tcp_session::is_connected() const noexcept {
+    /* `handshaking` does NOT count: the session has been reported connected so callers can find
+     * it, but it cannot carry data and refuses writes until the handshake lands. */
     return m_state.load(std::memory_order::acquire) == state_t::running;
+}
+
+bool tcp_session::is_negotiated() const noexcept { return m_transport->is_negotiated(); }
+
+std::exception_ptr tcp_session::last_error() const {
+    std::lock_guard lock(m_exception_mutex);
+    return m_exception;
 }
 
 end_point tcp_session::local_endpoint() const {
@@ -242,18 +325,54 @@ end_point tcp_session::remote_endpoint() const {
     return m_remote_endpoint;
 }
 
-void tcp_session::close() {
-    // Transition to closing (from running or stop_requested). Only one caller succeeds.
+void tcp_session::record_error() {
+    if (!is_alive(m_state.load(std::memory_order::acquire)))
+        return;
+
+    std::lock_guard lock(m_exception_mutex);
+    if (!m_exception)
+        m_exception = std::current_exception();
+}
+
+void tcp_session::spawn(boost::asio::awaitable<void> (tcp_session::*coro)()) {
+    co_spawn(m_strand, [self = shared_from_this(), coro] { return (self.get()->*coro)(); },
+             boost::asio::detached);
+}
+
+void tcp_session::wait_until(const char* caller, bool (*done)(state_t)) const {
+    /* All session handlers -- callbacks, reader/writer, close_impl -- run on m_strand, so waiting
+     * from inside one would block the very handler being waited for. */
+    if (running_in_io_thread())
+        SG_THROW(std::logic_error,
+                 fmt::format("tcp_session::{}() must not be called from a handler running on the "
+                             "I/O pool (e.g. a session callback); it would block the handler it "
+                             "is waiting for",
+                             caller));
+
+    state_t val;
+    while (!done(val = m_state.load(std::memory_order::acquire)))
+        m_state.wait(val, std::memory_order::acquire);
+}
+
+void tcp_session::close(bool graceful) {
+    // Transition to closing. Only one caller succeeds.
     auto cur = m_state.load(std::memory_order::acquire);
-    while (cur == state_t::running || cur == state_t::stop_requested) {
+    while (cur == state_t::running || cur == state_t::stop_requested ||
+           cur == state_t::handshaking) {
         if (m_state.compare_exchange_weak(cur, state_t::stopping,
                                            std::memory_order::acq_rel,
                                            std::memory_order::acquire))
         {
+            /* so that wait_until_ready() does not have to sleep until close_impl() gets there */
+            m_state.notify_all();
+
             // Socket operations must be serialised with the reader/writer, so run close_impl()
             // on the session strand (same strand the reader and writer run on).
 
-            boost::asio::dispatch(m_strand, [self = shared_from_this()] { self->close_impl(); });
+            if (graceful && cur != state_t::handshaking)
+                spawn(&tcp_session::close_gracefully);
+            else
+                boost::asio::dispatch(m_strand, [self = shared_from_this()] { self->close_impl(); });
             return;
         }
     }
@@ -307,8 +426,8 @@ boost::asio::awaitable<void> tcp_session::reader() {
         auto data = std::make_unique<std::byte[]>(size);
         while (m_socket.is_open()) {
             if (m_options.dont_read) {
-                /* m_socket.is_open() only on checks whether *we* have closed our end. If the peer
-                 * has disconnected, m_socket.is_open() will remain true.
+                /* m_socket.is_open() only checks whether *we* have closed our end. If the peer
+                 * has disconnected, it will remain true.
                  *
                  * Normally, what happens is that we run async_read_some(..), which then throws
                  * boost::asio::error::eof exception and causes us to eventually call close().
@@ -326,8 +445,8 @@ boost::asio::awaitable<void> tcp_session::reader() {
                 m_callbacks.onDataAvailable.invoke(*this, nullptr, 0);
             }
             else {
-                std::size_t n = co_await m_socket.async_read_some(boost::asio::buffer(data.get(), size),
-                                                              boost::asio::use_awaitable);
+                std::size_t n =
+                    co_await m_transport->read_some(boost::asio::buffer(data.get(), size));
                 if (m_callbacks.onDataAvailable)
                     m_callbacks.onDataAvailable.invoke(*this, data.get(), n);
             }
@@ -338,12 +457,7 @@ boost::asio::awaitable<void> tcp_session::reader() {
          * We have to do this because during graceful shutdown, close() will close the socket and so
          * cause the reader to throw.
          */
-        if (m_state.load(std::memory_order::acquire) == state_t::running)
-        {
-            std::lock_guard lock(m_exception_mutex);
-            if (!m_exception)
-                m_exception = std::current_exception();
-        }
+        record_error();
     }
 
     close();
@@ -375,7 +489,7 @@ boost::asio::awaitable<void> tcp_session::writer() {
             // write(), we'll have a deadlock as write() as locks that mutex
             if (buffers.empty()) {
                 if (m_state.load(std::memory_order::acquire)!= state_t::running)
-                    close();
+                    close(true);
                 co_return;
             }
 
@@ -384,39 +498,20 @@ boost::asio::awaitable<void> tcp_session::writer() {
             for (auto& buff : buffers)
                 buffersAsio.emplace_back(buff.get(), buff.size());
 
-            // SO_SNDTIMEO only applies for blocking calls, not async. Use cancel_after to enforce
-            // the timeout.
-            if (timeoutMSec) {
-                auto result = co_await boost::asio::async_write(
-                    m_socket, buffersAsio,
-                    boost::asio::cancel_after(std::chrono::milliseconds(timeoutMSec),
-                                              boost::asio::as_tuple(boost::asio::use_awaitable)));
-
-
-                // Only check for error if we are meant to be running, as normal close can also raise the
-                // operation_aborted error
-                if (auto ec = std::get<0>(result); ec) {
-                    if (m_state.load(std::memory_order::acquire) == state_t::running)
-                        if (ec == boost::asio::error::timed_out ||
-                            ec == boost::asio::error::operation_aborted)
-                            SG_THROW(exceptions::net::time_out);
-                    throw boost::system::system_error(ec);
-                }
+            if (auto ec = co_await m_transport->write_all(buffersAsio, timeoutMSec); ec) {
+                /* Only report a timeout if we are meant to be running, as a normal close cancels
+                 * the write and also surfaces as operation_aborted. */
+                if (timeoutMSec && m_state.load(std::memory_order::acquire) == state_t::running)
+                    if (ec == boost::asio::error::timed_out ||
+                        ec == boost::asio::error::operation_aborted)
+                        SG_THROW(exceptions::net::time_out);
+                throw boost::system::system_error(ec);
             }
-            else
-                co_await boost::asio::async_write(m_socket, buffersAsio,
-                                                  boost::asio::use_awaitable);
-
         }
     } catch (...) {
         // We should end up here during graceful shutdown, as the writer waits until all messages
         // are written
-        if (m_state.load(std::memory_order::acquire) == state_t::running)
-        {
-            std::lock_guard lock(m_exception_mutex);
-            if (!m_exception)
-                m_exception = std::current_exception();
-        }
+        record_error();
     }
 
     close();

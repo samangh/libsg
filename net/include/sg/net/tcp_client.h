@@ -13,10 +13,13 @@ class SG_NET_EXPORT tcp_client {
     explicit tcp_client(std::shared_ptr<asio_io_pool> context);
     virtual ~tcp_client();
 
+    /** @param make_transport builds the transport once the socket is connected; plain TCP if
+     *         unset. See tls_transport_factory() in sg/net/tls.h for a TLS client. */
     void connect(const end_point& endpoint,
                  tcp_session::Callbacks::OnDataAvailable onReadCb,
                  tcp_session::Callbacks::OnDisconnected onDisconnect,
-                 tcp_session::options_t options={});
+                 tcp_session::options_t options={},
+                 transport_factory make_transport={});
     [[nodiscard]] bool is_connected() const;
     void disconnect();
     /** @warning the returned reference is invalidated by the next connect(), which destroys the

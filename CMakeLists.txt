@@ -11,6 +11,7 @@ set(NAMESPACE sg)
 ## Additional Options
 ##
 option(LIBSG_NET "Include networking classes/functions" ON)
+option(LIBSG_TLS "Support TLS using OpenSSL" ON)
 option(LIBSG_IMGUI "Include IMGUI stuff" ON)
 option(LIBSG_ZSTD "Include zstd stuff" ON)
 option(LIBSG_STACKTRACE "Enable boost::stacktrace support" OFF)
@@ -79,6 +80,11 @@ endif()
 
 if (NOT OWN_UV)
   find_package(libuv REQUIRED)
+endif ()
+
+# OpenSSL backs Boost.Asio's TLS support, which sg_net uses for sg/net/tls.h
+if (LIBSG_NET AND LIBSG_TLS)
+  find_package(OpenSSL REQUIRED)
 endif ()
 
 ##

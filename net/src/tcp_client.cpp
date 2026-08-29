@@ -30,7 +30,7 @@ tcp_client::~tcp_client() {
 
 void tcp_client::connect(const end_point& endpoint, tcp_session::Callbacks::OnDataAvailable onReadCb,
                          tcp_session::Callbacks::OnDisconnected onDisconnect,
-                         tcp_session::options_t options) {
+                         tcp_session::options_t options, transport_factory make_transport_cb) {
     /* The user might call connect() from the OnDisconnected callback, but that's a bad idea as it
      * can cause a deadlock */
     if (m_context && m_context->running_in_pool_thread())
@@ -90,12 +90,38 @@ void tcp_client::connect(const end_point& endpoint, tcp_session::Callbacks::OnDa
     fut.get();
 
     m_session = tcp_session::create(m_context->context(), std::move(socket),
+                                    std::move(make_transport_cb),
                                     tcp_session::Callbacks{.onConnected     = nullptr,
                                                            .onDisconnected  = onDisconnect,
                                                            .onDataAvailable = onReadCb},
                                     options);
+
+    /* Only a negotiated session has a handshake worth waiting on below; the session built the
+     * transport, so ask it. */
+    const bool negotiated = m_session->is_negotiated();
+
     try {
         m_session->start();
+
+        /* A negotiated session is only usable once it has handshaked, and start() returns before
+         * that. Wait it out, so a peer we could not authenticate is reported from here, where a
+         * caller of a blocking connect() is looking for it.
+         *
+         * Only when there is something to negotiate: doing this unconditionally would turn a
+         * plaintext peer that hangs up right after accepting into a throw from connect(). */
+        if (negotiated) {
+            m_session->wait_until_ready();
+
+            if (!m_session->is_connected()) {
+                m_session->wait_until_stopped();
+                auto ex = m_session->last_error();
+                m_session.reset();
+
+                if (ex)
+                    std::rethrow_exception(ex);
+                SG_THROW(exceptions::net::other, "the handshake did not complete");
+            }
+        }
     } catch (...) {
         /* start() has already stopped the session; don't leave a dead session exposed via
          * session() / is_connected() */

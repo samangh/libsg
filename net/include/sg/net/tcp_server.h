@@ -80,6 +80,10 @@ class SG_NET_EXPORT tcp_server {
 
         //options that will apply to child sockets
         tcp_session::options_t session_options{};
+
+        /* Builds the transport for each accepted connection; plain TCP if unset. See
+         * tls_transport_factory() in sg/net/tls.h for a TLS server. */
+        transport_factory make_transport{};
     };
 
     ~tcp_server();
