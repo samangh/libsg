@@ -27,7 +27,18 @@ namespace sg::net {
  */
 class SG_NET_EXPORT tcp_transport {
   public:
+    tcp_transport() = default;
     virtual ~tcp_transport() = default;
+
+    /* __declspec(dllexport) on a class forces its implicit copy/move assignment to be defined.
+     * But some ome transports (e.g. TLS due the ssl::stream<socket&>)don't support it.
+     *
+     * Make the base non-copyable and non-movable so derived transports' assignment operators are
+     * deleted rather than defined. */
+    tcp_transport(const tcp_transport&) = delete;
+    tcp_transport& operator=(const tcp_transport&) = delete;
+    tcp_transport(tcp_transport&&) = delete;
+    tcp_transport& operator=(tcp_transport&&) = delete;
 
     /** Whether this transport negotiates with the peer before it can carry data.
      *
