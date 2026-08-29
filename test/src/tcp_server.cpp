@@ -1681,7 +1681,7 @@ TEST_CASE("tcp_server: a throwing ShouldAccept costs only that connection",
 
 TEST_CASE("tcp_server: OnSessionNegotiated fires for a plain session, after created and before data",
           "[sg::net::tcp_server]") {
-    end_point ep("0.0.0.0", PORT);
+    end_point ep("127.0.0.1", PORT);
 
     std::atomic_int seq{0};
     std::atomic_int created_at{-1}, negotiated_at{-1}, data_at{-1};
