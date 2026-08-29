@@ -13,6 +13,7 @@
 #include <mutex>
 #include <optional>
 #include <sg/net/tcp_client.h>
+#include <sg/net/tcp_client_sync.h>
 #include <sg/net/tcp_server.h>
 #include <sg/net/tls.h>
 #include <sg/net/tcp_transport_tls.h>
@@ -674,6 +675,30 @@ TEST_CASE("tls: OnSessionNegotiated fires after the handshake, before data", "[s
     REQUIRE(created_at.load() == 0);    // created, then
     REQUIRE(negotiated_at.load() == 1); // negotiated, then
     REQUIRE(data_at.load() == 2);       // data
+}
+
+TEST_CASE("tls: tcp_client_sync round trips over TLS", "[sg::net::tls]") {
+    scoped_deadline dl("tls sync round trip deadline");
+    cert_files certs;
+
+    tcp_server server;
+    server.start(
+        {ep},
+        {.OnSessionDataAvailable =
+             [&](tcp_server& s, tcp_server::session_id_t id, const std::byte* data, size_t size) {
+                 s.write(id, data, size); // echo
+             }},
+        {.make_transport = certs.server_factory()});
+
+    /* The synchronous client speaks TLS purely by being handed the transport factory. */
+    tcp_client_sync client;
+    client.connect(ep, {}, tls_transport_factory(certs.trusting_client()));
+    REQUIRE(client.is_connected());
+
+    client.write("ping\n");
+    REQUIRE(client.read_until("\n") == "ping\n");
+
+    client.disconnect();
 }
 
 TEST_CASE("tls: dont_read is rejected", "[sg::net::tls]") {

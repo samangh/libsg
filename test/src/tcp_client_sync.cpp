@@ -309,11 +309,10 @@ TEST_CASE("tcp_client_sync: check timeout()", "[sg::net::tcp_client_sync]") {
     client.set_timeout(100);
     REQUIRE_THROWS(client.read_until("\n"));
 }
-TEST_CASE("tcp_client_sync: is_connected() goes false once a failure is observed",
+TEST_CASE("tcp_client_sync: is_connected() goes false when the peer departs",
           "[sg::net::tcp_client_sync]") {
-    /* With no reader of its own this class cannot notice a departed peer without doing I/O, so
-     * is_connected() stays true until a read or write observes the failure -- at which point any
-     * non-timeout error closes the socket and it reports false. */
+    /* The wrapped session runs its own reader, so a departed peer is noticed on its own: unlike a
+     * pure pull client, is_connected() goes false without needing a read to observe the failure. */
     tcp_server server;
     server.start({ep}, {});
 
@@ -322,22 +321,18 @@ TEST_CASE("tcp_client_sync: is_connected() goes false once a failure is observed
     REQUIRE(client.is_connected());
 
     /* connect() returns as soon as the handshake completes, which can be before the server has
-     * accepted and registered the session -- disconnect_all() would then disconnect nothing, the
-     * peer would stay alive, and the read below would time out rather than see EOF */
+     * accepted and registered the session -- disconnect_all() would then disconnect nothing. */
     for (int i = 0; i < 400 && server.clients_count() != 1; ++i)
         std::this_thread::sleep_for(std::chrono::milliseconds(5));
     REQUIRE(server.clients_count() == 1);
 
     server.disconnect_all();
-    for (int i = 0; i < 400 && server.clients_count() != 0; ++i)
+
+    /* the reader observes the EOF on its own, so is_connected() flips to false without a read */
+    for (int i = 0; i < 400 && client.is_connected(); ++i)
         std::this_thread::sleep_for(std::chrono::milliseconds(5));
-    REQUIRE(server.clients_count() == 0);
-
-    // the peer has gone, but nothing has touched the socket yet
-    REQUIRE(client.is_connected());
-
-    /* net::other, not net::time_out: a timeout deliberately keeps the connection, so asserting the
-     * type stops this passing for the wrong reason if the peer is somehow still alive */
-    REQUIRE_THROWS_AS(client.read_some(), sg::exceptions::net::other);
     REQUIRE_FALSE(client.is_connected());
+
+    /* net::other, not net::time_out: the peer really went, this is not a timeout */
+    REQUIRE_THROWS_AS(client.read_some(), sg::exceptions::net::other);
 }

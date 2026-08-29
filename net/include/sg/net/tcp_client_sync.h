@@ -1,22 +1,36 @@
 #pragma once
 
-#include "asio_io_pool.h"
 #include "net.h"
+#include "tcp_client.h"
 #include "tcp_session.h"
-#include <sg/buffer.h>
-#include <sg/debug.h>
+#include "tcp_transport.h"
 
-#include <boost/asio/ip/tcp.hpp>
+#include <sg/buffer.h>
 #include <sg/export/net.h>
+
+#include <condition_variable>
+#include <cstddef>
+#include <exception>
+#include <mutex>
+#include <string>
+#include <string_view>
 
 namespace sg::net {
 
+/** A blocking TCP client.
+ *
+ * Note that this client will spawn a thread.
+ *
+ * This is a wrapper around tcp_client(). The last commit that had a different implemenation of
+ * this is a0c2fad.
+ */
 class SG_NET_EXPORT tcp_client_sync {
   public:
     tcp_client_sync();
     virtual ~tcp_client_sync();
 
-    void connect(const end_point& endpoint, tcp_session::options_t options = {});
+    void connect(const end_point& endpoint, tcp_session::options_t options = {},
+                 transport_factory make_transport = {});
     void disconnect() noexcept;
 
     [[nodiscard]] bool is_connected() const;
@@ -29,7 +43,6 @@ class SG_NET_EXPORT tcp_client_sync {
      *
      * @throws sg::exceptions::net::time_out if the bytes don't all arrive before the timeout
      *         expires, sg::exceptions::net::other on other networking errors.
-     * @param size number of bytes to return
      */
     [[nodiscard]] std::string read(size_t size);
 
@@ -59,21 +72,28 @@ class SG_NET_EXPORT tcp_client_sync {
     void set_keepalive(keepalive_t);
     void set_timeout(unsigned timeoutMSec = 5000);
   private:
-    boost::asio::io_context m_context;
-    boost::asio::ip::tcp::socket m_socket;
+    /* Guards the received-data buffer and the disconnect state */
+    mutable std::mutex m_mutex;
+    std::condition_variable m_cv;
 
-    /* holds data that has been read from the socket but not yet returned to the caller: bytes
-     * read past a delimiter, and bytes that arrived before a read timed out */
     std::string m_read_buffer;
+    unsigned m_timeout_msec{5000};
 
-    /* temp buffer, placed here so that we don't continuously re-create this */
-    std::array<char, 64*1024> m_read_some_buf;
+    bool m_disconnected{false};
+    std::exception_ptr m_error;   // why the session stopped, if not cleanly
 
-    tcp_session::options_t m_options{};
+    /* Declared last so it is destroyed first: the session (and thus its callbacks) is torn down
+     * before the state above goes away. */
+    tcp_client m_client;
 
-    /* Throws for the error code of a failed read. A timed out read keeps the connection, as
-     * whatever did arrive is buffered and can be returned by a later read. */
-    void throw_on_read_error(const boost::system::error_code& ec);
+    void on_data(const std::byte* data, size_t size);
+    void on_disconnected(std::exception_ptr ex);
+
+    [[noreturn]] void throw_disconnect_error();
+
+    /* Waits until a predicate returns true. Uses lock/conditional-variable */
+    template <typename Ready>
+    void wait_for(std::unique_lock<std::mutex>& lock, Ready ready);
 };
 
-}
+} // namespace sg::net
