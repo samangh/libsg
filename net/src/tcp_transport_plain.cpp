@@ -9,7 +9,7 @@ namespace sg::net {
 
 boost::asio::awaitable<void> tcp_transport_plain::handshake() { co_return; }
 
-boost::asio::awaitable<void> tcp_transport_plain::shutdown() { co_return; }
+boost::asio::awaitable<void> tcp_transport_plain::shutdown() noexcept { co_return; }
 
 boost::asio::awaitable<std::size_t> tcp_transport_plain::read_some(boost::asio::mutable_buffer buffer) {
     co_return co_await m_socket.async_read_some(buffer, boost::asio::use_awaitable);

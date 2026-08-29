@@ -64,7 +64,7 @@ class SG_NET_EXPORT tcp_transport {
     /** Tells the peer the stream ended on purpose.
      *
      *  Best effort and never throws: it runs during teardown, which cannot be allowed to fail. */
-    virtual boost::asio::awaitable<void> shutdown() = 0;
+    virtual boost::asio::awaitable<void> shutdown() noexcept = 0;
 };
 
 /** Builds transport for a connection, given the socket it will carry.

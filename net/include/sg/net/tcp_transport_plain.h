@@ -12,7 +12,7 @@ class SG_NET_EXPORT tcp_transport_plain final : public tcp_transport {
     [[nodiscard]] bool is_negotiated_transport_type() const override { return false; }
 
     boost::asio::awaitable<void> handshake() override;
-    boost::asio::awaitable<void> shutdown() override;
+    boost::asio::awaitable<void> shutdown() noexcept override;
     boost::asio::awaitable<std::size_t> read_some(boost::asio::mutable_buffer buffer) override;
     boost::asio::awaitable<boost::system::error_code>
     write_all(const std::vector<boost::asio::const_buffer>& buffers, unsigned timeout_msec) override;

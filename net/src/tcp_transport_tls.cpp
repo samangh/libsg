@@ -75,7 +75,7 @@ tls_transport::write_all(const std::vector<boost::asio::const_buffer>& buffers,
         timeout_msec);
 }
 
-boost::asio::awaitable<void> tls_transport::shutdown() {
+boost::asio::awaitable<void> tls_transport::shutdown() noexcept {
     /* Send close_notify, so the peer can tell this was a real end of stream and not someone
      * cutting the connection.
      *
