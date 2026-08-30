@@ -6,6 +6,8 @@
 #include <sg/net/tcp_native.h>
 #include <sg/net/tcp_server.h>
 
+#include "helpers.h"
+
 #include <chrono>
 #include <thread>
 
@@ -83,6 +85,17 @@ TEST_CASE("tcp_client: check that you can't connect twice", "[sg::net::tcp_clien
 }
 
 TEST_CASE("tcp_client: check multiple reconnections", "[sg::net::tcp_client]") {
+    /* This normally finishes in a few tens of milliseconds. It has been seen to hang once in CI
+     * (gcc/static/release), consuming the whole 20-minute job budget in silence; it could not be
+     * reproduced locally in ~745 runs (multi-core, single-core-pinned, and under CPU load), so the
+     * trigger is not yet pinned down. The watchdog bounds any recurrence: it aborts with a message
+     * (and a core) in seconds instead of hanging the runner, turning a silent stall into a signal.
+     *
+     * See https://github.com/samangh/libsg/issues/42
+     */
+    scoped_deadline watchdog("DEADLOCK: tcp_client multiple-reconnections test stalled",
+                             std::chrono::seconds(120));
+
     const int noClients              = 5;
     const int noConnectiosnPerClient = 100;
 
