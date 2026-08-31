@@ -24,3 +24,15 @@
 #   - https://github.com/google/sanitizers/issues/1104
 race:boost::asio::detail::ref_count_down
 race:boost::asio::execution::detail::shared_target_executor::~shared_target_executor
+
+# ---------------------------------------------------------------------------
+# Boost.Asio kqueue per-descriptor mutex: false positive (macOS/BSD only)
+# ---------------------------------------------------------------------------
+# Suppress warning about a benign race in ASIO.
+#
+# There are a few github issues about this, for example
+# https://github.com/chriskohlhoff/asio/issues/1657
+#
+# Fixed upstream in asio 1.38.0 == Boost 1.90.0, by commit 107fb367 ("Fix
+# thread sanitizer issue in kqueue_reactor").
+race:boost::asio::detail::kqueue_reactor::descriptor_state::descriptor_state
