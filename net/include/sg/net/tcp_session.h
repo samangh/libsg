@@ -8,6 +8,7 @@
 
 #include <boost/asio/any_io_executor.hpp>
 #include <boost/asio/awaitable.hpp>
+#include <boost/asio/executor_work_guard.hpp>
 #include <boost/asio/io_context.hpp>
 #include <boost/asio/ip/tcp.hpp>
 #include <boost/asio/strand.hpp>
@@ -182,6 +183,13 @@ class SG_NET_EXPORT tcp_session : public std::enable_shared_from_this<tcp_sessio
     boost::asio::strand<boost::asio::ip::tcp::socket::executor_type> m_strand;
 
     boost::asio::io_context::executor_type m_io_executor;
+
+    /* Keeps the io_context alive for as long as this session has not finished.
+     *
+     * Otherwise the reader() coroutine is the only thing keeping the context alive, and it ends
+     * when the peer goes away, so a close() racing that could post its teardown into a dead
+     * context. */
+    boost::asio::executor_work_guard<boost::asio::io_context::executor_type> m_work_guard;
 
     options_t m_options;
     Callbacks m_callbacks;

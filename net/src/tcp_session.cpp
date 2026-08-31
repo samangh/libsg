@@ -40,6 +40,7 @@ tcp_session::tcp_session(private_tag, boost::asio::io_context& context,
   m_transport(make_transport(factory, m_socket)),
   m_strand(boost::asio::make_strand(m_socket.get_executor())),
   m_io_executor(context.get_executor()),
+  m_work_guard(context.get_executor()),
   m_options(options),
   m_callbacks(std::move(cb)) {
     // the caller must hand us the context the socket was created on
@@ -419,6 +420,10 @@ void tcp_session::close_impl() {
 
     m_state.store(state_t::stopped, std::memory_order::release);
     m_state.notify_all();
+
+    /* The session is finished, so the io_context is free to drain on our account. Released last:
+     * everything above still had to be able to run on the context. */
+    m_work_guard.reset();
 }
 
 boost::asio::awaitable<void> tcp_session::reader() {
