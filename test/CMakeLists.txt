@@ -81,6 +81,8 @@ setup_executable(
   LINK_OPTIONS_PRIVATE
     $<$<COMPILE_LANG_AND_ID:CXX,GNU>:--coverage>
 
+  TSAN_SUPPRESSION_FILE
+    tsan.supp
   COMPILE_DEFINITIONS_PRIVATE
     $<$<BOOL:${BENCHMARK}>:BENCHMARK>
 )
@@ -92,26 +94,25 @@ setup_executable(
 include(CTest)
 include(${catch2_SOURCE_DIR}/extras/Catch.cmake)
 
-# Under a ThreadSanitizer build, point TSan at our suppressions file
 # Note:
-#  - this only sets the correct environment var when using "ctest"
-#  - we also enable all hidden tests
 #
-# --allow-running-no-tests:
-#   catch_discover_tests() gives every test case a ctest test of its own, running it with
-#   a filter that selects just that case. A case that ends in SKIP() is therefore a whole
-#   Catch2 run in which every test was skipped, and Catch2 treats that as an error (exit
-#   code 4) unless this flag is given
+#  - `allow-running-no-tests` option: catch_discover_tests() gives every
+#     test case a ctest test of its own, running it with a filter that
+#     selects just that case. A case that ends in SKIP() is therefore a
+#     whole Catch2 run in which every test was skipped, and Catch2
+#     treats that as an error (exit code 4) unless this flag is given
+#
+#  - we now set suppressions using the `TSAN_SUPPRESSION_FILE` option,
+#    but I've left the TEST_EXECUTOR section for future demonstation.
 catch_discover_tests(sg_test
   TEST_SPEC "*"
-  EXTRA_ARGS "--skip-benchmarks" "--allow-running-no-tests"
-  PROPERTIES
-    TEST_EXECUTOR ${CMAKE_COMMAND} -E env "TSAN_OPTIONS=suppressions=${CMAKE_CURRENT_SOURCE_DIR}/tsan.supp")
+  EXTRA_ARGS "--skip-benchmarks" "--allow-running-no-tests")
+  # PROPERTIES
+  #   TEST_EXECUTOR ${CMAKE_COMMAND} -E env "TSAN_OPTIONS=suppressions=${CMAKE_CURRENT_SOURCE_DIR}/tsan.supp"
 
 if(COVERAGE)
-  # Not: we also run hidden tests in coverage!
+  # Note: we also run hidden tests in coverage!
   coverage_add_exe(sg_test
     EXCLUDE ${CMAKE_CURRENT_SOURCE_DIR}/*
-    ARGUMENTS "--skip-benchmarks *"
-    ENVIRONMENT "TSAN_OPTIONS=suppressions=${CMAKE_CURRENT_SOURCE_DIR}/tsan.supp")
+    ARGUMENTS "--skip-benchmarks *")
 endif()
