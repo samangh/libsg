@@ -2,6 +2,7 @@
 
 #include <imgui_internal.h>
 
+#include <cmath>
 #include <numbers>
 
 #include "karla-font.h"
