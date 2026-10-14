@@ -45,6 +45,11 @@ std::vector<sg::net::interface_details> interfaces()
                                  ? sg::net::address_family::IPv4
                                  : sg::net::address_family::IPv6;
 
+            /* uv_ip_name() omits the scope id, without which a link-local address is ambiguous */
+            if (int_det.family == sg::net::address_family::IPv6)
+                if (auto scope = uv_interface[i].address.address6.sin6_scope_id; scope != 0)
+                    int_det.address += "%" + std::to_string(scope);
+
             vec.push_back(int_det);
         }
 
