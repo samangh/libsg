@@ -62,11 +62,11 @@ setup_library(
   LINK_PUBLIC
     fmt::fmt
     Boost::boost
-    $<$<BOOL:${LINUX}>:pfs>
     $<$<BOOL:${LIBSG_STACKTRACE}>:Boost::${SG_BOOST_STACKTRACE_COMP}>
   LINK_PRIVATE
     libuv::libuv
     Threads::Threads
+    $<$<BOOL:${LINUX}>:pfs> #For sg::process functions
     $<$<BOOL:${WIN32}>:Winmm>
     $<$<BOOL:${WIN32}>:Kernel32.lib> #For sg::process functions
     $<$<BOOL:${LIBSG_ZSTD}>:$<IF:$<BOOL:${USE_STATIC_LIBS}>,zstd::libzstd_static,zstd::libzstd_shared>>
