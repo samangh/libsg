@@ -7,8 +7,9 @@
 # libsg
 
 A modern C++20 utility library bundling networking, concurrency primitives,
-buffers, file I/O, compression, and assorted helpers behind a single
-`SG::common` CMake target. Tested on Linux, macOS, Windows (MSVC), and MSYS2.
+buffers, file I/O, compression, and assorted helpers. It provides three CMake
+targets: `sg::common`, `sg::net` and `sg::imgui`. Tested on Linux, macOS,
+Windows (MSVC), and MSYS2.
 
 ## Requirements
 
@@ -44,7 +45,7 @@ CPMAddPackage(
     "LIBSG_IMGUI OFF")
 
 add_executable(main main.cpp)
-target_link_libraries(main PRIVATE SG::common)
+target_link_libraries(main PRIVATE sg::common sg::net)
 ```
 
 ## Build options
@@ -53,9 +54,11 @@ Project specific options `CMakeLists.txt`:
 
 | Option                    | Default | Description                                                                  |
 |---------------------------|---------|------------------------------------------------------------------------------|
-| `LIBSG_IMGUI`             | `ON`    | Build the optional ImGui helpers (`SG::imgui`).                              |
+| `LIBSG_NET`               | `ON`    | Build the networking library (`sg::net`).                                    |
+| `LIBSG_TLS`               | `ON`    | Enable TLS support in `sg::net`, using OpenSSL.                              |
+| `LIBSG_IMGUI`             | `ON`    | Build the optional ImGui helpers (`sg::imgui`).                              |
 | `LIBSG_IMGUI_DIRECTX`     | `ON`    | Enable the DirectX ImGui backend (Windows only).                             |
-| `LIBSG_IMGUI_OPENGL`      | `ON`    | Enable the OpenGL ImGui backend (default off on Windows).                    |
+| `LIBSG_IMGUI_OPENGL`      | `ON`    | Enable the OpenGL ImGui backend (`OFF` by default on Windows).               |
 | `LIBSG_ZSTD`              | `ON`    | Build the zstd compression helpers.                                          |
 | `LIBSG_STACKTRACE`        | `OFF`   | Attach stack traces to `SG_THROW` exceptions.                                |
 | `LIBSG_EXCEPTION_DETAILS` | `OFF`   | Attach function/file/line info to `SG_THROW` exceptions.                     |
@@ -171,7 +174,7 @@ boundary without exposing the deleter type.
 ### TCP echo server
 
 ```cpp
-#include <sg/tcp_server.h>
+#include <sg/net/tcp_server.h>
 
 using namespace sg::net;
 
@@ -202,7 +205,7 @@ cb.OnDisconnected = [](tcp_server&, auto id, std::exception_ptr ex) {
 ### Synchronous TCP client
 
 ```cpp
-#include <sg/tcp_client_sync.h>
+#include <sg/net/tcp_client_sync.h>
 using namespace sg::net;
 
 tcp_client_sync client;
