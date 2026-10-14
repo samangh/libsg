@@ -83,7 +83,7 @@ jobs:
 
       - name: Upload coverage reports to Codecov
         uses: codecov/codecov-action@v5
-        if: ${{ (matrix.compiler.cc == 'clang') && (matrix.type.label == 'shared')  }}
+        if: ${{ matrix.config.coverage }}
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           files: ${{github.workspace}}/build/coverage/coverage_sg_test.txt
