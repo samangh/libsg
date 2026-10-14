@@ -21,47 +21,45 @@ std::vector<sg::net::interface_details> interfaces()
     /* get interfaces and populate buffer */
     THROW_ON_LIBUV_ERROR(uv_interface_addresses(&uv_interface, &count));
 
+    /* frees the libuv buffer on every exit path */
+    struct guard_t {
+        uv_interface_address_t *ptr;
+        int count;
+        ~guard_t() { uv_free_interface_addresses(ptr, count); }
+    } const guard{uv_interface, count};
+
     /* buffer for storing data, the longest possible is an IPv6 so use that */
     char ip_str[INET6_ADDRSTRLEN];
 
-    try {
-        std::vector<sg::net::interface_details> vec;
-        for (int i = 0; i < count; ++i) {
-            sg::net::interface_details int_det;
-            std::copy(std::begin(uv_interface[i].phys_addr), std::end(uv_interface[i].phys_addr),
-                      std::begin(int_det.physical_address));
+    std::vector<sg::net::interface_details> vec;
+    for (int i = 0; i < count; ++i) {
+        sg::net::interface_details int_det;
+        std::copy(std::begin(uv_interface[i].phys_addr), std::end(uv_interface[i].phys_addr),
+                  std::begin(int_det.physical_address));
 
-            THROW_ON_LIBUV_ERROR(
-                uv_ip_name((struct sockaddr *)&uv_interface[i].address, ip_str, sizeof(ip_str)));
-            int_det.address = ip_str;
+        THROW_ON_LIBUV_ERROR(
+            uv_ip_name((struct sockaddr *)&uv_interface[i].address, ip_str, sizeof(ip_str)));
+        int_det.address = ip_str;
 
-            THROW_ON_LIBUV_ERROR(
-                uv_ip_name((struct sockaddr *)&uv_interface[i].netmask, ip_str, sizeof(ip_str)));
-            int_det.netmask = ip_str;
+        THROW_ON_LIBUV_ERROR(
+            uv_ip_name((struct sockaddr *)&uv_interface[i].netmask, ip_str, sizeof(ip_str)));
+        int_det.netmask = ip_str;
 
-            int_det.is_internal = uv_interface[i].is_internal;
+        int_det.is_internal = uv_interface[i].is_internal;
 
-            int_det.family = (uv_interface[i].address.address4.sin_family == AF_INET)
-                                 ? sg::net::address_family::IPv4
-                                 : sg::net::address_family::IPv6;
+        int_det.family = (uv_interface[i].address.address4.sin_family == AF_INET)
+                             ? sg::net::address_family::IPv4
+                             : sg::net::address_family::IPv6;
 
-            /* uv_ip_name() omits the scope id, without which a link-local address is ambiguous */
-            if (int_det.family == sg::net::address_family::IPv6)
-                if (auto scope = uv_interface[i].address.address6.sin6_scope_id; scope != 0)
-                    int_det.address += "%" + std::to_string(scope);
+        /* uv_ip_name() omits the scope id, without which a link-local address is ambiguous */
+        if (int_det.family == sg::net::address_family::IPv6)
+            if (auto scope = uv_interface[i].address.address6.sin6_scope_id; scope != 0)
+                int_det.address += "%" + std::to_string(scope);
 
-            vec.push_back(int_det);
-        }
-
-        uv_free_interface_addresses(uv_interface, count);
-        return vec;
-    } catch (...) {
-        /* ensure buffer is free even if there is an error */
-        uv_free_interface_addresses(uv_interface, count);
-        throw;
+        vec.push_back(int_det);
     }
 
+    return vec;
 }
-
 
 } // namespace sg::net
