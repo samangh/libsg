@@ -407,3 +407,34 @@ TEST_CASE("sg::state_machine: check same state can't be added twice", "[sg::stat
     sm.add_state(state::add_to_counter1);
     REQUIRE_THROWS(sm.add_state(state::add_to_counter1));
 }
+TEST_CASE("sg::state_machine: check callbacks can't be added for an unknown state",
+          "[sg::state_machine]") {
+    enum class state {
+        add_to_counter1,
+        never_added,
+    };
+
+    auto sm = sg::state_machine<state>();
+    sm.add_state(state::add_to_counter1);
+
+    REQUIRE_THROWS(sm.add_tick_callback(state::never_added, [](auto&, auto) {}));
+    REQUIRE_THROWS(sm.add_entry_callback(state::never_added, [](auto&, auto) {}));
+    REQUIRE_THROWS(sm.add_exit_callback(state::never_added, [](auto&, auto) {}));
+}
+
+TEST_CASE("sg::state_machine: check callbacks can't be added whilst running",
+          "[sg::state_machine]") {
+    enum class state {
+        add_to_counter1,
+    };
+
+    auto sm = sg::state_machine<state>();
+    sm.add_state(state::add_to_counter1);
+    sm.start(state::add_to_counter1, std::chrono::milliseconds(1));
+
+    REQUIRE_THROWS(sm.add_tick_callback(state::add_to_counter1, [](auto&, auto) {}));
+    REQUIRE_THROWS(sm.add_entry_callback(state::add_to_counter1, [](auto&, auto) {}));
+    REQUIRE_THROWS(sm.add_exit_callback(state::add_to_counter1, [](auto&, auto) {}));
+
+    sm.stop();
+}

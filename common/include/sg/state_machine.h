@@ -52,15 +52,15 @@ class state_machine {
     }
 
     void add_tick_callback(TState state, state_tick_callback_t cb) {
-        m_states[state].m_cbs_ticks.push_back(cb);
+        config_of(state).m_cbs_ticks.push_back(cb);
     }
 
     void add_entry_callback(TState state, state_change_callback_t cb) {
-        m_states[state].m_entry_cb.push_back(cb);
+        config_of(state).m_entry_cb.push_back(cb);
     }
 
     void add_exit_callback(TState state, state_change_callback_t cb) {
-        m_states[state].m_exit_cb.push_back(cb);
+        config_of(state).m_exit_cb.push_back(cb);
     }
 
     void set_machine_started_cb(started_stopped_callback_t on_started) {
@@ -142,6 +142,20 @@ class state_machine {
     bool just_started;
     std::map<TState, state_config> m_states;
     std::unique_ptr<sg::worker> m_worker;
+
+    /* Returns the configuration of an existing state, for modification.
+     *
+     * m_states is not protected by a mutex, and the worker thread iterates the
+     * callback vectors, so they can only be modified whilst stopped. */
+    state_config& config_of(TState state) {
+        if (is_running())
+            SG_THROW(std::runtime_error, "can't add callbacks whilst running");
+
+        if (!m_states.contains(state))
+            SG_THROW(std::runtime_error, "this state has not been added to the state machine");
+
+        return m_states.at(state);
+    }
 
     void tick_action(sg::worker*) {
         /* cache some values, so that we don't hit the atomics so many times! */
