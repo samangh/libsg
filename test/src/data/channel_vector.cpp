@@ -82,7 +82,7 @@ TEST_CASE("sg::data: vector_channel: check operator==", "[sg::data]") {
     REQUIRE(chA != chB);
 }
 
-TEST_CASE("sg::data: vector_channel: check append(IContigiousChannel<InT>&)", "[sg::data]") {
+TEST_CASE("sg::data: vector_channel: check append(IContiguousChannel<InT>&)", "[sg::data]") {
     sg::data::vector_channel<int> chA {0,1,2,3};
     sg::data::vector_channel<int> chB {4,5,6,7};
 

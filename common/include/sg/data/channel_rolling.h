@@ -5,7 +5,7 @@
 
 namespace sg::data {
 
-template <typename T> class channel_rolling : public IContigiousChannel<T> {
+template <typename T> class channel_rolling : public IContiguousChannel<T> {
     sg::rolling_contiguous_buffer<T> m_data;
 
     std::string m_name;

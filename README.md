@@ -253,7 +253,7 @@ writer.stop();
 
 std::vector<std::byte> input = /* ... */;
 auto compressed = sg::compression::zstd::compress(
-    input, sg::compression::zstd::default_compresssion_level(), /*threads*/ 1);
+    input, sg::compression::zstd::default_compression_level(), /*threads*/ 1);
 auto roundtrip  = sg::compression::zstd::decompress<std::byte>(
     compressed.get(), compressed.size());
 ```

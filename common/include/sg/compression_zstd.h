@@ -9,7 +9,7 @@ namespace sg::compression::zstd {
 
 /************************ Helper functions *************************/
 
-[[nodiscard]] SG_COMMON_EXPORT int default_compresssion_level();
+[[nodiscard]] SG_COMMON_EXPORT int default_compression_level();
 
 [[nodiscard]] SG_COMMON_EXPORT size_t get_uncompressed_size(const void* src, size_t src_size);
 [[nodiscard]] SG_COMMON_EXPORT size_t get_max_compressed_size(size_t src_size);

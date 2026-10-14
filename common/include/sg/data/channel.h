@@ -42,7 +42,7 @@ class IChannelBase {
     };
 };
 
-class IContigiousChannelBase: public IChannelBase {
+class IContiguousChannelBase: public IChannelBase {
   public:
     virtual void from_bytes(const void*, size_t byteCount)=0;
 
@@ -51,7 +51,7 @@ class IContigiousChannelBase: public IChannelBase {
     [[nodiscard]] virtual void *get() noexcept = 0;
 };
 
-template <typename T> class IContigiousChannel : public virtual IContigiousChannelBase {
+template <typename T> class IContiguousChannel : public virtual IContiguousChannelBase {
   public:
     typedef T                                value_type;
     typedef std::size_t                      size_type;
@@ -60,7 +60,7 @@ template <typename T> class IContigiousChannel : public virtual IContigiousChann
     typedef T&                               reference;
     typedef const T&                         const_reference;
 
-    IContigiousChannel() =default;
+    IContiguousChannel() =default;
 
     /* Return the stored pointer.*/
     [[nodiscard]] const void* get() const noexcept override {return data();}
@@ -97,6 +97,12 @@ template <typename T> class IContigiousChannel : public virtual IContigiousChann
     [[nodiscard]] const_reference at(size_t i) const{ return (*this)[i];}
 };
 
-typedef sg::data::IContigiousChannel<double> t_chan_double;
+using IContigiousChannelBase [[deprecated("misspelled, use IContiguousChannelBase")]] =
+    IContiguousChannelBase;
+template <typename T>
+using IContigiousChannel [[deprecated("misspelled, use IContiguousChannel")]] =
+    IContiguousChannel<T>;
+
+typedef sg::data::IContiguousChannel<double> t_chan_double;
 
 } // namespace sg::data

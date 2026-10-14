@@ -4,9 +4,9 @@
 
 namespace sg::data {
 
-template <typename T> class vector_channel : public IContigiousChannel<T> {
+template <typename T> class vector_channel : public IContiguousChannel<T> {
     std::vector<T> m_data;
-    typedef IContigiousChannel<T> parent;
+    typedef IContiguousChannel<T> parent;
 
     std::string m_name;
     std::vector<std::string> m_hierarchy;

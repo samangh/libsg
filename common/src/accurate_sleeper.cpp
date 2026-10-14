@@ -25,17 +25,17 @@
 sg::AccurateSleeper::AccurateSleeper() {}
 sg::AccurateSleeper::~AccurateSleeper() { disable_realtime(); }
 
-void sg::AccurateSleeper::set_interval(uint64_t interval_ns, Tragedy strategy) {
-    if (strategy == Tragedy::Auto) {
+void sg::AccurateSleeper::set_interval(uint64_t interval_ns, Strategy strategy) {
+    if (strategy == Strategy::Auto) {
         /* Use tight loop if period is 1 ms or less */
         if (interval_ns > 1000000)
-            m_strategy = Tragedy::Sleep;
+            m_strategy = Strategy::Sleep;
         else
-            m_strategy = Tragedy::Spin;
+            m_strategy = Strategy::Spin;
     } else
         m_strategy = strategy;
 
-    if (m_strategy == Tragedy::Sleep)
+    if (m_strategy == Strategy::Sleep)
         disable_realtime();
     else
         enable_realtime();
@@ -111,7 +111,7 @@ void sg::AccurateSleeper::sleep_remove_lag(uint64_t remove_ns) {
     uint64_t interval = m_interval_ns - remove_ns;
 
     /* Tight loop */
-    if (m_strategy == Tragedy::Spin) {
+    if (m_strategy == Strategy::Spin) {
         auto s = std::chrono::high_resolution_clock::now();
         while ((std::chrono::high_resolution_clock::now() - s) < std::chrono::nanoseconds(interval))
             ;

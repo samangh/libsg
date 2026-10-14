@@ -84,7 +84,7 @@ unique_c_buffer<std::byte> decompress(const void *src, size_t srcSize) {
 
 /************************ Helper functions *************************/
 
-int default_compresssion_level() { return ZSTD_defaultCLevel(); }
+int default_compression_level() { return ZSTD_defaultCLevel(); }
 
 size_t get_uncompressed_size(const void* src, size_t src_size) {
     /* Get size of original uncompressed data */

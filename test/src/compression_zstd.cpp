@@ -55,7 +55,7 @@ TEST_CASE("zstd: check compress(...) and decompress(...) family", "[sg::compress
 
 TEST_CASE("zstd: check utility functions", "[sg::compression::zstd]") {
     auto bounds_clevel = sg::compression::zstd::bounds_compression_level();
-    auto default_level = sg::compression::zstd::default_compresssion_level();
+    auto default_level = sg::compression::zstd::default_compression_level();
     REQUIRE(default_level >= bounds_clevel.first);
     REQUIRE(default_level <=  bounds_clevel.second);
 
