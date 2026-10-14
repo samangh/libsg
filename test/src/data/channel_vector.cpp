@@ -80,6 +80,42 @@ TEST_CASE("sg::data: vector_channel: check operator==", "[sg::data]") {
     sg::data::vector_channel<int> chB;
 
     REQUIRE(chA != chB);
+    REQUIRE(chA == chA);
+}
+
+TEST_CASE("sg::data: vector_channel: check operator== uses the name and hierarchy",
+          "[sg::data]") {
+    sg::data::vector_channel<int> chA("a");
+    sg::data::vector_channel<int> chB("b");
+
+    REQUIRE(chA != chB);
+    REQUIRE(chA < chB);
+    REQUIRE_FALSE(chB < chA);
+
+    /* hierarchy outranks the name, and an empty hierarchy sorts first */
+    chA.hierarchy({"top"});
+    REQUIRE(chA != chB);
+    REQUIRE(chB < chA);
+}
+
+TEST_CASE("sg::data: vector_channel: check operator< is consistent with operator==",
+          "[sg::data]") {
+    /* equal channels must be unordered, and unequal ones strictly ordered one
+     * way round -- otherwise this is not a strict weak ordering */
+    auto check = [](const sg::data::IChannelBase& a, const sg::data::IChannelBase& b) {
+        if (a == b)
+            REQUIRE((!(a < b) && !(b < a)));
+        else
+            REQUIRE((a < b) != (b < a));
+    };
+
+    sg::data::vector_channel<int> chA("a");
+    sg::data::vector_channel<int> chB("a");
+    chB.hierarchy({"top"});
+
+    check(chA, chA);
+    check(chA, chB);
+    check(chB, chA);
 }
 
 TEST_CASE("sg::data: vector_channel: check append(IContiguousChannel<InT>&)", "[sg::data]") {

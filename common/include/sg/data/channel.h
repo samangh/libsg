@@ -5,6 +5,8 @@
 #include <sg/uuid.h>
 
 #include <string>
+#include <tuple>
+#include <vector>
 
 namespace sg::data {
 
@@ -28,18 +30,24 @@ class IChannelBase {
     [[nodiscard]] virtual sg::uuids::uuid uuid() const noexcept { return m_uuid; };
 
     [[nodiscard]] virtual bool operator==(const IChannelBase& o) const {
-        return o.uuid() == uuid();
+        /* TODO
+         *
+         * Not sure if it's a good idea since:
+         *  - two channels with the same UUID count as different if their name or folder path differ
+         *  - operator== is now more expensive than before
+         */
+        return identity() == o.identity();
     }
 
     [[nodiscard]] virtual bool operator<(const IChannelBase& o) const {
-        if (hierarchy() != o.hierarchy())
-            return (hierarchy() < o.hierarchy());
-
-        if (name() != o.name())
-            return (name() < o.name());
-
-        return (uuid() < o.uuid());
+        return identity() < o.identity();
     };
+
+  private:
+    typedef std::tuple<std::vector<std::string>, std::string, sg::uuids::uuid> identity_t;
+
+    /* The tuple that gives a channel its identity. Used in operator< and operator== */
+    [[nodiscard]] identity_t identity() const { return {hierarchy(), name(), uuid()}; }
 };
 
 class IContiguousChannelBase: public IChannelBase {
