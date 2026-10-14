@@ -1,3 +1,5 @@
+#pragma once
+
 #include <sg/export/common.h>
 
 #include <boost/uuid/uuid.hpp>
