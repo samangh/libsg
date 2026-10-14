@@ -41,10 +41,9 @@ std::vector<sg::net::interface_details> interfaces()
 
             int_det.is_internal = uv_interface[i].is_internal;
 
-            if (int_det.address.find(".") != int_det.address.npos)
-                int_det.family = sg::net::address_family::IPv4;
-            else
-                int_det.family = sg::net::address_family::IPv6;
+            int_det.family = (uv_interface[i].address.address4.sin_family == AF_INET)
+                                 ? sg::net::address_family::IPv4
+                                 : sg::net::address_family::IPv6;
 
             vec.push_back(int_det);
         }
