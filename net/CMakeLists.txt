@@ -55,8 +55,3 @@ setup_library(
   VISIBILITY_HIDDEN
   # STATIC
 )
-
-set_property(TARGET sg_common PROPERTY OUTPUT_NAME sg)
-
-# For legacy users
-add_library(SG::common ALIAS sg_common)
