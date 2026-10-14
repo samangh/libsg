@@ -132,7 +132,10 @@ template <typename T> class unique_opaque_buffer : public buffer_base<T> {
         : buffer_base<T>(buff),
           buffer(std::unique_ptr<IBuffer<T>>(buff)) {}
 
+    /* Releases ownership of the base buffer. This object must not be used
+     * afterwards. */
     IBuffer<T>* release() noexcept {
+        this->ptr = nullptr;
         return buffer.release();
     }
 };
@@ -307,16 +310,20 @@ template <typename T> shared_buffer<T, deleter_free<T>> make_shared_c_buffer(siz
 
 /* Allocates memory and creates an opaque_buffer */
 template <typename T> unique_opaque_buffer<T> make_unique_opaque_buffer(size_t length) {
-    /* The base buffer MUST be in the heap. */
-    auto base = new unique_buffer<T>(new T[length], length);
-    return unique_opaque_buffer<T>(base);
+    /* The base buffer MUST be in the heap. It is allocated before the array so
+     * that neither allocation leaks if the other one throws. */
+    auto base = std::make_unique<unique_buffer<T>>();
+    base->reset(new T[length], length);
+    return unique_opaque_buffer<T>(base.release());
 }
 
 /* Allocates memory and creates an opaque_buffer */
 template <typename T> shared_opaque_buffer<T> make_shared_opaque_buffer(size_t length) {
-    /* The base buffer MUST be in the heap. */
-    auto base = new shared_buffer<T>(new T[length], length);
-    return shared_opaque_buffer<T>(base);
+    /* The base buffer MUST be in the heap. It is allocated before the array so
+     * that neither allocation leaks if the other one throws. */
+    auto base = std::make_unique<shared_buffer<T>>();
+    base->reset(new T[length], length);
+    return shared_opaque_buffer<T>(base.release());
 }
 
 } // namespace sg
