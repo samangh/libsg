@@ -32,6 +32,7 @@ setup_executable(
     src/data/channel_vector.cpp
     src/data/channel_rolling.cpp
     src/bounds.cpp
+    src/buffer.cpp
     src/tcp_server.cpp
     # tcp_server_transient_accept_failure doesn't play well with USanitizer due to the fd-exhaustion that it tests
     $<$<NOT:$<BOOL:${SANITIZE_UNDEFINED}>>:src/tcp_server_transient_accept_failure.cpp>

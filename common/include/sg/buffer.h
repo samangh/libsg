@@ -263,7 +263,12 @@ class shared_buffer : public IBuffer<T> {
     [[nodiscard]] size_t size() const noexcept override { return length; }
 
     void reset(T *_ptr, size_t _length) noexcept override {
-        ptr.reset(_ptr);
+        /* note: std::shared_ptr::reset(ptr) would install the default array
+         * deleter, as the deleter is only remembered by the control block */
+        if (_ptr)
+            ptr.reset(_ptr, deleter());
+        else
+            ptr.reset();
         this->length = _length;
     }
     void reset() noexcept override { reset(nullptr, 0); }
