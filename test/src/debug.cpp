@@ -17,18 +17,6 @@ void test_throw_details(int a) {
     SG_THROW_DETAILS(std::runtime_error, "msg");
 }
 
-void test_catch(int a) {
-    std::ignore = a;
-    SG_CATCH_RETHROW(throw std::invalid_argument("hello from saman"));
-}
-
-TEST_CASE("sg::common check SG_CATCH_RETHROW(..) macro") {
-#if defined(LIBSG_STACKTRACE) || defined(LIBSG_EXCEPTION_DETAILS)
-    REQUIRE_THROWS_AS(test_catch(2), std::runtime_error);
-#endif
-    REQUIRE_THROWS_WITH(test_catch(2), Catch::Matchers::ContainsSubstring("hello from saman"));
-}
-
 TEST_CASE("sg::common check SG_THROW_...(..) macro") {
     /* SG THROW */
     REQUIRE_THROWS_AS(test_throw(2), std::runtime_error);

@@ -48,18 +48,6 @@ namespace sg {
     #define SG_THROW(type, ...) throw type(__VA_ARGS__)
 #endif
 
-#if defined(LIBSG_STACKTRACE) || defined(LIBSG_EXCEPTION_DETAILS)
-    #define SG_CATCH_RETHROW(func)                                                                 \
-        do {                                                                                       \
-            try {                                                                                  \
-                (func);                                                                            \
-            } catch (const std::exception& exc) { SG_THROW(std::runtime_error, exc.what()); }      \
-        } while (0);
-#else
-    #define SG_CATCH_RETHROW(func)                                                                 \
-        do { (func); } while (0);
-#endif
-
 /// Returns the type of the passed object as a string.
 ///
 /// Use decltype() on the input variable. As an example,
