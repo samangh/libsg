@@ -14,8 +14,7 @@ option(LIBSG_NET "Include networking classes/functions" ON)
 option(LIBSG_TLS "Support TLS using OpenSSL" ON)
 option(LIBSG_IMGUI "Include IMGUI stuff" ON)
 option(LIBSG_ZSTD "Include zstd stuff" ON)
-option(LIBSG_STACKTRACE "Enable boost::stacktrace support" OFF)
-option(LIBSG_EXCEPTION_DETAILS "Show function name, etc. when exception is thrown with SG_THROW" OFF)
+option(LIBSG_STACKTRACE "Allow sg::debug::exception_trace_mode::stacktrace, using boost::stacktrace" OFF)
 
 # If not top-level project, disable test and documentation by default
 if(NOT PROJECT_IS_TOP_LEVEL)

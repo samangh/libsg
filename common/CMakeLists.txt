@@ -38,6 +38,7 @@ setup_library(
   SOURCES_PRIVATE
     src/memory.cpp
     src/accurate_sleeper.cpp
+    src/debug.cpp
     src/background_timer.cpp
     src/cpu.cpp
     src/file_writer.cpp
@@ -81,7 +82,6 @@ setup_library(
 
   COMPILE_DEFINITIONS_PUBLIC
     $<$<BOOL:${LIBSG_STACKTRACE}>:LIBSG_STACKTRACE>
-    $<$<BOOL:${LIBSG_EXCEPTION_DETAILS}>:LIBSG_EXCEPTION_DETAILS>
 
     $<$<AND:$<BOOL:${LIBSG_STACKTRACE}>,$<BOOL:${APPLE}>>:BOOST_STACKTRACE_GNU_SOURCE_NOT_REQUIRED>
     # FMT_HEADER_ONLY

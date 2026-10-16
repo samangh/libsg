@@ -60,8 +60,7 @@ Project specific options `CMakeLists.txt`:
 | `LIBSG_IMGUI_DIRECTX`     | `ON`    | Enable the DirectX ImGui backend (Windows only).                             |
 | `LIBSG_IMGUI_OPENGL`      | `ON`    | Enable the OpenGL ImGui backend (`OFF` by default on Windows).               |
 | `LIBSG_ZSTD`              | `ON`    | Build the zstd compression helpers.                                          |
-| `LIBSG_STACKTRACE`        | `OFF`   | Attach stack traces to `SG_THROW` exceptions.                                |
-| `LIBSG_EXCEPTION_DETAILS` | `OFF`   | Attach function/file/line info to `SG_THROW` exceptions.                     |
+| `LIBSG_STACKTRACE`        | `OFF`   | Allow `sg::debug::exception_trace_mode::stacktrace` (needs Boost.Stacktrace). |
 | `LIBSG_BUILD_TESTING`     | `ON`    | Build the Catch2 test suite (off when a libsg is included as a sub-project). |
 | `LIBSG_BUILD_DOCS`        | `OFF`   | Generate Doxygen docs (only honoured as a sub-project).                      |
 

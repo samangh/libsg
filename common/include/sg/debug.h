@@ -1,52 +1,44 @@
 #pragma once
 
-#include <fmt/format.h>
-#include <string_view>
+#include <sg/export/common.h>
+
+#include <iosfwd>
+#include <memory>
 #include <source_location>
+#include <string_view>
 
-#ifdef LIBSG_STACKTRACE
-    #include <boost/stacktrace.hpp>
-#endif
+namespace sg::debug {
 
-namespace sg {
+/** Ordered (so that @c none < @c details).
+ *
+ * Note that stacktrace needs LIBSG_STACKTRACE, and is clamped to @c details without it. */
+enum class exception_trace_mode { none, details, stacktrace };
 
-/* note: SG_THROW_STACKTRACE and SG_THROW_DETAILS macros assume that you can construct an exception
- * with only a single argument that represents teh exception message */
+SG_COMMON_EXPORT void set_trace_mode(exception_trace_mode mode) noexcept;
+[[nodiscard]] SG_COMMON_EXPORT exception_trace_mode trace_mode() noexcept;
 
-#if defined(LIBSG_STACKTRACE)
-    /**
-     * Throws an exception, with a stacktrace.
-     */
-    #define SG_THROW_STACKTRACE(type, ...)                                                         \
-        do {                                                                                       \
-            const type ex{__VA_ARGS__};                                                            \
-            auto location = std::source_location::current();                                       \
-            throw type(fmt::format("{}\nat `{}` in {}({}:{}), with stacktrace:\n{}", ex.what(),    \
-                                   location.function_name(), location.file_name(),                 \
-                                   location.line(), location.column(),                             \
-                                   to_string(boost::stacktrace::stacktrace())));                   \
-        } while (0);
-#endif
+/* Takes shared ownership of the stream. Defaults to std::cerr; nullptr discards. */
+SG_COMMON_EXPORT void set_trace_stream(std::shared_ptr<std::ostream> stream);
+[[nodiscard]] SG_COMMON_EXPORT std::shared_ptr<std::ostream> trace_stream();
+
+namespace detail {
+SG_COMMON_EXPORT void trace_throw(const std::source_location& location) noexcept;
+} // namespace detail
+
+} // namespace sg::debug
 
 /**
- * Throws an exception, including the function name, file path and line number/column in the
- * message.
+ * Throws an exception, tracing it first; see sg::debug::set_trace_mode().
+ *
+ * The exception is left alone, so any constructor can be used.
  */
-#define SG_THROW_DETAILS(type, ...)                                                                \
+#define SG_THROW(type, ...)                                                                        \
     do {                                                                                           \
-        const type ex{__VA_ARGS__};                                                                \
-        auto location = std::source_location::current();                                           \
-        throw type(fmt::format("{}, at `{}` in {}({}:{})", ex.what(), location.function_name(),    \
-                               location.file_name(), location.line(), location.column()));         \
-    } while (0);
+        sg::debug::detail::trace_throw(std::source_location::current());                           \
+        throw type(__VA_ARGS__);                                                                   \
+    } while (0)
 
-#if defined(LIBSG_STACKTRACE)
-    #define SG_THROW(type, ...) SG_THROW_STACKTRACE(type __VA_OPT__(,) __VA_ARGS__)
-#elif defined(LIBSG_EXCEPTION_DETAILS)
-    #define SG_THROW(type, ...) SG_THROW_DETAILS(type __VA_OPT__(,) __VA_ARGS__)
-#else
-    #define SG_THROW(type, ...) throw type(__VA_ARGS__)
-#endif
+namespace sg {
 
 /// Returns the type of the passed object as a string.
 ///
