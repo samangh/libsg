@@ -1,7 +1,7 @@
 #include "sg/file_writer.h"
 #include "sg/debug.h"
 
-#include <fmt/core.h>
+#include <fmt/format.h>
 
 #include <cstring>
 #include <filesystem>
