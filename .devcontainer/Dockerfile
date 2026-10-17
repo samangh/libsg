@@ -5,7 +5,7 @@ ARG DEBIAN_FRONTEND=noninteractive
 RUN apt-get update
 RUN apt-get install -y --no-install-recommends \
       build-essential clang llvm lld gdb cmake pkg-config \
-      binutils git ca-certificates curl gh \
+      binutils git ca-certificates curl gh unzip \
       libboost1.88-all-dev libfmt-dev libuv1-dev libzstd-dev \
       doxygen graphviz gh \
       sudo less procps ripgrep
