@@ -10,7 +10,7 @@
 #include <backends/imgui_impl_win32.h>
 
 #include <d3d12.h>
-#include <dxgi1_4.h>
+#include <dxgi1_5.h>
 #include <tchar.h>
 
 #ifdef _DEBUG
@@ -92,6 +92,7 @@ static ID3D12Fence*                 g_fence = nullptr;
 static HANDLE                       g_fenceEvent = nullptr;
 static UINT64                       g_fenceLastSignaledValue = 0;
 static IDXGISwapChain3*             g_pSwapChain = nullptr;
+static bool                         g_SwapChainTearingSupport = false;
 static bool                         g_SwapChainOccluded = false;
 static HANDLE                       g_hSwapChainWaitableObject = nullptr;
 static ID3D12Resource*              g_mainRenderTargetResource[APP_NUM_BACK_BUFFERS] = {};
@@ -102,15 +103,15 @@ bool CreateDeviceD3D(HWND hWnd);
 void CleanupDeviceD3D();
 void CreateRenderTarget();
 void CleanupRenderTarget();
-void WaitForLastSubmittedFrame();
-FrameContext* WaitForNextFrameResources();
+void WaitForPendingOperations();
+FrameContext* WaitForNextFrameContext();
 LRESULT WINAPI WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
 
 // Helper functions
 bool CreateDeviceD3D(HWND hWnd)
 {
     // Setup swap chain
-	// This is a basic setup. Optimally could handle fullscreen mode differently. See #8979 for suggestions.
+    // This is a basic setup. Optimally could handle fullscreen mode differently. See #8979 for suggestions.
     DXGI_SWAP_CHAIN_DESC1 sd;
     {
         ZeroMemory(&sd, sizeof(sd));
@@ -128,19 +129,19 @@ bool CreateDeviceD3D(HWND hWnd)
         sd.Stereo = FALSE;
     }
 
-       // [DEBUG] Enable debug interface
+    // [DEBUG] Enable debug interface
 #ifdef DX12_ENABLE_DEBUG_LAYER
     ID3D12Debug* pdx12Debug = nullptr;
     if (SUCCEEDED(D3D12GetDebugInterface(IID_PPV_ARGS(&pdx12Debug))))
         pdx12Debug->EnableDebugLayer();
 #endif
 
-           // Create device
+    // Create device
     D3D_FEATURE_LEVEL featureLevel = D3D_FEATURE_LEVEL_11_0;
     if (D3D12CreateDevice(nullptr, featureLevel, IID_PPV_ARGS(&g_pd3dDevice)) != S_OK)
         return false;
 
-       // [DEBUG] Setup debug interface to break on any warnings/errors
+    // [DEBUG] Setup debug interface to break on any warnings/errors
 #ifdef DX12_ENABLE_DEBUG_LAYER
     if (pdx12Debug != nullptr)
     {
@@ -216,14 +217,24 @@ bool CreateDeviceD3D(HWND hWnd)
         return false;
 
     {
-        IDXGIFactory4* dxgiFactory = nullptr;
+        IDXGIFactory5* dxgiFactory = nullptr;
         IDXGISwapChain1* swapChain1 = nullptr;
         if (CreateDXGIFactory1(IID_PPV_ARGS(&dxgiFactory)) != S_OK)
             return false;
+
+        BOOL allow_tearing = FALSE;
+        dxgiFactory->CheckFeatureSupport(DXGI_FEATURE_PRESENT_ALLOW_TEARING, &allow_tearing, sizeof(allow_tearing));
+        g_SwapChainTearingSupport = (allow_tearing == TRUE);
+        if (g_SwapChainTearingSupport)
+            sd.Flags |= DXGI_SWAP_CHAIN_FLAG_ALLOW_TEARING;
+
         if (dxgiFactory->CreateSwapChainForHwnd(g_pd3dCommandQueue, hWnd, &sd, nullptr, nullptr, &swapChain1) != S_OK)
             return false;
         if (swapChain1->QueryInterface(IID_PPV_ARGS(&g_pSwapChain)) != S_OK)
             return false;
+        if (g_SwapChainTearingSupport)
+            dxgiFactory->MakeWindowAssociation(hWnd, DXGI_MWA_NO_ALT_ENTER);
+
         swapChain1->Release();
         dxgiFactory->Release();
         g_pSwapChain->SetMaximumFrameLatency(APP_NUM_BACK_BUFFERS);
@@ -272,49 +283,33 @@ void CreateRenderTarget()
 
 void CleanupRenderTarget()
 {
-    WaitForLastSubmittedFrame();
+    WaitForPendingOperations();
 
     for (UINT i = 0; i < APP_NUM_BACK_BUFFERS; i++)
         if (g_mainRenderTargetResource[i]) { g_mainRenderTargetResource[i]->Release(); g_mainRenderTargetResource[i] = nullptr; }
 }
 
-void WaitForLastSubmittedFrame()
+void WaitForPendingOperations()
 {
-    FrameContext* frameCtx = &g_frameContext[g_frameIndex % APP_NUM_FRAMES_IN_FLIGHT];
+    g_pd3dCommandQueue->Signal(g_fence, ++g_fenceLastSignaledValue);
 
-    UINT64 fenceValue = frameCtx->FenceValue;
-    if (fenceValue == 0)
-        return; // No fence was signaled
-
-    frameCtx->FenceValue = 0;
-    if (g_fence->GetCompletedValue() >= fenceValue)
-        return;
-
-    g_fence->SetEventOnCompletion(fenceValue, g_fenceEvent);
-    WaitForSingleObject(g_fenceEvent, INFINITE);
+    g_fence->SetEventOnCompletion(g_fenceLastSignaledValue, g_fenceEvent);
+    ::WaitForSingleObject(g_fenceEvent, INFINITE);
 }
 
-FrameContext* WaitForNextFrameResources()
+FrameContext* WaitForNextFrameContext()
 {
-    UINT nextFrameIndex = g_frameIndex + 1;
-    g_frameIndex = nextFrameIndex;
-
-    HANDLE waitableObjects[] = { g_hSwapChainWaitableObject, nullptr };
-    DWORD numWaitableObjects = 1;
-
-    FrameContext* frameCtx = &g_frameContext[nextFrameIndex % APP_NUM_FRAMES_IN_FLIGHT];
-    UINT64 fenceValue = frameCtx->FenceValue;
-    if (fenceValue != 0) // means no fence was signaled
+    FrameContext* frame_context = &g_frameContext[g_frameIndex % APP_NUM_FRAMES_IN_FLIGHT];
+    if (g_fence->GetCompletedValue() < frame_context->FenceValue)
     {
-        frameCtx->FenceValue = 0;
-        g_fence->SetEventOnCompletion(fenceValue, g_fenceEvent);
-        waitableObjects[1] = g_fenceEvent;
-        numWaitableObjects = 2;
+        g_fence->SetEventOnCompletion(frame_context->FenceValue, g_fenceEvent);
+        HANDLE waitableObjects[] = { g_hSwapChainWaitableObject, g_fenceEvent };
+        ::WaitForMultipleObjects(2, waitableObjects, TRUE, INFINITE);
     }
+    else
+        ::WaitForSingleObject(g_hSwapChainWaitableObject, INFINITE);
 
-    WaitForMultipleObjects(numWaitableObjects, waitableObjects, TRUE, INFINITE);
-
-    return frameCtx;
+    return frame_context;
 }
 
 // Forward declare message handler from imgui_impl_win32.cpp
@@ -335,9 +330,10 @@ LRESULT WINAPI WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
     case WM_SIZE:
         if (g_pd3dDevice != nullptr && wParam != SIZE_MINIMIZED)
         {
-            WaitForLastSubmittedFrame();
             CleanupRenderTarget();
-            HRESULT result = g_pSwapChain->ResizeBuffers(0, (UINT)LOWORD(lParam), (UINT)HIWORD(lParam), DXGI_FORMAT_UNKNOWN, DXGI_SWAP_CHAIN_FLAG_FRAME_LATENCY_WAITABLE_OBJECT);
+            DXGI_SWAP_CHAIN_DESC1 desc = {};
+            g_pSwapChain->GetDesc1(&desc);
+            HRESULT result = g_pSwapChain->ResizeBuffers(0, (UINT)LOWORD(lParam), (UINT)HIWORD(lParam), desc.Format, desc.Flags);
             IM_ASSERT(SUCCEEDED(result) && "Failed to resize swapchain.");
             CreateRenderTarget();
         }
@@ -423,8 +419,12 @@ void ImGuiWrapper_Win32_DirectX12::start(const std::string &title)
     /******************/
 
     // Setup Dear ImGui style
+    ImGuiStyle& style = ImGui::GetStyle();
     ImGui::StyleColorsDark();
     //ImGui::StyleColorsLight();
+    //style.FontSizeBase = 16.0f;           // Default to 13.0f when unspecified, which allows crisp legacy font for non-4K screens.
+    style.FrameRounding = 3.0f;
+    style.GrabRounding = 3.0f;
 
     /******************
      * ADDED BY SAMAN *
@@ -433,7 +433,6 @@ void ImGuiWrapper_Win32_DirectX12::start(const std::string &title)
     /****************/
 
     // Setup scaling
-    ImGuiStyle& style = ImGui::GetStyle();
     // style.ScaleAllSizes(main_scale);        // Bake a fixed style scale. (until we have a solution for dynamic style scaling, changing this requires resetting Style + calling this again)
     // style.FontScaleDpi = main_scale;        // Set initial font scale. (in docking branch: using io.ConfigDpiScaleFonts=true automatically overrides this for every window depending on the current monitor)
     // io.ConfigDpiScaleFonts = true;          // [Experimental] Automatically overwrite style.FontScaleDpi in Begin() when Monitor DPI changes. This will scale fonts but _NOT_ scale sizes/padding for now.
@@ -467,13 +466,12 @@ void ImGuiWrapper_Win32_DirectX12::start(const std::string &title)
 
     // Load Fonts
     // - If fonts are not explicitly loaded, Dear ImGui will select an embedded font: either AddFontDefaultVector() or AddFontDefaultBitmap().
-    //   This selection is based on (style.FontSizeBase * style.FontScaleMain * style.FontScaleDpi) reaching a small threshold.
+    //   This selection is based on (style.FontSizeBase * style.FontScaleMain * style.FontScaleDpi) reaching a threshold.
     // - You can load multiple fonts and use ImGui::PushFont()/PopFont() to select them.
     // - If a file cannot be loaded, AddFont functions will return a nullptr. Please handle those errors in your code (e.g. use an assertion, display an error and quit).
     // - Read 'docs/FONTS.md' for more instructions and details.
     // - Use '#define IMGUI_ENABLE_FREETYPE' in your imconfig file to use FreeType for higher quality font rendering.
     // - Remember that in C/C++ if you want to include a backslash \ in a string literal you need to write a double backslash \\ !
-    //style.FontSizeBase = 20.0f;
     //io.Fonts->AddFontDefaultVector();
     //io.Fonts->AddFontDefaultBitmap();
     //io.Fonts->AddFontFromFileTTF("c:\\Windows\\Fonts\\segoeui.ttf");
@@ -533,7 +531,7 @@ void ImGuiWrapper_Win32_DirectX12::start(const std::string &title)
         // Rendering
         ImGui::Render();
 
-        FrameContext* frameCtx = WaitForNextFrameResources();
+        FrameContext* frameCtx = WaitForNextFrameContext();
         UINT backBufferIdx = g_pSwapChain->GetCurrentBackBufferIndex();
         frameCtx->CommandAllocator->Reset();
 
@@ -567,18 +565,17 @@ void ImGuiWrapper_Win32_DirectX12::start(const std::string &title)
             ImGui::RenderPlatformWindowsDefault();
         }
 
+        g_pd3dCommandQueue->Signal(g_fence, ++g_fenceLastSignaledValue);
+        frameCtx->FenceValue = g_fenceLastSignaledValue;
+
         // Present
         HRESULT hr = g_pSwapChain->Present(1, 0);   // Present with vsync
-        //HRESULT hr = g_pSwapChain->Present(0, 0); // Present without vsync
+        //HRESULT hr = g_pSwapChain->Present(0, g_SwapChainTearingSupport ? DXGI_PRESENT_ALLOW_TEARING : 0); // Present without vsync
         g_SwapChainOccluded = (hr == DXGI_STATUS_OCCLUDED);
-
-        UINT64 fenceValue = g_fenceLastSignaledValue + 1;
-        g_pd3dCommandQueue->Signal(g_fence, fenceValue);
-        g_fenceLastSignaledValue = fenceValue;
-        frameCtx->FenceValue = fenceValue;
+        g_frameIndex++;
     }
 
-    WaitForLastSubmittedFrame();
+    WaitForPendingOperations();
 
     /******************
      * ADDED BY SAMAN *
