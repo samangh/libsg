@@ -73,10 +73,10 @@ class SG_COMMON_EXPORT worker final {
     void request_stop_after_iterations(size_t iteration_count);
 
     /**
-     * @brief wait_for_stop blocks until the thread has stopped.
+     * @brief wait_for_stop blocks until the work has finished/stopped.
      *        Note: this does not initiate a stop request, you have to do that separately.
      */
-    void wait_for_stop();
+    void wait_for_stop() const;
 
     bool is_running() const;
     bool stop_requested() const noexcept;
@@ -149,8 +149,8 @@ class SG_COMMON_EXPORT worker final {
     /* protects all access to m_thread
      *
      * not: the worker thread must never lock this mutex! Otherwise, we could end up in a deadlock
-     * if another thread has called .wait_for_stop() */
-    mutable std::mutex m_join_mutex;
+     * if another thread has called .join_thread() */
+    std::mutex m_join_mutex;
     std::thread m_thread;
 
     /* id of the running worker thread, kept separate from m_thread so it can be read without
@@ -171,6 +171,10 @@ class SG_COMMON_EXPORT worker final {
     void action(std::promise<void> start_promise);
     void wait_until_next_tick(std::chrono::nanoseconds duration);
     void set_result_future(std::shared_future<void> fut);
+
+    /* Reaps the finished thread. Separate from (and stricter than) wait_for_stop(): only start()
+     * and the destructor may take m_thread away from under the previous run. */
+    void join_thread();
 };
 
 } // namespace sg

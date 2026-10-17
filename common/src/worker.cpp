@@ -29,7 +29,7 @@ worker::~worker() {
     }
 
     request_stop();
-    wait_for_stop();
+    join_thread();
 }
 
 void worker::start(size_t stopAtIteration) {
@@ -39,7 +39,7 @@ void worker::start(size_t stopAtIteration) {
             SG_THROW(std::runtime_error, "this worker is already running");
 
     /* if the thread has finished executing code,but has not been joined yet */
-    wait_for_stop();
+    join_thread();
 
     try {
         std::promise<void> start_promise;
@@ -100,20 +100,24 @@ void worker::request_stop_after_iterations(size_t iteration_count){
     notify();
 }
 
-void worker::wait_for_stop() {
+void worker::wait_for_stop() const {
     if (m_thread_id.load(std::memory_order::acquire) == std::this_thread::get_id())
-        SG_THROW(std::logic_error,
-                 "can't wait for notifiable_background_worker to stop from within itself");
+        SG_THROW(std::logic_error, "can't wait for worker to stop from within itself");
 
-    /* not: the worker thread must not block on this mutex! otherwise, we'll hae a deadlock if
-     * another thread calls wait_for_stop() */
+    if (const auto fut = future(); fut.valid())
+        fut.wait();
+}
+
+void worker::join_thread() {
+    /* refuses a call from the worker thread, and leaves nothing for the join to wait for */
+    wait_for_stop();
+
+    /* note: the worker thread must not block on this mutex! otherwise, we'll have a deadlock if
+     * another thread calls join_thread() */
     std::lock_guard lock(m_join_mutex);
 
-    /* called from different thread */
-    if (m_thread.joinable()) {
+    if (m_thread.joinable())
         m_thread.join();
-        m_thread_id.store({}, std::memory_order::release);
-    }
 }
 
 bool worker::is_running() const {
@@ -138,6 +142,14 @@ void worker::correct_for_task_delay(bool val) {
 void worker::action(std::promise<void> start_promise) {
     /* needed for wait_for_stop() */
     m_thread_id.store(std::this_thread::get_id(), std::memory_order::release);
+
+    /* cleared here rather than after the join, because thread ids are recycled: a stale one left
+     * behind by a finished-but-unjoined thread would make wait_for_stop() refuse an unrelated
+     * caller that happened to inherit it */
+    struct clear_id {
+        worker* self;
+        ~clear_id() { self->m_thread_id.store({}, std::memory_order::release); }
+    } const clear_id_on_exit{this};
 
     try {
         if (m_callbacks.on_start_callback)
