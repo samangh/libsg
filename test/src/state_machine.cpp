@@ -438,3 +438,18 @@ TEST_CASE("sg::state_machine: check callbacks can't be added whilst running",
 
     sm.stop();
 }
+
+TEST_CASE("sg::state_machine: stopping a machine that was never started is a no-op",
+          "[sg::state_machine]") {
+    enum class state {
+        add_to_counter1,
+    };
+
+    auto sm = sg::state_machine<state>();
+    sm.add_state(state::add_to_counter1);
+
+    REQUIRE_NOTHROW(sm.request_stop());
+    REQUIRE_NOTHROW(sm.wait_for_stop());
+    REQUIRE_NOTHROW(sm.stop());
+    REQUIRE_FALSE(sm.is_running());
+}

@@ -90,8 +90,15 @@ class state_machine {
         m_worker->start();
     }
 
-    void request_stop() { m_worker->request_stop(); }
-    void wait_for_stop() const { m_worker->wait_for_stop(); }
+    /* no worker means never started, so there is nothing to stop or to wait for */
+    void request_stop() {
+        if (m_worker)
+            m_worker->request_stop();
+    }
+    void wait_for_stop() const {
+        if (m_worker)
+            m_worker->wait_for_stop();
+    }
 
     void stop() {
         request_stop();
