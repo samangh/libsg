@@ -12,6 +12,7 @@
 #include <fstream>
 #include <mutex>
 #include <optional>
+#include <semaphore>
 #include <sg/net/tcp_client.h>
 #include <sg/net/tcp_client_sync.h>
 #include <sg/net/tcp_server.h>

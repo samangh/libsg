@@ -15,6 +15,7 @@
 #include <semaphore>
 #include <stdexcept>
 #include <string>
+#include <thread>
 
 #if defined(_WIN32)
     #include <winsock2.h>

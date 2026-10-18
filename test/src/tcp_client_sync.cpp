@@ -1,6 +1,9 @@
 #include "helpers.h"
 
 #include <atomic>
+#include <chrono>
+#include <semaphore>
+#include <thread>
 #include <type_traits>
 #include <utility>
 #include <catch2/catch_test_macros.hpp>

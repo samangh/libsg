@@ -7,7 +7,6 @@
 
 #include "sg/buffer.h"
 #include "sg/callback.h"
-#include "sg/worker.h"
 
 #include <boost/asio/awaitable.hpp>
 #include <boost/asio/io_context.hpp>
@@ -17,6 +16,7 @@
 #include <exception>
 #include <map>
 #include <mutex>
+#include <shared_mutex>
 
 namespace sg::net {
 

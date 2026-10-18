@@ -8,7 +8,10 @@
 
 #include "helpers.h"
 
+#include <atomic>
 #include <chrono>
+#include <limits>
+#include <semaphore>
 #include <thread>
 
 using namespace sg::net;
