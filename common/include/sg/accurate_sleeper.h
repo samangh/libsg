@@ -13,7 +13,8 @@
 
 namespace sg {
 
-class SG_COMMON_EXPORT AccurateSleeper {
+class [[deprecated("AccurateSleeper is deprecated, use sg::worker instead")]]
+SG_COMMON_EXPORT AccurateSleeper {
   public:
     /* Defines the wait strategy for AccurateSleepr */
     enum class Strategy {
