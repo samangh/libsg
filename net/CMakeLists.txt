@@ -14,10 +14,12 @@ setup_library(
 
   SOURCES_PRIVATE
     src/net.cpp
-    src/net_uv.cpp
     $<$<BOOL:${LIBSG_TLS}>:
       src/tls.cpp
       src/tcp_transport_tls.cpp>
+    $<IF:$<BOOL:${WIN32}>,
+      src/interfaces_win32.cpp,
+      src/interfaces_posix.cpp>
     src/tcp_transport_plain.cpp
     src/tcp_transport.cpp
     src/tcp_session.cpp
@@ -37,11 +39,10 @@ setup_library(
     $<$<BOOL:${LIBSG_TLS}>:OpenSSL::SSL OpenSSL::Crypto> # Public because sg/net/tls.h exposes boost::asio::ssl::context
     $<$<OR:$<BOOL:${MSYS2}>,$<BOOL:${WIN32}>>:Mswsock Ws2_32> # Needed for Boost ASIO, must be public becaue we use ASIO in public headers
   LINK_PRIVATE
-    libuv::libuv
+    $<$<BOOL:${WIN32}>:iphlpapi> # for GetAdaptersAddresses() in src/interfaces_win32.cpp
   COMPILE_OPTIONS_INTERFACE
   COMPILE_OPTIONS_PUBLIC
   COMPILE_OPTIONS_PRIVATE
-      $<$<NOT:$<CXX_COMPILER_ID:MSVC>>:-fno-strict-aliasing> # recommended by LibUV, otherwise libuv is not safe with optimisations
   COMPILE_FEATURES_INTERFACE
   COMPILE_FEATURES_PUBLIC
     cxx_std_20

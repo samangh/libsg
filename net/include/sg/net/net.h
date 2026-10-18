@@ -5,6 +5,7 @@
 #include <sg/exceptions.h>
 
 #include <array>
+#include <cstddef>
 #include <cstdint>
 #include <string>
 #include <vector>
@@ -46,12 +47,49 @@ namespace sg::net {
 enum class address_family { IPv4, IPv6 };
 typedef uint16_t port_t;
 
+/** @brief A 48-bit hardware (MAC) address. */
+struct SG_NET_EXPORT mac_address {
+    std::array<std::byte, 6> bytes{};
+
+    /** @brief True if every byte is zero, which is how Linux reports a loopback interface. */
+    [[nodiscard]] bool is_zero() const noexcept;
+
+    /** @brief Lower-case colon-separated form, e.g. "02:42:ac:11:00:02". */
+    [[nodiscard]] std::string to_string() const;
+
+    [[nodiscard]] bool operator==(const mac_address& rhs) const noexcept = default;
+};
+
 struct interface_details {
-    address_family family;
-    std::array<char, 6> physical_address;
+    /** Interface name. On POSIX this is the kernel name, e.g. "eth0". On Windows it is the
+     *  adapter's friendly name, e.g. "Wi-Fi", which is localised, renameable by the user and not
+     *  guaranteed to be unique, so do not treat it as a stable key. */
+    std::string name;
+
+    address_family family{address_family::IPv4};
+
+    /** Numeric address. A link-local IPv6 address carries a "%<scope_id>" suffix, without which
+     *  it is ambiguous. */
     std::string address;
+
+    /** The netmask, e.g. "255.255.255.0". Empty if the OS did not report one. On Windows, where
+     *  only a prefix length is available, it is derived from @ref prefix_length. */
     std::string netmask;
-    bool is_internal;
+
+    /** Number of bits set in @ref netmask, i.e. the CIDR prefix length. Zero if the OS did not
+     *  report a netmask. A netmask whose set bits are not contiguous is legal but vanishingly
+     *  rare; for one of those @ref netmask is authoritative and this is just its bit count. */
+    unsigned prefix_length{};
+
+    /** IPv6 scope (zone) id, which is the interface index. Zero for IPv4, and for IPv6 addresses
+     *  that need no zone. */
+    unsigned scope_id{};
+
+    /** The interface's hardware address, all-zero if it has none -- as loopback and
+     *  point-to-point interfaces report, or fail to report, one. */
+    mac_address physical_address;
+
+    bool is_loopback{};
 };
 
 struct end_point{
@@ -70,8 +108,12 @@ struct keepalive_t {
 };
 
 /**
- * @brief returns vector of all system interfaces
- * @return vector of all system interfaces
+ * @brief Returns one entry per address of every interface that is currently up and running.
+ *
+ * An interface with several addresses (typically one IPv4 and one or more IPv6) appears once per
+ * address, with the same @ref interface_details::name each time.
+ *
+ * @throws sg::exceptions::net::other if the system interface list cannot be read
  */
 SG_NET_EXPORT std::vector<sg::net::interface_details> interfaces();
 
