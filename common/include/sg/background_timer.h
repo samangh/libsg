@@ -12,7 +12,8 @@
 
 namespace sg {
 
-class SG_COMMON_EXPORT background_timer {
+class [[deprecated("background_timer is deprecated, use sg::worker instead")]]
+SG_COMMON_EXPORT background_timer {
     class impl;
     sg::pimpl<impl> pimpl;
 
