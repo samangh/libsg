@@ -1,6 +1,6 @@
 #pragma once
 
-/* Shared by interfaces_posix.cpp and interfaces_win32.cpp.
+/* Helpers for the two implementations of sg::net::interfaces().
  *
  * This is the only place that pulls in the platform socket headers, so that neither
  * implementation file needs a conditional for the Windows/POSIX split. On Windows <winsock2.h>
