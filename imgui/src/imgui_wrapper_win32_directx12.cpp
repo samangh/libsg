@@ -13,6 +13,8 @@
 #include <dxgi1_5.h>
 #include <tchar.h>
 
+#include <utility>
+
 #ifdef _DEBUG
     #define DX12_ENABLE_DEBUG_LAYER
 #endif
@@ -94,6 +96,7 @@ static UINT64                       g_fenceLastSignaledValue = 0;
 static IDXGISwapChain3*             g_pSwapChain = nullptr;
 static bool                         g_SwapChainTearingSupport = false;
 static bool                         g_SwapChainOccluded = false;
+static bool                         g_CloseRequested = false; // WM_CLOSE seen, see WndProc()
 static HANDLE                       g_hSwapChainWaitableObject = nullptr;
 static ID3D12Resource*              g_mainRenderTargetResource[APP_NUM_BACK_BUFFERS] = {};
 static D3D12_CPU_DESCRIPTOR_HANDLE  g_mainRenderTargetDescriptor[APP_NUM_BACK_BUFFERS] = {};
@@ -342,6 +345,13 @@ LRESULT WINAPI WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
         if ((wParam & 0xfff0) == SC_KEYMENU) // Disable ALT application menu
             return 0;
         break;
+    case WM_CLOSE:
+        // Not passed on to DefWindowProc(), which would destroy the window right away: the close
+        // request reaches the application as done = true in iterate() (see the main loop), as it
+        // does with the SDL2 backend, so the application can still cancel it - e.g. to ask about
+        // unsaved changes. The window is destroyed when the main loop ends.
+        g_CloseRequested = true;
+        return 0;
     case WM_DESTROY:
         ::PostQuitMessage(0);
         return 0;
@@ -506,6 +516,16 @@ void ImGuiWrapper_Win32_DirectX12::start(const std::string &title)
         }
         if (done)
             break;
+
+        // A close request (WM_CLOSE, see WndProc()) becomes done = true for iterate(), which may set
+        // it back to false to cancel. A minimised window is restored first: otherwise the frame
+        // below would be skipped, and anything the application shows in answer would be invisible.
+        if (std::exchange(g_CloseRequested, false))
+        {
+            done = true;
+            if (::IsIconic(hwnd))
+                ::ShowWindow(hwnd, SW_RESTORE);
+        }
 
         // Handle window screen locked
         if ((g_SwapChainOccluded && g_pSwapChain->Present(0, DXGI_PRESENT_TEST) == DXGI_STATUS_OCCLUDED) || ::IsIconic(hwnd))
