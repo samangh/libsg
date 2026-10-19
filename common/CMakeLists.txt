@@ -41,6 +41,7 @@ setup_library(
     src/debug.cpp
     src/background_timer.cpp
     src/cpu.cpp
+    src/cpu_available_parallelism.cpp
     src/file_writer.cpp
     src/gettimeofday.cpp
     src/worker.cpp

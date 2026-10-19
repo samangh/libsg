@@ -75,11 +75,6 @@ cpu_vendor current_cpu_vendor() {
     return singleton.result;
 }
 
-size_t available_parallelism() {
-    static size_t count = uv_available_parallelism();
-    return count;
-}
-
 std::vector<cpu_info_t> info()
 {
     uv_cpu_info_t *uv_info=nullptr;
