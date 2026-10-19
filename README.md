@@ -17,7 +17,6 @@ Windows (MSVC), and MSYS2.
 - CMake 3.15 or newer;
 - [Boost](https://www.boost.org) (headers);
 - [{fmt}](https://github.com/fmtlib/fmt) (can use system library, or pull own copy);
-- [libuv](https://libuv.org) (can use system library, or pull own copy);
 - Optional: [zstd](https://github.com/facebook/zstd) for compression support.
 
 ## Installation
@@ -79,7 +78,6 @@ Project specific options `CMakeLists.txt`:
 | `SANITIZE`               | `OFF`                | Turn on address + UB sanitizers (also exposes `SANITIZE_THREAD` / `SANITIZE_MEMORY`).          |
 | `COVERAGE`               | `OFF`                | Add `-fprofile-instr-generate -fcoverage-mapping` and create a `coverage` target (Clang only). |
 | `OWN_FMT`                | `OFF`                | Fetch & build `{fmt}` via CPM instead of using a system package.                               |
-| `OWN_UV`                 | `OFF`                | Fetch & build `libuv` via CPM instead of using a system package.                               |
 | `BUILD_DOCS`             | `OFF`                | Generate Doxygen documentation (requires Doxygen).                                             |
 | `BUILD_DOCS_SRC`         | `OFF`                | Also scan source files when generating docs (requires `BUILD_DOCS`).                           |
 

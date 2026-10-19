@@ -6,7 +6,7 @@ RUN apt-get update
 RUN apt-get install -y --no-install-recommends \
       build-essential clang llvm lld gdb cmake pkg-config \
       binutils git ca-certificates curl gh unzip \
-      libboost1.88-all-dev libfmt-dev libuv1-dev libzstd-dev \
+      libboost1.88-all-dev libfmt-dev libzstd-dev libssl-dev \
       doxygen graphviz gh \
       sudo less procps ripgrep
 # RUN rm -rf /var/lib/apt/lists/*

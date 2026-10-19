@@ -66,7 +66,6 @@ setup_library(
     Boost::boost
     $<$<BOOL:${LIBSG_STACKTRACE}>:Boost::${SG_BOOST_STACKTRACE_COMP}>
   LINK_PRIVATE
-    libuv::libuv
     Threads::Threads
     $<$<BOOL:${LINUX}>:pfs> #For sg::process functions
     $<$<BOOL:${WIN32}>:Winmm>

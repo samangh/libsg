@@ -77,10 +77,6 @@ if(NOT OWN_FMT)
   find_package(fmt REQUIRED)
 endif()
 
-if (NOT OWN_UV)
-  find_package(libuv REQUIRED)
-endif ()
-
 # OpenSSL backs Boost.Asio's TLS support, which sg_net uses for sg/net/tls.h
 if (LIBSG_NET AND LIBSG_TLS)
   if (WIN32 OR MSYS)

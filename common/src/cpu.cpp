@@ -75,27 +75,4 @@ cpu_vendor current_cpu_vendor() {
     return singleton.result;
 }
 
-std::vector<cpu_info_t> info()
-{
-    uv_cpu_info_t *uv_info=nullptr;
-    int count;
-
-    int err = uv_cpu_info(&uv_info, &count);
-    if (err <0)
-        throw std::runtime_error(uv_strerror(err));
-
-    std::vector<sg::cpu::cpu_info_t> m_cpu_infos;
-    for (int i= 0; i < count; ++i)
-    {
-        sg::cpu::cpu_info_t cpu;
-        cpu.model = uv_info[i].model;
-        cpu.speed = uv_info[i].speed;
-        m_cpu_infos.push_back(cpu);
-    }
-
-    uv_free_cpu_info(uv_info, count);
-
-    return m_cpu_infos;
-}
-
 }
