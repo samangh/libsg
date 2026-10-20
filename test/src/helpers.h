@@ -8,6 +8,8 @@
 #include <iostream>
 #include <utility>
 
+#include <sg/debug.h>
+
 #ifdef _WIN32
     #include <process.h>
 #else
@@ -99,4 +101,17 @@ private:
 
     std::atomic<bool> m_done{false};
     std::thread m_thread;
+};
+
+class redirect_sg_log_trace {
+public:
+    redirect_sg_log_trace() {
+        m_stream = sg::debug::trace_stream();
+        sg::debug::set_trace_stream(nullptr);
+    }
+    ~redirect_sg_log_trace() {
+        sg::debug::set_trace_stream(m_stream);
+    }
+private:
+    std::shared_ptr<std::ostream> m_stream;
 };

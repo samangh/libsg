@@ -2,10 +2,12 @@
 
 #include <sg/export/common.h>
 
+#include <format>
 #include <iosfwd>
 #include <memory>
 #include <source_location>
 #include <string_view>
+#include <utility>
 
 namespace sg::debug {
 
@@ -21,8 +23,22 @@ SG_COMMON_EXPORT void set_trace_mode(exception_trace_mode mode) noexcept;
 SG_COMMON_EXPORT void set_trace_stream(std::shared_ptr<std::ostream> stream);
 [[nodiscard]] SG_COMMON_EXPORT std::shared_ptr<std::ostream> trace_stream();
 
-namespace detail {
-SG_COMMON_EXPORT void trace_throw(const std::source_location& location) noexcept;
+namespace internal {
+    SG_COMMON_EXPORT void print_to_error_stream(std::string_view msg) noexcept;
+
+    /* Formats with std::format, then prints as above. noexcept like the above: if formatting
+     * throws (e.g. bad_alloc), the message is dropped.
+     *
+     * A call with no arguments resolves to the non-template overload, so a plain message is
+     * printed as-is (braces and all) without being formatted. */
+    template <typename... Args>
+    void print_to_error_stream(std::format_string<Args...> fmt, Args&&... args) noexcept {
+        try {
+            print_to_error_stream(std::string_view(std::format(fmt, std::forward<Args>(args)...)));
+        } catch (...) {}
+    }
+
+    SG_COMMON_EXPORT void trace_throw(const std::source_location& location) noexcept;
 } // namespace detail
 
 } // namespace sg::debug
@@ -34,7 +50,7 @@ SG_COMMON_EXPORT void trace_throw(const std::source_location& location) noexcept
  */
 #define SG_THROW(type, ...)                                                                        \
     do {                                                                                           \
-        sg::debug::detail::trace_throw(std::source_location::current());                           \
+        sg::debug::internal::trace_throw(std::source_location::current());                         \
         throw type(__VA_ARGS__);                                                                   \
     } while (0)
 

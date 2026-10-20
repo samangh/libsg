@@ -44,17 +44,22 @@ std::shared_ptr<std::ostream> trace_stream() {
     return g_stream;
 }
 
-void detail::trace_throw(const std::source_location& location) noexcept {
+void internal::print_to_error_stream(std::string_view msg) noexcept {
+    try {
+        const std::lock_guard lock(g_mutex);
+        if (!g_stream)
+            return;
+        *g_stream << msg << std::endl;
+    } catch (...) {}
+}
+
+void internal::trace_throw(const std::source_location& location) noexcept {
     const auto mode = g_mode.load(std::memory_order_relaxed);
     if (mode == exception_trace_mode::none)
         return;
 
     /* we are about to throw, so a failure here must not replace that exception */
     try {
-        const std::lock_guard lock(g_mutex);
-        if (!g_stream)
-            return;
-
         auto message = fmt::format("throw at `{}` in {}({}:{})", location.function_name(),
                                    location.file_name(), location.line(), location.column());
 #ifdef LIBSG_STACKTRACE
@@ -62,7 +67,7 @@ void detail::trace_throw(const std::source_location& location) noexcept {
             message +=
                 fmt::format(", with stacktrace:\n{}", to_string(boost::stacktrace::stacktrace()));
 #endif
-        *g_stream << message << std::endl;
+        print_to_error_stream(message);
     } catch (...) {}
 }
 

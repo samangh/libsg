@@ -39,6 +39,7 @@ static std::string read_native(tcp_session& session) {
 
 TEST_CASE("tcp_session: throwing onDisconnected, close driven by the user",
           "[sg::net::tcp_session]") {
+    redirect_sg_log_trace redirect;
     tcp_server server;
     server.start({ep}, {});
 
@@ -59,6 +60,7 @@ TEST_CASE("tcp_session: throwing onDisconnected, close driven by the user",
 
 TEST_CASE("tcp_session: throwing onDisconnected, close driven by a callback on server",
           "[sg::net::tcp_session]") {
+    redirect_sg_log_trace redirect;
     tcp_server::CallBacks serverCbs;
     serverCbs.OnSessionDataAvailable = [](tcp_server& s, tcp_server::session_id_t id,
                                           const std::byte*, size_t) { s.disconnect(id); };
@@ -190,6 +192,7 @@ TEST_CASE("tcp_session: dont_read requires an OnDataAvailable callback", "[sg::n
 
 TEST_CASE("tcp_session: throwing onDisconnected, close driven by callback on client",
           "[sg::net::tcp_session]") {
+    redirect_sg_log_trace redirect;
     tcp_server::CallBacks serverCbs;
     serverCbs.OnSessionDataAvailable = [](tcp_server& s, tcp_server::session_id_t id,
                                           const std::byte* data, size_t size) {

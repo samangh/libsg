@@ -8,7 +8,6 @@
 
 #include <fmt/format.h>
 
-#include <iostream>
 #include <stdexcept>
 
 namespace sg::net {
@@ -412,10 +411,11 @@ void tcp_session::close_impl() {
             if (m_callbacks.onDisconnected)
                 m_callbacks.onDisconnected.invoke(*this, exPtr);
     } catch (const std::exception& ex) {
-        std::cerr << "tcp_session: onDisconnected() callback exception caught: " << ex.what()
-                  << std::endl;
+        sg::debug::internal::print_to_error_stream(
+            "tcp_session: onDisconnected() callback exception caught: {}", ex.what());
     } catch (...) {
-        std::cerr << "tcp_session: onDisconnected() callback exception caught" <<  std::endl;
+        sg::debug::internal::print_to_error_stream(
+            "tcp_session: onDisconnected() callback exception caught");
     }
 
     m_state.store(state_t::stopped, std::memory_order::release);

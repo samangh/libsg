@@ -1,27 +1,25 @@
-#include <catch2/catch_test_macros.hpp>
-#include <catch2/generators/catch_generators.hpp>
-
-#include "helpers.h"
-
-#include "sg/net/tcp_client.h"
-#include "sg/net/tcp_client_sync.h"
 #include "sg/net/tcp_server.h"
 
+#include "helpers.h"
+#include "sg/debug.h"
 #include "sg/jthread.h"
+#include "sg/net/tcp_client.h"
+#include "sg/net/tcp_client_sync.h"
 #include "sg/random.h"
 
-#include <boost/asio.hpp>
-#include <fmt/format.h>
-
 #include <atomic>
+#include <boost/asio.hpp>
+#include <catch2/catch_test_macros.hpp>
+#include <catch2/generators/catch_generators.hpp>
 #include <chrono>
 #include <cstdio>
 #include <cstdlib>
+#include <fmt/format.h>
 #include <limits>
 #include <memory>
 #include <random>
-#include <stdexcept>
 #include <semaphore>
+#include <stdexcept>
 #include <string>
 #include <thread>
 #include <type_traits>
@@ -45,7 +43,6 @@ static port_t PORT = 4444; // 55555 can't be used on macOS!
  * type is usable in containers and anywhere else that requires a non-throwing destructor. */
 static_assert(std::is_nothrow_destructible_v<tcp_server>,
               "~tcp_server() must not be able to throw");
-
 
 TEST_CASE("tcp_server: check bad endpoint throws exception during start()", "[sg::net::tcp_server]") {
     end_point ep;
@@ -870,6 +867,7 @@ TEST_CASE("tcp_server: throwing OnDisconnected releases the session (peer discon
     scoped_deadline watchdog(
         "DEADLOCK: throwing OnDisconnected did not release the session (peer disconnects)");
 
+    redirect_sg_log_trace redirect;
     end_point ep("127.0.0.1", PORT);
 
     std::binary_semaphore disconnected{0};
@@ -904,6 +902,7 @@ TEST_CASE("tcp_server: throwing OnDisconnected releases the session (server disc
     scoped_deadline watchdog(
         "DEADLOCK: throwing OnDisconnected did not release the session (server disconnects)");
 
+    redirect_sg_log_trace redirect;
     end_point ep("127.0.0.1", PORT);
 
     std::binary_semaphore disconnected{0};
@@ -936,6 +935,7 @@ TEST_CASE("tcp_server: OnDisconnected throwing a non-std exception releases the 
     scoped_deadline watchdog(
         "DEADLOCK: OnDisconnected throwing a non-std exception did not release the session");
 
+    redirect_sg_log_trace redirect;
     end_point ep("127.0.0.1", PORT);
 
     std::binary_semaphore disconnected{0};
@@ -967,6 +967,7 @@ TEST_CASE("tcp_server: throwing OnDisconnected does not stall stop_async()",
           "[sg::net::tcp_server]") {
     scoped_deadline watchdog("DEADLOCK: stop_async() stalled on a throwing OnDisconnected");
 
+    redirect_sg_log_trace redirect;
     constexpr int count = 5;
     end_point ep("127.0.0.1", PORT);
 
@@ -1005,6 +1006,7 @@ TEST_CASE("tcp_server: throwing OnDisconnected does not hang the destructor",
           "[sg::net::tcp_server]") {
     scoped_deadline watchdog("DEADLOCK: ~tcp_server() hung on a throwing OnDisconnected");
 
+    redirect_sg_log_trace redirect;
     end_point ep("127.0.0.1", PORT);
 
     std::binary_semaphore connected{0};
@@ -1035,6 +1037,7 @@ TEST_CASE("tcp_server: can be restarted after a throwing OnDisconnected",
           "[sg::net::tcp_server]") {
     scoped_deadline watchdog("DEADLOCK: restart after a throwing OnDisconnected did not complete");
 
+    redirect_sg_log_trace redirect;
     end_point ep("127.0.0.1", PORT);
 
     std::binary_semaphore disconnected{0};

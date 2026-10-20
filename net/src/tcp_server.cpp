@@ -10,7 +10,6 @@
 
 #include <algorithm>
 #include <atomic>
-#include <cerrno>
 #include <chrono>
 #include <iostream>
 
@@ -91,10 +90,10 @@ void run_callback(const std::string& name, FuncT func, Args&&... args) {
     try {
         func.invoke(std::forward<Args>(args)...);
     } catch (const std::exception& callbackEx) {
-        std::cerr << "tcp_server: " << name << " callback exception: " << callbackEx.what()
-                  << std::endl;
+        sg::debug::internal::print_to_error_stream("tcp_server: {} callback exception: {}", name,
+                                                   callbackEx.what());
     } catch (...) {
-        std::cerr << "tcp_server: " << name << " callback exception" << std::endl;
+        sg::debug::internal::print_to_error_stream("tcp_server: {} callback exception", name);
     }
 }
 
@@ -104,8 +103,7 @@ namespace sg::net {
 
 tcp_server::~tcp_server() {
     if (running_in_callback_thread()) {
-        std::cerr << "tcp_server: ~tcp_server() called from one of the server's own threads"
-                  << std::endl;
+        sg::debug::internal::print_to_error_stream("tcp_server: ~tcp_server() called from one of the server's own threads");
         std::terminate();
     }
 
@@ -114,12 +112,12 @@ tcp_server::~tcp_server() {
         if (m_stopping_thread.joinable())
             m_stopping_thread.join();
     } catch (const std::exception& ex) {
-        std::cerr << "tcp_server: ~tcp_server() could not stop the server: " << ex.what()
-                  << "; terminating" << std::endl;
+        sg::debug::internal::print_to_error_stream(
+            "tcp_server: ~tcp_server() could not stop the server: {}, terminating", ex.what());
         std::terminate();
     } catch (...) {
-        std::cerr << "tcp_server: ~tcp_server() could not stop the server; terminating"
-                  << std::endl;
+        sg::debug::internal::print_to_error_stream(
+            "tcp_server: ~tcp_server() could not stop the server; terminating");
         std::terminate();
     }
 }
@@ -407,8 +405,8 @@ tcp_server::listener(std::shared_ptr<boost::asio::ip::tcp::acceptor> acceptor,
                         run_callback("OnAcceptError()", m_callbacks.OnAcceptError, *this,
                                      std::make_exception_ptr(boost::system::system_error(ec)));
                     else
-                        std::cerr << "tcp_server: " << boost::system::system_error(ec).what()
-                                  << std::endl;
+                        sg::debug::internal::print_to_error_stream(
+                            "tcp_server: {}", boost::system::system_error(ec).what());
                 }
 
                 retry_timer->expires_after(backoff);
