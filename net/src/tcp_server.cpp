@@ -90,10 +90,9 @@ void run_callback(const std::string& name, FuncT func, Args&&... args) {
     try {
         func.invoke(std::forward<Args>(args)...);
     } catch (const std::exception& callbackEx) {
-        sg::debug::internal::print_to_error_stream("tcp_server: {} callback exception: {}", name,
-                                                   callbackEx.what());
+        sg::debug::write_trace("tcp_server: {} callback exception: {}", name, callbackEx.what());
     } catch (...) {
-        sg::debug::internal::print_to_error_stream("tcp_server: {} callback exception", name);
+        sg::debug::write_trace("tcp_server: {} callback exception", name);
     }
 }
 
@@ -103,7 +102,8 @@ namespace sg::net {
 
 tcp_server::~tcp_server() {
     if (running_in_callback_thread()) {
-        sg::debug::internal::print_to_error_stream("tcp_server: ~tcp_server() called from one of the server's own threads");
+        sg::debug::write_trace(
+            "tcp_server: ~tcp_server() called from one of the server's own threads");
         std::terminate();
     }
 
@@ -112,12 +112,11 @@ tcp_server::~tcp_server() {
         if (m_stopping_thread.joinable())
             m_stopping_thread.join();
     } catch (const std::exception& ex) {
-        sg::debug::internal::print_to_error_stream(
+        sg::debug::write_trace(
             "tcp_server: ~tcp_server() could not stop the server: {}, terminating", ex.what());
         std::terminate();
     } catch (...) {
-        sg::debug::internal::print_to_error_stream(
-            "tcp_server: ~tcp_server() could not stop the server; terminating");
+        sg::debug::write_trace("tcp_server: ~tcp_server() could not stop the server; terminating");
         std::terminate();
     }
 }
@@ -405,8 +404,8 @@ tcp_server::listener(std::shared_ptr<boost::asio::ip::tcp::acceptor> acceptor,
                         run_callback("OnAcceptError()", m_callbacks.OnAcceptError, *this,
                                      std::make_exception_ptr(boost::system::system_error(ec)));
                     else
-                        sg::debug::internal::print_to_error_stream(
-                            "tcp_server: {}", boost::system::system_error(ec).what());
+                        sg::debug::write_trace("tcp_server: {}",
+                                               boost::system::system_error(ec).what());
                 }
 
                 retry_timer->expires_after(backoff);

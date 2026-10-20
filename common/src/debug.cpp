@@ -44,7 +44,7 @@ std::shared_ptr<std::ostream> trace_stream() {
     return g_stream;
 }
 
-void internal::print_to_error_stream(std::string_view msg) noexcept {
+void write_trace(std::string_view msg) noexcept {
     try {
         const std::lock_guard lock(g_mutex);
         if (!g_stream)
@@ -67,7 +67,7 @@ void internal::trace_throw(const std::source_location& location) noexcept {
             message +=
                 fmt::format(", with stacktrace:\n{}", to_string(boost::stacktrace::stacktrace()));
 #endif
-        print_to_error_stream(message);
+        write_trace(message);
     } catch (...) {}
 }
 

@@ -411,11 +411,10 @@ void tcp_session::close_impl() {
             if (m_callbacks.onDisconnected)
                 m_callbacks.onDisconnected.invoke(*this, exPtr);
     } catch (const std::exception& ex) {
-        sg::debug::internal::print_to_error_stream(
-            "tcp_session: onDisconnected() callback exception caught: {}", ex.what());
+        sg::debug::write_trace("tcp_session: onDisconnected() callback exception caught: {}",
+                               ex.what());
     } catch (...) {
-        sg::debug::internal::print_to_error_stream(
-            "tcp_session: onDisconnected() callback exception caught");
+        sg::debug::write_trace("tcp_session: onDisconnected() callback exception caught");
     }
 
     m_state.store(state_t::stopped, std::memory_order::release);
