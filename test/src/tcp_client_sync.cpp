@@ -85,8 +85,6 @@ TEST_CASE("tcp_client_sync: check disconnection on destructor", "[sg::net::tcp_c
 }
 
 TEST_CASE("tcp_client_sync: check read_until()", "[sg::net::tcp_client_sync]") {
-    std::binary_semaphore disconn{0};
-
     tcp_server server;
     tcp_server::session_created_cb_t onConn= [&](tcp_server&, tcp_server::session_id_t id) {
         server.write(id, "\nHELLO1\nHELLO2\nHELLO3\n");
@@ -225,8 +223,6 @@ TEST_CASE("tcp_client_sync: check read() times out on a short read", "[sg::net::
 }
 
 TEST_CASE("tcp_client_sync: check write()", "[sg::net::tcp_client_sync]") {
-    std::binary_semaphore dataReceived{0};
-
     tcp_server server;
     tcp_server::session_data_available_cb_t onData = [&](tcp_server&, tcp_server::session_id_t id,
                                                          const std::byte* data, size_t size) {
@@ -302,8 +298,6 @@ TEST_CASE("tcp_client_sync: check reading when disconnected throws an error", "[
 }
 
 TEST_CASE("tcp_client_sync: check timeout()", "[sg::net::tcp_client_sync]") {
-    std::binary_semaphore dataReceived{0};
-
     tcp_server server;
     server.start({ep}, {});
 
