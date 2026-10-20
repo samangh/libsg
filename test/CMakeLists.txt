@@ -68,7 +68,6 @@ setup_executable(
     src/exceptions.cpp
 
   INCLUDE_PUBLIC
-    ${DP_THREAD_POOL_DIR}/include
   INCLUDE_PRIVATE
   LINK_PRIVATE
     sg::common

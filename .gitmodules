@@ -2,10 +2,6 @@
 	path = external/portable-file-dialogs
 	url = https://github.com/samangh/portable-file-dialogs.git
 	branch = main
-[submodule "external/thread-pool"]
-	path = external/thread-pool
-	url = https://github.com/ptsouchlos/thread-pool.git
-	branch = main
 [submodule "cmake"]
 	path = cmake
 	url = https://github.com/samangh/libsg_cmake.git

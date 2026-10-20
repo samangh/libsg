@@ -16,12 +16,6 @@ if (LINUX)
 endif ()
 
 ##
-## External files
-##
-
-set(DP_THREAD_POOL_DIR ${CMAKE_CURRENT_SOURCE_DIR}/../external/thread-pool)
-
-##
 ## Source files
 ##
 
@@ -58,7 +52,6 @@ setup_library(
 
   INCLUDE_INTERFACE
   INCLUDE_PUBLIC
-    ${DP_THREAD_POOL_DIR}/include
   INCLUDE_PRIVATE
   LINK_INTERFACE
   LINK_PUBLIC
