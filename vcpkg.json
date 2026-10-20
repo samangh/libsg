@@ -3,7 +3,6 @@
   "name": "libsg",
   "dependencies": [
     "boost-asio",
-    "boost-bimap",
     "boost-crc",
     "boost-stacktrace",
     "boost-uuid",

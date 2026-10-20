@@ -58,8 +58,7 @@ template <typename enumT, typename T = std::underlying_type_t<enumT>>
 template<typename TVal,typename TEnum>
     requires(std::is_enum_v<TEnum>)
 [[nodiscard]] TVal enum_to_val(TEnum en) {
-    static auto bimap = sg::internal::enumeration::generate_enum_val_bimap<TEnum,TVal>();
-    return bimap.left.at(en);
+    return sg::internal::enumeration::enum_val_lookup<TEnum, TVal>().to_value.at(en);
 }
 
 /**
@@ -71,8 +70,7 @@ template<typename TVal,typename TEnum>
 template <typename TEnum, typename TValue>
     requires(std::is_enum_v<TEnum>)
 [[nodiscard]] TEnum enum_from_val(TValue val) {
-    static auto bimap = sg::internal::enumeration::generate_enum_val_bimap<TEnum,TValue>();
-    return bimap.right.at(val);
+    return sg::internal::enumeration::enum_val_lookup<TEnum, TValue>().to_enum.at(val);
 }
 
 } // namespace sg::enumeration
