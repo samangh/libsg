@@ -29,6 +29,7 @@ class SG_NET_EXPORT tcp_client {
     // m_session declared after m_context so that m_session is destructed first
     std::shared_ptr<asio_io_pool> m_context;
     std::shared_ptr<tcp_session> m_session;
+    std::atomic<bool> m_context_is_external {false};
 };
 
 }

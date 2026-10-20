@@ -9,7 +9,18 @@
 namespace sg::net {
 
 tcp_client::tcp_client() =default;
-tcp_client::tcp_client(std::shared_ptr<asio_io_pool> context) : m_context(std::move(context)) {}
+tcp_client::tcp_client(std::shared_ptr<asio_io_pool> context)
+    : m_context(std::move(context)) {
+    /*  Note that a nullptr is effectively same as asking for an internally managed context.
+     *
+     * connect() needs an asio pool where run() runs reliably (see comments for
+     * asio_io_pool::run()). This means that an externally shared pool MUST be guarded */
+    if (m_context) {
+        if (!m_context->has_guard())
+            SG_THROW(std::invalid_argument, "tcp_client requires an asio_io_pool created with a work guard");
+        m_context_is_external.store(true);
+    }
+}
 
 tcp_client::~tcp_client() {
     /* if the asio_io_pool was supplied externally, then it may carry on running after this client
@@ -46,16 +57,32 @@ void tcp_client::connect(const end_point& endpoint, tcp_session::Callbacks::OnDa
         m_session.reset();
     }
 
-    /* an externally passed asio_pool will always have it's guard enabled */
-    if (!m_context)
+    /* If we create an "internal" pool here, it is guardless, so its worker exits once the session is
+     * done with it. An external pool is always guarded (enforced by the constructor).
+     *
+     * We do this because asio_io_pool::run() is only reliable for a pool that was guarded at
+     * the start, or for a pool that is fully stopped (see comments for run()).
+     *
+     * For an internally created pool, we wait for it to stop fully so that run() then always starts
+     * a fresh cycle. */
+    if (!m_context) {
         m_context = asio_io_pool::create(1, false, nullptr);
+    }
+    else if (!m_context->has_guard()) {
+        if (m_context_is_external)
+            SG_THROW(std::logic_error, "an external asio_io_pool MUST always be guarded");
+
+        // pool is internal, in which case wait for it to stop fully
+        m_context->wait_for_stop();
+    }
 
     boost::asio::ip::tcp::socket socket(m_context->context());
     boost::asio::ip::tcp::resolver resolver(m_context->context());
     const auto endpoints = resolver.resolve(endpoint.ip, std::to_string(endpoint.port));
 
-    /* ensure tha the context is running (whether it's an internal or external)
-     * the work_guard will get destructed as we go out of scope  */
+    /* Keeps a fresh guardless cycle alive until the co_spawn below is queued; without it, the
+     * worker would find no work and exit at once. Released as we go out of scope, by which time
+     * the session holds a guard of its own. */
     auto work = boost::asio::make_work_guard(m_context->context());
     m_context->run();
 

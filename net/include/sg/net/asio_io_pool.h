@@ -100,7 +100,7 @@ class SG_NET_EXPORT asio_io_pool {
      * If the pool is currently in the @c stopping state, this call blocks until
      * the previous cycle has finished and then begins a new one. The same
      * applies if the pool is nominally @c running but its @c io_context has
-     * already run out of work (a guardless cycle draining naturally): the call
+     * already stopped (a guardless cycle that drained naturally): the call
      * waits for that cycle to wind down and starts a fresh one, so handlers
      * posted just before calling @c run() are never stranded.
      *
@@ -115,6 +115,14 @@ class SG_NET_EXPORT asio_io_pool {
      * @note Even when @c true is returned, a guardless pool whose
      *       @c io_context has no work may immediately transition out of
      *       @c running before this function returns.
+     *
+     * @warning This is only reliable on a pool that is guarded or one which was
+     *          fully stopped before this call.
+     *
+     *          This is because ASIO's @c work_finished() has
+     *          @c "if(--outstanding_work_==0) stop()", so if @c run() is in-between,
+     *          we would assume the ASIO context is running whereas in reality it's just
+     *          about to stop.
      */
     bool run();
 

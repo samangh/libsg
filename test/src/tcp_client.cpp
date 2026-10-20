@@ -79,6 +79,11 @@ TEST_CASE("tcp_client: check destructor of unused client", "[sg::net::tcp_client
     tcp_client client;
 }
 
+TEST_CASE("tcp_client: rejects a pool without a work guard", "[sg::net::tcp_client]") {
+    REQUIRE_THROWS_AS(tcp_client(asio_io_pool::create(1, false, nullptr)), std::invalid_argument);
+    REQUIRE_NOTHROW(tcp_client(asio_io_pool::create(1, true, nullptr)));
+}
+
 TEST_CASE("tcp_client: check that you can't connect twice", "[sg::net::tcp_client]") {
     using namespace sg::net;
 
