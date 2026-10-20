@@ -1,8 +1,6 @@
 #include <mutex>
 #include <sg/cpu.h>
 
-#include <uv.h>
-
 #include <string>
 #include <cstdint>
 #include <stdexcept>
