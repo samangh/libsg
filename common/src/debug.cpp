@@ -53,6 +53,12 @@ void write_trace(std::string_view msg) noexcept {
     } catch (...) {}
 }
 
+void internal::vwrite_trace(fmt::string_view fmt_str, fmt::format_args args) noexcept {
+    try {
+        write_trace(fmt::vformat(fmt_str, args));
+    } catch (...) {}
+}
+
 void internal::trace_throw(const std::source_location& location) noexcept {
     const auto mode = g_mode.load(std::memory_order_relaxed);
     if (mode == exception_trace_mode::none)
