@@ -62,6 +62,7 @@ setup_executable(
     src/uuid.cpp
     src/time.cpp
     src/debug.cpp
+    src/reflection.cpp
     src/version.cpp
     src/callback.cpp
     src/exceptions.cpp

@@ -1,4 +1,6 @@
 #include "sg/file_writer.h"
+
+#include "sg/buffer.h"
 #include "sg/debug.h"
 
 #include <fmt/format.h>
@@ -9,10 +11,7 @@
 #include <future>
 #include <mutex>
 #include <stdexcept>
-#include <vector>
 #include <thread>
-
-#include "sg/buffer.h"
 
 namespace sg {
 
@@ -68,7 +67,7 @@ void sg::file_writer::start(path_type _path,
                        started_cb_t on_start_cb,
                        stopped_cb_t on_stop_cb) {
     if (m_thread.joinable())
-        throw std::runtime_error(fmt::format("this {} is already running", sg::type_name<file_writer>()));
+        SG_THROW(std::runtime_error, "this file_writer is already running");
 
     m_on_error_cb = std::move(on_error_cb);
     m_on_stop_cb = std::move(on_stop_cb);
@@ -102,7 +101,5 @@ size_t file_writer::bytes_transferred() const
 {
     return m_byte_count.load(std::memory_order::acquire);
 }
-
-
 
 }  // namespace sg

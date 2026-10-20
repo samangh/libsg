@@ -110,3 +110,29 @@ TEST_CASE("sg::debug: check exception_trace_mode::stacktrace", "[sg::debug]") {
     REQUIRE_THAT(trace.text(), Catch::Matchers::ContainsSubstring("test_throw"));
 #endif
 }
+
+TEST_CASE("sg::debug: check write_trace(..) writes a line", "[sg::debug]") {
+    scoped_trace trace(sg::debug::exception_trace_mode::details);
+
+    sg::debug::write_trace("first");
+    sg::debug::write_trace("second");
+
+    REQUIRE(trace.text() == "first\nsecond\n");
+}
+
+TEST_CASE("sg::debug: check write_trace(..) ignores the trace mode", "[sg::debug]") {
+    scoped_trace trace(sg::debug::exception_trace_mode::none);
+
+    sg::debug::write_trace("written anyway");
+
+    REQUIRE_THAT(trace.text(), Catch::Matchers::ContainsSubstring("written anyway"));
+}
+
+TEST_CASE("sg::debug: check write_trace(..) with a null stream discards", "[sg::debug]") {
+    scoped_trace trace(sg::debug::exception_trace_mode::details);
+    sg::debug::set_trace_stream(nullptr);
+
+    sg::debug::write_trace("dropped");
+
+    REQUIRE(trace.text().empty());
+}

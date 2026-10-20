@@ -1,11 +1,10 @@
 #pragma once
 
+#include "sg/meta.h"
 #include "sg/debug.h"
 
-#include <fmt/format.h>
-
 #include <boost/bimap.hpp>
-
+#include <fmt/format.h>
 #include <map>
 #include <type_traits>
 
@@ -27,8 +26,8 @@ template <typename TEnum, typename TValue>
     TReturn bimap;
     for (const auto& [en, val] : map_) {
         if (bimap.right.find(val) != bimap.right.end())
-            throw std::logic_error(
-                fmt::format("duplicate enum value specified for {}", sg::type_name<TEnum>()));
+            SG_THROW(std::logic_error, fmt::format("duplicate enum value specified for {}",
+                                                   sg::meta::type_name<TEnum>()));
         bimap.insert(typename TReturn::value_type(en, val));
     }
 
