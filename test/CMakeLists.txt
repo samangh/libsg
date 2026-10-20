@@ -71,7 +71,7 @@ setup_executable(
   INCLUDE_PRIVATE
   LINK_PRIVATE
     sg::common
-    sg::net
+    $<$<BOOL:${LIBSG_NET}>:sg::net>
     Boost::boost
     Catch2::Catch2WithMain
 
