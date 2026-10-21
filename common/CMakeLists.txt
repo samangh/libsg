@@ -33,7 +33,6 @@ setup_library(
     src/memory.cpp
     src/accurate_sleeper.cpp
     src/debug.cpp
-    src/background_timer.cpp
     src/cpu.cpp
     src/cpu_available_parallelism.cpp
     src/file_writer.cpp
