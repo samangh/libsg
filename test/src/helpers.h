@@ -3,7 +3,9 @@
 #include <atomic>
 #include <chrono>
 #include <cstdlib>
+#include <filesystem>
 #include <string>
+#include <system_error>
 #include <thread>
 #include <iostream>
 #include <utility>
@@ -114,4 +116,33 @@ public:
     }
 private:
     std::shared_ptr<std::ostream> m_stream;
+};
+
+/* A file path in the temp directory that is unique to this process and instance, so that tests
+ * running concurrently don't trample each other's files, and that is removed again on scope exit. */
+class scoped_temp_file {
+public:
+    explicit scoped_temp_file(const std::string& name) {
+#ifdef _WIN32
+        const auto pid = std::to_string(_getpid());
+#else
+        const auto pid = std::to_string(getpid());
+#endif
+        m_path = std::filesystem::temp_directory_path() /
+                 ("libsg_" + pid + "_" + std::to_string(m_counter.fetch_add(1)) + "_" + name);
+    }
+
+    ~scoped_temp_file() {
+        std::error_code ec;
+        std::filesystem::remove(m_path, ec);
+    }
+
+    scoped_temp_file(const scoped_temp_file&)            = delete;
+    scoped_temp_file& operator=(const scoped_temp_file&) = delete;
+
+    [[nodiscard]] const std::filesystem::path& path() const { return m_path; }
+
+private:
+    static inline std::atomic<int> m_counter{0};
+    std::filesystem::path m_path;
 };
