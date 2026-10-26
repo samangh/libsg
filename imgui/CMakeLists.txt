@@ -10,9 +10,7 @@ CPMAddPackage(
 )
 CPMAddPackage(
   NAME implot
-  URL https://github.com/epezent/implot/archive/851cdbdd60d1dfb64c23e987969694de0f547a6b.zip
-  # pinned to latest master commit, because the latest release is not fully compatible with imgui v1.9.3
-
+  URL https://github.com/epezent/implot/archive/refs/tags/v1.1.zip
   # GITHUB_REPOSITORY epezent/implot
   # GIT_TAG 3da8bd34299965d3b0ab124df743fe3e076fa222
   # GIT_SHALLOW
