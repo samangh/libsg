@@ -26,6 +26,24 @@
 /* To see what has been manually added for libsg, please see search for
  * "ADDED BY SAMAN" */
 
+
+/******************
+ * ADDED BY ROBERT *
+ ******************/
+/* Whether any secondary platform window (a window dragged out of the main one, with
+ * ImGuiConfigFlags_ViewportsEnable) is showing - Viewports[0] is always the main viewport. Those
+ * windows are drawn by this same loop, so it must keep running for them even while the main
+ * window is minimised. */
+static bool secondary_window_shown()
+{
+    const ImGuiPlatformIO& platform_io = ImGui::GetPlatformIO();
+    for (int i = 1; i < platform_io.Viewports.Size; ++i)
+        if (!(platform_io.Viewports[i]->Flags & ImGuiViewportFlags_IsMinimized))
+            return true;
+    return false;
+}
+/*****************/
+
 namespace sg::imgui {
 
 struct ImGuiWrapper_Sdl2_OpenGl3::impl {
@@ -223,7 +241,10 @@ void ImGuiWrapper_Sdl2_OpenGl3::start(const std::string &title)
             if (event.type == SDL_WINDOWEVENT && event.window.event == SDL_WINDOWEVENT_CLOSE && event.window.windowID == SDL_GetWindowID(window))
                 done = true;
         }
-        if (SDL_GetWindowFlags(window) & SDL_WINDOW_MINIMIZED)
+        /* ADDED BY ROBERT: skip the frame only when nothing at all can be shown - a minimised main
+         * window must not freeze windows dragged out of it (see secondary_window_shown()). */
+        const bool main_minimised = SDL_GetWindowFlags(window) & SDL_WINDOW_MINIMIZED;
+        if (main_minimised && !secondary_window_shown())
         {
             SDL_Delay(10);
             continue;
@@ -259,7 +280,13 @@ void ImGuiWrapper_Sdl2_OpenGl3::start(const std::string &title)
             SDL_GL_MakeCurrent(backup_current_window, backup_current_context);
         }
 
-        SDL_GL_SwapWindow(window);
+        /* ADDED BY ROBERT: the main window's vsync swap is what paces this loop - secondary windows
+         * swap without vsync - so while it is minimised, wait about one 60 Hz frame instead of
+         * swapping, or the loop would spin flat out. */
+        if (main_minimised)
+            SDL_Delay(16);
+        else
+            SDL_GL_SwapWindow(window);
     }
     #ifdef __EMSCRIPTEN__
     EMSCRIPTEN_MAINLOOP_END;

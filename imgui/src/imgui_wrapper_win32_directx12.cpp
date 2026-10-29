@@ -12,6 +12,7 @@
 #include <d3d12.h>
 #include <dxgi1_5.h>
 #include <tchar.h>
+#include <dwmapi.h> // DwmFlush(); ImGui's Win32 backend already links dwmapi
 
 #ifdef _DEBUG
     #define DX12_ENABLE_DEBUG_LAYER
@@ -94,6 +95,23 @@ static UINT64                       g_fenceLastSignaledValue = 0;
 static IDXGISwapChain3*             g_pSwapChain = nullptr;
 static bool                         g_SwapChainTearingSupport = false;
 static bool                         g_SwapChainOccluded = false;
+
+/******************
+ * ADDED BY ROBERT *
+ ******************/
+/* Whether any secondary platform window (a window dragged out of the main one, with
+ * ImGuiConfigFlags_ViewportsEnable) is showing - Viewports[0] is always the main viewport. Those
+ * windows are drawn by this same loop, so it must keep running for them even while the main
+ * window is minimised. */
+static bool secondary_window_shown()
+{
+    const ImGuiPlatformIO& platform_io = ImGui::GetPlatformIO();
+    for (int i = 1; i < platform_io.Viewports.Size; ++i)
+        if (!(platform_io.Viewports[i]->Flags & ImGuiViewportFlags_IsMinimized))
+            return true;
+    return false;
+}
+/*****************/
 static HANDLE                       g_hSwapChainWaitableObject = nullptr;
 static ID3D12Resource*              g_mainRenderTargetResource[APP_NUM_BACK_BUFFERS] = {};
 static D3D12_CPU_DESCRIPTOR_HANDLE  g_mainRenderTargetDescriptor[APP_NUM_BACK_BUFFERS] = {};
@@ -540,7 +558,11 @@ void ImGuiWrapper_Win32_DirectX12::start(const std::string &title)
         /******************/
 
         // Handle window screen locked
-        if ((g_SwapChainOccluded && g_pSwapChain->Present(0, DXGI_PRESENT_TEST) == DXGI_STATUS_OCCLUDED) || ::IsIconic(hwnd))
+        /* ADDED BY ROBERT: skip the frame only when nothing at all can be shown - a minimised or
+         * occluded main window must not freeze windows dragged out of it (see
+         * secondary_window_shown()). */
+        const bool main_hidden = (g_SwapChainOccluded && g_pSwapChain->Present(0, DXGI_PRESENT_TEST) == DXGI_STATUS_OCCLUDED) || ::IsIconic(hwnd);
+        if (main_hidden && !secondary_window_shown())
         {
             ::Sleep(10);
             continue;
@@ -605,6 +627,12 @@ void ImGuiWrapper_Win32_DirectX12::start(const std::string &title)
         //HRESULT hr = g_pSwapChain->Present(0, g_SwapChainTearingSupport ? DXGI_PRESENT_ALLOW_TEARING : 0); // Present without vsync
         g_SwapChainOccluded = (hr == DXGI_STATUS_OCCLUDED);
         g_frameIndex++;
+
+        /* ADDED BY ROBERT: the main window's vsync Present is what paces this loop - secondary
+         * windows present without vsync - and a hidden main window's Present returns at once. So
+         * wait for the desktop compositor's next frame instead, or the loop would spin flat out. */
+        if (main_hidden)
+            ::DwmFlush();
     }
 
     WaitForPendingOperations();
