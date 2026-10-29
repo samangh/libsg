@@ -23,6 +23,12 @@ class ImGuiWrapper_Sdl2_OpenGl3 : public IImGuiWrapper {
 
     void start(const std::string &title) override;
     void changeWindowTitle(const std::string& title) override;
+
+  protected:
+    std::optional<window_placement> current_window_placement() const override;
+
+  private:
+    void track_placement(SDL_Window* window);
 };
 } // namespace sg::imgui
 
