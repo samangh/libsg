@@ -364,6 +364,32 @@ LRESULT WINAPI WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
     return ::DefWindowProcW(hWnd, msg, wParam, lParam);
 }
 
+/******************
+ * ADDED BY ROBERT *
+ ******************/
+/* Shows the main window: at a remembered placement (see ConfigFlags::RememberWindowPlacement)
+ * while its rectangle is still on a connected monitor - SetWindowPlacement() both places and
+ * shows it, maximised or not - otherwise as before. Same coordinates as GetWindowPlacement()
+ * gives, which is where they come from. */
+static void show_main_window(HWND hwnd, const std::optional<sg::imgui::IImGuiWrapper::window_placement>& placement)
+{
+    if (placement) {
+        const RECT r{placement->x, placement->y, placement->x + placement->width, placement->y + placement->height};
+        if (::MonitorFromRect(&r, MONITOR_DEFAULTTONULL)) {
+            WINDOWPLACEMENT wp{};
+            wp.length           = sizeof(wp);
+            wp.showCmd          = placement->maximised ? SW_SHOWMAXIMIZED : SW_SHOWNORMAL;
+            wp.rcNormalPosition = r;
+            ::SetWindowPlacement(hwnd, &wp);
+            ::UpdateWindow(hwnd);
+            return;
+        }
+    }
+    ::ShowWindow(hwnd, SW_SHOWDEFAULT);
+    ::UpdateWindow(hwnd);
+}
+/******************/
+
 namespace sg::imgui {
 
 struct ImGuiWrapper_Win32_DirectX12::impl {
@@ -410,9 +436,8 @@ void ImGuiWrapper_Win32_DirectX12::start(const std::string &title)
         }
     }
 
-    // Show the window
-    ::ShowWindow(hwnd, SW_SHOWDEFAULT);
-    ::UpdateWindow(hwnd);
+    /* ADDED BY ROBERT: the window is shown after setup_io() below, where
+     * ConfigFlags::RememberWindowPlacement can put it where it was left */
 
     // Setup Dear ImGui context
     IMGUI_CHECKVERSION();
@@ -431,6 +456,14 @@ void ImGuiWrapper_Win32_DirectX12::start(const std::string &title)
     //Also docking/viewports disabled from above
 
     setup_io(io);
+    /******************/
+
+    /******************
+     * ADDED BY ROBERT *
+     ******************/
+    // Show the window: where it was left if remembered and still on a connected monitor, else
+    // the default (SW_SHOWDEFAULT, as before)
+    show_main_window(hwnd, load_window_placement());
     /******************/
 
     // Setup Dear ImGui style
@@ -624,6 +657,23 @@ void ImGuiWrapper_Win32_DirectX12::start(const std::string &title)
     ::DestroyWindow(hwnd);
     ::UnregisterClassW(wc.lpszClassName, wc.hInstance);
 }
+
+/******************
+ * ADDED BY ROBERT *
+ ******************/
+std::optional<IImGuiWrapper::window_placement> ImGuiWrapper_Win32_DirectX12::current_window_placement() const {
+    WINDOWPLACEMENT wp{};
+    wp.length = sizeof(wp);
+    if (!m_pimpl->windowHandle || !::GetWindowPlacement(m_pimpl->windowHandle, &wp))
+        return std::nullopt;
+    /* rcNormalPosition is the restored rectangle even while maximised or minimised; a minimised
+     * window that was maximised before counts as maximised */
+    const RECT& r = wp.rcNormalPosition;
+    const bool maximised = wp.showCmd == SW_SHOWMAXIMIZED ||
+                           (wp.showCmd == SW_SHOWMINIMIZED && (wp.flags & WPF_RESTORETOMAXIMIZED));
+    return window_placement{r.left, r.top, r.right - r.left, r.bottom - r.top, maximised};
+}
+/******************/
 
 void ImGuiWrapper_Win32_DirectX12::changeWindowTitle(const std::string& title) {
     ::SetWindowTextW(m_pimpl->windowHandle, sg::string::to_wstring(title).c_str());

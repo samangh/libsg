@@ -21,15 +21,45 @@
     #include <windows.h> // SetProcessDPIAware()
 #endif
 
+#include <optional>
 #include <stdexcept>
 
 /* To see what has been manually added for libsg, please see search for
  * "ADDED BY SAMAN" */
 
+/******************
+ * ADDED BY ROBERT *
+ ******************/
+/* Shows the main window: at a remembered placement (see ConfigFlags::RememberWindowPlacement)
+ * while its rectangle still overlaps a display, otherwise where it was created, as before. */
+static void show_main_window(SDL_Window* window, const std::optional<sg::imgui::IImGuiWrapper::window_placement>& placement)
+{
+    bool use = false;
+    if (placement) {
+        const SDL_Rect r{placement->x, placement->y, placement->width, placement->height};
+        for (int i = 0; i < SDL_GetNumVideoDisplays() && !use; ++i) {
+            SDL_Rect display;
+            use = SDL_GetDisplayBounds(i, &display) == 0 && SDL_HasIntersection(&r, &display);
+        }
+    }
+    if (use) {
+        SDL_SetWindowPosition(window, placement->x, placement->y);
+        SDL_SetWindowSize(window, placement->width, placement->height);
+    }
+    SDL_ShowWindow(window);
+    if (use && placement->maximised)
+        SDL_MaximizeWindow(window);
+}
+/******************/
+
 namespace sg::imgui {
 
 struct ImGuiWrapper_Sdl2_OpenGl3::impl {
     SDL_Window * windowHandle = nullptr;
+
+    /* ADDED BY ROBERT: for ConfigFlags::RememberWindowPlacement - SDL2 can't say where a
+     * maximised window would restore to, so the restored rectangle is kept while it is seen */
+    std::optional<IImGuiWrapper::window_placement> placement;
 };
 
 ImGuiWrapper_Sdl2_OpenGl3::ImGuiWrapper_Sdl2_OpenGl3(on_start_t a, on_end_t b, on_iteration_t c, ConfigFlags configFlags)
@@ -91,7 +121,9 @@ void ImGuiWrapper_Sdl2_OpenGl3::start(const std::string &title)
     SDL_GL_SetAttribute(SDL_GL_DEPTH_SIZE, 24);
     SDL_GL_SetAttribute(SDL_GL_STENCIL_SIZE, 8);
     float main_scale = ImGui_ImplSDL2_GetContentScaleForDisplay(0);
-    SDL_WindowFlags window_flags = (SDL_WindowFlags)(SDL_WINDOW_OPENGL | SDL_WINDOW_RESIZABLE | SDL_WINDOW_ALLOW_HIGHDPI);
+    /* ADDED BY ROBERT: SDL_WINDOW_HIDDEN, shown after setup_io() below, where
+     * ConfigFlags::RememberWindowPlacement can put it where it was left */
+    SDL_WindowFlags window_flags = (SDL_WindowFlags)(SDL_WINDOW_OPENGL | SDL_WINDOW_RESIZABLE | SDL_WINDOW_ALLOW_HIGHDPI | SDL_WINDOW_HIDDEN);
     /******************
      * ADDED BY SAMAN *
      ******************/
@@ -138,6 +170,17 @@ void ImGuiWrapper_Sdl2_OpenGl3::start(const std::string &title)
     //Also docking/viewports disabled from above
 
     setup_io(io);
+    /******************/
+
+    /******************
+     * ADDED BY ROBERT *
+     ******************/
+    // Show the window: where it was left if remembered and still on a display, else as before.
+    // Tracking starts from it, so a window kept maximised all session still knows where it
+    // would restore to (it is only seen restored if it is un-maximised).
+    const auto placement = load_window_placement();
+    m_pimpl->placement   = placement;
+    show_main_window(window, placement);
     /******************/
 
     // Setup Dear ImGui style
@@ -223,6 +266,9 @@ void ImGuiWrapper_Sdl2_OpenGl3::start(const std::string &title)
             if (event.type == SDL_WINDOWEVENT && event.window.event == SDL_WINDOWEVENT_CLOSE && event.window.windowID == SDL_GetWindowID(window))
                 done = true;
         }
+        /* ADDED BY ROBERT: keep the restored rectangle for RememberWindowPlacement */
+        track_placement(window);
+
         if (SDL_GetWindowFlags(window) & SDL_WINDOW_MINIMIZED)
         {
             SDL_Delay(10);
@@ -280,6 +326,28 @@ void ImGuiWrapper_Sdl2_OpenGl3::start(const std::string &title)
     SDL_DestroyWindow(window);
     SDL_Quit();
 }
+
+/******************
+ * ADDED BY ROBERT *
+ ******************/
+void ImGuiWrapper_Sdl2_OpenGl3::track_placement(SDL_Window* window) {
+    const Uint32 flags = SDL_GetWindowFlags(window);
+    if (flags & (SDL_WINDOW_MINIMIZED | SDL_WINDOW_HIDDEN))
+        return; // keep the last known state
+    auto& placement = m_pimpl->placement;
+    if (!placement)
+        placement.emplace();
+    placement->maximised = flags & SDL_WINDOW_MAXIMIZED;
+    if (!placement->maximised) {
+        SDL_GetWindowPosition(window, &placement->x, &placement->y);
+        SDL_GetWindowSize(window, &placement->width, &placement->height);
+    }
+}
+
+std::optional<IImGuiWrapper::window_placement> ImGuiWrapper_Sdl2_OpenGl3::current_window_placement() const {
+    return m_pimpl->placement;
+}
+/******************/
 
 void ImGuiWrapper_Sdl2_OpenGl3::changeWindowTitle(const std::string& title) {
     SDL_SetWindowTitle(m_pimpl->windowHandle, title.c_str());
