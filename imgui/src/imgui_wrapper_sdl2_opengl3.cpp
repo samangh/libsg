@@ -1,5 +1,6 @@
 #if defined(LIBSG_IMGUI_OPENGL)
 
+#include "helpers.h"
 #include "sg/imgui/imgui_wrapper_sdl2_opengl3.h"
 
 #include <backends/imgui_impl_sdl2.h>
@@ -223,11 +224,19 @@ void ImGuiWrapper_Sdl2_OpenGl3::start(const std::string &title)
             if (event.type == SDL_WINDOWEVENT && event.window.event == SDL_WINDOWEVENT_CLOSE && event.window.windowID == SDL_GetWindowID(window))
                 done = true;
         }
-        if (SDL_GetWindowFlags(window) & SDL_WINDOW_MINIMIZED)
+        /*******************
+         * ADDED BY ROBERT *
+         *******************/
+        /* ADDED BY ROBERT: skip the frame only when nothing at all can be shown - a hidden or
+         * minimised main window must not freeze windows dragged out of it (see
+         * is_secondary_window_shown()). */
+        const bool main_hidden = SDL_GetWindowFlags(window) & (SDL_WINDOW_MINIMIZED | SDL_WINDOW_HIDDEN);
+        if (main_hidden && !is_secondary_window_shown())
         {
             SDL_Delay(10);
             continue;
         }
+        /*****************/
 
         // Start the Dear ImGui frame
         ImGui_ImplOpenGL3_NewFrame();
@@ -242,10 +251,20 @@ void ImGuiWrapper_Sdl2_OpenGl3::start(const std::string &title)
 
         // Rendering
         ImGui::Render();
-        glViewport(0, 0, (int)io.DisplaySize.x, (int)io.DisplaySize.y);
-        glClearColor(clear_color.x * clear_color.w, clear_color.y * clear_color.w, clear_color.z * clear_color.w, clear_color.w);
-        glClear(GL_COLOR_BUFFER_BIT);
-        ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
+        /******************
+         * ADDED BY SAMAN *
+         ******************/
+        /* ADDED BY ROBERT: while the main window is hidden nothing presents it (see the swap
+         * below), so skip its draw work - ImGui::Render() itself must still run, as it ends the
+         * frame and produces the draw data the secondary windows are rendered from. */
+        if (!main_hidden)
+        {
+            glViewport(0, 0, (int)io.DisplaySize.x, (int)io.DisplaySize.y);
+            glClearColor(clear_color.x * clear_color.w, clear_color.y * clear_color.w, clear_color.z * clear_color.w, clear_color.w);
+            glClear(GL_COLOR_BUFFER_BIT);
+            ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
+        }
+        /*****************/
 
         // Update and Render additional Platform Windows
         // (Platform functions may change the current OpenGL context, so we save/restore it to make it easier to paste this code elsewhere.
@@ -259,7 +278,17 @@ void ImGuiWrapper_Sdl2_OpenGl3::start(const std::string &title)
             SDL_GL_MakeCurrent(backup_current_window, backup_current_context);
         }
 
-        SDL_GL_SwapWindow(window);
+        /*******************
+         * ADDED BY ROBERT *
+         *******************/
+        /* The main window's vsync swap is what paces this loop - secondary windows
+         * swap without vsync - so while it is hidden, wait abit instead of
+         * swapping, or the loop would spin flat out. */
+        if (main_hidden)
+            SDL_Delay(16);
+        else
+            SDL_GL_SwapWindow(window);
+        /******************/
     }
     #ifdef __EMSCRIPTEN__
     EMSCRIPTEN_MAINLOOP_END;

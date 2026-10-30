@@ -2,6 +2,7 @@
  * "ADDED BY SAMAN" */
 
 #if defined(LIBSG_IMGUI_DIRECTX)
+#include "helpers.h"
 
 #include "sg/imgui/imgui_wrapper_win32_directx12.h"
 #include "sg/string.h"
@@ -12,6 +13,7 @@
 #include <d3d12.h>
 #include <dxgi1_5.h>
 #include <tchar.h>
+#include <dwmapi.h> // DwmFlush(); ImGui's Win32 backend already links dwmapi
 
 #ifdef _DEBUG
     #define DX12_ENABLE_DEBUG_LAYER
@@ -540,7 +542,11 @@ void ImGuiWrapper_Win32_DirectX12::start(const std::string &title)
         /******************/
 
         // Handle window screen locked
-        if ((g_SwapChainOccluded && g_pSwapChain->Present(0, DXGI_PRESENT_TEST) == DXGI_STATUS_OCCLUDED) || ::IsIconic(hwnd))
+        /* ADDED BY ROBERT: skip the frame only when nothing at all can be shown - a minimised or
+         * occluded main window must not freeze windows dragged out of it (see
+         * is_secondary_window_shown()). */
+        const bool main_hidden = (g_SwapChainOccluded && g_pSwapChain->Present(0, DXGI_PRESENT_TEST) == DXGI_STATUS_OCCLUDED) || ::IsIconic(hwnd);
+        if (main_hidden && !is_secondary_window_shown())
         {
             ::Sleep(10);
             continue;
@@ -563,32 +569,44 @@ void ImGuiWrapper_Win32_DirectX12::start(const std::string &title)
         // Rendering
         ImGui::Render();
 
-        FrameContext* frameCtx = WaitForNextFrameContext();
-        UINT backBufferIdx = g_pSwapChain->GetCurrentBackBufferIndex();
-        frameCtx->CommandAllocator->Reset();
+        /******************
+         * ADDED BY ROBERT*
+         ******************/
+        /* while the main window is hidden nothing of it reaches the screen, so
+         * skip its draw work - ImGui::Render() itself must still run, as it ends the frame and
+         * produces the draw data the secondary windows are rendered from. The Present() below is
+         * kept whatever happens, as its result is what tells us the window is showing again. */
+        FrameContext* frameCtx = nullptr;
+        if (!main_hidden)
+        {
+            frameCtx = WaitForNextFrameContext();
+            UINT backBufferIdx = g_pSwapChain->GetCurrentBackBufferIndex();
+            frameCtx->CommandAllocator->Reset();
 
-        D3D12_RESOURCE_BARRIER barrier = {};
-        barrier.Type                   = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
-        barrier.Flags                  = D3D12_RESOURCE_BARRIER_FLAG_NONE;
-        barrier.Transition.pResource   = g_mainRenderTargetResource[backBufferIdx];
-        barrier.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
-        barrier.Transition.StateBefore = D3D12_RESOURCE_STATE_PRESENT;
-        barrier.Transition.StateAfter  = D3D12_RESOURCE_STATE_RENDER_TARGET;
-        g_pd3dCommandList->Reset(frameCtx->CommandAllocator, nullptr);
-        g_pd3dCommandList->ResourceBarrier(1, &barrier);
+            D3D12_RESOURCE_BARRIER barrier = {};
+            barrier.Type                   = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
+            barrier.Flags                  = D3D12_RESOURCE_BARRIER_FLAG_NONE;
+            barrier.Transition.pResource   = g_mainRenderTargetResource[backBufferIdx];
+            barrier.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
+            barrier.Transition.StateBefore = D3D12_RESOURCE_STATE_PRESENT;
+            barrier.Transition.StateAfter  = D3D12_RESOURCE_STATE_RENDER_TARGET;
+            g_pd3dCommandList->Reset(frameCtx->CommandAllocator, nullptr);
+            g_pd3dCommandList->ResourceBarrier(1, &barrier);
 
-        // Render Dear ImGui graphics
-        const float clear_color_with_alpha[4] = { clear_color.x * clear_color.w, clear_color.y * clear_color.w, clear_color.z * clear_color.w, clear_color.w };
-        g_pd3dCommandList->ClearRenderTargetView(g_mainRenderTargetDescriptor[backBufferIdx], clear_color_with_alpha, 0, nullptr);
-        g_pd3dCommandList->OMSetRenderTargets(1, &g_mainRenderTargetDescriptor[backBufferIdx], FALSE, nullptr);
-        g_pd3dCommandList->SetDescriptorHeaps(1, &g_pd3dSrvDescHeap);
-        ImGui_ImplDX12_RenderDrawData(ImGui::GetDrawData(), g_pd3dCommandList);
-        barrier.Transition.StateBefore = D3D12_RESOURCE_STATE_RENDER_TARGET;
-        barrier.Transition.StateAfter  = D3D12_RESOURCE_STATE_PRESENT;
-        g_pd3dCommandList->ResourceBarrier(1, &barrier);
-        g_pd3dCommandList->Close();
+            // Render Dear ImGui graphics
+            const float clear_color_with_alpha[4] = { clear_color.x * clear_color.w, clear_color.y * clear_color.w, clear_color.z * clear_color.w, clear_color.w };
+            g_pd3dCommandList->ClearRenderTargetView(g_mainRenderTargetDescriptor[backBufferIdx], clear_color_with_alpha, 0, nullptr);
+            g_pd3dCommandList->OMSetRenderTargets(1, &g_mainRenderTargetDescriptor[backBufferIdx], FALSE, nullptr);
+            g_pd3dCommandList->SetDescriptorHeaps(1, &g_pd3dSrvDescHeap);
+            ImGui_ImplDX12_RenderDrawData(ImGui::GetDrawData(), g_pd3dCommandList);
+            barrier.Transition.StateBefore = D3D12_RESOURCE_STATE_RENDER_TARGET;
+            barrier.Transition.StateAfter  = D3D12_RESOURCE_STATE_PRESENT;
+            g_pd3dCommandList->ResourceBarrier(1, &barrier);
+            g_pd3dCommandList->Close();
 
-        g_pd3dCommandQueue->ExecuteCommandLists(1, (ID3D12CommandList* const*)&g_pd3dCommandList);
+            g_pd3dCommandQueue->ExecuteCommandLists(1, (ID3D12CommandList* const*)&g_pd3dCommandList);
+        }
+        /*****************/
 
         // Update and Render additional Platform Windows
         if (io.ConfigFlags & ImGuiConfigFlags_ViewportsEnable)
@@ -597,14 +615,27 @@ void ImGuiWrapper_Win32_DirectX12::start(const std::string &title)
             ImGui::RenderPlatformWindowsDefault();
         }
 
-        g_pd3dCommandQueue->Signal(g_fence, ++g_fenceLastSignaledValue);
-        frameCtx->FenceValue = g_fenceLastSignaledValue;
+        if (frameCtx)
+        {
+            g_pd3dCommandQueue->Signal(g_fence, ++g_fenceLastSignaledValue);
+            frameCtx->FenceValue = g_fenceLastSignaledValue;
+        }
 
         // Present
         HRESULT hr = g_pSwapChain->Present(1, 0);   // Present with vsync
         //HRESULT hr = g_pSwapChain->Present(0, g_SwapChainTearingSupport ? DXGI_PRESENT_ALLOW_TEARING : 0); // Present without vsync
         g_SwapChainOccluded = (hr == DXGI_STATUS_OCCLUDED);
         g_frameIndex++;
+
+        /******************
+         * ADDED BY ROBERT*
+         ******************/
+        /* the main window's vsync Present is what paces this loop - secondary
+         * windows present without vsync - and a hidden main window's Present returns at once. So
+         * wait for the desktop compositor's next frame instead, or the loop would spin flat out. */
+        if (main_hidden)
+            ::DwmFlush();
+        /*****************/
     }
 
     WaitForPendingOperations();
