@@ -79,6 +79,7 @@ endif()
 
 # OpenSSL backs Boost.Asio's TLS support, which sg_net uses for sg/net/tls.h
 if (LIBSG_NET AND LIBSG_TLS)
+  set(OPENSSL_USE_STATIC_LIBS ${USE_STATIC_LIBS})
   if (WIN32 OR MSYS)
     # OpenSSL > 3.2 needed for using the Windows certificate store easily
     find_package(OpenSSL 3.2 REQUIRED)
