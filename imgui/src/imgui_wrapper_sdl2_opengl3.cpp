@@ -308,6 +308,11 @@ void ImGuiWrapper_Sdl2_OpenGl3::start(const std::string &title)
     SDL_GL_DeleteContext(gl_context);
     SDL_DestroyWindow(window);
     SDL_Quit();
+
+    /*******************
+     * ADDED           *
+     *******************/
+    m_pimpl->windowHandle = nullptr;
 }
 
 void ImGuiWrapper_Sdl2_OpenGl3::changeWindowTitle(const std::string& title) {

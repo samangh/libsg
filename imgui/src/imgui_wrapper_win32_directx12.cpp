@@ -654,6 +654,11 @@ void ImGuiWrapper_Win32_DirectX12::start(const std::string &title)
     CleanupDeviceD3D();
     ::DestroyWindow(hwnd);
     ::UnregisterClassW(wc.lpszClassName, wc.hInstance);
+
+    /*******************
+     * ADDED           *
+     *******************/
+    m_pimpl->windowHandle = nullptr;
 }
 
 void ImGuiWrapper_Win32_DirectX12::changeWindowTitle(const std::string& title) {
