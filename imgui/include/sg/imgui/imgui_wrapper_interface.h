@@ -21,6 +21,11 @@ class IImGuiWrapper {
         on_iteration_t onIteration {nullptr};
     };
 
+    struct WindowPlacement {
+        int x = 0, y = 0, width = 0, height = 0;
+        bool maximised = false;
+    };
+
     [[deprecated("Use Callbacks struct instead")]]
     IImGuiWrapper(on_start_t, on_end_t, on_iteration_t, ConfigFlags);
     IImGuiWrapper(Callbacks, ConfigFlags);
@@ -29,6 +34,14 @@ class IImGuiWrapper {
 
     virtual void start(const std::string &title) = 0;
     virtual void changeWindowTitle(const std::string &title) = 0;
+
+    /* Get/set the main window's placement.
+     *
+     * Only available from onStart to onEnd: otherwise windowPlacement() returns an empty placement
+     * and setWindowPlacement() does nothing. A placement that is empty, or not on any connected
+     * display, won't leave the window off screen. */
+    [[nodiscard]] virtual WindowPlacement windowPlacement() const = 0;
+    virtual void setWindowPlacement(const WindowPlacement &placement) = 0;
 
   protected:
     /* sets up ImGUI IO */

@@ -19,6 +19,8 @@ class ImGuiWrapper_Win32_DirectX12 : public IImGuiWrapper {
 
     void start(const std::string &title) override;
     void changeWindowTitle(const std::string& title) override;
+    [[nodiscard]] WindowPlacement windowPlacement() const override;
+    void setWindowPlacement(const WindowPlacement& placement) override;
 };
 } // namespace sg::imgui
 

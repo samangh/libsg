@@ -665,6 +665,30 @@ void ImGuiWrapper_Win32_DirectX12::changeWindowTitle(const std::string& title) {
     ::SetWindowTextW(m_pimpl->windowHandle, sg::string::to_wstring(title).c_str());
 }
 
+IImGuiWrapper::WindowPlacement ImGuiWrapper_Win32_DirectX12::windowPlacement() const {
+    WINDOWPLACEMENT wp{};
+    wp.length = sizeof(wp);
+    if (!m_pimpl->windowHandle || !::GetWindowPlacement(m_pimpl->windowHandle, &wp))
+        return {};
+
+    // rcNormalPosition is the restored rectangle, even while maximised or minimised
+    const RECT& r = wp.rcNormalPosition;
+    const bool maximised = wp.showCmd == SW_SHOWMAXIMIZED ||
+                           (wp.showCmd == SW_SHOWMINIMIZED && (wp.flags & WPF_RESTORETOMAXIMIZED));
+    return {r.left, r.top, r.right - r.left, r.bottom - r.top, maximised};
+}
+
+void ImGuiWrapper_Win32_DirectX12::setWindowPlacement(const WindowPlacement& placement) {
+    if (!m_pimpl->windowHandle || placement.width <= 0 || placement.height <= 0)
+        return;
+
+    WINDOWPLACEMENT wp{};
+    wp.length           = sizeof(wp);
+    wp.showCmd          = placement.maximised ? SW_SHOWMAXIMIZED : SW_SHOWNORMAL;
+    wp.rcNormalPosition = {placement.x, placement.y, placement.x + placement.width, placement.y + placement.height};
+    ::SetWindowPlacement(m_pimpl->windowHandle, &wp); // keeps the window on screen
+}
+
 ImGuiWrapper_Win32_DirectX12::~ImGuiWrapper_Win32_DirectX12() =default;
 
 } // namespace sg::imgui

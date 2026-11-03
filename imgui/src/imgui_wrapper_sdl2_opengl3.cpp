@@ -31,6 +31,9 @@ namespace sg::imgui {
 
 struct ImGuiWrapper_Sdl2_OpenGl3::impl {
     SDL_Window * windowHandle = nullptr;
+
+    /* SDL can't report a maximised window's restored rectangle, so remember the last one seen */
+    WindowPlacement placement;
 };
 
 ImGuiWrapper_Sdl2_OpenGl3::ImGuiWrapper_Sdl2_OpenGl3(on_start_t a, on_end_t b, on_iteration_t c, ConfigFlags configFlags)
@@ -225,9 +228,11 @@ void ImGuiWrapper_Sdl2_OpenGl3::start(const std::string &title)
                 done = true;
         }
         /*******************
-         * ADDED BY ROBERT *
+         * ADDED           *
          *******************/
-        /* ADDED BY ROBERT: skip the frame only when nothing at all can be shown - a hidden or
+        m_pimpl->placement = windowPlacement();
+
+        /* skip the frame only when nothing at all can be shown - a hidden or
          * minimised main window must not freeze windows dragged out of it (see
          * is_secondary_window_shown()). */
         const bool main_hidden = SDL_GetWindowFlags(window) & (SDL_WINDOW_MINIMIZED | SDL_WINDOW_HIDDEN);
@@ -317,6 +322,46 @@ void ImGuiWrapper_Sdl2_OpenGl3::start(const std::string &title)
 
 void ImGuiWrapper_Sdl2_OpenGl3::changeWindowTitle(const std::string& title) {
     SDL_SetWindowTitle(m_pimpl->windowHandle, title.c_str());
+}
+
+IImGuiWrapper::WindowPlacement ImGuiWrapper_Sdl2_OpenGl3::windowPlacement() const {
+    SDL_Window* window = m_pimpl->windowHandle;
+    if (!window)
+        return {};
+
+    WindowPlacement placement = m_pimpl->placement;
+    const Uint32 flags        = SDL_GetWindowFlags(window);
+    if (flags & SDL_WINDOW_MINIMIZED)
+        return placement;
+
+    placement.maximised = flags & SDL_WINDOW_MAXIMIZED;
+    if (!placement.maximised) {
+        SDL_GetWindowPosition(window, &placement.x, &placement.y);
+        SDL_GetWindowSize(window, &placement.width, &placement.height);
+    }
+    return placement;
+}
+
+void ImGuiWrapper_Sdl2_OpenGl3::setWindowPlacement(const WindowPlacement& placement) {
+    SDL_Window* window = m_pimpl->windowHandle;
+    if (!window)
+        return;
+
+    const SDL_Rect rect{placement.x, placement.y, placement.width, placement.height};
+    bool on_display = false;
+    for (int i = 0; i < SDL_GetNumVideoDisplays() && !on_display; ++i) {
+        SDL_Rect display;
+        on_display = SDL_GetDisplayBounds(i, &display) == 0 && SDL_HasIntersection(&rect, &display);
+    }
+    if (!on_display)
+        return;
+
+    m_pimpl->placement = placement;
+    SDL_RestoreWindow(window); // the rectangle is that of the restored window
+    SDL_SetWindowPosition(window, placement.x, placement.y);
+    SDL_SetWindowSize(window, placement.width, placement.height);
+    if (placement.maximised)
+        SDL_MaximizeWindow(window);
 }
 
 /* that the destructor must be in the implementation, as the destructor needs to know the size
