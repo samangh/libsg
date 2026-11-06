@@ -238,6 +238,7 @@ void ImGuiWrapper_Sdl2_OpenGl3::start(const std::string &title)
         const bool main_hidden = SDL_GetWindowFlags(window) & (SDL_WINDOW_MINIMIZED | SDL_WINDOW_HIDDEN);
         if (main_hidden && !is_secondary_window_shown())
         {
+            skipped_iteration();
             SDL_Delay(10);
             continue;
         }

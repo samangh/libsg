@@ -14,11 +14,20 @@ class IImGuiWrapper {
     CREATE_CALLBACK(on_start_t, void(IImGuiWrapper&));
     CREATE_CALLBACK(on_end_t, void(IImGuiWrapper&));
     CREATE_CALLBACK(on_iteration_t, void(IImGuiWrapper&, bool &done));
+    CREATE_CALLBACK(on_skipped_iteration_t, void(IImGuiWrapper&));
 
     struct Callbacks {
         on_start_t onStart {nullptr};
         on_end_t onEnd {nullptr};
         on_iteration_t onIteration {nullptr};
+        /* Called instead of onIteration for each frame the loop skips because nothing can be
+         * shown (main window minimised, or on Windows occluded, e.g. by a locked screen, and no
+         * window dragged out of it is showing) - about every 10 ms while that lasts. Lets the
+         * application keep up with work that must not wait for the window to come back, such as
+         * taking in data arriving from another thread.
+         *
+         * It runs outside an ImGui frame: it must not call ImGui. */
+        on_skipped_iteration_t onSkippedIteration {nullptr};
     };
 
     struct WindowPlacement {
@@ -52,6 +61,7 @@ class IImGuiWrapper {
     void initalise();
 
     void iterate(bool &done);
+    void skipped_iteration();
     void cleanup();
 
     const ConfigFlags m_configflags;

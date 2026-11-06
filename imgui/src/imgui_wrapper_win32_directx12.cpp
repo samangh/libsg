@@ -548,6 +548,7 @@ void ImGuiWrapper_Win32_DirectX12::start(const std::string &title)
         const bool main_hidden = (g_SwapChainOccluded && g_pSwapChain->Present(0, DXGI_PRESENT_TEST) == DXGI_STATUS_OCCLUDED) || ::IsIconic(hwnd);
         if (main_hidden && !is_secondary_window_shown())
         {
+            skipped_iteration();
             ::Sleep(10);
             continue;
         }
