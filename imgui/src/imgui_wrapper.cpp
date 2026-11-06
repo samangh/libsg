@@ -39,6 +39,12 @@ void IImGuiWrapper::iterate(bool& done)
         m_callbacks.onIteration.invoke(*this, done);
 }
 
+void IImGuiWrapper::skipped_iteration()
+{
+    if (m_callbacks.onSkippedIteration)
+        m_callbacks.onSkippedIteration.invoke(*this);
+}
+
 void IImGuiWrapper::cleanup()
 {
     if (m_callbacks.onEnd)
