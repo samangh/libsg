@@ -372,14 +372,6 @@ struct ImGuiWrapper_Win32_DirectX12::impl {
     HWND windowHandle = nullptr;
 };
 
-ImGuiWrapper_Win32_DirectX12::ImGuiWrapper_Win32_DirectX12(on_start_t a, on_end_t b,
-                                                           on_visible_iteration_t c,
-                                                           ConfigFlags configFlags)
-    : IImGuiWrapper(Callbacks{.onStart            = std::move(a),
-                              .onEnd              = std::move(b),
-                              .onVisibleIteration = std::move(c)},
-                    configFlags) {}
-
 ImGuiWrapper_Win32_DirectX12::ImGuiWrapper_Win32_DirectX12(Callbacks callbacks, ConfigFlags configFlags)
     : IImGuiWrapper(std::move(callbacks), configFlags) {}
 

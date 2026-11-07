@@ -36,14 +36,6 @@ struct ImGuiWrapper_Sdl2_OpenGl3::impl {
     WindowPlacement placement;
 };
 
-ImGuiWrapper_Sdl2_OpenGl3::ImGuiWrapper_Sdl2_OpenGl3(on_start_t a, on_end_t b,
-                                                     on_visible_iteration_t c,
-                                                     ConfigFlags configFlags)
-    : IImGuiWrapper(Callbacks{.onStart            = std::move(a),
-                              .onEnd              = std::move(b),
-                              .onVisibleIteration = std::move(c)},
-                    configFlags) {}
-
 ImGuiWrapper_Sdl2_OpenGl3::ImGuiWrapper_Sdl2_OpenGl3(Callbacks callbacks, ConfigFlags configFlags)
     : IImGuiWrapper(std::move(callbacks), configFlags) {}
 

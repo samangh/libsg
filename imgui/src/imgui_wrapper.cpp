@@ -8,15 +8,6 @@
 
 namespace sg::imgui {
 
-IImGuiWrapper::IImGuiWrapper(IImGuiWrapper::on_start_t on_start_cb,
-                             IImGuiWrapper::on_end_t on_end_cb,
-                             IImGuiWrapper::on_visible_iteration_t on_it_cb,
-                             ConfigFlags flags)
-    : m_configflags(flags),
-      m_callbacks(Callbacks{.onStart     = std::move(on_start_cb),
-                            .onEnd       = std::move(on_end_cb),
-                            .onVisibleIteration = std::move(on_it_cb)}) {}
-
 IImGuiWrapper::IImGuiWrapper(Callbacks callbacks, ConfigFlags flags)
     : m_configflags(flags),
       m_callbacks(std::move(callbacks)) {}

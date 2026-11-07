@@ -38,10 +38,7 @@ class IImGuiWrapper {
         bool maximised = false;
     };
 
-    [[deprecated("Use Callbacks struct instead")]]
-    IImGuiWrapper(on_start_t, on_end_t, on_visible_iteration_t, ConfigFlags);
     IImGuiWrapper(Callbacks, ConfigFlags);
-
     virtual ~IImGuiWrapper();
 
     virtual void start(const std::string &title) = 0;
