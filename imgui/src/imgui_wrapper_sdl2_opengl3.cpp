@@ -196,7 +196,7 @@ void ImGuiWrapper_Sdl2_OpenGl3::start(const std::string &title)
     /******************
      * ADDED BY SAMAN *
      ******************/
-    initalise();
+    initialise();
     /*****************/
 
     // Main loop

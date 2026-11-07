@@ -56,9 +56,8 @@ class IImGuiWrapper {
     /* sets up ImGUI IO */
     void setup_io(ImGuiIO&);
 
-    /* this is called after the platform/renderer backends have been
-     * intialised*/
-    void initalise();
+    /* this is called after the platform/renderer backends have been intialised*/
+    void initialise();
 
     void on_iteration(bool &done, bool willRender);
     void on_visible_iteration(bool& done);

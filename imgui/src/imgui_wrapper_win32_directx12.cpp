@@ -498,7 +498,7 @@ void ImGuiWrapper_Win32_DirectX12::start(const std::string &title)
     /******************
      * ADDED BY SAMAN *
      ******************/
-    initalise();
+    initialise();
     /*****************/
 
     // Our state

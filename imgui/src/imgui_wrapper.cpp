@@ -14,7 +14,7 @@ IImGuiWrapper::IImGuiWrapper(Callbacks callbacks, ConfigFlags flags)
 
 IImGuiWrapper::~IImGuiWrapper()  =default;
 
-void IImGuiWrapper::initalise()
+void IImGuiWrapper::initialise()
 {
     if (sg::enumeration::contains(m_configflags, ConfigFlags::IncludeImPlot))
         ImPlot::CreateContext();
