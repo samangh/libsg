@@ -16,7 +16,7 @@ class ImGuiWrapper_Sdl2_OpenGl3 : public IImGuiWrapper {
 
   public:
     [[deprecated("Use Callbacks struct instead")]]
-    ImGuiWrapper_Sdl2_OpenGl3(on_start_t, on_end_t, on_iteration_t,
+    ImGuiWrapper_Sdl2_OpenGl3(on_start_t, on_end_t, on_visible_iteration_t,
                               ConfigFlags = ConfigFlags::None);
     ImGuiWrapper_Sdl2_OpenGl3(Callbacks, ConfigFlags = ConfigFlags::None);
     ~ImGuiWrapper_Sdl2_OpenGl3() override;

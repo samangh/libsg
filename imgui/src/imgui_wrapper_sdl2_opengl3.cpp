@@ -36,8 +36,13 @@ struct ImGuiWrapper_Sdl2_OpenGl3::impl {
     WindowPlacement placement;
 };
 
-ImGuiWrapper_Sdl2_OpenGl3::ImGuiWrapper_Sdl2_OpenGl3(on_start_t a, on_end_t b, on_iteration_t c, ConfigFlags configFlags)
-    : IImGuiWrapper(Callbacks{std::move(a), std::move(b), std::move(c)}, configFlags) {}
+ImGuiWrapper_Sdl2_OpenGl3::ImGuiWrapper_Sdl2_OpenGl3(on_start_t a, on_end_t b,
+                                                     on_visible_iteration_t c,
+                                                     ConfigFlags configFlags)
+    : IImGuiWrapper(Callbacks{.onStart            = std::move(a),
+                              .onEnd              = std::move(b),
+                              .onVisibleIteration = std::move(c)},
+                    configFlags) {}
 
 ImGuiWrapper_Sdl2_OpenGl3::ImGuiWrapper_Sdl2_OpenGl3(Callbacks callbacks, ConfigFlags configFlags)
     : IImGuiWrapper(std::move(callbacks), configFlags) {}
@@ -232,12 +237,15 @@ void ImGuiWrapper_Sdl2_OpenGl3::start(const std::string &title)
          *******************/
         m_pimpl->placement = windowPlacement();
 
+        on_every_iteration(done);
+
         /* skip the frame only when nothing at all can be shown - a hidden or
          * minimised main window must not freeze windows dragged out of it (see
          * is_secondary_window_shown()). */
         const bool main_hidden = SDL_GetWindowFlags(window) & (SDL_WINDOW_MINIMIZED | SDL_WINDOW_HIDDEN);
         if (main_hidden && !is_secondary_window_shown())
         {
+            on_skipped_iteration(done);
             SDL_Delay(10);
             continue;
         }
@@ -251,7 +259,7 @@ void ImGuiWrapper_Sdl2_OpenGl3::start(const std::string &title)
         /******************
          * ADDED BY SAMAN *
          ******************/
-        iterate(done);
+        on_visible_iteration(done);
         /*****************/
 
         // Rendering

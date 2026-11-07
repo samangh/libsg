@@ -372,8 +372,13 @@ struct ImGuiWrapper_Win32_DirectX12::impl {
     HWND windowHandle = nullptr;
 };
 
-ImGuiWrapper_Win32_DirectX12::ImGuiWrapper_Win32_DirectX12(on_start_t a, on_end_t b, on_iteration_t c, ConfigFlags configFlags)
-    : IImGuiWrapper(Callbacks{std::move(a), std::move(b), std::move(c)}, configFlags) {}
+ImGuiWrapper_Win32_DirectX12::ImGuiWrapper_Win32_DirectX12(on_start_t a, on_end_t b,
+                                                           on_visible_iteration_t c,
+                                                           ConfigFlags configFlags)
+    : IImGuiWrapper(Callbacks{.onStart            = std::move(a),
+                              .onEnd              = std::move(b),
+                              .onVisibleIteration = std::move(c)},
+                    configFlags) {}
 
 ImGuiWrapper_Win32_DirectX12::ImGuiWrapper_Win32_DirectX12(Callbacks callbacks, ConfigFlags configFlags)
     : IImGuiWrapper(std::move(callbacks), configFlags) {}
@@ -541,13 +546,15 @@ void ImGuiWrapper_Win32_DirectX12::start(const std::string &title)
         }
         /******************/
 
-        // Handle window screen locked
-        /* ADDED BY ROBERT: skip the frame only when nothing at all can be shown - a minimised or
+        on_every_iteration(done);
+
+        /* skip the frame only when nothing at all can be shown - a minimised or
          * occluded main window must not freeze windows dragged out of it (see
          * is_secondary_window_shown()). */
         const bool main_hidden = (g_SwapChainOccluded && g_pSwapChain->Present(0, DXGI_PRESENT_TEST) == DXGI_STATUS_OCCLUDED) || ::IsIconic(hwnd);
         if (main_hidden && !is_secondary_window_shown())
         {
+            on_skipped_iteration(done);
             ::Sleep(10);
             continue;
         }
@@ -561,7 +568,7 @@ void ImGuiWrapper_Win32_DirectX12::start(const std::string &title)
         /******************
          * ADDED BY SAMAN *
          ******************/
-        iterate(done);
+        on_visible_iteration(done);
 
         // ALSO: remove demo-window stuff
         /*****************/

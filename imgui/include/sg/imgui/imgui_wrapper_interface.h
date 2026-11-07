@@ -13,12 +13,16 @@ class IImGuiWrapper {
   public:
     CREATE_CALLBACK(on_start_t, void(IImGuiWrapper&));
     CREATE_CALLBACK(on_end_t, void(IImGuiWrapper&));
-    CREATE_CALLBACK(on_iteration_t, void(IImGuiWrapper&, bool &done));
+    CREATE_CALLBACK(on_every_iteration_t, void(IImGuiWrapper&, bool &done));
+    CREATE_CALLBACK(on_skipped_iteration_t, void(IImGuiWrapper&, bool &done));
+    CREATE_CALLBACK(on_visible_iteration_t, void(IImGuiWrapper&, bool &done));
 
     struct Callbacks {
         on_start_t onStart {nullptr};
         on_end_t onEnd {nullptr};
-        on_iteration_t onIteration {nullptr};
+        on_every_iteration_t onEveryIteration {nullptr};
+        on_skipped_iteration_t onSkippedIteration {nullptr};
+        on_visible_iteration_t onVisibleIteration {nullptr};
     };
 
     struct WindowPlacement {
@@ -27,7 +31,7 @@ class IImGuiWrapper {
     };
 
     [[deprecated("Use Callbacks struct instead")]]
-    IImGuiWrapper(on_start_t, on_end_t, on_iteration_t, ConfigFlags);
+    IImGuiWrapper(on_start_t, on_end_t, on_visible_iteration_t, ConfigFlags);
     IImGuiWrapper(Callbacks, ConfigFlags);
 
     virtual ~IImGuiWrapper();
@@ -51,7 +55,10 @@ class IImGuiWrapper {
      * intialised*/
     void initalise();
 
-    void iterate(bool &done);
+    void on_every_iteration(bool &done);
+    void on_skipped_iteration(bool& done);
+    void on_visible_iteration(bool& done);
+
     void cleanup();
 
     const ConfigFlags m_configflags;
