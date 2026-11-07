@@ -235,7 +235,7 @@ void ImGuiWrapper_Sdl2_OpenGl3::start(const std::string &title)
         const bool main_hidden = SDL_GetWindowFlags(window) & (SDL_WINDOW_MINIMIZED | SDL_WINDOW_HIDDEN);
         const bool skip_frame = main_hidden && !is_secondary_window_shown();
 
-        on_iteration(done, !skip_frame);
+        tick(done, !skip_frame);
 
         if (skip_frame)
         {
@@ -252,7 +252,7 @@ void ImGuiWrapper_Sdl2_OpenGl3::start(const std::string &title)
         /******************
          * ADDED BY SAMAN *
          ******************/
-        on_visible_iteration(done);
+        draw(done);
         /*****************/
 
         // Rendering

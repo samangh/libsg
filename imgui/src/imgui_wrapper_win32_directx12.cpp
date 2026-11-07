@@ -544,7 +544,7 @@ void ImGuiWrapper_Win32_DirectX12::start(const std::string &title)
         const bool main_hidden = (g_SwapChainOccluded && g_pSwapChain->Present(0, DXGI_PRESENT_TEST) == DXGI_STATUS_OCCLUDED) || ::IsIconic(hwnd);
         const bool skip_frame = main_hidden && !is_secondary_window_shown();
 
-        on_iteration(done, !skip_frame);
+        tick(done, !skip_frame);
 
         if (skip_frame)
         {
@@ -561,7 +561,7 @@ void ImGuiWrapper_Win32_DirectX12::start(const std::string &title)
         /******************
          * ADDED BY SAMAN *
          ******************/
-        on_visible_iteration(done);
+        draw(done);
 
         // ALSO: remove demo-window stuff
         /*****************/

@@ -22,17 +22,17 @@ void IImGuiWrapper::initialise()
         m_callbacks.onStart.invoke(*this);
 }
 
-void IImGuiWrapper::on_iteration(bool& done, bool willRender)
+void IImGuiWrapper::tick(bool& done, bool willRender)
 {
-    if (m_callbacks.onIteration)
-        m_callbacks.onIteration.invoke(*this, done, willRender);
+    if (m_callbacks.onTick)
+        m_callbacks.onTick.invoke(*this, done, willRender);
 }
 
-void IImGuiWrapper::on_visible_iteration(bool& done) {
+void IImGuiWrapper::draw(bool& done) {
     if (sg::enumeration::contains(m_configflags, ConfigFlags::Docking))
         ImGui::DockSpaceOverViewport(0, nullptr, ImGuiDockNodeFlags_PassthruCentralNode, nullptr);
-    if (m_callbacks.onVisibleIteration)
-        m_callbacks.onVisibleIteration.invoke(*this, done);
+    if (m_callbacks.onDraw)
+        m_callbacks.onDraw.invoke(*this, done);
 }
 
 void IImGuiWrapper::cleanup()

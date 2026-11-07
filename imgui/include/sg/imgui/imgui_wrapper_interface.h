@@ -13,24 +13,24 @@ class IImGuiWrapper {
   public:
     CREATE_CALLBACK(on_start_t, void(IImGuiWrapper&));
     CREATE_CALLBACK(on_end_t, void(IImGuiWrapper&));
-    CREATE_CALLBACK(on_iteration_t, void(IImGuiWrapper&, bool &done, bool willRender));
-    CREATE_CALLBACK(on_visible_iteration_t, void(IImGuiWrapper&, bool &done));
+    CREATE_CALLBACK(on_tick_t, void(IImGuiWrapper&, bool &done, bool willRender));
+    CREATE_CALLBACK(on_draw_t, void(IImGuiWrapper&, bool &done));
 
     /**
      * Callbacks:
      *
-     *  - @c onIteration: called on every loop iteration, before the ImGui frame is started. @c
+     *  - @c onTick: called on every loop iteration, before the ImGui frame is started. @c
      *    willRender is false if rendering is being skipped this iteration (e.g. minimised)
-     *  - @c onVisibleIteration: only called if the GUI is visible, after @c onIteration
+     *  - @c onDraw: only called if the GUI is visible, after @c onTick
      *
-     *  You can only call ImGui functions in the @c onVisibleIteration callback. Setting
-     *  @c done in @c onIteration still lets @c onVisibleIteration run for that iteration.
+     *  You can only call ImGui functions in the @c onDraw callback. Setting
+     *  @c done in @c onTick still lets @c onDraw run for that iteration.
      */
     struct Callbacks {
         on_start_t onStart {nullptr};
         on_end_t onEnd {nullptr};
-        on_iteration_t onIteration {nullptr};
-        on_visible_iteration_t onVisibleIteration {nullptr};
+        on_tick_t onTick {nullptr};
+        on_draw_t onDraw {nullptr};
     };
 
     struct WindowPlacement {
@@ -59,8 +59,8 @@ class IImGuiWrapper {
     /* this is called after the platform/renderer backends have been intialised*/
     void initialise();
 
-    void on_iteration(bool &done, bool willRender);
-    void on_visible_iteration(bool& done);
+    void tick(bool &done, bool willRender);
+    void draw(bool& done);
 
     void cleanup();
 
