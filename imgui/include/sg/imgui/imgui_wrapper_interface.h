@@ -13,12 +13,24 @@ class IImGuiWrapper {
   public:
     CREATE_CALLBACK(on_start_t, void(IImGuiWrapper&));
     CREATE_CALLBACK(on_end_t, void(IImGuiWrapper&));
-    CREATE_CALLBACK(on_iteration_t, void(IImGuiWrapper&, bool &done));
+    CREATE_CALLBACK(on_iteration_t, void(IImGuiWrapper&, bool &done, bool willRender));
+    CREATE_CALLBACK(on_visible_iteration_t, void(IImGuiWrapper&, bool &done));
 
+    /**
+     * Callbacks:
+     *
+     *  - @c onIteration: called on every loop iteration, before the ImGui frame is started. @c
+     *    willRender is false if rendering is being skipped this iteration (e.g. minimised)
+     *  - @c onVisibleIteration: only called if the GUI is visible, after @c onIteration
+     *
+     *  You can only call ImGui functions in the @c onVisibleIteration callback. Setting
+     *  @c done in @c onIteration still lets @c onVisibleIteration run for that iteration.
+     */
     struct Callbacks {
         on_start_t onStart {nullptr};
         on_end_t onEnd {nullptr};
         on_iteration_t onIteration {nullptr};
+        on_visible_iteration_t onVisibleIteration {nullptr};
     };
 
     struct WindowPlacement {
@@ -27,7 +39,7 @@ class IImGuiWrapper {
     };
 
     [[deprecated("Use Callbacks struct instead")]]
-    IImGuiWrapper(on_start_t, on_end_t, on_iteration_t, ConfigFlags);
+    IImGuiWrapper(on_start_t, on_end_t, on_visible_iteration_t, ConfigFlags);
     IImGuiWrapper(Callbacks, ConfigFlags);
 
     virtual ~IImGuiWrapper();
@@ -51,7 +63,9 @@ class IImGuiWrapper {
      * intialised*/
     void initalise();
 
-    void iterate(bool &done);
+    void on_iteration(bool &done, bool willRender);
+    void on_visible_iteration(bool& done);
+
     void cleanup();
 
     const ConfigFlags m_configflags;
