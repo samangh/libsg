@@ -46,7 +46,7 @@ namespace internal {
  * time. */
 template <typename... Args>
 void write_trace(fmt::format_string<Args...> fmt_str, Args&&... args) noexcept {
-    internal::vwrite_trace(fmt_str, fmt::make_format_args(args...));
+    internal::vwrite_trace(fmt_str.get(), fmt::make_format_args(args...));
 }
 
 } // namespace sg::debug

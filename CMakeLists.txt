@@ -74,7 +74,7 @@ endif()
 
 # Some platforms don't have a Findfmt file, so search if the user has used OWN_FMT first
 if(NOT OWN_FMT)
-  find_package(fmt REQUIRED)
+  find_package(fmt 10 REQUIRED)
 endif()
 
 # OpenSSL backs Boost.Asio's TLS support, which sg_net uses for sg/net/tls.h
