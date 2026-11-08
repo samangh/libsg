@@ -1,5 +1,5 @@
 /* To see what has been manually added for libsg, please see search for
- * "ADDED BY SAMAN" */
+ * "ADDED BY libsg" */
 
 #if defined(LIBSG_IMGUI_DIRECTX)
 #include "helpers.h"
@@ -101,7 +101,7 @@ static ID3D12Resource*              g_mainRenderTargetResource[APP_NUM_BACK_BUFF
 static D3D12_CPU_DESCRIPTOR_HANDLE  g_mainRenderTargetDescriptor[APP_NUM_BACK_BUFFERS] = {};
 
 /******************
- * ADDED BY SAMAN *
+ * ADDED BY libsg *
  ******************/
 static bool                         g_CloseRequested = false;
 /******************/
@@ -351,7 +351,7 @@ LRESULT WINAPI WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
             return 0;
         break;
     /******************
-     * ADDED BY SAMAN *
+     * ADDED BY libsg *
      ******************/
     case WM_CLOSE:
         // Catch it when the user manually closes/destroys the window (we set g_CloseRequested,
@@ -383,7 +383,7 @@ void ImGuiWrapper_Win32_DirectX12::start(const std::string &title)
 
     // Create application window
     /******************
-     * ADDED BY SAMAN *
+     * ADDED BY libsg *
      ******************/
     // - modified to include title
     auto wtitle = sg::string::to_wstring(title);
@@ -402,7 +402,7 @@ void ImGuiWrapper_Win32_DirectX12::start(const std::string &title)
         ::UnregisterClassW(wc.lpszClassName, wc.hInstance);
         {
             /******************
-             * ADDED BY SAMAN *
+             * ADDED BY libsg *
              ******************/
             throw std::runtime_error("Could not create Direct3D device");
             /******************/
@@ -425,7 +425,7 @@ void ImGuiWrapper_Win32_DirectX12::start(const std::string &title)
     //io.ConfigViewportsNoTaskBarIcon = true;
 
     /******************
-     * ADDED BY SAMAN *
+     * ADDED BY libsg *
      ******************/
     //Also docking/viewports disabled from above
 
@@ -441,7 +441,7 @@ void ImGuiWrapper_Win32_DirectX12::start(const std::string &title)
     style.GrabRounding = 3.0f;
 
     /******************
-     * ADDED BY SAMAN *
+     * ADDED BY libsg *
      ******************/
     //Comment out DPI stuff below
     /****************/
@@ -496,7 +496,7 @@ void ImGuiWrapper_Win32_DirectX12::start(const std::string &title)
     //IM_ASSERT(font != nullptr);
 
     /******************
-     * ADDED BY SAMAN *
+     * ADDED BY libsg *
      ******************/
     initialise();
     /*****************/
@@ -522,7 +522,7 @@ void ImGuiWrapper_Win32_DirectX12::start(const std::string &title)
             break;
 
         /******************
-         * ADDED BY SAMAN *
+         * ADDED BY libsg *
          ******************/
         // A close request (WM_CLOSE, see WndProc()) becomes done = true for iterate(), so that the
         // application becomes aware of a close request and can do clean up, show confirmation
@@ -559,7 +559,7 @@ void ImGuiWrapper_Win32_DirectX12::start(const std::string &title)
         ImGui::NewFrame();
 
         /******************
-         * ADDED BY SAMAN *
+         * ADDED BY libsg *
          ******************/
         draw(done);
 
@@ -570,7 +570,7 @@ void ImGuiWrapper_Win32_DirectX12::start(const std::string &title)
         ImGui::Render();
 
         /******************
-         * ADDED BY ROBERT*
+         * ADDED BY libsg*
          ******************/
         /* while the main window is hidden nothing of it reaches the screen, so
          * skip its draw work - ImGui::Render() itself must still run, as it ends the frame and
@@ -641,7 +641,7 @@ void ImGuiWrapper_Win32_DirectX12::start(const std::string &title)
     WaitForPendingOperations();
 
     /******************
-     * ADDED BY SAMAN *
+     * ADDED BY libsg *
      ******************/
     cleanup();
     /*****************/

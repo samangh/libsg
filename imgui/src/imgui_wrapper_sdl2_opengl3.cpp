@@ -24,8 +24,7 @@
 
 #include <stdexcept>
 
-/* To see what has been manually added for libsg, please see search for
- * "ADDED BY SAMAN" */
+/* To see what has been manually added for libsg, please see search for "ADDED BY libsg" */
 
 namespace sg::imgui {
 
@@ -48,7 +47,7 @@ void ImGuiWrapper_Sdl2_OpenGl3::start(const std::string &title)
     if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_TIMER | SDL_INIT_GAMECONTROLLER) != 0)
     {
         /******************
-         * ADDED BY SAMAN *
+         * ADDED BY libsg *
          ******************/
         throw std::runtime_error(SDL_GetError());
         /******************/
@@ -94,7 +93,7 @@ void ImGuiWrapper_Sdl2_OpenGl3::start(const std::string &title)
     float main_scale = ImGui_ImplSDL2_GetContentScaleForDisplay(0);
     SDL_WindowFlags window_flags = (SDL_WindowFlags)(SDL_WINDOW_OPENGL | SDL_WINDOW_RESIZABLE | SDL_WINDOW_ALLOW_HIGHDPI);
     /******************
-     * ADDED BY SAMAN *
+     * ADDED BY libsg *
      ******************/
     // modified to include title
     SDL_Window* window = SDL_CreateWindow(title.c_str(), SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, (int)(1280 * main_scale), (int)(800 * main_scale), window_flags);
@@ -103,7 +102,7 @@ void ImGuiWrapper_Sdl2_OpenGl3::start(const std::string &title)
     if (window == nullptr)
     {
         /******************
-         * ADDED BY SAMAN *
+         * ADDED BY libsg *
          ******************/
         throw std::runtime_error(SDL_GetError());
         /******************/
@@ -113,7 +112,7 @@ void ImGuiWrapper_Sdl2_OpenGl3::start(const std::string &title)
     if (gl_context == nullptr)
     {
         /******************
-         * ADDED BY SAMAN *
+         * ADDED BY libsg *
          ******************/
         throw std::runtime_error(SDL_GetError());
         /******************/
@@ -134,7 +133,7 @@ void ImGuiWrapper_Sdl2_OpenGl3::start(const std::string &title)
     //io.ConfigViewportsNoTaskBarIcon = true;
 
     /******************
-     * ADDED BY SAMAN *
+     * ADDED BY libsg *
      ******************/
     //Also docking/viewports disabled from above
 
@@ -150,7 +149,7 @@ void ImGuiWrapper_Sdl2_OpenGl3::start(const std::string &title)
     style.GrabRounding = 3.0f;
 
     /******************
-    * ADDED BY SAMAN *
+    * ADDED BY libsg *
     ******************/
     //Comment out DPI stuff below
     /****************/
@@ -194,7 +193,7 @@ void ImGuiWrapper_Sdl2_OpenGl3::start(const std::string &title)
     ImVec4 clear_color = ImVec4(0.45f, 0.55f, 0.60f, 1.00f);
 
     /******************
-     * ADDED BY SAMAN *
+     * ADDED BY libsg *
      ******************/
     initialise();
     /*****************/
@@ -250,7 +249,7 @@ void ImGuiWrapper_Sdl2_OpenGl3::start(const std::string &title)
         ImGui::NewFrame();
 
         /******************
-         * ADDED BY SAMAN *
+         * ADDED BY libsg *
          ******************/
         draw(done);
         /*****************/
@@ -258,9 +257,9 @@ void ImGuiWrapper_Sdl2_OpenGl3::start(const std::string &title)
         // Rendering
         ImGui::Render();
         /******************
-         * ADDED BY SAMAN *
+         * ADDED BY libsg *
          ******************/
-        /* ADDED BY ROBERT: while the main window is hidden nothing presents it (see the swap
+        /* while the main window is hidden nothing presents it (see the swap
          * below), so skip its draw work - ImGui::Render() itself must still run, as it ends the
          * frame and produces the draw data the secondary windows are rendered from. */
         if (!main_hidden)
@@ -301,7 +300,7 @@ void ImGuiWrapper_Sdl2_OpenGl3::start(const std::string &title)
     #endif
 
     /******************
-     * ADDED BY SAMAN *
+     * ADDED BY libsg *
      ******************/
     cleanup();
     /*****************/
