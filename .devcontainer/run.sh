@@ -13,7 +13,21 @@ set -euo pipefail
 
 IMAGE=${IMAGE:-libsg-dev}
 DEVCONTAINER_DIR=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
-REPO_ROOT=$(git -C "$DEVCONTAINER_DIR" rev-parse --show-toplevel)
+
+if ! [[ $# -ge 1 ]]; then
+	echo "Mounts the given path and opens in a docker image."
+	echo 'Syntax: $0 path-to-libsg-folder <optional commands>'
+    echo
+	exit 1
+fi
+
+# Docker treats a bare name (e.g. `myproject`) as a named volume rather
+# than a bind mount, so always pass an absolute path.
+if [[ ! -d $1 ]]; then
+    echo "Not a directory: $1"
+    exit 1
+fi
+DIR="$(realpath "$1")"
 
 # `id -g` reports the *current* primary group, which is the docker group when
 # invoked under `newgrp docker` / `sg docker`. Look the group up by user name
@@ -29,10 +43,10 @@ if [[ -n ${REBUILD:-} ]] || ! docker image inspect "$IMAGE" >/dev/null 2>&1; the
         "$DEVCONTAINER_DIR"
 fi
 
-case ${1:-} in
+case ${2:-} in
     auto) CMD=(claude --dangerously-skip-permissions) ;;
     "")   CMD=(/bin/bash) ;;
-    *)    CMD=("$@") ;;
+    *)    CMD=("${@:2}") ;;
 esac
 
 # Allocate a TTY only when we have one, so that non-interactive invocations
@@ -44,7 +58,7 @@ TTY_ARGS=(-i)
 # and `--security-opt seccomp=unconfined` to fix this.
 exec docker run --rm "${TTY_ARGS[@]}" \
     --hostname libsg-dev \
-    --volume "$REPO_ROOT:/workspace" \
+    --volume "$DIR:/workspace" \
     --workdir /workspace \
     --volume libsg-claude-config:/home/dev/.claude \
     --cap-add=SYS_PTRACE \
