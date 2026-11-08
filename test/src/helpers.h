@@ -92,7 +92,8 @@ private:
 
             std::cerr << "scoped_deadline: dumping thread stacks with `" << tool << "`"
                       << std::endl;
-            std::system(cmd.c_str());
+            if (std::system(cmd.c_str()) != 0)
+                std::cerr << "scoped_deadline: `" << tool << "` failed" << std::endl;
             return;
         }
 

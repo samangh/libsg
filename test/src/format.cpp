@@ -70,9 +70,7 @@ TEST_CASE("sg::common sg::format: check to_string(time_point)", "[sg::format]") 
     REQUIRE(sg::format::to_string<"{:%F %T}", std::chrono::minutes>(t_ms) == "2025-01-01 01:02:00");
 
     // in libftm >= v10, %T shows seconds with decimal points
-#if (FMT_VERSION >= 100000)
     REQUIRE(sg::format::to_string<"{:%F %T}", std::chrono::milliseconds>(t_ms) ==
             "2025-01-01 01:02:01.111");
-#endif
 }
 
