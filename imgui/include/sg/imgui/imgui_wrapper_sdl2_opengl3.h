@@ -10,7 +10,7 @@
 
 namespace sg::imgui {
 
-class ImGuiWrapper_Sdl2_OpenGl3 : public IImGuiWrapper {
+class SG_IMGUI_EXPORT ImGuiWrapper_Sdl2_OpenGl3 : public IImGuiWrapper {
     struct impl;
     pimpl<impl> m_pimpl;
 

@@ -14,6 +14,23 @@
 
 #pragma once
 
+/**********************************
+ * ADDED BY libsg                 *
+ **********************************/
+// ImGui and ImPlot are compiled into sg_imgui, so export their API from it. This
+// keeps a single copy of ImGui (and its global context) in the process when sg_imgui is a shared library
+#include "sg/export/imgui.h"
+#define IMGUI_API SG_IMGUI_EXPORT
+#define IMGUI_IMPL_API
+
+// MinGW GCC rejects dllimport on ImPlot's in-class member definitions, so rely on ld's auto-import
+#if defined(__MINGW32__) && !defined(__clang__) && !defined(sg_imgui_EXPORTS)
+#define IMPLOT_API
+#else
+#define IMPLOT_API SG_IMGUI_EXPORT
+#endif
+/**********************************/
+
 // Enable courtesy math functions for ImVec2
 #define IMGUI_DEFINE_MATH_OPERATORS
 

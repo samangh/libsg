@@ -1,5 +1,7 @@
 #pragma once
 
+#include "sg/export/imgui.h"
+
 #include <imgui.h>
 
 #include <cstdint>
@@ -9,7 +11,7 @@
 namespace sg::imgui {
 
 /* Create a version of ImGui::InputText for std::string */
-bool InputText(const char *label, std::string &str, ImGuiInputTextFlags flags = 0);
+SG_IMGUI_EXPORT bool InputText(const char *label, std::string &str, ImGuiInputTextFlags flags = 0);
 
 template <typename T>
     requires(std::is_arithmetic_v<T>)
@@ -51,10 +53,10 @@ bool InputNumeric(const char* label, T& v, const T* p_step = nullptr,
 }
 
 /* Disables the ImGUI items defined in func if visibile is false */
-void disable_item(bool visible, std::function<void(void)> func);
+SG_IMGUI_EXPORT void disable_item(bool visible, std::function<void(void)> func);
 
 /* Sets the ImGUI font to Karla */
-void set_karla_font();
+SG_IMGUI_EXPORT void set_karla_font();
 
 /* Horizontally centres the next ImGui item(s) on the window
  *
@@ -64,13 +66,13 @@ void set_karla_font();
  * @param vec           total size of the controls to be displated
  * @param no_of_items   number of controls to be cenrelised
  */
-void centre_next_control_hor(const ImVec2 &vec, const int no_of_items = 1);
+SG_IMGUI_EXPORT void centre_next_control_hor(const ImVec2 &vec, const int no_of_items = 1);
 
 /* Centre the next window (over the whole screen) */
-void centre_next_window(ImGuiCond cond = ImGuiCond_Appearing);
+SG_IMGUI_EXPORT void centre_next_window(ImGuiCond cond = ImGuiCond_Appearing);
 
 /* Centre the new window over the current window */
-void centre_next_window_wrt_current_window(ImGuiCond cond = ImGuiCond_Appearing);
+SG_IMGUI_EXPORT void centre_next_window_wrt_current_window(ImGuiCond cond = ImGuiCond_Appearing);
 
 /** Maximises the next window
  *
@@ -82,10 +84,10 @@ void centre_next_window_wrt_current_window(ImGuiCond cond = ImGuiCond_Appearing)
  *
  * @param useWorkArea if true, do not maximise over toolbar or menubar
  */
-void maximise_next_window(bool useWorkArea);
+SG_IMGUI_EXPORT void maximise_next_window(bool useWorkArea);
 
 /* Calcultes the size of a button with the given text */
-ImVec2 dimensions_of_button(const char *msg);
+SG_IMGUI_EXPORT ImVec2 dimensions_of_button(const char *msg);
 
 /** Draws a line, given starting point, length and angle.
  *
@@ -93,7 +95,7 @@ ImVec2 dimensions_of_button(const char *msg);
  * @param color     Color, use IM_COL32(..). For example, IM_COL32(255,0,0,255) for red
  * @return          the position of the end of the line
  */
-ImVec2 draw_line_angle(ImDrawList* const drawlist, const ImVec2& from, float length, float angle, ImU32 color, float thickness=1.0);
+SG_IMGUI_EXPORT ImVec2 draw_line_angle(ImDrawList* const drawlist, const ImVec2& from, float length, float angle, ImU32 color, float thickness=1.0);
 
 /** Draws an arrow, given starting point, length and angle
  *
@@ -102,11 +104,11 @@ ImVec2 draw_line_angle(ImDrawList* const drawlist, const ImVec2& from, float len
  * @param arrow_triangle_width Width of the point of the triangle
  * @return          The position of teh arrow tip
  */
-ImVec2 draw_arrow(ImDrawList* const drawlist, const ImVec2& from, float length, float deg_angle, ImU32 color, float thickness, float arrow_triangle_width);
-ImVec2 draw_arrow(ImDrawList* const drawlist, const ImVec2& from, float length, float deg_angle, ImU32 color, float thickness = 1);
+SG_IMGUI_EXPORT ImVec2 draw_arrow(ImDrawList* const drawlist, const ImVec2& from, float length, float deg_angle, ImU32 color, float thickness, float arrow_triangle_width);
+SG_IMGUI_EXPORT ImVec2 draw_arrow(ImDrawList* const drawlist, const ImVec2& from, float length, float deg_angle, ImU32 color, float thickness = 1);
 
-ImVec2 draw_arrow(ImDrawList* const drawlist, const ImVec2& from, const ImVec2& to, ImU32 color, float thickness, float arrow_triangle_width);
-ImVec2 draw_arrow(ImDrawList* const drawlist, const ImVec2& from, const ImVec2& to, ImU32 color, float thickness=1);
+SG_IMGUI_EXPORT ImVec2 draw_arrow(ImDrawList* const drawlist, const ImVec2& from, const ImVec2& to, ImU32 color, float thickness, float arrow_triangle_width);
+SG_IMGUI_EXPORT ImVec2 draw_arrow(ImDrawList* const drawlist, const ImVec2& from, const ImVec2& to, ImU32 color, float thickness=1);
 
 /** Draws line with with an arrow at the midpoint
  *
@@ -114,8 +116,8 @@ ImVec2 draw_arrow(ImDrawList* const drawlist, const ImVec2& from, const ImVec2& 
  * @param color     Color, use IM_COL32(..). For example, IM_COL32(255,0,0,255) for red
  * @return          The position of teh arrow tip
  */
-ImVec2 draw_arrow_middle(ImDrawList * const drawlist, const ImVec2 &from, float length, float deg, ImU32 color, float thickness, float arrow_triangle_width);
-ImVec2 draw_arrow_middle(ImDrawList * const drawlist, const ImVec2 &from, float length, float deg, ImU32 color, float thickness=1);
+SG_IMGUI_EXPORT ImVec2 draw_arrow_middle(ImDrawList * const drawlist, const ImVec2 &from, float length, float deg, ImU32 color, float thickness, float arrow_triangle_width);
+SG_IMGUI_EXPORT ImVec2 draw_arrow_middle(ImDrawList * const drawlist, const ImVec2 &from, float length, float deg, ImU32 color, float thickness=1);
 
 
 /**
@@ -125,6 +127,6 @@ ImVec2 draw_arrow_middle(ImDrawList * const drawlist, const ImVec2 &from, float 
  * @param reference Refernce point
  * @param angle     Angle in degrees
  */
-void rotate_path(ImVector<ImVec2>& vec, ImVec2 reference, float angle_deg);
+SG_IMGUI_EXPORT void rotate_path(ImVector<ImVec2>& vec, ImVec2 reference, float angle_deg);
 
 } // namespace sg::imgui

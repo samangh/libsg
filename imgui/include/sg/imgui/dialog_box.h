@@ -1,5 +1,6 @@
 #pragma once
 
+#include "sg/export/imgui.h"
 #include "utils.h"
 
 #include <imgui.h>
@@ -12,7 +13,7 @@ enum class dialog_box_result { NoResult, OK, Cancel, Yes, No, Abort };
 /* buttons for a dialog box */
 enum class dialog_box_buttons { Ok, YesNo, YesNoCancel, OkAbort };
 
-void show_button(dialog_box_result& resultStore, dialog_box_result resultIfClicked, const char* text);
+SG_IMGUI_EXPORT void show_button(dialog_box_result& resultStore, dialog_box_result resultIfClicked, const char* text);
 
 /** Create a popup dialog
  *
@@ -31,7 +32,7 @@ void show_button(dialog_box_result& resultStore, dialog_box_result resultIfClick
  * @return result of the dialog. This will be `DialogResult::NoResult` if the user has not pressed a
  * button.
  */
-[[nodiscard]] dialog_box_result dialog_box(const char* imgui_id, const std::string& message,
+[[nodiscard]] SG_IMGUI_EXPORT dialog_box_result dialog_box(const char* imgui_id, const std::string& message,
                                            dialog_box_buttons buttons = dialog_box_buttons::Ok,
                                            int flags = ImGuiWindowFlags_AlwaysAutoResize |
                                                        ImGuiWindowFlags_NoSavedSettings);

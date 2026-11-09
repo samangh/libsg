@@ -6,7 +6,7 @@
 
 namespace sg::imgui {
 
-class ImGuiWrapper_Win32_DirectX12 : public IImGuiWrapper {
+class SG_IMGUI_EXPORT ImGuiWrapper_Win32_DirectX12 : public IImGuiWrapper {
     struct impl;
     pimpl<impl> m_pimpl;
 

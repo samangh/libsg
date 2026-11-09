@@ -1,4 +1,5 @@
 #pragma once
+#include "sg/export/imgui.h"
 
 #include "ConfigFlags.h"
 #include "sg/callback.h"
@@ -9,7 +10,7 @@
 
 namespace sg::imgui {
 
-class IImGuiWrapper {
+class SG_IMGUI_EXPORT IImGuiWrapper {
   public:
     CREATE_CALLBACK(on_start_t, void(IImGuiWrapper&));
     CREATE_CALLBACK(on_end_t, void(IImGuiWrapper&));

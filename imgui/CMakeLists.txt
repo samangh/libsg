@@ -34,14 +34,37 @@ file(GLOB SRC_FILES
 
 #list(REMOVE_ITEM IMPLOT_SRC_FILES ${IMPLOT_DIR}/implot_demo.cpp)
 
-## From ImPlot FAQ
+## ImGui and ImPlot are compiled into sg_imgui, which exports their API
+## (see sg/imgui/config.h). sg_imgui can therefore be a shared library, as
+## long as nothing else in the process compiles its own copy of ImGui/ImPlot:
+## each copy would have its own global context.
 ##
-## It is recommended that you compile and link ImPlot as a static
-## library or directly as a part of your sources. However, if you must
-## and are compiling ImPlot and ImGui as separate DLLs, make sure you
-## set the current ImGui context with
-## ImPlot::SetImGuiContext(ImGuiContext* ctx). This ensures that global
-## ImGui variables are correctly shared across the DLL boundary.
+## ImGui does not guarantee ABI compatibility between versions, so anything
+## linking to a shared sg_imgui must be rebuilt when ImGui/ImPlot is updated.
+##
+## Performance of a shared sg_imgui (ELF, i.e. Linux/BSD)
+##
+## In a shared library, calls to exported functions normally go through the
+## PLT (Procedure Linkage Table): a small stub that jumps via a pointer the
+## dynamic loader fills in at load time. This is because, in principle,
+## another library loaded first could provide (interpose) the same function.
+## Each such call costs an extra indirect jump and, worse, the compiler can't
+## inline or optimise around it. Since IMGUI_API exports nearly all of ImGui,
+## this would also apply to ImGui's many calls to itself.
+##
+## Nothing is meant to interpose ImGui's functions, so:
+##
+##  - -fno-semantic-interposition lets the compiler call/inline exported
+##    functions directly within the same source file;
+##  - -Wl,-Bsymbolic-functions makes the linker bind calls between sg_imgui's
+##    own source files directly, rather than via the PLT.
+##
+## Together, calls inside sg_imgui behave as in a static build. Calls from
+## consumers into sg_imgui still go via the PLT, which is unavoidable for a
+## shared library and cheap (~1ns per call). Windows DLLs always bind their
+## own calls directly, so neither flag is needed there. Neither are they
+## needed on macOS, where the linker binds calls within a dylib directly (the
+## "two-level namespace"); Apple's linker doesn't accept -Bsymbolic-functions.
 ##
 
 setup_library(
@@ -96,6 +119,8 @@ setup_library(
   COMPILE_OPTIONS_INTERFACE
   COMPILE_OPTIONS_PUBLIC
   COMPILE_OPTIONS_PRIVATE
+    # Avoid PLT calls within sg_imgui, see comment at the top
+    $<$<CXX_COMPILER_ID:GNU,Clang,AppleClang>:-fno-semantic-interposition>
   COMPILE_FEATURES_INTERFACE
   COMPILE_FEATURES_PUBLIC
     cxx_std_20
@@ -107,10 +132,14 @@ setup_library(
     $<$<BOOL:${LIBSG_IMGUI_OPENGL}>:LIBSG_IMGUI_OPENGL>
     $<$<BOOL:${LIBSG_IMGUI_DIRECTX}>:LIBSG_IMGUI_DIRECTX>
   COMPILE_DEFINITIONS_PRIVATE
+  LINK_OPTIONS_INTERFACE
+  LINK_OPTIONS_PUBLIC
+  LINK_OPTIONS_PRIVATE
+    # Avoid PLT calls within sg_imgui, see comment at the top
+    $<$<AND:$<BOOL:${UNIX}>,$<NOT:$<BOOL:${APPLE}>>>:-Wl,-Bsymbolic-functions>
 
   ## Options
   GENERATE_EXPORT_HEADER
-  STATIC
   VISIBILITY_HIDDEN
 )
 
