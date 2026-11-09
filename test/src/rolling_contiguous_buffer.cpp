@@ -3,7 +3,7 @@
 #include <atomic>
 #include <catch2/catch_test_macros.hpp>
 
-TEST_CASE("sg::common rolling_contiguous_buffer: check size() and capacity()",
+TEST_CASE("sg::common rolling_contiguous_buffer: check size() and window_size()",
           "[sg::rolling_contiguous_buffer]") {
     sg::rolling_contiguous_buffer<int> buffer(5);
 
@@ -13,7 +13,7 @@ TEST_CASE("sg::common rolling_contiguous_buffer: check size() and capacity()",
     REQUIRE(buffer.size()== 1);
 
     /* check capacity */
-    REQUIRE(buffer.capacity()== 5);
+    REQUIRE(buffer.window_size()== 5);
 }
 
 TEST_CASE("sg::common rolling_contiguous_buffer: check push_back()",
@@ -243,7 +243,7 @@ TEST_CASE("sg::common rolling_contiguous_buffer: check resize() reduction",
 
     buffer.resize(2);
     REQUIRE(buffer.size()== 2);
-    REQUIRE(buffer.capacity()== 2);
+    REQUIRE(buffer.window_size()== 2);
 
     for (size_t i = 0; i < buffer.size(); i++)
         count += buffer[i];
