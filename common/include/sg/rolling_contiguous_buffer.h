@@ -111,6 +111,10 @@ class rolling_contiguous_buffer {
 
     /* returns the capacity of the buffer */
     [[nodiscard]] size_t capacity() const { return m_cb_size; }
+    /* returns the window size of the buffer (max number of elements held) */
+    [[nodiscard]] size_t window_size() const { return m_cb_size; }
+    /* returns the extra space reserved beyond the capacity */
+    [[nodiscard]] size_t reserve_size() const { return m_max_size - m_cb_size; }
     [[nodiscard]] size_t size() const { return pos_end - pos_begin; }
 
     T*       data() { return &m_data[pos_begin]; }

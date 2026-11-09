@@ -1,6 +1,7 @@
 #pragma once
 
 #include "channel.h"
+#include "sg/debug.h"
 #include "sg/rolling_contiguous_buffer.h"
 
 namespace sg::data {
@@ -19,11 +20,10 @@ template <typename T> class channel_rolling : public IContiguousChannel<T> {
 
     void from_bytes(const void* data, size_t byteCount) override {
         if (byteCount % sizeof(T) != 0)
-            throw std::runtime_error("given set of bytes does not match the size of the channel type");
+            SG_THROW(std::runtime_error,
+                     "given set of bytes does not match the size of the channel type");
         append(static_cast<const T*>(data), static_cast<const T*>(data) + (byteCount / sizeof(T)));
     }
-
-    void reserve(size_t size, double reserverFactor = 1.0) { m_data.reserve(size, reserverFactor); }
 
   public:
     [[nodiscard]] std::string name() const noexcept override { return m_name; }
@@ -40,6 +40,12 @@ template <typename T> class channel_rolling : public IContiguousChannel<T> {
 
     [[nodiscard]] T* data() noexcept override { return m_data.data(); }
     [[nodiscard]] const T *data() const noexcept override { return m_data.data(); }
+
+    [[nodiscard]] size_t window_size() const noexcept { return m_data.window_size(); }
+    [[nodiscard]] size_t reserve_size() const noexcept { return m_data.reserve_size(); }
+
+    void resize(size_t size) { m_data.resize(size); };
+    void resize(size_t size, size_t reserve_size) { m_data.resize(size, reserve_size); };
 
     void clear() { m_data.clear(); };
 
