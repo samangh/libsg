@@ -26,16 +26,12 @@ class rolling_contiguous_buffer {
     size_t m_cb_size;
     size_t m_max_size;
 
-    size_t pos_begin{0}; // index of first element (i.e. similar to begin())
-    size_t pos_end{0};   // index after last element (i.e. similar to end())
+    size_t pos_begin{0}; // index of first element; the end is always m_data.end()
 
-    void advance_pos(size_t count) {
-        // iterate end
-        pos_end+=count;
-
-        // iterate beginning
-        if (pos_end - pos_begin > m_cb_size)
-            pos_begin=pos_end - m_cb_size;;
+    /* drop elements off the front so at most m_cb_size remain */
+    void trim_front() {
+        if (m_data.size() - pos_begin > m_cb_size)
+            pos_begin = m_data.size() - m_cb_size;
     }
 
     /* create a new vector and moves data, instead of calling memcp */
@@ -45,24 +41,21 @@ class rolling_contiguous_buffer {
         std::vector<T> newVec;
         newVec.reserve(m_cb_size);
         newVec.insert(newVec.begin(),
-                      std::move_iterator(m_data.begin() + (pos_end - noToKeep)),
-                      std::move_iterator(m_data.begin() + pos_end));
+                      std::move_iterator(m_data.end() - noToKeep),
+                      std::move_iterator(m_data.end()));
         m_data.swap(newVec);
 
         pos_begin = 0;
-        pos_end   = m_data.size();
     }
 
     void ensure_space(size_t noNewPoints) {
         /* if insertion would go past the total allocation */
-        if (pos_end + noNewPoints > m_max_size) {
+        if (m_data.size() + noNewPoints > m_max_size) {
 
             /* if the new number points is bigger than the store size,
              * just clear everything */
             if (noNewPoints >= m_cb_size) {
                 pos_begin=0;
-                pos_end=0;
-
                 m_data.clear();
                 return;
             }
@@ -75,13 +68,11 @@ class rolling_contiguous_buffer {
                     auto noToKeep = m_cb_size - noNewPoints;
 
                     std::memcpy(static_cast<void*>(m_data.data()),
-                                static_cast<void*>(&m_data.data()[pos_end - noToKeep]),
+                                static_cast<void*>(&m_data.data()[m_data.size() - noToKeep]),
                                 noToKeep * sizeof(T));
 
                     pos_begin = 0;
-                    pos_end = noToKeep;
-
-                    m_data.erase(m_data.begin()+pos_end,m_data.end());
+                    m_data.erase(m_data.begin() + noToKeep, m_data.end());
                 }
                 else
                     ensure_space_move(noNewPoints);
@@ -113,7 +104,7 @@ class rolling_contiguous_buffer {
     [[nodiscard]] size_t window_size() const { return m_cb_size; }
     /* returns the extra space reserved beyond the capacity */
     [[nodiscard]] size_t reserve_size() const { return m_max_size - m_cb_size; }
-    [[nodiscard]] size_t size() const { return pos_end - pos_begin; }
+    [[nodiscard]] size_t size() const { return m_data.size() - pos_begin; }
 
     T*       data() { return &m_data[pos_begin]; }
     const T* data() const { return &m_data[pos_begin]; }
@@ -123,7 +114,7 @@ class rolling_contiguous_buffer {
         ensure_space(1);
         m_data.push_back(val);
 
-        advance_pos(1);
+        trim_front();
     }
 
     void push_back(T&& val) {
@@ -134,7 +125,7 @@ class rolling_contiguous_buffer {
         ensure_space(1);
         m_data.emplace_back(std::forward<T>(val));
 
-        advance_pos(1);
+        trim_front();
     }
 
     template <typename InputIt> void append(InputIt&& start, InputIt&& end) {
@@ -154,7 +145,7 @@ class rolling_contiguous_buffer {
         ensure_space(count);
         m_data.insert(m_data.end(), std::forward<InputIt>(start), std::forward<InputIt>(end));
 
-        advance_pos(count);
+        trim_front();
     }
 
     void append(std::initializer_list<T> ilist) {
@@ -190,7 +181,7 @@ class rolling_contiguous_buffer {
     void resize(size_t size, size_t reserve_size) {
         std::vector<T> newVec;
 
-        auto toCopy = std::min(pos_end - pos_begin, size);
+        auto toCopy = std::min(m_data.size() - pos_begin, size);
         newVec.insert(newVec.begin(),
                       std::move_iterator(m_data.end() - toCopy),
                       std::move_iterator(m_data.end()));
@@ -200,26 +191,24 @@ class rolling_contiguous_buffer {
         m_max_size = size + reserve_size;
 
         pos_begin = 0;
-        pos_end = toCopy;
     }
 
     void clear() {
         m_data = std::vector<T>();
         pos_begin = 0;
-        pos_end = 0;
     }
 
     /* iterators */
     [[nodiscard]] constexpr iterator_type begin() { return iterator_type(data()); }
-    [[nodiscard]] constexpr iterator_type end() { return begin() + (pos_end - pos_begin); }
+    [[nodiscard]] constexpr iterator_type end() { return begin() + size(); }
 
     /* const iterators */
     [[nodiscard]] constexpr const_iterator_type begin() const { return const_iterator_type(data()); }
-    [[nodiscard]] constexpr const_iterator_type end() const { return begin() + (pos_end - pos_begin); }
+    [[nodiscard]] constexpr const_iterator_type end() const { return begin() + size(); }
 
     /* const iterators */
     [[nodiscard]] constexpr const_iterator_type cbegin() const { return const_iterator_type(data()); }
-    [[nodiscard]] constexpr const_iterator_type cend() const { return cbegin() + (pos_end - pos_begin); }
+    [[nodiscard]] constexpr const_iterator_type cend() const { return cbegin() + size(); }
 
     /* front/back */
     reference front() { return *begin(); }
