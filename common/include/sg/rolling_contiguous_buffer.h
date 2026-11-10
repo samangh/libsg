@@ -45,8 +45,8 @@ class rolling_contiguous_buffer {
         std::vector<T> newVec;
         newVec.reserve(m_cb_size);
         newVec.insert(newVec.begin(),
-                      std::move_iterator(m_data.cbegin() + (pos_end - noToKeep)),
-                      std::move_iterator(m_data.cbegin() + pos_end));
+                      std::move_iterator(m_data.begin() + (pos_end - noToKeep)),
+                      std::move_iterator(m_data.begin() + pos_end));
         m_data.swap(newVec);
 
         pos_begin = 0;
@@ -191,7 +191,9 @@ class rolling_contiguous_buffer {
         std::vector<T> newVec;
 
         auto toCopy = std::min(pos_end - pos_begin, size);
-        newVec.insert(newVec.begin(), m_data.end() - toCopy, m_data.end());
+        newVec.insert(newVec.begin(),
+                      std::move_iterator(m_data.end() - toCopy),
+                      std::move_iterator(m_data.end()));
         newVec.swap(m_data);
 
         m_cb_size = size;

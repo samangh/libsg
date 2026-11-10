@@ -2,6 +2,7 @@
 
 #include <atomic>
 #include <catch2/catch_test_macros.hpp>
+#include <memory>
 
 TEST_CASE("sg::common rolling_contiguous_buffer: check size() and window_size()",
           "[sg::rolling_contiguous_buffer]") {
@@ -249,6 +250,19 @@ TEST_CASE("sg::common rolling_contiguous_buffer: check resize() reduction",
         count += buffer[i];
 
     REQUIRE(count== 3+4);
+}
+
+TEST_CASE("sg::common rolling_contiguous_buffer: check resize() with move-only type",
+          "[sg::rolling_contiguous_buffer]") {
+    sg::rolling_contiguous_buffer<std::unique_ptr<int>> buffer(3);
+
+    for (int i = 0; i < 3; i++)
+        buffer.emplace_back(std::make_unique<int>(i));
+
+    buffer.resize(2);
+    REQUIRE(buffer.size()== 2);
+    REQUIRE(*buffer.front()== 1);
+    REQUIRE(*buffer.back()== 2);
 }
 
 TEST_CASE("sg::common rolling_contiguous_buffer: check for loop iteration",
