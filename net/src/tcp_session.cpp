@@ -519,7 +519,7 @@ boost::asio::awaitable<void> tcp_session::writer() {
                     if (ec == boost::asio::error::timed_out ||
                         ec == boost::asio::error::operation_aborted)
                         SG_THROW(exceptions::net::time_out);
-                throw boost::system::system_error(ec);
+                SG_THROW(boost::system::system_error, ec);
             }
         }
     } catch (...) {

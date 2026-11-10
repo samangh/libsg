@@ -26,6 +26,7 @@
  */
 
 #include "include/interfaces_common.h"
+#include "sg/debug.h"
 
 #include <algorithm>
 #include <array>
@@ -113,7 +114,7 @@ namespace sg::net {
 std::vector<interface_details> interfaces() {
     ifaddrs *head = nullptr;
     if (::getifaddrs(&head) != 0)
-        throw sg::exceptions::net::other(std::system_category().message(errno));
+        SG_THROW(sg::exceptions::net::other, std::system_category().message(errno));
 
     const std::unique_ptr<ifaddrs, decltype(&::freeifaddrs)> list{head, &::freeifaddrs};
 

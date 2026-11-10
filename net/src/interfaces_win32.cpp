@@ -38,6 +38,7 @@
 #endif
 
 #include "include/interfaces_common.h"
+#include "sg/debug.h"
 
 #include <algorithm>
 #include <array>
@@ -102,8 +103,8 @@ std::vector<std::byte> adapter_addresses() {
             return {};
 
         if (err != ERROR_BUFFER_OVERFLOW || size > max_size)
-            throw sg::exceptions::net::other("GetAdaptersAddresses() failed with error " +
-                                         std::to_string(err));
+            SG_THROW(sg::exceptions::net::other,
+                     "GetAdaptersAddresses() failed with error " + std::to_string(err));
     }
 }
 

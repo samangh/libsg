@@ -1,4 +1,5 @@
 #include "sg/version.h"
+#include "sg/debug.h"
 #include "fmt/ranges.h"
 
 namespace {
@@ -7,7 +8,7 @@ unsigned int convert_or_throw(const std::string& input) {
     const auto result = std::stoul(input, &charactersConverted);
 
     if (charactersConverted!=input.length())
-        throw std::runtime_error("could not convert input string to a version");
+        SG_THROW(std::runtime_error, "could not convert input string to a version");
 
     return result;
 }

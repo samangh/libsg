@@ -1,14 +1,15 @@
 #include "sg/memory.h"
+#include "sg/debug.h"
 
 namespace sg::memory {
 
 void* MallocOrThrow(size_t size) {
     if (size == 0)
-        throw std::bad_alloc();
+        SG_THROW(std::bad_alloc);
 
     void* result = malloc(size);
     if (!result)
-        throw std::bad_alloc();
+        SG_THROW(std::bad_alloc);
 
     return result;
 }
@@ -25,6 +26,6 @@ void* ReallocOrFreeAndThrow(void* ptr, size_t size) {
 
 error:
     free(ptr);
-    throw std::bad_alloc();
+    SG_THROW(std::bad_alloc);
 }
 } // namespace sg::memory

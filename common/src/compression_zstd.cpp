@@ -1,14 +1,15 @@
 #include <sg/compression_zstd.h>
+#include "sg/debug.h"
 #include <zstd.h>
 
 #include <cstring>
 #include <memory>
 #include <stdexcept>
 
-#define ZSTD_THROW_ON_ERROR(fn)                                                  \
-    do {                                                                         \
-        size_t const err = (fn);                                                 \
-        if (ZSTD_isError(err)) throw std::runtime_error(ZSTD_getErrorName(err)); \
+#define ZSTD_THROW_ON_ERROR(fn)                                                      \
+    do {                                                                             \
+        size_t const err = (fn);                                                     \
+        if (ZSTD_isError(err)) SG_THROW(std::runtime_error, ZSTD_getErrorName(err)); \
     } while (0)
 
 namespace {
@@ -28,7 +29,7 @@ size_t compress(const void *src, size_t srcSize, void *dst, size_t dstSize, int 
     thread_local auto comp_context = []() {
         auto ctx = ZSTD_createCCtx();
         if (ctx == nullptr)
-            throw std::bad_alloc();
+            SG_THROW(std::bad_alloc);
         return std::unique_ptr<ZSTD_CCtx, compression_context_deleter>(ctx);
     }();
 
@@ -90,9 +91,9 @@ size_t get_uncompressed_size(const void* src, size_t src_size) {
     /* Get size of original uncompressed data */
     auto unCompressedSize = ZSTD_getFrameContentSize(src, src_size);
     if (unCompressedSize == ZSTD_CONTENTSIZE_ERROR)
-        throw std::runtime_error("given data not compressed by zstd");
+        SG_THROW(std::runtime_error, "given data not compressed by zstd");
     if (unCompressedSize == ZSTD_CONTENTSIZE_UNKNOWN)
-        throw std::runtime_error("zstd can't determine size of original uncompressed data");
+        SG_THROW(std::runtime_error, "zstd can't determine size of original uncompressed data");
 
     return unCompressedSize;
 }

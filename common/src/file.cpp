@@ -1,4 +1,5 @@
 #include "sg/file.h"
+#include "sg/debug.h"
 
 #include "sg/buffer.h"
 #include "sg/enumeration.h"
@@ -22,7 +23,8 @@ sg::unique_c_buffer<std::byte> read(const std::filesystem::path& path,
 size_t read(const std::filesystem::path& path, std::byte* buffer, size_t count,
                     std::ios_base::openmode mode) {
     if (sg::enumeration::contains(mode, std::ios::out))
-        throw std::invalid_argument("can't read from a file when opened in `std::ios::out` write-mode");
+        SG_THROW(std::invalid_argument,
+                 "can't read from a file when opened in `std::ios::out` write-mode");
 
     std::ifstream stream;
 
@@ -43,7 +45,7 @@ size_t read(const std::filesystem::path& path, std::byte* buffer, size_t count,
 void write(const std::filesystem::path& path, const std::byte* buffer, size_t count,
            std::ios_base::openmode mode) {
     if (sg::enumeration::contains(mode, std::ios::in))
-        throw std::invalid_argument("can't write to a file when opened in `std::ios::in` mode");
+        SG_THROW(std::invalid_argument, "can't write to a file when opened in `std::ios::in` mode");
 
     std::ofstream stream;
 

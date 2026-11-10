@@ -1,6 +1,7 @@
 #pragma once
 
 #include <sg/export/common.h>
+#include "sg/debug.h"
 
 #include <functional>
 #include <concepts>
@@ -77,12 +78,12 @@ template <typename T, typename FuncT, typename... ArgsT>
     requires(std::invocable<FuncT, ArgsT...>)
 void MallocAndFree(size_t sizeBytes, T** memory, const FuncT& func, ArgsT&&... args) {
     if (sizeBytes == 0)
-        throw std::bad_alloc();
+        SG_THROW(std::bad_alloc);
 
     try {
         *memory = static_cast<T*>(malloc(sizeBytes));
         if (!*memory)
-            throw std::bad_alloc();
+            SG_THROW(std::bad_alloc);
 
         std::invoke(func, std::forward<ArgsT>(args)...);
         free(*memory);
@@ -114,12 +115,12 @@ template <typename T, typename FuncT, typename... ArgsT>
     requires(std::invocable<FuncT, ArgsT...>)
 void CallocAndFree(size_t sizeBytes, void** memory, const FuncT& func, ArgsT&&... args) {
     if (sizeBytes == 0)
-        throw std::bad_alloc();
+        SG_THROW(std::bad_alloc);
 
     try {
         *memory = static_cast<T*>(calloc(1, sizeBytes));
         if (!*memory)
-            throw std::bad_alloc();
+            SG_THROW(std::bad_alloc);
         std::invoke(func, std::forward<ArgsT>(args)...);
         free(*memory);
         *memory = nullptr;

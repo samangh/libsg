@@ -36,9 +36,9 @@ tls_transport::tls_transport(boost::asio::ip::tcp::socket& socket, tls_config co
     /* One address can serve certificates for many names; without SNI the peer has to guess which
      * of them we came for. */
     if (!SSL_set_tlsext_host_name(m_stream.native_handle(), m_config.hostname.c_str()))
-        throw boost::system::system_error(
-            boost::system::error_code(static_cast<int>(::ERR_get_error()),
-                                      boost::asio::error::get_ssl_category()));
+        SG_THROW(boost::system::system_error,
+                 boost::system::error_code(static_cast<int>(::ERR_get_error()),
+                                           boost::asio::error::get_ssl_category()));
 
     /* verify hostname */
     m_stream.set_verify_callback(boost::asio::ssl::host_name_verification(m_config.hostname));
@@ -58,7 +58,7 @@ boost::asio::awaitable<void> tls_transport::handshake() {
     if (ec == boost::asio::error::operation_aborted)
         SG_THROW(exceptions::net::time_out);
 
-    throw boost::system::system_error(ec);
+    SG_THROW(boost::system::system_error, ec);
 }
 
 boost::asio::awaitable<std::size_t> tls_transport::read_some(boost::asio::mutable_buffer buffer) {

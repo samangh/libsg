@@ -37,6 +37,7 @@
 #endif
 
 #include "sg/net/net.h"
+#include "sg/debug.h"
 
 #include <array>
 #include <bit>
@@ -93,7 +94,7 @@ std::string address_to_string(const sockaddr *sa, address_family family,
                                      unsigned scope_id) {
     char buf[INET6_ADDRSTRLEN];
     if (::inet_ntop(to_af(family), address_bytes(sa, family), buf, sizeof(buf)) == nullptr)
-        throw sg::exceptions::net::other("could not format address");
+        SG_THROW(sg::exceptions::net::other, "could not format address");
 
     /* without its zone, a link-local address is ambiguous */
     if (scope_id != 0)
@@ -123,7 +124,7 @@ netmask_t to_netmask(address_family family, const std::array<std::byte, 16> &byt
 
     char buf[INET6_ADDRSTRLEN];
     if (::inet_ntop(to_af(family), mask.data(), buf, sizeof(buf)) == nullptr)
-        throw sg::exceptions::net::other("could not format netmask");
+        SG_THROW(sg::exceptions::net::other, "could not format netmask");
 
     return {buf, prefix_length_of(mask)};
 }

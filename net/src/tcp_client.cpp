@@ -49,7 +49,7 @@ void tcp_client::connect(const end_point& endpoint, tcp_session::Callbacks::OnDa
                  "tcp_client::connect() must not be called from the I/O thread (e.g. from a callback)");
 
     if (m_session && m_session->is_connected())
-        throw std::runtime_error("the client is already connected");
+        SG_THROW(std::runtime_error, "the client is already connected");
 
     if (m_session) {
         m_session->stop_async();
@@ -109,7 +109,7 @@ void tcp_client::connect(const end_point& endpoint, tcp_session::Callbacks::OnDa
                 if (ec == boost::asio::error::timed_out ||
                     ec == boost::asio::error::operation_aborted)
                     SG_THROW(exceptions::net::time_out);
-                throw boost::system::system_error(ec);
+                SG_THROW(boost::system::system_error, ec);
             }
         },
         boost::asio::use_future);

@@ -1,4 +1,5 @@
 #include "sg/net/tcp_native.h"
+#include "sg/debug.h"
 #include "sg/net/net.h"
 
 #include "sg/error.h"
@@ -66,7 +67,7 @@ void set_keepalive(socket_t nativeHandle, keepalive_t keepAlive) {
     if (idleSec > (std::numeric_limits<int>::max)() ||
         intervalSec > (std::numeric_limits<int>::max)() ||
         count > (std::numeric_limits<int>::max)())
-        throw std::invalid_argument("keepalive parameters are out of range");
+        SG_THROW(std::invalid_argument, "keepalive parameters are out of range");
 
     THROW_ON_ERRORNO_SOCKET(setsockopt(nativeHandle, IPPROTO_TCP, TCP_KEEPIDLE, (const char*)&idleSec, sizeof(idleSec)));
     THROW_ON_ERRORNO_SOCKET(setsockopt(nativeHandle, IPPROTO_TCP, TCP_KEEPINTVL, (const char*)&intervalSec, sizeof(intervalSec)));

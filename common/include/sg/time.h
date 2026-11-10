@@ -1,6 +1,7 @@
 #pragma once
 
 #include "concepts.h"
+#include "sg/debug.h"
 
 #include <chrono>
 #include <fmt/format.h>
@@ -57,7 +58,7 @@ requires(sg::concepts::is_time_point_v<TTimePoint>)
     #endif
 
     if (is.fail())
-        throw std::invalid_argument("could not parse string to a time_point");
+        SG_THROW(std::invalid_argument, "could not parse string to a time_point");
 
     return t;
 }

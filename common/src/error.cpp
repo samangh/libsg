@@ -1,4 +1,5 @@
 #include "sg/error.h"
+#include "sg/debug.h"
 
 namespace sg::error {
 
@@ -13,7 +14,7 @@ std::string windows_error_message(DWORD errorID) {
         LocalFree(s);
         return result;
     } else
-        throw std::runtime_error("could not format error message");
+        SG_THROW(std::runtime_error, "could not format error message");
 }
 #endif
 

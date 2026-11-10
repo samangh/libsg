@@ -1,4 +1,5 @@
 #include "sg/process.h"
+#include "sg/debug.h"
 #include "sg/buffer.h"
 
 #include <stdexcept>
@@ -27,14 +28,14 @@ std::map<pid_t,Process> get_processes() {
     try {
         hProcessSnap = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS | TH32CS_SNAPTHREAD, 0);
         if (hProcessSnap == INVALID_HANDLE_VALUE)
-            throw std::runtime_error("CreateToolhelp32Snapshot (of processes) failed");
+            SG_THROW(std::runtime_error, "CreateToolhelp32Snapshot (of processes) failed");
 
         pe32.dwSize = sizeof(PROCESSENTRY32);
         te32.dwSize = sizeof(THREADENTRY32);
 
         /* loop through all processes */
         if (!Process32First(hProcessSnap, &pe32))
-            throw std::runtime_error("Failed getting first process");
+            SG_THROW(std::runtime_error, "Failed getting first process");
         do {
             result.emplace(
                 pe32.th32ProcessID,
@@ -50,7 +51,7 @@ std::map<pid_t,Process> get_processes() {
 
         /* loop through all threads */
         if (!Thread32First(hProcessSnap, &te32))
-            throw std::runtime_error("Failed first thread");
+            SG_THROW(std::runtime_error, "Failed first thread");
 
         do {
             auto& process = result.at(te32.th32OwnerProcessID);

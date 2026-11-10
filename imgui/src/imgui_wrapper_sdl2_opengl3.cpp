@@ -1,6 +1,7 @@
 #if defined(LIBSG_IMGUI_OPENGL)
 
 #include "helpers.h"
+#include "sg/debug.h"
 #include "sg/imgui/imgui_wrapper_sdl2_opengl3.h"
 
 #include <backends/imgui_impl_sdl2.h>
@@ -49,7 +50,7 @@ void ImGuiWrapper_Sdl2_OpenGl3::start(const std::string &title)
         /******************
          * ADDED BY libsg *
          ******************/
-        throw std::runtime_error(SDL_GetError());
+        SG_THROW(std::runtime_error, SDL_GetError());
         /******************/
     }
 
@@ -104,7 +105,7 @@ void ImGuiWrapper_Sdl2_OpenGl3::start(const std::string &title)
         /******************
          * ADDED BY libsg *
          ******************/
-        throw std::runtime_error(SDL_GetError());
+        SG_THROW(std::runtime_error, SDL_GetError());
         /******************/
     }
 
@@ -114,7 +115,7 @@ void ImGuiWrapper_Sdl2_OpenGl3::start(const std::string &title)
         /******************
          * ADDED BY libsg *
          ******************/
-        throw std::runtime_error(SDL_GetError());
+        SG_THROW(std::runtime_error, SDL_GetError());
         /******************/
     }
 

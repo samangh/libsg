@@ -1,4 +1,5 @@
 #include "sg/string.h"
+#include "sg/debug.h"
 
 #include <cstring>
 #include <cwchar>
@@ -11,7 +12,7 @@
     do {                                                                                           \
         auto const err = (fn);                                                                     \
         if (err == static_cast<size_t>(-1))                                                        \
-            throw std::runtime_error(strerror(errno));                                             \
+            SG_THROW(std::runtime_error, strerror(errno));                                         \
     } while (0)
 
 namespace sg::string {

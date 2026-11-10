@@ -1,6 +1,7 @@
 #pragma once
 
 #include "channel.h"
+#include "sg/debug.h"
 
 namespace sg::data {
 
@@ -17,7 +18,8 @@ template <typename T> class vector_channel : public IContiguousChannel<T> {
 
     void from_bytes(const void* data, size_t byteCount) override {
         if (byteCount % sizeof(T) != 0)
-            throw std::runtime_error("given set of bytes does not match the size of the channel type");
+            SG_THROW(std::runtime_error,
+                     "given set of bytes does not match the size of the channel type");
 
         m_data = std::vector<T>(static_cast<const T*>(data),
                                 static_cast<const T*>(data) + (byteCount / sizeof(T)));

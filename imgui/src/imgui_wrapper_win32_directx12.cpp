@@ -3,6 +3,7 @@
 
 #if defined(LIBSG_IMGUI_DIRECTX)
 #include "helpers.h"
+#include "sg/debug.h"
 
 #include "sg/imgui/imgui_wrapper_win32_directx12.h"
 #include "sg/string.h"
@@ -404,7 +405,7 @@ void ImGuiWrapper_Win32_DirectX12::start(const std::string &title)
             /******************
              * ADDED BY libsg *
              ******************/
-            throw std::runtime_error("Could not create Direct3D device");
+            SG_THROW(std::runtime_error, "Could not create Direct3D device");
             /******************/
         }
     }
