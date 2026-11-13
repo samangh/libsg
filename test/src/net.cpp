@@ -210,3 +210,9 @@ TEST_CASE("sg::net check resolve()", "[sg::net]") {
         sg::net::resolve("localhozxcst");
     } catch (const sg::exceptions::net::any&) {}
 }
+
+TEST_CASE("sg::net resolve() accepts an IP literal", "[sg::net]") {
+    /* IPv4 only: the resolver asks for address_configured, so "::1" fails on a host (or CI
+     * container) without IPv6 configured */
+    REQUIRE(sg::net::resolve("127.0.0.1") == std::vector<std::string>{"127.0.0.1"});
+}

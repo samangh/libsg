@@ -5,6 +5,7 @@
 
 #include <boost/asio.hpp>
 
+#include <algorithm>
 #include <cstddef>
 #include <string>
 
@@ -37,8 +38,21 @@ std::vector<std::string> resolve(const std::string& hostname) {
     boost::asio::ip::tcp::resolver resolver(context);
 
     try {
-        for (const auto& result : resolver.resolve(hostname, "http"))
-            ips.push_back(result.endpoint().address().to_string());
+        /* Pass a numeric service. A named one (e.g. "http") has to be looked up in /etc/services */
+        for (const auto& result :
+             resolver.resolve(hostname, "0", boost::asio::ip::tcp::resolver::numeric_service)) {
+
+            /* note:
+             *
+             *  - the same address can come back more than once (e.g. if the address/hostname is
+             *    entered multiple times in /etc/hosts)
+             *  - getaddrinfo() returns IPs in order of preference, so we can't use std::set or
+             *    std::unordered_set to remove duplicates: they don't keep insertion order
+             */
+            auto ip = result.endpoint().address().to_string();
+            if (std::ranges::find(ips, ip) == ips.end())
+                ips.push_back(std::move(ip));
+        }
 
         return ips;
     } catch (const boost::system::system_error & e) {
